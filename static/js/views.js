@@ -16,6 +16,7 @@ const views = {
   anime: document.getElementById("view-anime"),
   unwatched: document.getElementById("view-unwatched"),
   watched: document.getElementById("view-watched"),
+  recommend: document.getElementById("view-recommend"),
   search: document.getElementById("view-search"),
 };
 
@@ -25,21 +26,32 @@ const tabs = {
   anime: document.getElementById("tab-anime"),
   unwatched: document.getElementById("tab-unwatched"),
   watched: document.getElementById("tab-watched"),
+  recommend: document.getElementById("tab-recommend"),
   search: document.getElementById("tab-search"),
   sort: document.getElementById("tab-sort"),
   settings: document.getElementById("tab-settings"),
 };
 
+let prevView = "dizi";
+
 function switchView(name) {
+  const current = Object.keys(views).find((k) => views[k].classList.contains("active"));
+  if (name === "search" && current && current !== "search") prevView = current;
   if (name !== "search" && views.search.classList.contains("active")) {
     state.chips.length = 0;
     renderChips();
     closeResultsModal();
   }
   Object.keys(views).forEach((k) => views[k].classList.remove("active"));
-  Object.keys(tabs).forEach((k) => tabs[k].classList.remove("active"));
   views[name].classList.add("active");
-  tabs[name].classList.add("active");
+  if (name === "search") {
+    tabs.sort.classList.remove("active");
+    tabs.settings.classList.remove("active");
+    tabs.search.classList.add("active");
+  } else {
+    Object.keys(tabs).forEach((k) => tabs[k].classList.remove("active"));
+    tabs[name].classList.add("active");
+  }
   try {
     localStorage.setItem("activeView", name);
   } catch (e) {}
@@ -48,6 +60,7 @@ function switchView(name) {
   if (name === "anime") loadAnime();
   if (name === "unwatched") loadUnwatched();
   if (name === "watched") loadWatched();
+  if (name === "recommend") loadRecommendations();
   if (SORT_VIEWS.includes(name)) {
     state.sortKey = loadViewSort(name);
     updateSortMenu();
@@ -59,8 +72,9 @@ tabs.film.onclick = () => switchView("film");
 tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.watched.onclick = () => switchView("watched");
+tabs.recommend.onclick = () => switchView("recommend");
 tabs.search.onclick = () => switchView("search");
-document.getElementById("search-close").onclick = () => switchView("dizi");
+document.getElementById("search-close").onclick = () => switchView(prevView);
 
 const SORT_VIEWS = ["dizi", "film", "anime", "unwatched", "watched"];
 
@@ -145,16 +159,24 @@ function updateSortMenu() {
 
 const sortMenu = document.getElementById("sort-menu");
 function activateUtilityTab(btn) {
-  Object.keys(tabs).forEach((k) => tabs[k].classList.remove("active"));
+  document.querySelectorAll(".utils-tabs-group .tab.active").forEach((el) => el.classList.remove("active"));
   btn.classList.add("active");
+}
+function closeSortMenu() {
+  sortMenu.classList.remove("open");
+  tabs.sort.classList.remove("active");
 }
 document.getElementById("tab-sort").onclick = (e) => {
   e.stopPropagation();
   closeSettingsMenu();
-  activateUtilityTab(tabs.sort);
   const open = sortMenu.classList.contains("open");
-  sortMenu.classList.toggle("open", !open);
-  updateSortMenu();
+  if (open) {
+    closeSortMenu();
+  } else {
+    activateUtilityTab(tabs.sort);
+    sortMenu.classList.add("open");
+    updateSortMenu();
+  }
 };
 document.querySelectorAll(".sort-item").forEach((btn) => {
   btn.onclick = (e) => {
@@ -162,7 +184,7 @@ document.querySelectorAll(".sort-item").forEach((btn) => {
     state.sortKey = btn.dataset.sort;
     const av = activeView();
     saveViewSort(av, state.sortKey);
-    sortMenu.classList.remove("open");
+    closeSortMenu();
     if (views.dizi.classList.contains("active")) loadFollowed("dizi");
     if (views.film.classList.contains("active")) loadFollowed("film");
     if (views.anime.classList.contains("active")) loadAnime();
@@ -171,7 +193,7 @@ document.querySelectorAll(".sort-item").forEach((btn) => {
   };
 });
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".sort-wrap")) sortMenu.classList.remove("open");
+  if (!e.target.closest(".sort-wrap")) closeSortMenu();
 });
 
 function tvStatusLabel(status) {
@@ -725,6 +747,447 @@ async function moveBackFromWatched(item, targetView) {
   }
 }
 
+async function loadRecommendations() {
+  const empty = { shows: [], movies: [], anime: [] };
+  let shows = empty.shows, movies = empty.movies, anime = empty.anime;
+  try {
+    const [sr, mr, ar] = await Promise.all([
+      fetch("/api/recommendations?media=dizi"),
+      fetch("/api/recommendations?media=film"),
+      fetch("/api/recommendations?media=anime"),
+    ]);
+    shows = (await sr.json()).shows || [];
+    movies = (await mr.json()).movies || [];
+    anime = (await ar.json()).anime || [];
+  } catch (e) {
+    shows = movies = anime = [];
+  }
+  renderRecommendations({ shows, movies, anime });
+}
+
+function renderRecommendations(data) {
+  const view = document.getElementById("view-recommend");
+  const empty = document.getElementById("empty-recommend");
+  const showsGrid = document.getElementById("recommend-shows");
+  const moviesGrid = document.getElementById("recommend-movies");
+  const animeGrid = document.getElementById("recommend-anime");
+  if (!showsGrid || !moviesGrid || !animeGrid) return;
+  showsGrid.innerHTML = "";
+  moviesGrid.innerHTML = "";
+  animeGrid.innerHTML = "";
+
+  const shows = data.shows || [];
+  const movies = data.movies || [];
+  const animes = data.anime || [];
+  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+
+  ["recommend-shows-wrap", "recommend-movies-wrap", "recommend-anime-wrap"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = hasContent[id.replace("recommend-", "").replace("-wrap", "")] ? "" : "none";
+  });
+  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+
+  const order = loadSectionOrder("recommend").filter((s) => hasContent[s]);
+  ["shows", "movies", "anime"].forEach((s) => {
+    if (hasContent[s] && !order.includes(s)) order.push(s);
+  });
+  order.forEach((s) => {
+    const wrap = document.getElementById(`recommend-${s}-wrap`);
+    if (wrap) view.insertBefore(wrap, empty);
+  });
+  updateMoveButtons("view-recommend");
+
+  renderRecCards(shows, showsGrid, false, "shows");
+  renderRecCards(movies, moviesGrid, false, "movies");
+  renderRecCards(animes, animeGrid, true, "anime");
+}
+
+function recHideBtnHTML(item) {
+  return `<button class="hide-btn" data-tip="${t("rec_hide")}"><i class="fa-solid fa-ban"></i></button>`;
+}
+
+function recMoveBtnHTML(item) {
+  return item.can_move_watched
+    ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>`
+    : "";
+}
+
+function addRecPlaceholder(grid) {
+  if (!grid) return null;
+  const ph = document.createElement("div");
+  ph.className = "rec-placeholder";
+  ph.innerHTML = `<div class="ph-box"><span class="ph-spin"></span></div>`;
+  grid.appendChild(ph);
+  // Çerçeveyi komşu kartın tam yüksekliğine eşitle -> spinner tüm kart çerçevesine ortalanır
+  const ref = grid.querySelector(".card");
+  if (ref && ref.offsetHeight > 0) {
+    ph.classList.add("height-synced");
+    ph.style.height = ref.offsetHeight + "px";
+  }
+  return ph;
+}
+
+function clearRecPlaceholders(grid) {
+  if (!grid) return;
+  grid.querySelectorAll(".rec-placeholder").forEach((p) => p.remove());
+}
+
+function recOptimistic(div, section, reqFn, okMsg) {
+  const parent = div.parentNode;
+  const next = div.nextSibling;
+  div.remove();
+  addRecPlaceholder(parent);
+  if (okMsg) toast(okMsg);
+  reqFn()
+    .then(async (r) => {
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        refillRecSection(section);
+      } else {
+        toast(j.error || t("error"));
+        clearRecPlaceholders(parent);
+        if (parent) next ? parent.insertBefore(div, next) : parent.appendChild(div);
+      }
+    })
+    .catch(() => {
+      toast(t("error"));
+      clearRecPlaceholders(parent);
+      if (parent) next ? parent.insertBefore(div, next) : parent.appendChild(div);
+    });
+}
+
+function recHideHandler(div, item) {
+  const body = item.anilist_id
+    ? { anilist_id: item.anilist_id, title: item.title, poster_path: item.cover_url }
+    : { tmdb_id: item.tmdb_id, media_type: item.media_type, title: item.title, poster_path: item.poster_path };
+  return fetch("/api/recommendations/hide", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function renderRecCards(items, grid, isAnime, section, anchor) {
+  items.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.dataset.rid = item.tmdb_id || item.anilist_id;
+    const moveBtn = recMoveBtnHTML(item);
+    if (isAnime) {
+      div.innerHTML = `
+        ${animePosterHTML(item.cover_url, item.title)}
+        <div class="info">
+          <div class="title">${item.title}</div>
+          <div class="meta">
+            <span class="badge badge-anime">${t("tab_anime")}</span>
+            ${item.score ? scoreTag(item.score / 10) : ""}
+          </div>
+        </div>
+        ${moveBtn}
+        ${recHideBtnHTML(item)}
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = (e) => {
+        e.stopPropagation();
+        recOptimistic(div, section,
+          () => fetch("/api/anime/follow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ anilist_id: item.anilist_id }),
+          }),
+          t("added", { name: item.title })
+        );
+      };
+      const mvBtn = div.querySelector(".move-btn");
+      if (mvBtn) {
+        mvBtn.onclick = (e) => {
+          e.stopPropagation();
+          recOptimistic(div, section,
+            () => fetch("/api/recommendations/move-watched", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ anilist_id: item.anilist_id }),
+            }),
+            t("moved_to_watched", { name: item.title })
+          );
+        };
+      }
+      const hideBtn = div.querySelector(".hide-btn");
+      if (hideBtn) {
+        hideBtn.onclick = (e) => {
+          e.stopPropagation();
+          recOptimistic(div, section,
+            () => recHideHandler(div, item),
+            t("rec_hidden_toast", { name: item.title })
+          );
+        };
+      }
+      div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
+    } else {
+      div.innerHTML = `
+        ${posterHTML(item.poster_path, item.title)}
+        <div class="info">
+          <div class="title">${item.title}</div>
+          <div class="meta">
+            <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+            ${scoreTag(item.vote_average)}
+            ${platformTag(item.networks)}
+          </div>
+        </div>
+        ${moveBtn}
+        ${recHideBtnHTML(item)}
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = (e) => {
+        e.stopPropagation();
+        recOptimistic(div, section,
+          () => fetch("/api/follow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tmdb_id: item.tmdb_id,
+              media_type: item.media_type,
+              title: item.title,
+              poster_path: item.poster_path,
+            }),
+          }),
+          t("added", { name: item.title })
+        );
+      };
+      const mvBtn = div.querySelector(".move-btn");
+      if (mvBtn) {
+        mvBtn.onclick = (e) => {
+          e.stopPropagation();
+          recOptimistic(div, section,
+            () => fetch("/api/recommendations/move-watched", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                media_type: item.media_type,
+                tmdb_id: item.tmdb_id,
+                title: item.title,
+                poster_path: item.poster_path,
+              }),
+            }),
+            t("moved_to_watched", { name: item.title })
+          );
+        };
+      }
+      const hideBtn = div.querySelector(".hide-btn");
+      if (hideBtn) {
+        hideBtn.onclick = (e) => {
+          e.stopPropagation();
+          recOptimistic(div, section,
+            () => recHideHandler(div, item),
+            t("rec_hidden_toast", { name: item.title })
+          );
+        };
+      }
+      div.onclick = () => openDetails(item.media_type, item.tmdb_id, item.title);
+    }
+    if (anchor) grid.insertBefore(div, anchor);
+    else grid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
+function currentRecIds(section) {
+  const grid = document.getElementById(section === "anime" ? "recommend-anime" : `recommend-${section}`);
+  if (!grid) return [];
+  return Array.from(grid.querySelectorAll(".card"))
+    .map((c) => c.dataset.rid)
+    .filter(Boolean);
+}
+
+const refillRunning = {};
+const refillQueued = {};
+
+async function fillOnce(section) {
+  const media = { shows: "dizi", movies: "film", anime: "anime" }[section] || "";
+  const grid = document.getElementById(section === "anime" ? "recommend-anime" : `recommend-${section}`);
+  const shown = currentRecIds(section);
+  const needed = 18 - shown.length;
+  if (needed <= 0 || !grid) return;
+  const url = `/api/recommendations?media=${media}&exclude=${shown.join(",")}&limit=${needed}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("http " + res.status);
+      const data = await res.json();
+      const items = data.shows || data.movies || data.anime || [];
+      // Duplo koruması: paralel isteklerde grid'de zaten olan kartları at
+      const have = new Set(currentRecIds(section).map(String));
+      const fresh = items.filter((it) => !have.has(String(it.tmdb_id || it.anilist_id)));
+      if (!fresh.length) {
+        clearRecPlaceholders(grid);
+        return;
+      }
+      // Birebir değişim: gelen her kart bir placeholder'ı kaldırır;
+      // kalan placeholder'lar (bekleyen gizlemeler) animasyonla yerinde kalır.
+      const phs = Array.from(grid.querySelectorAll(".rec-placeholder"));
+      const removeCount = Math.min(fresh.length, phs.length);
+      for (let i = 0; i < removeCount; i++) phs[i].remove();
+      renderRecCards(fresh, grid, section === "anime", section, phs[removeCount] || null);
+      return;
+    } catch (e) {
+      if (attempt === 2) break;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+  }
+  clearRecPlaceholders(grid);
+}
+
+async function refillRecSection(section) {
+  if (refillRunning[section]) {
+    refillQueued[section] = true;
+    return;
+  }
+  refillRunning[section] = true;
+  try {
+    do {
+      refillQueued[section] = false;
+      await fillOnce(section);
+    } while (refillQueued[section]);
+  } finally {
+    refillRunning[section] = false;
+  }
+}
+
+document.addEventListener("click", (e) => {
+  const rb = e.target.closest(".section-refresh");
+  if (rb && !rb.classList.contains("loading")) {
+    const section = rb.dataset.section;
+    const media = { shows: "dizi", movies: "film", anime: "anime" }[section] || "";
+    const grid = document.getElementById(section === "anime" ? "recommend-anime" : `recommend-${section}`);
+    const toastKey = { shows: "recommend_refreshed_shows", movies: "recommend_refreshed_movies", anime: "recommend_refreshed_anime" }[section] || "recommend_refreshed_shows";
+    rb.classList.add("loading");
+    fetch(`/api/recommendations?media=${media}&refresh=1`)
+      .then((res) => res.json())
+      .then((data) => {
+        const items = data.shows || data.movies || data.anime || [];
+        if (grid) {
+          grid.innerHTML = "";
+          renderRecCards(items, grid, section === "anime", section);
+        }
+        toast(t(toastKey));
+      })
+      .catch(() => toast(t("error")))
+      .finally(() => rb.classList.remove("loading"));
+    return;
+  }
+  const sh = e.target.closest(".section-hide");
+  if (sh) openHiddenModal(sh.dataset.section);
+});
+
+function hiddenPosterSrc(poster) {
+  if (!poster) return "";
+  return poster.startsWith("http") ? poster : `https://image.tmdb.org/t/p/w185${poster}`;
+}
+
+let hiddenItemsCache = [];
+
+async function openHiddenModal(section) {
+  const modal = document.getElementById("hidden-modal");
+  const listEl = document.getElementById("hidden-list");
+  const input = document.getElementById("hidden-search-input");
+  if (!modal || !listEl) return;
+  modal.dataset.section = section;
+  hiddenItemsCache = [];
+  if (input) {
+    input.value = "";
+    input.classList.remove("open");
+    input.style.display = "none";
+  }
+  const sBtn = document.getElementById("hidden-search-btn");
+  if (sBtn) sBtn.classList.remove("active");
+  listEl.innerHTML = `<div class="hidden-loading muted">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  const media = { shows: "dizi", movies: "film", anime: "anime" }[section] || "";
+  try {
+    const res = await fetch(`/api/recommendations/hidden?media=${encodeURIComponent(media)}`);
+    const data = await res.json();
+    hiddenItemsCache = (data && data.items) || [];
+    renderHiddenList(hiddenItemsCache, currentHiddenFilter());
+  } catch (err) {
+    listEl.innerHTML = "";
+  }
+}
+
+function currentHiddenFilter() {
+  const input = document.getElementById("hidden-search-input");
+  return (input && input.style.display === "block" ? (input.value || "").trim().toLowerCase() : "");
+}
+
+function renderHiddenList(items, filter) {
+  const modal = document.getElementById("hidden-modal");
+  const listEl = document.getElementById("hidden-list");
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  items.forEach((h) => {
+    if (filter && !(h.title || "").toLowerCase().includes(filter)) return;
+    const tile = document.createElement("div");
+    tile.className = "hidden-tile";
+    const src = hiddenPosterSrc(h.poster);
+    tile.innerHTML = `
+      ${src ? `<img class="hidden-poster" src="${src}" alt="" loading="lazy" />` : `<span class="hidden-poster hidden-poster-empty"></span>`}
+      <button class="hidden-restore" data-tip="${t("hidden_unhide")}"><i class="fa-solid fa-ban"></i></button>
+      <div class="hidden-name" title="${h.title || "#" + h.id}">${h.title || "#" + h.id}</div>
+    `;
+    tile.querySelector(".hidden-restore").onclick = async () => {
+      try {
+        const res = await fetch("/api/recommendations/unhide", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: modal ? modal.dataset.section : "", id: h.id }),
+        });
+        if (!res.ok) throw new Error("http " + res.status);
+        tile.remove();
+        if (!listEl.querySelector(".hidden-tile")) {
+          modal.style.display = "none";
+        }
+      } catch (err) {
+        toast(t("error"));
+      }
+    };
+    listEl.appendChild(tile);
+  });
+}
+
+function wireHiddenSearch() {
+  const btn = document.getElementById("hidden-search-btn");
+  const input = document.getElementById("hidden-search-input");
+  if (!btn || !input) return;
+  btn.onclick = () => {
+    const open = input.style.display === "block";
+    if (open) {
+      input.value = "";
+      input.style.display = "none";
+      input.classList.remove("open");
+      btn.classList.remove("active");
+      renderHiddenList(hiddenItemsCache, "");
+    } else {
+      input.style.display = "block";
+      input.classList.add("open");
+      btn.classList.add("active");
+      input.focus();
+    }
+  };
+  input.addEventListener("input", () => renderHiddenList(hiddenItemsCache, currentHiddenFilter()));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") btn.click();
+  });
+}
+
+(function wireHiddenModal() {
+  const modal = document.getElementById("hidden-modal");
+  if (!modal) return;
+  const close = () => { modal.style.display = "none"; };
+  const btn = document.getElementById("hidden-close");
+  if (btn) btn.onclick = close;
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  wireHiddenSearch();
+})();
+
 function loadSectionOrder(prefix) {
   const key = prefix + "SectionOrder";
   try {
@@ -800,4 +1263,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };
+export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab, closeSortMenu };

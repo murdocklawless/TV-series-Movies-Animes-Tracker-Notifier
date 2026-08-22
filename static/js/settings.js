@@ -2,7 +2,7 @@
 import { state } from "./state.js";
 import { t, checkTmdbKey, applyLang } from "./i18n.js";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
-import { sortMenu, activateUtilityTab } from "./views.js";
+import { sortMenu, activateUtilityTab, closeSortMenu } from "./views.js";
 
 // ---- Search ----
 // ---- Settings ----
@@ -256,6 +256,8 @@ function showMsg(text, ok) {
 function closeSettingsMenu() {
   const m = document.getElementById("settings-menu");
   if (m) m.classList.remove("open");
+  const btn = document.getElementById("tab-settings");
+  if (btn) btn.classList.remove("active");
 }
 
 function updateNotifyToggleStates() {
@@ -385,9 +387,15 @@ async function renderFavGenresList() {
 
 document.getElementById("tab-settings").addEventListener("click", (e) => {
   e.stopPropagation();
-  sortMenu.classList.remove("open");
-  activateUtilityTab(document.getElementById("tab-settings"));
-  document.getElementById("settings-menu").classList.toggle("open");
+  closeSortMenu();
+  const menu = document.getElementById("settings-menu");
+  const open = menu.classList.contains("open");
+  if (open) {
+    closeSettingsMenu();
+  } else {
+    activateUtilityTab(document.getElementById("tab-settings"));
+    menu.classList.add("open");
+  }
 });
 document.querySelectorAll(".settings-menu-item").forEach((btn) => {
   btn.addEventListener("click", () => {

@@ -307,6 +307,59 @@ def load_anime_details(conn, anime_id):
     }
 
 
+ANIME_REC_QUERY = """
+query ($genres: [String], $perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
+    media(type: ANIME, genre_in: $genres, sort: [POPULARITY_DESC, SCORE_DESC]) {
+      id
+      title { romaji english native }
+      coverImage { large }
+      format
+      status
+      episodes
+      nextAiringEpisode { episode airingAt }
+      averageScore
+      startDate { year month day }
+      genres
+    }
+  }
+}
+"""
+
+ANIME_REC_POPULAR_QUERY = """
+query ($perPage: Int) {
+  Page(page: 1, perPage: $perPage) {
+    media(type: ANIME, sort: [POPULARITY_DESC, SCORE_DESC]) {
+      id
+      title { romaji english native }
+      coverImage { large }
+      format
+      status
+      episodes
+      nextAiringEpisode { episode airingAt }
+      averageScore
+      startDate { year month day }
+      genres
+    }
+  }
+}
+"""
+
+
+def anilist_recommend(genres=None, per_page=50):
+    """Öneri için AniList media listesi: genre_in + popularite sırası.
+    genres boş/None ise genel popüler anime döner."""
+    if genres:
+        data = anilist_query(
+            ANIME_REC_QUERY, {"genres": list(genres), "perPage": int(per_page)}
+        )
+    else:
+        data = anilist_query(ANIME_REC_POPULAR_QUERY, {"perPage": int(per_page)})
+    if not data or not data.get("Page"):
+        return []
+    return data["Page"].get("media") or []
+
+
 ANIME_GENRE_QUERY = """
 query {
   GenreCollection

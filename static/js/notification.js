@@ -3,6 +3,8 @@ import { state } from "./state.js";
 import { t } from "./i18n.js";
 import { escAttr } from "./utils.js";
 import { showConfirm } from "./components.js";
+import { closeSortMenu } from "./views.js";
+import { closeSettingsMenu } from "./settings.js";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -107,13 +109,8 @@ function openMenu() {
   const isOpen = m.classList.contains("open");
   // close others
   try {
-    const sm = document.getElementById("sort-menu");
-    if (sm) sm.classList.remove("open");
-    const setM = document.getElementById("settings-menu");
-    if (setM) setM.classList.remove("open");
-    document.querySelectorAll(".tab.active").forEach(el=>{
-      if (el.id!=="tab-notif") el.classList.remove("active");
-    });
+    closeSortMenu();
+    closeSettingsMenu();
   } catch {}
   if (isOpen) {
     m.classList.remove("open");

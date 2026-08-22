@@ -186,6 +186,34 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_notif_media ON notifications(media_type, tmdb_id)")
     except Exception:
         pass
+    # Kalici cache: genel liste cache'i (restart sonrasi restore icin)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS cache_store (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            ts REAL NOT NULL
+        )"""
+    )
+    # Oneri payload kaliciligi (gen/TTL'den bagimsiz; fp + guncelleme ile yonetilir)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS rec_cache (
+            media TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            ts REAL NOT NULL,
+            fp TEXT
+        )"""
+    )
+    # Kart detay cache'i (dizi networks/status; rotasyon tekrarlarinda sorgu atilmaz)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS rec_detail (
+            kind TEXT NOT NULL,
+            id INTEGER NOT NULL,
+            networks TEXT,
+            status TEXT,
+            ts REAL NOT NULL,
+            PRIMARY KEY(kind, id)
+        )"""
+    )
     conn.commit()
     conn.close()
 

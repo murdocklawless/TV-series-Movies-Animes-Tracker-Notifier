@@ -21,6 +21,7 @@
         <button id="tab-anime" class="tab" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-tab-icon"></i><span data-i18n="tab_anime">Anime</span></button>
         <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched"><i class="fa-solid fa-eye-slash media-tab-icon"></i><span data-i18n="tab_unwatched">İzlenmemiş</span></button>
         <button id="tab-watched" class="tab" data-i18n="tab_watched"><i class="fa-solid fa-eye media-tab-icon"></i><span data-i18n="tab_watched">İzlenmiş</span></button>
+        <button id="tab-recommend" class="tab" data-i18n="tab_recommend"><i class="fa-solid fa-compass media-tab-icon"></i><span data-i18n="tab_recommend">Öneriler</span></button>
     </div>
     <div class="tabs-group utils-tabs-group">
         <div class="notif-wrap">
@@ -131,6 +132,26 @@
       </div>
       <div id="empty-watched" class="empty">
         <p data-i18n="empty_watched">İzlenmiş yapım yok.</p>
+      </div>
+    </section>
+
+    <!-- Recommendations view -->
+    <section id="view-recommend" class="view">
+      <div id="recommend-shows-wrap">
+        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="shows" data-i18n-title="recommend_refresh_shows"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="shows" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_shows">Önerilen Diziler</span></h2>
+        <div id="recommend-shows" class="poster-grid"></div>
+      </div>
+      <div id="recommend-movies-wrap">
+        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="movies" data-i18n-title="recommend_refresh_movies"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="movies" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_movies">Önerilen Filmler</span></h2>
+        <div id="recommend-movies" class="poster-grid"></div>
+      </div>
+      <div id="recommend-anime-wrap">
+        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="anime" data-i18n-title="recommend_refresh_anime"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="anime" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_anime">Önerilen Animeler</span></h2>
+        <div id="recommend-anime" class="poster-grid"></div>
+      </div>
+      <div id="empty-recommend" class="empty">
+        <p data-i18n="recommend_empty_1">Henüz öneri oluşturulacak yapım yok.</p>
+        <p data-i18n="recommend_empty_2">Favori türlerinizden ve takip listenizden öneriler burada görünecek.</p>
       </div>
     </section>
 
@@ -525,6 +546,21 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=324"></script>
+  <!-- Hidden recommendations modal -->
+  <div id="hidden-modal" class="modal-overlay" style="display:none">
+    <div class="modal hidden-modal">
+      <div class="modal-header">
+        <h3 id="hidden-title" data-i18n="hidden_title">Gizlenenler</h3>
+        <input id="hidden-search-input" type="text" data-i18n="hidden_search_hint" style="display:none" />
+        <div class="hidden-header-actions">
+          <button id="hidden-search-btn" class="hidden-header-btn" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <button id="hidden-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+        </div>
+      </div>
+      <div id="hidden-list" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/js/tracker.js?v=340"></script>
 </body>
 </html>

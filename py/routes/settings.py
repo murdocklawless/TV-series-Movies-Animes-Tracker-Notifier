@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_setting, set_setting
 from notifications import ntfy_topic_clean
+from ramcache import bump
 from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names, NOTIF_TYPES
 
 settings_bp = Blueprint("settings", __name__)
@@ -244,6 +245,7 @@ def fav_genres():
         genres.append(genre)
         added = True
     set_setting("fav_genres", json.dumps(genres, ensure_ascii=False))
+    bump()
     return jsonify({"ok": True, "added": added, "genres": genres})
 
 
@@ -266,6 +268,7 @@ def fav_anime_genres():
         genres.append(genre)
         added = True
     set_setting("fav_anime_genres", json.dumps(genres, ensure_ascii=False))
+    bump()
     return jsonify({"ok": True, "added": added, "genres": genres})
 
 

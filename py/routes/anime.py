@@ -17,6 +17,7 @@ from anilist import (
     _anime_start_year,
 )
 from ramcache import list_cache, bump, gen, cached_response
+from recommendations import remove_rec_item
 
 anime_bp = Blueprint("anime", __name__)
 
@@ -258,6 +259,10 @@ def anime_follow():
             )
         conn.commit()
     conn.close()
+    try:
+        remove_rec_item("anime", int(anilist_id))
+    except Exception:
+        pass
     bump()
     return jsonify({"ok": True})
 

@@ -328,7 +328,8 @@ main {
   .card .remove,
   .card .calendar-btn,
   .card .move-btn,
-  .card .move-back-btn {
+  .card .move-back-btn,
+  .card .hide-btn {
     width: 26px;
     height: 26px;
     top: 6px;
@@ -337,6 +338,9 @@ main {
     right: 6px;
   }
   .card .calendar-btn {
+    left: 6px;
+  }
+  .card .hide-btn {
     left: 6px;
   }
   .card .move-btn {
@@ -611,6 +615,35 @@ main {
   background: rgba(0, 0, 0, 0.8);
 }
 
+.card .hide-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #f87171;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.card .hide-btn i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.card .hide-btn:hover {
+  color: #fca5a5;
+  background: rgba(0, 0, 0, 0.8);
+}
+
 .card:hover .remove {
   display: block;
 }
@@ -620,6 +653,10 @@ main {
 }
 
 .card:hover .move-btn {
+  display: flex;
+}
+
+.card:hover .hide-btn {
   display: flex;
 }
 
@@ -2894,16 +2931,69 @@ input:-webkit-autofill:focus {
   gap: 8px;
 }
 
+.section-refresh {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 1;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  line-height: 1;
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  top: 40%;
+}
+
+.section-refresh:hover {
+  color: #FFFFFF;
+}
+
+.section-refresh.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@keyframes rec-spin {
+  to { transform: rotate(360deg); }
+}
+
+.section-refresh.loading i {
+  animation: rec-spin 0.9s linear infinite;
+}
+
+.section-hide {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 1;
+  transition: color 0.15s ease;
+  line-height: 1;
+  position: absolute;
+  left: 22px;
+  transform: translateY(-50%);
+  top: 40%;
+}
+
+.section-hide:hover {
+  color: #FFFFFF;
+}
+
 .section-move-up,
 .section-move-down {
   background: transparent;
   border: none;
-  color: #f97316;
+  color: #B4B8C4;
   cursor: pointer;
   padding: 2px 4px;
   font-size: 0.85rem;
-  opacity: 0.8;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  opacity: 1;
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
   line-height: 1;
   position: absolute;
   right: 0;
@@ -2914,6 +3004,7 @@ input:-webkit-autofill:focus {
 .section-move-up:hover,
 .section-move-down:hover {
   opacity: 1;
+  color: #FFFFFF;
   transform: translateY(-50%) scale(1.15);
 }
 
@@ -2933,7 +3024,8 @@ input:-webkit-autofill:focus {
 }
 
 #view-unwatched > div,
-#view-watched > div {
+#view-watched > div,
+#view-recommend > div {
   margin-bottom: 24px;
 }
 
@@ -2976,6 +3068,9 @@ input:-webkit-autofill:focus {
     display: block;
   }
   .card .calendar-btn {
+    display: flex;
+  }
+  .card .hide-btn {
     display: flex;
   }
 }
@@ -3053,11 +3148,12 @@ input:-webkit-autofill:focus {
     font-size: 1rem;
   }
 
-  #tab-dizi span,
+#tab-dizi span,
   #tab-film span,
   #tab-anime span,
   #tab-unwatched span,
   #tab-watched span,
+  #tab-recommend span,
   #tab-search span {
     display: none;
   }
@@ -3207,7 +3303,8 @@ input:-webkit-autofill:focus {
   }
 
   .card .remove,
-  .card .calendar-btn {
+  .card .calendar-btn,
+  .card .hide-btn {
     width: 26px;
     height: 26px;
     top: 6px;
@@ -3215,6 +3312,14 @@ input:-webkit-autofill:focus {
 
   .card .calendar-btn {
     left: 6px;
+  }
+
+  .card .hide-btn {
+    left: 6px;
+  }
+
+  .card .hide-btn i {
+    font-size: 0.78rem;
   }
 
   .card .remove {
@@ -3278,7 +3383,8 @@ input:-webkit-autofill:focus {
   .modal-overlay .person-modal,
   .modal-overlay .picker-modal,
   .modal-overlay .value-modal,
-  .modal-overlay .unwatched-modal {
+  .modal-overlay .unwatched-modal,
+  .modal-overlay .hidden-modal {
     max-width: 92%;
     max-height: none;
     height: auto;
@@ -3291,6 +3397,7 @@ input:-webkit-autofill:focus {
   .modal-overlay .person-modal,
   .modal-overlay .picker-modal,
   .modal-overlay .unwatched-modal,
+  .modal-overlay .hidden-modal,
   #releases-modal > .modal {
     max-height: 90vh;
   }
@@ -3423,4 +3530,230 @@ input:-webkit-autofill:focus {
   font-weight: 600;
   color: #2e7d32;
   text-align: justify;
+}
+
+/* Öneriler görünümü */
+#view-recommend .poster-grid {
+  justify-content: flex-start;
+}
+
+.rec-placeholder {
+  position: relative;
+  width: 170px;
+  aspect-ratio: 2 / 3;
+  border: 1px dashed #2a2f3d;
+  border-radius: 12px;
+  background: transparent;
+}
+
+/* Komşu kart yüksekliği JS ile senkronlanınca oranı devre dışı bırak */
+.rec-placeholder.height-synced {
+  aspect-ratio: auto;
+}
+
+.rec-placeholder .ph-box {
+  position: absolute;
+  inset: 0;
+}
+
+.rec-placeholder .ph-spin {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 56px;
+  height: 56px;
+  border: 5px solid #2a2f3d;
+  border-top-color: #f97316;
+  border-radius: 50%;
+  animation: rec-spin 0.9s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .rec-placeholder {
+    width: 120px;
+  }
+
+  .rec-placeholder .ph-spin {
+    width: 40px;
+    height: 40px;
+    border-width: 4px;
+  }
+}
+
+/* Gizlenen öneriler modalı (Faz 18) */
+.hidden-modal {
+  max-width: 660px;
+}
+
+.hidden-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hidden-modal .modal-header {
+  gap: 6px;
+}
+
+.hidden-modal .modal-header h3 {
+  margin-right: auto;
+}
+
+#hidden-search-input {
+  display: none;
+  width: 230px;
+  /* Dar konteynerde flex shrink ile kuculur -> esit bosluklar her ekranda */
+  max-width: 100%;
+  background: #1b1f2a;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #e8eaf0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+#hidden-search-input::placeholder {
+  color: #6b7180;
+}
+
+#hidden-search-input.open {
+  display: block;
+}
+
+#hidden-search-input:focus {
+  border-color: #f97316;
+}
+
+.hidden-header-btn {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.hidden-header-btn:hover,
+.hidden-header-btn.active {
+  color: #FFFFFF;
+}
+
+#hidden-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+.hidden-loading {
+  text-align: center;
+  padding: 12px;
+  width: 100%;
+}
+
+/* Öneri kartı görünümü */
+.hidden-tile {
+  position: relative;
+  width: 110px;
+  background: #171a23;
+  border: 1px solid #262a36;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hidden-poster {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.hidden-poster-empty {
+  background: #22252f;
+}
+
+.hidden-name {
+  padding: 8px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  /* Iki satira kadar goster, tasma halinde ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Kart .hide-btn ile aynı ikon stili — posterin sol üstünde, her zaman görünür */
+.hidden-restore {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #f87171;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hidden-restore i {
+  /* Glif buton kutusunun tamamina yayilir -> dairenin TAM ortasinda */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.hidden-restore:hover {
+  color: #fca5a5;
+}
+
+/* Desktop: FA glif metrikleri + 11.52px kesirli kutunun 1x DPR yuvarlamasi
+   glifi ~1px yukari ciziyor; tam piksel boyut + 1px asagi optik duzeltme.
+   Mobil override YOK — mobil render piksel bazinda aynen korunur. */
+@media (min-width: 769px) {
+  .hidden-restore i {
+    font-size: 12px;
+    transform: translateY(1px);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Ara acilinca input basligin yanina sigismazsa alt satira iner:
+     1. satir = baslik + butonlar, 2. satir = tam genislik input */
+  .hidden-modal .modal-header {
+    flex-wrap: wrap;
+  }
+
+  #hidden-search-input {
+    order: 3;
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  #hidden-list {
+    gap: 12px;
+  }
+
+  .hidden-tile {
+    width: 90px;
+  }
 }

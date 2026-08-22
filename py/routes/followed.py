@@ -10,6 +10,7 @@ from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
 from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from ramcache import list_cache, bump, gen, cached_response
+from recommendations import remove_rec_item
 
 followed_bp = Blueprint("followed", __name__)
 
@@ -84,6 +85,10 @@ def follow():
         sync_episodes(conn, new_follow)
 
     conn.close()
+    try:
+        remove_rec_item("shows" if media_type == "tv" else "movies", int(tmdb_id))
+    except Exception:
+        pass
     bump()
     return jsonify({"ok": True})
 

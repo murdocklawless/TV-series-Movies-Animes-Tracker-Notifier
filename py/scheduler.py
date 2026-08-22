@@ -457,6 +457,17 @@ def sync_genres():
     print("sync_genres tamam", len(_tmdb_genre_names()), len(_anilist_genre_names()))
 
 
+def refresh_recommendations_job():
+    """Öneri bölümlerini gecede bir kez rotasyonla tazeler (fail-soft):
+    erişim yoksa eski kartlar durur, kullanıcı etkilenmez."""
+    try:
+        from recommendations import refresh_all_sections
+        refresh_all_sections()
+        print("rec refresh tamam")
+    except Exception as e:
+        print("rec refresh failed:", e)
+
+
 def _tmdb_genre_names():
     conn = get_db()
     rows = conn.execute("SELECT name FROM genres WHERE source='tmdb' ORDER BY name").fetchall()
@@ -524,6 +535,22 @@ def schedule_releases():
         minute=data_m,
         timezone=tz,
         id="follow_data_sync",
+        misfire_grace_time=3600,
+    )
+
+    # Öneriler: gecede bir kez tazeleme (data_hour + 15 dk)
+    total_min = data_h * 60 + data_m + 15
+    rec_h = (total_min // 60) % 24
+    rec_m = total_min % 60
+    if SCHEDULER.get_job("rec_refresh"):
+        SCHEDULER.remove_job("rec_refresh")
+    SCHEDULER.add_job(
+        refresh_recommendations_job,
+        "cron",
+        hour=rec_h,
+        minute=rec_m,
+        timezone=tz,
+        id="rec_refresh",
         misfire_grace_time=3600,
     )
 
