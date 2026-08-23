@@ -9,6 +9,7 @@ backup_pre_calendar/
 .env
 baglanti-bilgileri.md
 AGENTS.md
+derin-inceleme-FAZ1.md
 
 # Test dosyalari ASLA git'e yollanmaz
 test_*.py
