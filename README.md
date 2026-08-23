@@ -1,4 +1,4 @@
-# Watchlist Tracker — TV · Movies · Anime
+# Watchlist Tracker Notifier — TV · Movies · Anime
 
 A personal media tracking web app that lets you follow TV series, movies and anime,
 get notified when new episodes or releases come out, keep track of what you have
