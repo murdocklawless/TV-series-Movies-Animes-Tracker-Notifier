@@ -1741,11 +1741,11 @@ input:-webkit-autofill:focus {
 .settings-form select:focus {
   outline: none;
   border-color: #f97316;
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
-}
+  }
 
 .settings-form select#s-lang,
-.settings-form select#s-cache-ttl {
+.settings-form select#s-cache-ttl,
+.settings-form select#s-email-provider {
   padding: 12px 30px 12px 14px;
   appearance: none;
   -webkit-appearance: none;
@@ -1769,35 +1769,66 @@ input:-webkit-autofill:focus {
   cursor: text;
 }
 
+/* tz-list: pulldown-menu.md deseninde pencere (.provider-list ile ayni degerler) */
 .tz-list {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
   z-index: 50;
-  max-height: 220px;
+  max-height: 726px;
   overflow-y: auto;
   background: #171a23;
   border: 1px solid #2a2f3d;
-  border-radius: 8px;
+  border-radius: 10px;
   margin-top: 4px;
+  padding: 8px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-.tz-list div {
+.tz-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* satirlar buton: Tab ile listeye girilebilir, klavye vurgusu .hl ile */
+.tz-list .tz-cell {
+  display: block;
+  width: 100%;
   padding: 8px 12px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   color: #ddd;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
 }
 
-.tz-list div:hover,
-.tz-list div.selected {
+.tz-list .tz-cell:focus {
+  outline: none;
+}
+
+.tz-list .tz-cell:hover {
+  background: #f97316;
+  color: #fff;
+}
+
+/* klavye vurgusu (.hl): hover/selected'dan sonra gelmeli, net gorunur olmali */
+.tz-list .tz-cell.hl {
   background: #262a36;
   color: #fff;
+  box-shadow: inset 3px 0 0 #f97316;
+}
+
+.tz-list .tz-cell.selected {
+  background: #f97316;
+  color: #fff;
+  font-weight: 600;
 }
 
 .settings-form input[type="time"]::-webkit-calendar-picker-indicator {
@@ -2546,8 +2577,7 @@ input:-webkit-autofill:focus {
 .value-body input:focus {
   outline: none;
   border-color: #f97316;
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
-}
+  }
 
 .modal-footer .btn + .btn {
   margin-left: 10px;
@@ -2594,8 +2624,7 @@ input:-webkit-autofill:focus {
 .picker-free input:focus {
   outline: none;
   border-color: #f97316;
-  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
-}
+  }
 
 .picker-empty {
   text-align: center;
@@ -3261,7 +3290,8 @@ input:-webkit-autofill:focus {
   }
 
   .settings-modal .settings-form select#s-lang,
-  .settings-modal .settings-form select#s-cache-ttl {
+  .settings-modal .settings-form select#s-cache-ttl,
+  .settings-modal .settings-form select#s-email-provider {
     padding: 0 30px 0 16px;
   }
 
@@ -3701,7 +3731,7 @@ input:-webkit-autofill:focus {
   left: 6px;
   background: rgba(0, 0, 0, 0.6);
   border: none;
-  color: #f87171;
+  color: #4ade80;
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -3723,7 +3753,7 @@ input:-webkit-autofill:focus {
 }
 
 .hidden-restore:hover {
-  color: #fca5a5;
+  color: #86efac;
 }
 
 /* Desktop: FA glif metrikleri + 11.52px kesirli kutunun 1x DPR yuvarlamasi
@@ -3756,4 +3786,163 @@ input:-webkit-autofill:focus {
   .hidden-tile {
     width: 90px;
   }
+}
+
+/* E-posta saglayici ipucu (uygulama sifresi vb.) */
+.settings-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin: 4px 0 8px;
+}
+
+/* E-posta saglayici secimine gore degisen alanlar cercevesi */
+/* E-posta akordeonu: saglayici cercevesine gomulu, kendi kenarligi yok */
+.email-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-frame > div {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* E-posta blogu odakliyken (pulldown veya cerceve ici) JS .email-lit ekler */
+.email-frame.email-lit {
+  border-color: #f97316;
+}
+
+select#s-email-provider.email-lit {
+  border-color: #f97316;
+  }
+
+/* E-posta saglayici pulldown penceresi (.time-list stili) */
+.provider-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.provider-combobox select#s-email-provider,
+.provider-combobox select#s-lang,
+.provider-combobox select#s-cache-ttl {
+  width: 100%;
+}
+
+.provider-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.provider-list::-webkit-scrollbar {
+  display: none;
+}
+
+.provider-cell {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #ddd;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.provider-cell:hover,
+.provider-cell.hl,
+.tz-list .tz-cell.hl {
+  background: #262a36;
+  color: #fff;
+}
+
+/* klavye vurgusu net gorunsun: solda turuncu cubuk */
+.provider-cell.hl {
+  box-shadow: inset 3px 0 0 #f97316;
+}
+
+.provider-cell.selected {
+  background: #f97316;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* dil listesi 14 satir: modal JS ile uzudugu icin tamami sigar */
+#settings-lang-modal .provider-list {
+  max-height: 520px;
+}
+
+.notify-ico-discord {
+  color: #5865f2;
+}
+
+/* Bildirim kanallari cerceveleri + kanal test butonlari */
+.channel-frame {
+  border: 1px solid #262a36;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.channel-frame label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.channel-frame > div {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.channel-frame .settings-actions {
+  justify-content: center;
+}
+
+.channel-test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #2a2f3d;
+  color: #aab;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.channel-test-btn:hover {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #fff;
+}
+
+/* Test butonlari satiri: cerceve genisligine uzilmaz, ortalanir */
+.channel-frame .test-row,
+.email-frame .test-row {
+  display: block;
+  text-align: center;
+  padding-top: 6px;
 }

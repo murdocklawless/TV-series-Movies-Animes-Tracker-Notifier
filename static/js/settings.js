@@ -51,18 +51,29 @@ function renderTzList(query) {
   const list = document.getElementById("s-tz-list");
   const q = (query || "").toLowerCase().trim();
   const matches = q
-    ? state.allTimezones.filter((z) => z.value.toLowerCase().includes(q)).slice(0, 100)
-    : state.allTimezones.slice(0, 100);
-  list.innerHTML = matches.map((z) => `<div data-tz="${z.value}">${z.value}</div>`).join("");
+    ? state.allTimezones.filter((z) => z.value.toLowerCase().includes(q))
+    : state.allTimezones;
+  list.innerHTML = matches
+    .map((z) => `<button type="button" class="tz-cell" data-tz="${z.value}">${z.value}</button>`)
+    .join("");
   list.style.display = matches.length ? "block" : "none";
-  list.querySelectorAll("div").forEach((el) => {
-    el.onclick = () => {
-      document.getElementById("s-tz").value = el.dataset.tz;
-      list.style.display = "none";
-      document.getElementById("s-tz").dispatchEvent(new Event("change"));
-    };
+  if (matches.length) {
+    ensureModalRoom(list, list.scrollHeight + 16);
+  } else {
+    releaseModalRoom(list);
+  }
+  tzHlIndex = -1;
+  // mousedown + preventDefault: input focus'u korunur (blur -> native change ile
+  // ham filtre metninin kaydedilmesi engellenir), click yutulma riski olmaz
+  list.querySelectorAll("[data-tz]").forEach((el) => {
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      pickTz(el);
+    });
   });
 }
+
+let tzHlIndex = -1;
 
 function initTimePicker(base) {
   const input = document.getElementById(base);
@@ -194,24 +205,238 @@ function initTimePicker(base) {
   });
 }
 
+function pickTz(el) {
+  const input = document.getElementById("s-tz");
+  const list = document.getElementById("s-tz-list");
+  if (!el || !el.dataset || !el.dataset.tz || list.style.display === "none") return;
+  input.value = el.dataset.tz;
+  closeTzList();
+  input.dispatchEvent(new Event("change"));
+}
+
+function closeTzList() {
+  const list = document.getElementById("s-tz-list");
+  if (list.style.display !== "none") {
+    list.style.display = "none";
+    releaseModalRoom(list);
+  }
+}
+
+// MERKEZLİ BÜYÜME: liste açılınca modal iki yöne büyür ve overlay'in doğal
+// align-items:center'ı ile dikey ortalanır (eski flex-start anchor + marginTop
+// dengelemesi kaldırıldı — aşağı-büyü modeli ekran altından taşıyordu).
+// Hedef yükseklik ekranın üst/alt boşluğuna clamp'lenir; taşan kısım listenin
+// kendi içi scroll'una kalır (inline maxHeight, her açılışta taze hesaplanır).
+// TEK AKTİF PULLDOWN: yeni liste açılınca öncekinin odası tabana indirilir;
+// kapanınca body minHeight overlay'in kaydettiği TABAN değere döner.
+let activePdList = null;
+
+function ensureModalRoom(list, desired) {
+  const body = list.closest(".modal-body");
+  const overlay = list.closest(".modal-overlay");
+  if (!body || !overlay) return;
+  if (activePdList && activePdList !== list) {
+    delete activePdList.dataset.pdAnchored;
+    activePdList = null;
+    body.style.minHeight = overlay.dataset.pdBaseMinH || "";
+  }
+  if (!activePdList) {
+    // taban yalnızca overlay TAMAMEN serbestken yakalanır (takeover kirlenmesi)
+    if (!overlay.dataset.pdRoomOpen) {
+      overlay.dataset.pdBaseMinH = body.style.minHeight || "";
+      overlay.dataset.pdRoomOpen = "1";
+    }
+    list.dataset.pdAnchored = "1";
+    activePdList = list;
+  }
+  const bodyRect = body.getBoundingClientRect();
+  // merkezleme büyümeyi iki yarıya böldüğü için her yönün payı 2 kat sayılır
+  const gMax = Math.max(120, Math.min(
+    2 * (window.innerHeight - 24 - bodyRect.bottom),
+    2 * (bodyRect.top - 24)
+  ));
+  const target = Math.min(Math.max(desired, 0), gMax);
+  if (target <= 0) return;
+  list.style.maxHeight = Math.max(120, target - 16) + "px";
+  // relTop merkezlemeden etkilenmez (body içi göreç konum)
+  const relTop = Math.round(list.getBoundingClientRect().top - bodyRect.top);
+  const needed = relTop + target;
+  if (needed > body.offsetHeight) {
+    body.style.minHeight = needed + "px";
+  }
+}
+
+function releaseModalRoom(list) {
+  if (!list || !list.dataset.pdAnchored) return;
+  const overlay = list.closest(".modal-overlay");
+  const body = list.closest(".modal-body");
+  delete list.dataset.pdAnchored;
+  if (activePdList === list) activePdList = null;
+  if (!body || !overlay) return;
+  body.style.minHeight = overlay.dataset.pdBaseMinH || "";
+  delete overlay.dataset.pdBaseMinH;
+  delete overlay.dataset.pdRoomOpen;
+}
+
 function initTzCombo() {
   const input = document.getElementById("s-tz");
   const list = document.getElementById("s-tz-list");
   input.addEventListener("focus", () => renderTzList(input.value));
   input.addEventListener("input", () => renderTzList(input.value));
+  function tzRows() {
+    return Array.from(list.querySelectorAll("[data-tz]"));
+  }
+  function setTzHl(i) {
+    const rs = tzRows();
+    if (!rs.length) { tzHlIndex = -1; return; }
+    tzHlIndex = ((i % rs.length) + rs.length) % rs.length;
+    rs.forEach((r, idx) => r.classList.toggle("hl", idx === tzHlIndex));
+    rs[tzHlIndex].scrollIntoView({ block: "nearest" });
+  }
+  // Tab ile listeye giris: turuncu vurgu ilk satirdan (Africa/Abidjan) baslar
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && list.style.display === "block") {
-      const first = list.querySelector("div[data-tz]");
-      if (first) {
-        input.value = first.dataset.tz;
-        list.style.display = "none";
-        input.dispatchEvent(new Event("change"));
-        e.preventDefault();
-      }
+    const open = list.style.display === "block" && list.querySelector("[data-tz]");
+    if (!open) return;
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      setTzHl(0);
+      tzRows()[0].focus();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setTzHl(tzHlIndex < 0 ? 0 : tzHlIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setTzHl(tzHlIndex < 0 ? 0 : tzHlIndex - 1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const rs = tzRows();
+      const el = tzHlIndex >= 0 ? rs[tzHlIndex] : rs[0];
+      pickTz(el);
+    }
+  });
+  // Liste icinde klavye: oklar vurguyu tasir, Enter/Space secer, Tab listeyi
+  // kapayip dogal odak akisina devam eder, Escape listeyi kapatir
+  list.addEventListener("keydown", (e) => {
+    const rs = tzRows();
+    if (!rs.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setTzHl(e.key === "ArrowDown" ? (tzHlIndex < 0 ? 0 : tzHlIndex + 1) : (tzHlIndex < 0 ? 0 : tzHlIndex - 1));
+      rs[tzHlIndex].focus();
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      pickTz(rs[tzHlIndex >= 0 ? tzHlIndex : 0]);
+    } else if (e.key === "Escape") {
+      e.stopPropagation();
+      closeTzList();
+      input.focus();
+    } else if (e.key === "Tab") {
+      closeTzList();
     }
   });
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".tz-combobox")) list.style.display = "none";
+    if (!e.target.closest(".tz-combobox")) {
+      closeTzList();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeTzList();
+    }
+  });
+}
+
+// pulldown-menu.md deseni: select tabanli ozel acilir pencere (native dropdown engellenir)
+function initPulldownCombobox(selectId, listId) {
+  const select = document.getElementById(selectId);
+  const list = document.getElementById(listId);
+  if (!select || !list) return;
+
+  let hlIndex = -1;
+  function pdRows() {
+    return Array.from(list.querySelectorAll(".provider-cell"));
+  }
+  function setHl(i) {
+    const rs = pdRows();
+    if (!rs.length) { hlIndex = -1; return; }
+    hlIndex = ((i % rs.length) + rs.length) % rs.length;
+    rs.forEach((r, idx) => r.classList.toggle("hl", idx === hlIndex));
+    rs[hlIndex].scrollIntoView({ block: "nearest" });
+  }
+  function pickRow(row) {
+    toggleList(false);
+    const v = row.dataset.value;
+    if (select.value !== v) {
+      select.value = v;
+      select.dispatchEvent(new Event("change"));
+    }
+  }
+
+  function renderRows() {
+    list.innerHTML = "";
+    Array.from(select.options).forEach((opt) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "provider-cell" + (opt.value === select.value ? " selected" : "");
+      row.dataset.value = opt.value;
+      row.textContent = opt.textContent;
+      row.onclick = (e) => {
+        e.stopPropagation();
+        pickRow(row);
+      };
+      list.appendChild(row);
+    });
+  }
+
+  function toggleList(on) {
+    const open = typeof on === "boolean" ? on : list.style.display !== "flex";
+    if (open) {
+      renderRows();
+      list.style.display = "flex";
+      ensureModalRoom(list, list.scrollHeight + 16);
+      const rs = pdRows();
+      const cur = rs.findIndex((r) => r.dataset.value === select.value);
+      setHl(cur >= 0 ? cur : 0);
+      select.focus();
+    } else {
+      list.style.display = "none";
+      releaseModalRoom(list);
+    }
+  }
+
+  select.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    toggleList();
+  });
+  select.addEventListener("keydown", (e) => {
+    if (list.style.display !== "flex") {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+        e.preventDefault();
+        toggleList(true);
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHl(hlIndex + 1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHl(hlIndex - 1);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const rs = pdRows();
+      if (hlIndex >= 0 && rs[hlIndex]) pickRow(rs[hlIndex]);
+      else toggleList(false);
+    } else if (e.key === "Escape") {
+      toggleList(false);
+    }
+  });
+  // kapanma karari basma aninda: modal kaymasindan etkilenmez (click kullanilmaz)
+  document.addEventListener("mousedown", (e) => {
+    if (!list.parentElement.contains(e.target)) toggleList(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") toggleList(false);
   });
 }
 
@@ -225,26 +450,40 @@ async function loadSettings() {
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
-  document.getElementById("s-notification-hour").value = s.notification_hour || "09:05";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
+  document.getElementById("s-discord-webhook").value = s.discord_webhook_url || "";
+  document.getElementById("s-brevo-key").value = s.brevo_api_key || "";
+  document.getElementById("s-email-from").value = s.email_from || "";
+  document.getElementById("s-email-to").value = s.email_to || "";
+  document.getElementById("s-email-provider").value = s.email_provider || "brevo";
+  document.getElementById("s-smtp-host").value = s.smtp_host || "";
+  document.getElementById("s-smtp-port").value = s.smtp_port || "";
+  document.getElementById("s-smtp-user").value = s.smtp_user || "";
+  document.getElementById("s-smtp-pass").value = "";
+  state.hasSmtpPass = !!s.has_smtp_pass;
+  applyEmailProviderUI();
   await loadTimezones();
   initTzCombo();
+  initPulldownCombobox("s-lang", "s-lang-list");
+  initPulldownCombobox("s-cache-ttl", "s-cache-ttl-list");
   initTimePicker("s-hour");
   initTimePicker("s-sync-hour");
   initTimePicker("s-genre-hour");
   initTimePicker("s-data-hour");
-  initTimePicker("s-notification-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = state.currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
   document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
   document.getElementById("s-ntfy-enabled").checked = (s.ntfy_enabled || "1") !== "0";
+  document.getElementById("s-discord-enabled").checked = (s.discord_enabled || "1") !== "0";
+  document.getElementById("s-email-enabled").checked = (s.email_enabled || "1") !== "0";
   document.getElementById("s-center-enabled").checked = (s.notif_center_enabled || "1") !== "0";
   NOTIF_TYPES.forEach(([k]) => {
     const el = document.getElementById(`s-notif-${k}`);
     if (el) el.checked = (s[`notif_${k}`] || "1") !== "0";
   });
   document.getElementById("s-cache-ttl").value = s.cache_ttl || "90";
+  syncAutoSaveBaselines();
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
 }
@@ -264,10 +503,23 @@ function updateNotifyToggleStates() {
   const token = (document.getElementById("s-token").value || "").trim();
   const chat = (document.getElementById("s-chat").value || "").trim();
   const ntfy = (document.getElementById("s-ntfy").value || "").trim();
+  const discordUrl = (document.getElementById("s-discord-webhook").value || "").trim();
+  const brevoKey = (document.getElementById("s-brevo-key").value || "").trim();
+  const emailFrom = (document.getElementById("s-email-from").value || "").trim();
+  const emailTo = (document.getElementById("s-email-to").value || "").trim();
+  const provider = document.getElementById("s-email-provider").value;
+  const smtpHost = (document.getElementById("s-smtp-host").value || "").trim();
+  const smtpPort = (document.getElementById("s-smtp-port").value || "").trim();
+  const smtpUser = (document.getElementById("s-smtp-user").value || "").trim();
+  const smtpPassEntered = (document.getElementById("s-smtp-pass").value || "").trim();
   const tg = document.getElementById("s-telegram-enabled");
   const nf = document.getElementById("s-ntfy-enabled");
+  const dc = document.getElementById("s-discord-enabled");
+  const em = document.getElementById("s-email-enabled");
   const tgWrap = tg.closest(".switch");
   const nfWrap = nf.closest(".switch");
+  const dcWrap = dc.closest(".switch");
+  const emWrap = em.closest(".switch");
   if (!(token && chat)) {
     if (tg.checked) {
       tg.checked = false;
@@ -291,6 +543,37 @@ function updateNotifyToggleStates() {
     nf.disabled = false;
     nfWrap.removeAttribute("data-tip");
   }
+  if (!discordUrl) {
+    if (dc.checked) {
+      dc.checked = false;
+      saveSettingsPartial({ discord_enabled: "0" });
+    }
+    dc.disabled = true;
+    dcWrap.setAttribute("data-tip", t("need_discord_webhook"));
+  } else {
+    dc.disabled = false;
+    dcWrap.removeAttribute("data-tip");
+  }
+  let emTip = "";
+  if (provider === "brevo") {
+    if (!brevoKey) emTip = t("need_brevo_key");
+    else if (!emailFrom || !emailTo) emTip = t("need_sender_recipient");
+  } else {
+    if (!smtpHost || !smtpPort) emTip = t("need_smtp_host_port");
+    else if (!smtpUser || (!smtpPassEntered && !state.hasSmtpPass)) emTip = t("need_smtp_user_pass");
+    else if (!emailFrom || !emailTo) emTip = t("need_sender_recipient");
+  }
+  if (emTip) {
+    if (em.checked) {
+      em.checked = false;
+      saveSettingsPartial({ email_enabled: "0" });
+    }
+    em.disabled = true;
+    emWrap.setAttribute("data-tip", emTip);
+  } else {
+    em.disabled = false;
+    emWrap.removeAttribute("data-tip");
+  }
 }
 
 async function showSettingsSubmodal(id) {
@@ -302,6 +585,13 @@ async function showSettingsSubmodal(id) {
       console.error(e);
     }
   }
+  // Modal acilirken e-posta blogunda sarkan bir odak varsa temizle -> cerceve kapali baslar
+  const emailFrame = document.getElementById("email-provider-frame");
+  if (emailFrame && document.activeElement && emailFrame.contains(document.activeElement)) {
+    document.activeElement.blur();
+  }
+  updateEmailFocusUI();
+  setEmailFrameVisible(false);
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = el.id === id ? "flex" : "none";
   });
@@ -447,13 +737,27 @@ async function saveSettingsPartial(patch, hintEl) {
   }
 }
 
+const AUTO_SAVE_BASELINES = {};
+const AUTO_SAVE_FIELDS = [];
+
+function syncAutoSaveBaselines() {
+  AUTO_SAVE_FIELDS.forEach(({ id, transform }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    AUTO_SAVE_BASELINES[id] = transform ? transform(el.value) : el.value;
+  });
+}
+
 function bindAutoSave(id, key, transform) {
   const el = document.getElementById(id);
   const hint = el.closest("label").querySelector(".saved-hint");
-  el.addEventListener("blur", () => {
-    const patch = {};
-    patch[key] = transform ? transform(el.value) : el.value;
-    saveSettingsPartial(patch, hint);
+  AUTO_SAVE_FIELDS.push({ id, transform });
+  el.addEventListener("blur", async () => {
+    const val = transform ? transform(el.value) : el.value;
+    // deger degismediyse kaydetme ve "Kaydedildi" gostermme
+    if (AUTO_SAVE_BASELINES[id] !== undefined && val === AUTO_SAVE_BASELINES[id]) return;
+    const ok = await saveSettingsPartial({ [key]: val }, hint);
+    if (ok) AUTO_SAVE_BASELINES[id] = val;
   });
 }
 
@@ -461,17 +765,213 @@ bindAutoSave("s-tmdb", "tmdb_api_key", (v) => v.trim());
 bindAutoSave("s-token", "telegram_bot_token", (v) => v.trim());
 bindAutoSave("s-chat", "telegram_chat_id", (v) => v.trim());
 bindAutoSave("s-ntfy", "ntfy_topic", (v) => v.trim());
+bindAutoSave("s-discord-webhook", "discord_webhook_url", (v) => v.trim());
+bindAutoSave("s-brevo-key", "brevo_api_key", (v) => v.trim());
+bindAutoSave("s-email-from", "email_from", (v) => v.trim());
+bindAutoSave("s-email-to", "email_to", (v) => v.trim());
+bindAutoSave("s-smtp-host", "smtp_host", (v) => v.trim());
+bindAutoSave("s-smtp-port", "smtp_port", (v) => v.trim());
+bindAutoSave("s-smtp-user", "smtp_user", (v) => v.trim());
+bindAutoSave("s-smtp-pass", "smtp_pass", (v) => v);
+
+["s-brevo-key", "s-email-from", "s-email-to", "s-smtp-host", "s-smtp-port", "s-smtp-user", "s-smtp-pass", "s-discord-webhook"].forEach((id) => {
+  document.getElementById(id).addEventListener("blur", () => {
+    const el = document.getElementById(id);
+    if (id === "s-smtp-pass" && el.value.trim()) state.hasSmtpPass = true;
+    updateNotifyToggleStates();
+  });
+});
+
+const EMAIL_PRESETS = {
+  gmail:   { host: "smtp.gmail.com",      port: 587, appPassword: true },
+  outlook: { host: "smtp.office365.com",  port: 587 },
+  yahoo:   { host: "smtp.mail.yahoo.com", port: 465 },
+  yandex:  { host: "smtp.yandex.com",     port: 465 },
+  icloud:  { host: "smtp.mail.me.com",    port: 587, appPassword: true },
+  zoho:    { host: "smtp.zoho.com",       port: 465 },
+};
+
+function updateEmailFocusUI() {
+  const provSelect = document.getElementById("s-email-provider");
+  const frame = document.getElementById("email-provider-frame");
+  if (!provSelect || !frame) return;
+  const active =
+    providerList.style.display === "flex" ||
+    document.activeElement === provSelect ||
+    (frame.contains(document.activeElement) && document.activeElement !== frame);
+  frame.classList.toggle("email-lit", active);
+  provSelect.classList.toggle("email-lit", active);
+}
+
+["s-email-provider", "email-provider-frame"].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener("focusin", updateEmailFocusUI);
+  el.addEventListener("focusout", (e) => {
+    // odak cerceve icindeki baska bir alana tasiyorsa sonuk gostermeyelim
+    setTimeout(updateEmailFocusUI, 0);
+  });
+});
+
+// Akordeon: e-posta detaylari yalnizca pulldown'a dokununca acilir
+function setEmailFrameVisible(on) {
+  const frame = document.getElementById("email-provider-frame");
+  if (frame) frame.style.display = on ? "" : "none";
+}
+const emailProvSelect = document.getElementById("s-email-provider");
+["mousedown", "focus", "change", "keydown"].forEach((ev) => {
+  emailProvSelect.addEventListener(ev, () => setEmailFrameVisible(true));
+});
+// akordeon: pulldown + cerceve disina mousedown -> cerceve kapansin
+const emailCombobox = emailProvSelect.closest(".provider-combobox");
+document.addEventListener("mousedown", (e) => {
+  if (emailCombobox.contains(e.target)) return;
+  const frame = document.getElementById("email-provider-frame");
+  if (frame && frame.contains(e.target)) return;
+  setEmailFrameVisible(false);
+  updateEmailFocusUI();
+});
+
+// Ozel pulldown penceresi (saat secici .time-list stilinde): native dropdown engellenir
+const providerList = document.getElementById("email-provider-list");
+let provHlIndex = -1;
+function provRows() {
+  return Array.from(providerList.querySelectorAll(".provider-cell"));
+}
+function setProvHl(i) {
+  const rs = provRows();
+  if (!rs.length) { provHlIndex = -1; return; }
+  provHlIndex = ((i % rs.length) + rs.length) % rs.length;
+  rs.forEach((r, idx) => r.classList.toggle("hl", idx === provHlIndex));
+  rs[provHlIndex].scrollIntoView({ block: "nearest" });
+}
+
+function renderProviderList() {
+  providerList.innerHTML = "";
+  Array.from(emailProvSelect.options).forEach((opt) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "provider-cell" + (opt.value === emailProvSelect.value ? " selected" : "");
+    row.dataset.value = opt.value;
+    row.textContent = opt.textContent;
+    row.onclick = (e) => {
+      e.stopPropagation();
+      closeProviderList();
+      if (emailProvSelect.value !== opt.value) {
+        emailProvSelect.value = opt.value;
+        emailProvSelect.dispatchEvent(new Event("change"));
+      }
+      // secim sonrasi pulldown aktif kalsin
+      emailProvSelect.focus();
+      updateEmailFocusUI();
+    };
+    providerList.appendChild(row);
+  });
+}
+
+function openProviderList() {
+  renderProviderList();
+  providerList.style.display = "flex";
+  const rs = provRows();
+  const cur = rs.findIndex((r) => r.dataset.value === emailProvSelect.value);
+  setProvHl(cur >= 0 ? cur : 0);
+  emailProvSelect.focus();
+  updateEmailFocusUI();
+}
+
+function closeProviderList() {
+  providerList.style.display = "none";
+  updateEmailFocusUI();
+}
+
+emailProvSelect.addEventListener("mousedown", (e) => {
+  // native dropdown acilmasin; ozel pencere acilsin
+  e.preventDefault();
+  if (providerList.style.display === "flex") closeProviderList();
+  else openProviderList();
+});
+emailProvSelect.addEventListener("keydown", (e) => {
+  if (providerList.style.display !== "flex") {
+    if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      e.preventDefault();
+      openProviderList();
+    }
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    setProvHl(provHlIndex + 1);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    setProvHl(provHlIndex - 1);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const rs = provRows();
+    if (provHlIndex >= 0 && rs[provHlIndex]) rs[provHlIndex].click();
+    else closeProviderList();
+  } else if (e.key === "Escape") {
+    closeProviderList();
+  }
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".provider-combobox")) closeProviderList();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeProviderList();
+});
+
+function applyEmailProviderUI() {
+  const prov = document.getElementById("s-email-provider").value || "brevo";
+  document.getElementById("email-brevo-group").style.display = prov === "brevo" ? "" : "none";
+  document.getElementById("email-smtp-group").style.display = prov === "brevo" ? "none" : "";
+  const preset = EMAIL_PRESETS[prov];
+  const manual = document.getElementById("email-smtp-manual");
+  manual.style.display = preset ? "none" : "";
+  if (preset) {
+    document.getElementById("s-smtp-host").value = preset.host;
+    document.getElementById("s-smtp-port").value = String(preset.port);
+  }
+  document.getElementById("email-app-password-hint").style.display =
+    preset && preset.appPassword ? "" : "none";
+}
+
+document.getElementById("s-email-provider").addEventListener("change", () => {
+  const el = document.getElementById("s-email-provider");
+  applyEmailProviderUI();
+  const hint = el.closest("label") && el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial(
+    {
+      email_provider: el.value,
+      smtp_preset: el.value === "brevo" ? "" : el.value,
+      ...(EMAIL_PRESETS[el.value]
+        ? { smtp_host: EMAIL_PRESETS[el.value].host, smtp_port: String(EMAIL_PRESETS[el.value].port) }
+        : {}),
+    },
+    hint
+  );
+  updateNotifyToggleStates();
+});
 
 document.getElementById("s-lang").addEventListener("change", () => {
   const el = document.getElementById("s-lang");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ language: el.value }, hint).then((ok) => {
-    if (ok) applyLang(el.value.split("-")[0]);
+    if (ok) {
+      applyLang(el.value.split("-")[0]);
+      // toast yeni secilen dilde gosterilir
+      const opt = el.options[el.selectedIndex];
+      toast(t("lang_selected", { name: opt ? opt.textContent : el.value }));
+    }
   });
 });
 
+// yalnizca gecerli timezone degerleri kaydedilir; blur'da tetiklenen native
+// change ile ham filtre metninin (orn. "istan") DB'ye yazilmasi engellenir
 document.getElementById("s-tz").addEventListener("change", () => {
   const el = document.getElementById("s-tz");
+  if (!state.allTimezones.some((z) => z.value === el.value)) {
+    el.value = state.currentTz;
+    return;
+  }
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ timezone: el.value }, hint).then((ok) => {
     if (ok) state.currentTz = el.value;
@@ -500,17 +1000,17 @@ document.getElementById("s-data-hour").addEventListener("change", () => {
   saveSettingsPartial({ data_hour: el.value }, hint);
 });
 
-document.getElementById("s-notification-hour").addEventListener("change", () => {
-  const el = document.getElementById("s-notification-hour");
-  const hint = el.closest("label").querySelector(".saved-hint");
-  saveSettingsPartial({ notification_hour: el.value }, hint);
-});
-
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ telegram_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
 document.getElementById("s-ntfy-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
+document.getElementById("s-discord-enabled").addEventListener("change", (e) => {
+  saveSettingsPartial({ discord_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
+document.getElementById("s-email-enabled").addEventListener("change", (e) => {
+  saveSettingsPartial({ email_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
 document.getElementById("s-center-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ notif_center_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
@@ -524,12 +1024,7 @@ document.getElementById("s-cache-ttl").addEventListener("change", () => {
   saveSettingsPartial({ cache_ttl: el.value }, hint);
 });
 
-document.getElementById("test-settings").onclick = async () => {
-  const body = {
-    telegram_bot_token: document.getElementById("s-token").value.trim(),
-    telegram_chat_id: document.getElementById("s-chat").value.trim(),
-    ntfy_topic: document.getElementById("s-ntfy").value.trim(),
-  };
+async function runChannelTest(body) {
   const r = await fetch("/api/settings/test", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -537,6 +1032,45 @@ document.getElementById("test-settings").onclick = async () => {
   });
   const j = await r.json();
   showMsg(r.ok ? t("test_sent") : j.error || t("error"), r.ok);
+}
+
+function fieldVal(id) {
+  return document.getElementById(id).value.trim();
+}
+
+document.getElementById("test-telegram").onclick = () => {
+  runChannelTest({
+    channel: "telegram",
+    telegram_bot_token: fieldVal("s-token"),
+    telegram_chat_id: fieldVal("s-chat"),
+  });
+};
+
+document.getElementById("test-ntfy").onclick = () => {
+  runChannelTest({ channel: "ntfy", ntfy_topic: fieldVal("s-ntfy") });
+};
+
+document.getElementById("test-discord").onclick = () => {
+  runChannelTest({ channel: "discord", discord_webhook_url: fieldVal("s-discord-webhook") });
+};
+
+document.getElementById("test-email").onclick = async () => {
+  const body = {
+    channel: "email",
+    email_provider: document.getElementById("s-email-provider").value,
+    email_from: fieldVal("s-email-from"),
+    email_to: fieldVal("s-email-to"),
+  };
+  if (body.email_provider === "brevo") {
+    body.brevo_api_key = fieldVal("s-brevo-key");
+  } else {
+    body.smtp_host = fieldVal("s-smtp-host");
+    body.smtp_port = fieldVal("s-smtp-port");
+    body.smtp_user = fieldVal("s-smtp-user");
+    const pass = document.getElementById("s-smtp-pass").value;
+    if (pass) body.smtp_pass = pass;
+  }
+  await runChannelTest(body);
 };
 
 

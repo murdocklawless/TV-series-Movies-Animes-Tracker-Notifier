@@ -6,7 +6,9 @@ import zoneinfo
 from flask import Blueprint, jsonify, request
 
 from db import get_setting, set_setting
-from notifications import ntfy_topic_clean
+from crypto_util import encrypt_secret, decrypt_secret
+from notifications import ntfy_topic_clean, _send_generic_smtp, _email_card_html
+from messages_i18n import t
 from ramcache import bump
 from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names, NOTIF_TYPES
 
@@ -141,13 +143,24 @@ def get_settings():
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
-            "notification_hour": get_setting("notification_hour") or "09:05",
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
             "telegram_enabled": get_setting("telegram_enabled") or "1",
             "ntfy_enabled": get_setting("ntfy_enabled") or "1",
             "notif_center_enabled": get_setting("notif_center_enabled") or "1",
+            "discord_enabled": get_setting("discord_enabled") or "1",
+            "discord_webhook_url": get_setting("discord_webhook_url") or "",
+            "email_enabled": get_setting("email_enabled") or "1",
+            "brevo_api_key": get_setting("brevo_api_key") or "",
+            "email_from": get_setting("email_from") or "",
+            "email_to": get_setting("email_to") or "",
+            "email_provider": get_setting("email_provider") or "brevo",
+            "smtp_preset": get_setting("smtp_preset") or "",
+            "smtp_host": get_setting("smtp_host") or "",
+            "smtp_port": get_setting("smtp_port") or "",
+            "smtp_user": get_setting("smtp_user") or "",
+            "has_smtp_pass": bool(get_setting("smtp_pass")),
             "cache_ttl": get_setting("cache_ttl") or "3600",
             **{f"notif_{k}": get_setting(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
@@ -157,6 +170,11 @@ def get_settings():
 @settings_bp.route("/api/settings", methods=["POST"])
 def save_settings():
     body = request.get_json()
+    # gecersiz timezone DB'ye yazilip scheduler'i bozmasin
+    if "timezone" in body:
+        tz_val = str(body.get("timezone") or "").strip()
+        if tz_val and tz_val not in zoneinfo.available_timezones():
+            return jsonify({"error": "gecersiz timezone"}), 400
     for key in (
         "tmdb_api_key",
         "telegram_bot_token",
@@ -165,46 +183,83 @@ def save_settings():
         "sync_hour",
         "genre_hour",
         "data_hour",
-        "notification_hour",
         "timezone",
         "language",
         "ntfy_topic",
         "telegram_enabled",
         "ntfy_enabled",
         "notif_center_enabled",
+        "discord_enabled",
+        "discord_webhook_url",
+        "email_enabled",
+        "brevo_api_key",
+        "email_from",
+        "email_to",
+        "email_provider",
+        "smtp_preset",
+        "smtp_host",
+        "smtp_port",
+        "smtp_user",
         "cache_ttl",
         *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
+    if "smtp_pass" in body:
+        val = (body.get("smtp_pass") or "").strip()
+        # bos deger -> mevcut sifre korunur; sadece yeni girilen deger sifrelenir
+        if val:
+            set_setting("smtp_pass", encrypt_secret(val))
     if "cache_ttl" in body:
         try:
             from ramcache import list_cache
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "notification_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 
 
+PROVIDER_LABELS = {
+    "gmail": "Gmail", "outlook": "Outlook/Hotmail", "yahoo": "Yahoo",
+    "yandex": "Yandex", "icloud": "iCloud", "zoho": "Zoho",
+    "other": "E-Posta sunucusu", "brevo": "Brevo",
+}
+
+
 @settings_bp.route("/api/settings/test", methods=["POST"])
 def test_settings():
-    body = request.get_json()
-    token = body.get("telegram_bot_token")
-    chat_id = body.get("telegram_chat_id")
-    ntfy_topic = body.get("ntfy_topic")
-    if not ((token and chat_id) or ntfy_topic):
-        return jsonify({"error": "Telegram veya ntfy bilgisi gereklidir"}), 400
-    errors = []
-    if token and chat_id:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
+    body = request.get_json(silent=True) or {}
+    channel = (body.get("channel") or "").strip().lower()
+    token = (body.get("telegram_bot_token") or "").strip() or (get_setting("telegram_bot_token") or "").strip()
+    chat_id = (body.get("telegram_chat_id") or "").strip() or (get_setting("telegram_chat_id") or "").strip()
+    ntfy_topic = (body.get("ntfy_topic") or "").strip() or (get_setting("ntfy_topic") or "").strip()
+    discord_url = (body.get("discord_webhook_url") or "").strip() or (get_setting("discord_webhook_url") or "").strip()
+    brevo_api_key = (body.get("brevo_api_key") or "").strip() or (get_setting("brevo_api_key") or "").strip()
+    email_from = (body.get("email_from") or "").strip() or (get_setting("email_from") or "").strip()
+    email_to = (body.get("email_to") or "").strip() or (get_setting("email_to") or "").strip()
+    provider = (body.get("email_provider") or get_setting("email_provider") or "brevo").strip() or "brevo"
+    smtp_host = (body.get("smtp_host") or "").strip() or (get_setting("smtp_host") or "").strip()
+    smtp_port = (body.get("smtp_port") or "").strip() or (get_setting("smtp_port") or "").strip()
+    smtp_user = (body.get("smtp_user") or "").strip() or (get_setting("smtp_user") or "").strip()
+    smtp_pass_plain = body.get("smtp_pass") or ""
+    stored_pass = get_setting("smtp_pass") or ""
+    sample_card = {
+        "title": "Örnek Dizi",
+        "media_type": "tv",
+        "score": 8.1,
+        "platform": "Netflix",
+        "status_line": "S01E01 · Bugün Yayınlanacak",
+        "poster_url": "https://image.tmdb.org/t/p/w500/gMYZZvnkVNTqSVnVCphWbPXwWwb.jpg",
+    }
+
+    if channel == "telegram":
+        if not (token and chat_id):
+            return jsonify({"error": "Telegram bot token ve chat ID gereklidir"}), 400
         r = requests.post(
-            url,
-            json={
-                "chat_id": chat_id,
-                "text": "Takip uygulaması test mesajı",
-            },
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": t("test_message")},
             timeout=15,
         )
         if r.status_code != 200:
@@ -212,17 +267,75 @@ def test_settings():
                 err = r.json().get("description", "Bilinmeyen hata")
             except Exception:
                 err = "Bilinmeyen hata"
-            errors.append(f"Telegram hatası: {err}")
-    if ntfy_topic:
+            return jsonify({"error": f"Telegram hatası: {err}"}), 400
+    elif channel == "ntfy":
+        if not ntfy_topic:
+            return jsonify({"error": "ntfy konusu gereklidir"}), 400
         r = requests.post(
             f"https://ntfy.sh/{ntfy_topic_clean(ntfy_topic)}",
-            data="Takip uygulaması test mesajı",
+            data=t("test_message"),
             timeout=15,
         )
         if r.status_code != 200:
-            errors.append(f"ntfy hatası: HTTP {r.status_code}")
-    if errors:
-        return jsonify({"error": "; ".join(errors)}), 400
+            return jsonify({"error": f"ntfy hatası: HTTP {r.status_code}"}), 400
+    elif channel == "discord":
+        if not discord_url.startswith("https://discord.com/api/webhooks/"):
+            return jsonify({"error": "Geçerli Discord webhook adresi gereklidir"}), 400
+        try:
+            r = requests.post(
+                discord_url,
+                json={"content": t("test_message")},
+                timeout=15,
+            )
+            if r.status_code not in (200, 204):
+                try:
+                    err = r.json().get("message", "Bilinmeyen hata")
+                except Exception:
+                    err = "Bilinmeyen hata"
+                return jsonify({"error": f"Discord hatası: {err}"}), 400
+        except Exception as e:
+            return jsonify({"error": f"Discord hatası: {e}"}), 400
+    elif channel == "email":
+        prov_label = PROVIDER_LABELS.get(provider, "E-Posta")
+        if provider == "brevo":
+            if not (brevo_api_key and email_from and email_to):
+                return jsonify({"error": "Brevo API anahtarı, gönderen ve alıcı e-posta gereklidir"}), 400
+            try:
+                r = requests.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    json={
+                        "sender": {"name": "NextEp", "email": email_from},
+                        "to": [{"email": email_to}],
+                        "subject": t("test_message"),
+                        "textContent": t("test_message"),
+                        "htmlContent": _email_card_html(sample_card),
+                    },
+                    headers={
+                        "api-key": brevo_api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    timeout=20,
+                )
+                if r.status_code not in (200, 201):
+                    return jsonify({"error": t("email_send_failed", provider=prov_label)}), 400
+            except Exception as e:
+                return jsonify({"error": t("email_send_failed", provider=prov_label)}), 400
+        else:
+            password = smtp_pass_plain or decrypt_secret(stored_pass)
+            if not (smtp_host and smtp_port and smtp_user and password and email_from and email_to):
+                return jsonify({"error": "SMTP bilgileri eksik"}), 400
+            try:
+                ok = _send_generic_smtp(
+                    t("test_message"), None,
+                    host=smtp_host, port_raw=smtp_port, user=smtp_user, password=password,
+                    email_from=email_from, email_to=email_to, card=sample_card,
+                )
+                if not ok:
+                    return jsonify({"error": t("email_send_failed", provider=prov_label)}), 400
+            except Exception as e:
+                return jsonify({"error": t("email_send_failed", provider=prov_label)}), 400
+
     return jsonify({"ok": True})
 
 

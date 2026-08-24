@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=336" />
+  <title>NextEp</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=347" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -42,9 +42,10 @@
           <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
           <div id="settings-menu" class="settings-menu">
             <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
-            <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB ve Telegram</span></button>
+            <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB API Key</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-channels-modal"><i class="fa-solid fa-paper-plane"></i><span data-i18n="settings_channels">Bildirim Kanalları</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-cache-modal"><i class="fa-solid fa-gauge-high"></i><span data-i18n="settings_cache">Cache Süresi</span></button>
@@ -221,22 +222,25 @@
       </div>
       <div class="modal-body settings-form">
         <label><span class="settings-label-head"><span data-i18n="label_lang">Uygulama Dili / TMDB Dili</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <select id="s-lang">
-            <option value="tr-TR">Türkçe</option>
-            <option value="en-US">English</option>
-            <option value="de-DE">Deutsch</option>
-            <option value="fr-FR">Français</option>
-            <option value="es-ES">Español</option>
-            <option value="it-IT">Italiano</option>
-            <option value="ru-RU">Русский</option>
-            <option value="ar-SA">العربية</option>
-            <option value="pt-BR">Português (BR)</option>
-            <option value="nl-NL">Nederlands</option>
-            <option value="pl-PL">Polski</option>
-            <option value="ja-JP">日本語</option>
-            <option value="ko-KR">한국어</option>
-            <option value="zh-CN">中文</option>
-          </select>
+          <div class="provider-combobox">
+            <select id="s-lang">
+              <option value="tr-TR">Türkçe</option>
+              <option value="en-US">English</option>
+              <option value="de-DE">Deutsch</option>
+              <option value="fr-FR">Français</option>
+              <option value="es-ES">Español</option>
+              <option value="it-IT">Italiano</option>
+              <option value="ru-RU">Русский</option>
+              <option value="ar-SA">العربية</option>
+              <option value="pt-BR">Português (BR)</option>
+              <option value="nl-NL">Nederlands</option>
+              <option value="pl-PL">Polski</option>
+              <option value="ja-JP">日本語</option>
+              <option value="ko-KR">한국어</option>
+              <option value="zh-CN">中文</option>
+            </select>
+            <div id="s-lang-list" class="provider-list" style="display:none"></div>
+          </div>
         </label>
         <label><span class="settings-label-head"><span data-i18n="label_tz">Zaman Dilimi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <div class="tz-combobox">
@@ -256,14 +260,17 @@
       </div>
       <div class="modal-body settings-form">
         <label><span class="settings-label-head"><span data-i18n="label_cache_ttl">Liste Önbelleği Süresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <select id="s-cache-ttl">
-            <option value="0" data-i18n="cache_off">Kapalı</option>
-            <option value="300" data-i18n="cache_5m">5 dk</option>
-            <option value="1800" data-i18n="cache_30m">30 dk</option>
-            <option value="3600" data-i18n="cache_1h">1 saat</option>
-            <option value="21600" data-i18n="cache_6h">6 saat</option>
-            <option value="86400" data-i18n="cache_24h">24 saat</option>
-          </select>
+          <div class="provider-combobox">
+            <select id="s-cache-ttl">
+              <option value="0" data-i18n="cache_off">Kapalı</option>
+              <option value="300" data-i18n="cache_5m">5 dk</option>
+              <option value="1800" data-i18n="cache_30m">30 dk</option>
+              <option value="3600" data-i18n="cache_1h">1 saat</option>
+              <option value="21600" data-i18n="cache_6h">6 saat</option>
+              <option value="86400" data-i18n="cache_24h">24 saat</option>
+            </select>
+            <div id="s-cache-ttl-list" class="provider-list" style="display:none"></div>
+          </div>
         </label>
         <div class="cache-info" data-i18n="label_cache_info">Kendi yaptığınız değişiklikler (bölüm izleme, takip etme vb.) cache süresinden etkilenmeden her zaman anında yansır. Bu ayar yalnızca anime bölümlerinin listede görünme hızını etkiler, uzun seçimlerde (örn. 24 saat) yeni yayına giren bölüm İzlenmemiş listesinde en geç bu kadar sürede görünür. Telegram, ntfy ve bildirim merkezi etkilenmez.</div>
       </div>
@@ -273,42 +280,101 @@
   <div id="settings-tmdb-modal" class="modal-overlay settings-modal-overlay" style="display:none">
     <div class="modal settings-modal">
       <div class="modal-header">
-        <h3 data-i18n="settings_tmdb">TMDB ve Telegram</h3>
+        <h3 data-i18n="settings_tmdb">TMDB API Key</h3>
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
         <label><span class="settings-label-head"><span data-i18n="label_tmdb">TMDB API Key</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <input id="s-tmdb" type="text" placeholder="tmdb_api_key" />
         </label>
-        <label><span class="settings-label-head"><span data-i18n="label_token">Telegram Bot Token</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <input id="s-token" type="text" placeholder="123456:ABC-DEF..." />
-        </label>
-        <label><span class="settings-label-head"><span data-i18n="label_chat">Telegram Chat ID</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <input id="s-chat" type="text" placeholder="-100123456789" />
-        </label>
-        <label><span class="settings-label-head"><span data-i18n="label_ntfy">ntfy Konu</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <input id="s-ntfy" type="text" placeholder="konu-adi" data-i18n="ntfy_placeholder" />
-        </label>
-        <label><span class="settings-label-head"><span data-i18n="label_hour">Bildirim Saati (günlük)</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <div class="time-combobox">
-            <input id="s-hour" type="text" value="09:00" />
-            <i class="fa-solid fa-clock time-clock"></i>
-            <div id="s-time-list" class="time-list" style="display:none">
-              <div class="time-col">
-                <div class="time-col-title" data-i18n="time_hour">Saat</div>
-                <div class="time-col-body" id="s-hour-list"></div>
-              </div>
-              <div class="time-col">
-                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
-                <div class="time-col-body" id="s-minute-list"></div>
-              </div>
-            </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-channels-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_channels">Bildirim Kanalları</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body settings-form">
+        <div class="channel-frame">
+          <label><span class="settings-label-head"><span data-i18n="label_token">Telegram Bot Token</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-token" type="text" placeholder="123456:ABC-DEF..." />
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="label_chat">Telegram Chat ID</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-chat" type="text" placeholder="-100123456789" />
+          </label>
+          <div class="test-row">
+            <button id="test-telegram" class="channel-test-btn"><i class="fa-brands fa-telegram"></i> <span data-i18n="test_short">Test</span></button>
           </div>
-        </label>
-        <div class="settings-actions">
-          <button id="test-settings" class="btn"><span data-i18n="test_message">Test Mesajı Gönder</span></button>
         </div>
-        <div id="settings-msg" class="msg"></div>
+        <div class="channel-frame">
+          <label><span class="settings-label-head"><span data-i18n="label_ntfy">ntfy Konu</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-ntfy" type="text" placeholder="konu-adi" data-i18n="ntfy_placeholder" />
+          </label>
+          <div class="test-row">
+            <button id="test-ntfy" class="channel-test-btn"><i class="fa-solid fa-bell"></i> <span data-i18n="test_short">Test</span></button>
+          </div>
+        </div>
+        <div class="channel-frame">
+          <label><span class="settings-label-head"><span data-i18n="label_discord_webhook">Discord Webhook URL</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-discord-webhook" type="password" placeholder="https://discord.com/api/webhooks/..." />
+          </label>
+          <div class="test-row">
+            <button id="test-discord" class="channel-test-btn"><i class="fa-brands fa-discord"></i> <span data-i18n="test_short">Test</span></button>
+          </div>
+        </div>
+        <div class="channel-frame">
+          <label><span class="settings-label-head"><span data-i18n="label_email_provider">E-posta Sağlayıcısı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <div class="provider-combobox">
+              <select id="s-email-provider">
+                <option value="brevo" data-i18n="prov_brevo">Brevo API</option>
+                <option value="gmail" data-i18n="prov_gmail">Gmail</option>
+                <option value="outlook" data-i18n="prov_outlook">Outlook / Hotmail</option>
+                <option value="yahoo" data-i18n="prov_yahoo">Yahoo</option>
+                <option value="yandex" data-i18n="prov_yandex">Yandex</option>
+                <option value="icloud" data-i18n="prov_icloud">iCloud</option>
+                <option value="zoho" data-i18n="prov_zoho">Zoho</option>
+                <option value="other" data-i18n="prov_other">Diğer</option>
+              </select>
+              <div id="email-provider-list" class="provider-list" style="display:none"></div>
+            </div>
+          </label>
+          <div id="email-provider-frame" class="email-frame" style="display:none">
+          <div id="email-brevo-group">
+            <label><span class="settings-label-head"><span data-i18n="label_brevo_key">Brevo API Anahtarı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+              <input id="s-brevo-key" type="password" placeholder="xkeysib-..." />
+            </label>
+          </div>
+          <div id="email-smtp-group" style="display:none">
+            <div id="email-smtp-manual" style="display:none">
+              <label><span class="settings-label-head"><span data-i18n="label_smtp_host">Sunucu (Host)</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-smtp-host" type="text" placeholder="smtp.ornek.com" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="label_smtp_port">Port</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-smtp-port" type="text" placeholder="587" />
+              </label>
+            </div>
+            <label><span class="settings-label-head"><span data-i18n="label_smtp_user">Kullanıcı Adı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+              <input id="s-smtp-user" type="text" placeholder="kullanici@ornek.com" />
+            </label>
+            <label><span class="settings-label-head"><span data-i18n="label_smtp_pass">Şifre / Uygulama Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+              <input id="s-smtp-pass" type="password" placeholder="••••••••" autocomplete="new-password" />
+            </label>
+            <p id="email-app-password-hint" class="settings-hint" style="display:none" data-i18n="hint_app_password"></p>
+          </div>
+          <label><span class="settings-label-head"><span data-i18n="label_email_from">Gönderen E-posta</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-email-from" type="email" placeholder="gonderen@ornek.com" />
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="label_email_to">Alıcı E-posta</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+            <input id="s-email-to" type="email" placeholder="alici@ornek.com" />
+          </label>
+          <div class="test-row">
+            <button id="test-email" class="channel-test-btn"><i class="fa-solid fa-envelope"></i> <span data-i18n="test_short">Test</span></button>
+          </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -345,7 +411,7 @@
       </div>
       <div class="modal-body">
         <div class="notify-frame">
-          <div class="notify-frame-title" data-i18n="notif_frame_channels">Telegram · ntfy</div>
+          <div class="notify-frame-title" data-i18n="notif_frame_channels">Telegram · ntfy · E-posta</div>
           <div class="notify-row">
             <span class="notify-name"><i class="fa-brands fa-telegram notify-ico-telegram"></i> Telegram</span>
             <label class="switch"><input type="checkbox" id="s-telegram-enabled" checked /><span class="slider"></span></label>
@@ -353,6 +419,14 @@
           <div class="notify-row">
             <span class="notify-name"><i class="fa-solid fa-bell notify-ico-ntfy"></i> ntfy</span>
             <label class="switch"><input type="checkbox" id="s-ntfy-enabled" checked /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name"><i class="fa-brands fa-discord notify-ico-discord"></i> <span data-i18n="label_discord_channel">Discord</span></span>
+            <label class="switch"><input type="checkbox" id="s-discord-enabled" checked /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name"><i class="fa-solid fa-envelope notify-ico-email"></i> <span data-i18n="label_email_channel">E-posta (Brevo)</span></span>
+            <label class="switch"><input type="checkbox" id="s-email-enabled" checked /><span class="slider"></span></label>
           </div>
           <div class="notify-row">
             <span class="notify-name"><i class="fa-solid fa-bell notify-ico-center"></i> <span data-i18n="label_notif_center">Bildirim Merkezi (Web UI)</span></span>
@@ -376,6 +450,22 @@
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
+        <label><span class="settings-label-head"><span data-i18n="label_hour">Bildirim Saati (günlük)</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-hour" type="text" value="09:00" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
         <label><span class="settings-label-head"><span data-i18n="label_sync_hour">Bölüm Güncelleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <div class="time-combobox">
             <input id="s-sync-hour" type="text" value="09:00" />
@@ -420,22 +510,6 @@
               <div class="time-col">
                 <div class="time-col-title" data-i18n="time_minute">Dakika</div>
                 <div class="time-col-body" id="s-data-minute-list"></div>
-              </div>
-            </div>
-          </div>
-        </label>
-        <label><span class="settings-label-head"><span data-i18n="label_notification_hour">Bildirim Kontrol Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-          <div class="time-combobox">
-            <input id="s-notification-hour" type="text" value="09:05" />
-            <i class="fa-solid fa-clock time-clock"></i>
-            <div id="s-notification-time-list" class="time-list" style="display:none">
-              <div class="time-col">
-                <div class="time-col-title" data-i18n="time_hour">Saat</div>
-                <div class="time-col-body" id="s-notification-hour-list"></div>
-              </div>
-              <div class="time-col">
-                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
-                <div class="time-col-body" id="s-notification-minute-list"></div>
               </div>
             </div>
           </div>
@@ -561,6 +635,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=340"></script>
+  <script type="module" src="/static/js/tracker.js?v=357"></script>
 </body>
 </html>

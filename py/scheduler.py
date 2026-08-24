@@ -497,7 +497,11 @@ def parse_notify_hour(value):
 
 
 def schedule_releases():
-    tz = ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
+    # DB'de bozuk bir timezone degeri varsa job'lar olmesin; Istanbul'a dus
+    try:
+        tz = ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
+    except Exception:
+        tz = ZoneInfo("Europe/Istanbul")
 
     sync_h, sync_m = parse_notify_hour(get_setting("sync_hour") or "09:00")
     if SCHEDULER.get_job("release_sync"):
