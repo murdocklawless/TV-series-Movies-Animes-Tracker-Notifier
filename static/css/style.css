@@ -35,10 +35,14 @@ nav {
 }
 
 .logo-img {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 8px;
   object-fit: cover;
+}
+
+.logo-title {
+  font-weight: 400;
 }
 
 .sort-wrap {
@@ -1584,6 +1588,14 @@ input:-webkit-autofill:focus {
   color: #2b8474;
 }
 
+.notify-name i.notify-ico-email {
+  color: #bdc3cd;
+}
+
+.notify-name i.notify-ico-center {
+  color: #22a536;
+}
+
 .notify-frame {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -1600,10 +1612,6 @@ input:-webkit-autofill:focus {
   text-align: center;
   color: #f97316;
   margin: 8px 0 2px;
-}
-
-.notify-ico-center {
-  color: #f59e0b;
 }
 
 .notif-group-title {
@@ -1745,7 +1753,8 @@ input:-webkit-autofill:focus {
 
 .settings-form select#s-lang,
 .settings-form select#s-cache-ttl,
-.settings-form select#s-email-provider {
+.settings-form select#s-email-provider,
+.settings-form select#s-notif-limit {
   padding: 12px 30px 12px 14px;
   appearance: none;
   -webkit-appearance: none;
@@ -1767,6 +1776,12 @@ input:-webkit-autofill:focus {
 .tz-combobox input {
   width: 100%;
   cursor: text;
+  /* asagi ok: select#s-lang okuyla birebir ayni SVG (#888), konum ve boyut */
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
 }
 
 /* tz-list: pulldown-menu.md deseninde pencere (.provider-list ile ayni degerler) */
@@ -3889,8 +3904,8 @@ select#s-email-provider.email-lit {
   max-height: 520px;
 }
 
-.notify-ico-discord {
-  color: #5865f2;
+.notify-name i.notify-ico-discord {
+  color: #5562f6;
 }
 
 /* Bildirim kanallari cerceveleri + kanal test butonlari */
@@ -3941,8 +3956,118 @@ select#s-email-provider.email-lit {
 
 /* Test butonlari satiri: cerceve genisligine uzilmaz, ortalanir */
 .channel-frame .test-row,
-.email-frame .test-row {
+.email-frame .test-row,
+.channel-box .test-row {
   display: block;
   text-align: center;
   padding-top: 6px;
+}
+
+/* Bildirim Ayarlari kanal kutulari: her kanal kendi cercevesinde */
+.channel-box {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  margin: 10px auto;
+  max-width: 440px;
+}
+
+/* Kanal konfig butonlari: navbar .tab stili */
+.channel-cfg-btn {
+  background: transparent;
+  border: 1px solid #2a2f3d;
+  color: #aab;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.channel-cfg-btn:hover {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #fff;
+}
+
+/* Kanal alt modallari: settings overlay (200) ustunde acilir */
+.channel-sub-overlay {
+  z-index: 300;
+}
+
+/* Bildirim Merkezi alt modal: grup basligi, ornek deger, ayirici */
+.center-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f97316;
+  margin: 4px 0 2px;
+}
+
+.center-example {
+  color: #6b7180;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.center-sep {
+  border-top: 1px solid #262a36;
+  margin: 6px 0;
+}
+
+/* Merkez modal: grup basliklari ortalanir (.notify-frame-title deseni) */
+#channel-center-modal .center-group-title {
+  text-align: center;
+}
+
+/* Merkez modal: cerceve Bildirim Ayarlari kanal kutulariyle birebir ayni.
+   width:100% sart — settings-form flex item'inda margin:auto stretch'i engellediginden
+   fit-content kalirdi; block'taki width:auto davranisini taklit eder (440px border-box) */
+#channel-center-modal .channel-frame {
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  /* gap:0 — flex gap satir arasini 44px'e cikariyordu; base row padding (12+12)
+     + margin-top 4px ile Bildirim Türleri satir araligiyla birebir 28px olur */
+  gap: 0;
+}
+
+/* Merkez modal: satirlar Bildirim Ayarlarindaki gibi; tek satir garantisi.
+   ID secici .channel-frame > div column kuralini yener (label solda, switch/pulldown sagda).
+   width:100% — flex item'da margin:auto fit-content'e dusurdugunden satir 400px'e yayilsin */
+#channel-center-modal .notify-row {
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* Liste Boyutu: combobox .switch ile ayni genislikte (46px) — sol/sag kenar switch'lerle hizali */
+#channel-center-modal .center-limit-combo {
+  width: 46px;
+  flex-shrink: 0;
+}
+
+/* select konteynere yaysin; "20" + ok 46px'e sigacak dar padding */
+#channel-center-modal .center-limit-combo select {
+  width: 100%;
+  padding: 12px 18px 12px 8px;
+  background-position: right 4px center;
+  background-size: 12px;
+}
+
+/* pulldown liste penceresi 46px combo'ya ORTALANIR (her yanda 37px); 120px okunur kalsin.
+   Sadece bu modal — diger pulldown'lara dokunulmaz */
+#channel-center-modal .center-limit-combo .provider-list {
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+}
+
+.center-limit-row .saved-hint {
+  margin-left: 6px;
 }

@@ -249,6 +249,28 @@ function ensureModalRoom(list, desired) {
     list.dataset.pdAnchored = "1";
     activePdList = list;
   }
+  // MOBIL: s-tz-list modal alt sınırına kadar uzasın (desktop gMax clamp'i atla)
+  if (window.innerWidth <= 768 && list.id === "s-tz-list") {
+    const relTopM = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
+    const viewportAvail = window.innerHeight - list.getBoundingClientRect().top - 24;
+    const avail = Math.max(160, viewportAvail);
+    const h = Math.max(160, Math.min(avail, desired));
+    list.style.maxHeight = h + "px";
+    const neededM = relTopM + h;
+    if (neededM > body.offsetHeight) body.style.minHeight = neededM + "px";
+    return;
+  }
+  // DESKTOP: s-tz-list alt border'ı modal alt sınırına yapışsın (mobil gibi)
+  if (window.innerWidth > 768 && list.id === "s-tz-list") {
+    const relTopD = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
+    const viewportAvailD = window.innerHeight - list.getBoundingClientRect().top - 24;
+    const availD = Math.max(160, viewportAvailD);
+    const hD = Math.max(160, Math.min(availD, desired));
+    list.style.maxHeight = hD + "px";
+    const neededD = relTopD + hD;
+    if (neededD > body.offsetHeight) body.style.minHeight = neededD + "px";
+    return;
+  }
   const bodyRect = body.getBoundingClientRect();
   // merkezleme büyümeyi iki yarıya böldüğü için her yönün payı 2 kat sayılır
   const gMax = Math.max(120, Math.min(
@@ -446,10 +468,13 @@ async function loadSettings() {
   document.getElementById("s-tmdb").value = s.tmdb_api_key || "";
   document.getElementById("s-token").value = s.telegram_bot_token || "";
   document.getElementById("s-chat").value = s.telegram_chat_id || "";
+  document.getElementById("s-notification-hour").value = s.notification_hour || "09:05";
   document.getElementById("s-hour").value = s.notify_hour || "09:00";
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
+  document.getElementById("s-anime-hour").value = s.anime_notification_hour || "09:05";
+  document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
   document.getElementById("s-discord-webhook").value = s.discord_webhook_url || "";
   document.getElementById("s-brevo-key").value = s.brevo_api_key || "";
@@ -466,10 +491,14 @@ async function loadSettings() {
   initTzCombo();
   initPulldownCombobox("s-lang", "s-lang-list");
   initPulldownCombobox("s-cache-ttl", "s-cache-ttl-list");
+  initPulldownCombobox("s-notif-limit", "s-notif-limit-list");
+  initTimePicker("s-notification-hour");
   initTimePicker("s-hour");
   initTimePicker("s-sync-hour");
   initTimePicker("s-genre-hour");
   initTimePicker("s-data-hour");
+  initTimePicker("s-anime-hour");
+  initTimePicker("s-rec-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = state.currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
@@ -478,6 +507,17 @@ async function loadSettings() {
   document.getElementById("s-discord-enabled").checked = (s.discord_enabled || "1") !== "0";
   document.getElementById("s-email-enabled").checked = (s.email_enabled || "1") !== "0";
   document.getElementById("s-center-enabled").checked = (s.notif_center_enabled || "1") !== "0";
+  // Bildirim Merkezi ayarlari
+  state.notifTimeFormat = s.notif_center_time === "absolute" ? "absolute" : "relative";
+  state.notifCenterPoster = (s.notif_center_poster || "1") !== "0";
+  state.notifCenterHideRead = s.notif_center_hide_read === "1";
+  const lim = parseInt(s.notif_center_limit, 10);
+  state.notifCenterLimit = [20, 50, 100].includes(lim) ? lim : 50;
+  document.getElementById("s-notif-relative").checked = state.notifTimeFormat === "relative";
+  document.getElementById("s-notif-absdate").checked = state.notifTimeFormat === "absolute";
+  document.getElementById("s-notif-poster").checked = state.notifCenterPoster;
+  document.getElementById("s-notif-hideread").checked = state.notifCenterHideRead;
+  document.getElementById("s-notif-limit").value = String(state.notifCenterLimit);
   NOTIF_TYPES.forEach(([k]) => {
     const el = document.getElementById(`s-notif-${k}`);
     if (el) el.checked = (s[`notif_${k}`] || "1") !== "0";
@@ -822,11 +862,20 @@ const emailProvSelect = document.getElementById("s-email-provider");
   emailProvSelect.addEventListener(ev, () => setEmailFrameVisible(true));
 });
 // akordeon: pulldown + cerceve disina mousedown -> cerceve kapansin
+// istisna: e-posta alt modal acikken modal ici tiklamalar "dis" sayilmaz
 const emailCombobox = emailProvSelect.closest(".provider-combobox");
+const emailChannelModalEl = document.getElementById("channel-email-modal");
 document.addEventListener("mousedown", (e) => {
   if (emailCombobox.contains(e.target)) return;
   const frame = document.getElementById("email-provider-frame");
   if (frame && frame.contains(e.target)) return;
+  if (
+    emailChannelModalEl &&
+    emailChannelModalEl.style.display !== "none" &&
+    emailChannelModalEl.contains(e.target)
+  ) {
+    return;
+  }
   setEmailFrameVisible(false);
   updateEmailFocusUI();
 });
@@ -978,6 +1027,12 @@ document.getElementById("s-tz").addEventListener("change", () => {
   });
 });
 
+document.getElementById("s-notification-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-notification-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ notification_hour: el.value }, hint);
+});
+
 document.getElementById("s-hour").addEventListener("change", () => {
   const el = document.getElementById("s-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
@@ -998,6 +1053,16 @@ document.getElementById("s-data-hour").addEventListener("change", () => {
   const el = document.getElementById("s-data-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ data_hour: el.value }, hint);
+});
+document.getElementById("s-anime-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-anime-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ anime_notification_hour: el.value }, hint);
+});
+document.getElementById("s-rec-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-rec-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ rec_hour: el.value }, hint);
 });
 
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {
@@ -1073,6 +1138,106 @@ document.getElementById("test-email").onclick = async () => {
   await runChannelTest(body);
 };
 
+// Kanal alt modallari: Bildirim Ayarlari acik kalir, alt modal ustte acilir
+function openChannelModal(id) {
+  const ov = document.getElementById(id);
+  if (!ov) return;
+  ov.style.display = "flex";
+  if (id === "channel-email-modal") setEmailFrameVisible(true);
+}
+
+document.getElementById("cfg-telegram").addEventListener("click", () => openChannelModal("channel-telegram-modal"));
+document.getElementById("cfg-ntfy").addEventListener("click", () => openChannelModal("channel-ntfy-modal"));
+document.getElementById("cfg-discord").addEventListener("click", () => openChannelModal("channel-discord-modal"));
+document.getElementById("cfg-email").addEventListener("click", () => openChannelModal("channel-email-modal"));
+document.getElementById("cfg-center").addEventListener("click", () => openChannelModal("channel-center-modal"));
+
+// Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
+function refreshNotifMenuIfOpen() {
+  import("./notification.js").then((m) => {
+    const menu = document.getElementById("notif-menu");
+    if (menu && menu.classList.contains("open")) m.fetchList();
+  }).catch(() => {});
+}
+
+function setCenterTime(mode) {
+  const rel = document.getElementById("s-notif-relative");
+  const abs = document.getElementById("s-notif-absdate");
+  const hint = document.querySelector("#channel-center-modal .saved-hint");
+  // tam biri daima acik: aktif olan kapatilamaz, digerine gecilir
+  if (!rel.checked && !abs.checked) {
+    if (mode === "relative") rel.checked = true; else abs.checked = true;
+    return;
+  }
+  state.notifTimeFormat = mode;
+  saveSettingsPartial({ notif_center_time: mode }, hint);
+  refreshNotifMenuIfOpen();
+}
+
+document.getElementById("s-notif-relative").addEventListener("change", () => {
+  const rel = document.getElementById("s-notif-relative");
+  const abs = document.getElementById("s-notif-absdate");
+  if (rel.checked) {
+    abs.checked = false;
+    setCenterTime("relative");
+  } else {
+    abs.checked = true;
+    setCenterTime("absolute");
+  }
+});
+
+document.getElementById("s-notif-absdate").addEventListener("change", () => {
+  const rel = document.getElementById("s-notif-relative");
+  const abs = document.getElementById("s-notif-absdate");
+  if (abs.checked) {
+    rel.checked = false;
+    setCenterTime("absolute");
+  } else {
+    rel.checked = true;
+    setCenterTime("relative");
+  }
+});
+
+document.getElementById("s-notif-poster").addEventListener("change", (e) => {
+  state.notifCenterPoster = e.target.checked;
+  saveSettingsPartial({ notif_center_poster: e.target.checked ? "1" : "0" }, document.querySelector("#channel-center-modal .saved-hint"));
+  refreshNotifMenuIfOpen();
+});
+
+document.getElementById("s-notif-hideread").addEventListener("change", (e) => {
+  state.notifCenterHideRead = e.target.checked;
+  saveSettingsPartial({ notif_center_hide_read: e.target.checked ? "1" : "0" }, document.querySelector("#channel-center-modal .saved-hint"));
+  refreshNotifMenuIfOpen();
+});
+
+document.getElementById("s-notif-limit").addEventListener("change", () => {
+  const el = document.getElementById("s-notif-limit");
+  const v = parseInt(el.value, 10);
+  if (![20, 50, 100].includes(v)) return;
+  state.notifCenterLimit = v;
+  saveSettingsPartial({ notif_center_limit: String(v) }, document.querySelector("#channel-center-modal .center-limit-row .saved-hint"));
+  refreshNotifMenuIfOpen();
+});
+
+document.querySelectorAll(".channel-sub-close").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const ov = btn.closest(".modal-overlay");
+    if (!ov) return;
+    ov.style.display = "none";
+    if (ov.id === "channel-email-modal") setEmailFrameVisible(false);
+  });
+});
+
+document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
+  ov.addEventListener("click", (e) => {
+    if (e.target !== ov) return;
+    ov.style.display = "none";
+    if (ov.id === "channel-email-modal") setEmailFrameVisible(false);
+  });
+});
+
+// e-posta akordeonu kapsami yukarida Faz 19c dinleyicisine eklendi
 
 export { loadSettings, renderFavActorsList, renderFavGenresList, saveSettingsPartial,
          updateNotifyToggleStates, closeSettingsMenu, showSettingsSubmodal, closeSettingsModals };

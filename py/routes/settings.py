@@ -140,15 +140,22 @@ def get_settings():
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
             "telegram_chat_id": get_setting("telegram_chat_id") or "",
             "notify_hour": get_setting("notify_hour") or "09:00",
+            "notification_hour": get_setting("notification_hour") or "09:05",
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
+            "anime_notification_hour": get_setting("anime_notification_hour") or "09:05",
+            "rec_hour": get_setting("rec_hour") or "05:25",
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
             "telegram_enabled": get_setting("telegram_enabled") or "1",
             "ntfy_enabled": get_setting("ntfy_enabled") or "1",
             "notif_center_enabled": get_setting("notif_center_enabled") or "1",
+            "notif_center_time": get_setting("notif_center_time") or "relative",
+            "notif_center_poster": get_setting("notif_center_poster") or "1",
+            "notif_center_hide_read": get_setting("notif_center_hide_read") or "0",
+            "notif_center_limit": get_setting("notif_center_limit") or "50",
             "discord_enabled": get_setting("discord_enabled") or "1",
             "discord_webhook_url": get_setting("discord_webhook_url") or "",
             "email_enabled": get_setting("email_enabled") or "1",
@@ -175,20 +182,36 @@ def save_settings():
         tz_val = str(body.get("timezone") or "").strip()
         if tz_val and tz_val not in zoneinfo.available_timezones():
             return jsonify({"error": "gecersiz timezone"}), 400
+    # bildirim merkezi tarih modu yalnizca iki deger alabilir
+    if "notif_center_time" in body and str(body.get("notif_center_time")) not in ("relative", "absolute"):
+        return jsonify({"error": "gecersiz tarih formati"}), 400
+    if "notif_center_limit" in body:
+        try:
+            if int(body.get("notif_center_limit")) not in (20, 50, 100):
+                return jsonify({"error": "gecersiz liste boyutu"}), 400
+        except (TypeError, ValueError):
+            return jsonify({"error": "gecersiz liste boyutu"}), 400
     for key in (
         "tmdb_api_key",
         "telegram_bot_token",
         "telegram_chat_id",
         "notify_hour",
+        "notification_hour",
         "sync_hour",
         "genre_hour",
         "data_hour",
+        "anime_notification_hour",
+        "rec_hour",
         "timezone",
         "language",
         "ntfy_topic",
         "telegram_enabled",
         "ntfy_enabled",
         "notif_center_enabled",
+        "notif_center_time",
+        "notif_center_poster",
+        "notif_center_hide_read",
+        "notif_center_limit",
         "discord_enabled",
         "discord_webhook_url",
         "email_enabled",
@@ -216,7 +239,7 @@ def save_settings():
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 

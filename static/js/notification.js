@@ -19,9 +19,27 @@ function alignMenu() {
   menu.style.right = "0";
 }
 
+// Tam tarih ve saat: secili timezone'da gg/aa/yyyy-ss.dd
+function formatAbsolute(d) {
+  const loc = state.currentLang || "tr";
+  const parts = new Intl.DateTimeFormat(loc, {
+    timeZone: state.currentTz || "Europe/Istanbul",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(d);
+  const get = (tp) => { const p = parts.find((x) => x.type === tp); return p ? p.value : ""; };
+  return `${get("day")}/${get("month")}/${get("year")}-${get("hour")}.${get("minute")}`;
+}
+
 function formatTime(ts) {
   if (!ts) return "";
   const d = new Date(ts * 1000);
+  if (state.notifTimeFormat === "absolute") {
+    try {
+      return formatAbsolute(d);
+    } catch {}
+    return d.toLocaleString();
+  }
   const now = Date.now();
   const diffMs = now - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -57,21 +75,35 @@ async function fetchList() {
   if (!list) return;
   list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7180">${t("loading")||"Yükleniyor..."}</div>`;
   try {
-    const r = await fetch("/api/notifications?limit=50");
+    const limit = Number(state.notifCenterLimit) > 0 ? Number(state.notifCenterLimit) : 50;
+    // hide-read acikken filtre sunucuda yapilir: limit = gorunen okunmamis sayisi
+    const url = state.notifCenterHideRead
+      ? `/api/notifications?limit=${limit}&unread=1`
+      : `/api/notifications?limit=${limit}`;
+    const r = await fetch(url);
     const data = await r.json();
-    if (!Array.isArray(data) || !data.length) {
+    if (!Array.isArray(data)) {
+      list.innerHTML = "";
+      if (empty) empty.style.display = "block";
+      return;
+    }
+    const rows = data;
+    if (!rows.length) {
       list.innerHTML = "";
       if (empty) empty.style.display = "block";
       return;
     }
     if (empty) empty.style.display = "none";
     list.innerHTML = "";
-    data.forEach((n) => {
+    rows.forEach((n) => {
       const div = document.createElement("div");
       div.className = "notif-item" + (n.is_read ? "" : " unread");
       div.dataset.id = n.id;
-      const thumb = n.thumbnail_local || n.poster_local || "";
-      const thumbHtml = thumb ? `<img class="notif-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'" />` : `<div class="notif-thumb-fallback"><i class="fa-solid fa-image"></i></div>`;
+      let thumbHtml = "";
+      if (state.notifCenterPoster) {
+        const thumb = n.thumbnail_local || n.poster_local || "";
+        thumbHtml = thumb ? `<img class="notif-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'" />` : `<div class="notif-thumb-fallback"><i class="fa-solid fa-image"></i></div>`;
+      }
       div.innerHTML = `
         ${thumbHtml}
         <div class="notif-content">

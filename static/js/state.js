@@ -21,4 +21,10 @@ export const state = {
   pickerMode: "",
   pickerSelected: new Set(),
   settingsLoaded: false,
+
+  // Bildirim Merkezi ayarlari (Faz 22)
+  notifTimeFormat: "relative",
+  notifCenterPoster: true,
+  notifCenterHideRead: false,
+  notifCenterLimit: 50,
 };

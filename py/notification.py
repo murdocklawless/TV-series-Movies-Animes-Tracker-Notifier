@@ -13,43 +13,44 @@ def _now_ts():
     return int(time.time())
 
 
+def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_id=None, anilist_id=None, notified_date=None):
+    """Aynı tip+başlık(+sezon/bölüm/id) + notified_date kombinasyonu daha once
+    uretilmis ise True doner. Dis push kapilarinin da kullanmasi icin ayrik."""
+    conn = get_db()
+    try:
+        if season is not None or episode is not None:
+            rows = conn.execute(
+                "SELECT id, season, episode, tmdb_id, anilist_id, notified_date FROM notifications WHERE type=? AND title=?",
+                (type_name, title),
+            ).fetchall()
+            for r in rows:
+                if (r["season"] == season and r["episode"] == episode and r["tmdb_id"] == tmdb_id and r["anilist_id"] == anilist_id and r["notified_date"] == notified_date):
+                    return True
+        else:
+            rows = conn.execute(
+                "SELECT notified_date FROM notifications WHERE type=? AND title=?",
+                (type_name, title),
+            ).fetchall()
+            for r in rows:
+                if r["notified_date"] == notified_date:
+                    return True
+        return False
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None):
     """Insert notification if not duplicate. Handles thumbnail generation.
     kind_for_thumb: tv/movie/anime, ident_for_thumb: tmdb_id/anilist_id
     remote_poster_url: fallback url (w500 or cover) to ensure thumb if w500 missing.
     Returns new id or None if duplicate."""
     conn = get_db()
-    # dedupe: same title/type/season/episode/tmdb/anilist within last 24h? Use UNIQUE check simple: same tmdb/anilist + type + season/episode + notified_date if exists
-    # For generic types without season/episode, dedupe on title+type+created_at day
     try:
-        # check duplicate for episode types
-        if season is not None or episode is not None:
-            dup = conn.execute(
-                "SELECT id FROM notifications WHERE type=? AND title=? AND season IS ? AND episode IS ? AND tmdb_id IS ? AND anilist_id IS ? AND notified_date IS ? LIMIT 1",
-                (type_name, title, season, episode, tmdb_id, anilist_id, notified_date),
-            ).fetchone()
-            # above IS ? with None may not work for equality, fallback to python check
-            if dup:
-                conn.close()
-                return None
-            # more robust check
-            rows = conn.execute("SELECT id, season, episode, tmdb_id, anilist_id, notified_date FROM notifications WHERE type=? AND title=?", (type_name, title)).fetchall()
-            for r in rows:
-                if (r["season"] == season and r["episode"] == episode and r["tmdb_id"] == tmdb_id and r["anilist_id"] == anilist_id and r["notified_date"] == notified_date):
-                    conn.close()
-                    return None
-        else:
-            # for status/movie types dedupe on title+type+notified_date
-            rows = conn.execute("SELECT id FROM notifications WHERE type=? AND title=? AND notified_date IS ? LIMIT 1", (type_name, title, notified_date)).fetchone()
-            if rows:
-                # need proper check
-                pass
-            # fallback python
-            rows2 = conn.execute("SELECT notified_date FROM notifications WHERE type=? AND title=?", (type_name, title)).fetchall()
-            for r in rows2:
-                if r["notified_date"] == notified_date:
-                    conn.close()
-                    return None
+        if is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date):
+            conn.close()
+            return None
     except Exception:
         pass
 
