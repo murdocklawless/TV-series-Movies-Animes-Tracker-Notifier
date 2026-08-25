@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# İkili dosyalar (satır sonu dönüşümü asla)
+*.png binary
+*.jpg binary
+*.ico binary
+*.db binary
+*.gz binary
+*.ppk binary
