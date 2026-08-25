@@ -5,7 +5,7 @@ import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
-  isNewTr, isTodayTr, canSelectAll, utcStateStr, isNewEpisode, tzLocale,
+  canSelectAll, utcStateStr, isNewEpisode, tzLocale,
 } from "./utils.js";
 import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js";
 import { setMedia, renderChips, doComboSearch } from "./search.js";
@@ -47,171 +47,122 @@ async function openReleases(mediaType, tmdbId, title) {
       return 0;
     });
 
-    let html = "";
-    seasonNames.forEach((seasonKey) => {
-      const seasonItems = groups[seasonKey];
-      const seasonLabel =
-        seasonKey === "other"
-          ? data.media_type === "movie"
-            ? t("release_date")
-            : t("other")
-          : t("season", { n: seasonKey });
-      html += `<div class="season-box">`;
-      if (data.media_type === "tv") {
-        const releasedItems = seasonItems.filter((it) => canSelectAll(it));
-        const total = releasedItems.length;
-        const watched = releasedItems.filter((it) => it.watched).length;
-        const pct = total ? Math.round((watched / total) * 100) : 0;
-        const allWatched = total > 0 && watched === total;
-        const btnDisabled = total === 0 ? " disabled" : "";
-        html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
-      } else {
-        html += `<div class="season-box-title">${seasonLabel}</div>`;
-      }
-      html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
-      seasonItems.forEach((it) => {
-        const f = formatDate(it.date);
-        const st = utcStateStr(it);
-        const dateClass = st ? ` class="${st}"` : "";
-        const epName = it.episode_name
-          ? `<div class="episode-name">${it.episode_name}</div>`
-          : "";
-        const watchedClass = it.watched ? " watched" : "";
-        const released = st === "date-past" || st === "date-today"; // yayınlandı mı (watched'tan bağımsız)
-        const btnDisabled = !released ? " disabled" : "";
-        const selectable = canSelectAll(it) ? 1 : 0;
-        const btnCls = it.watched ? "watch-btn on" : "watch-btn";
-        const checkIcon = it.watched ? CHECK_SVG : "";
-        const newCls = isNewEpisode(it) ? " new" : "";
-        const todayCls = st === "date-today" ? " today-release" : "";
-        const dateText = f.text;
-        html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectable}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
+    const renderAll = () => {
+      let html = "";
+      seasonNames.forEach((seasonKey) => {
+        const seasonItems = groups[seasonKey].sort((a, b) => {
+          const ea = a.episode == null ? -1 : a.episode;
+          const eb = b.episode == null ? -1 : b.episode;
+          return ea - eb;
+        });
+        const seasonLabel =
+          seasonKey === "other"
+            ? data.media_type === "movie"
+              ? t("release_date")
+              : t("other")
+            : t("season", { n: seasonKey });
+        html += `<div class="season-box">`;
         if (data.media_type === "tv") {
-          html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
+          const releasedItems = seasonItems.filter((it) => canSelectAll(it));
+          const total = releasedItems.length;
+          const watched = releasedItems.filter((it) => it.watched).length;
+          const pct = total ? Math.round((watched / total) * 100) : 0;
+          const allWatched = total > 0 && watched === total;
+          const btnDisabled = total === 0 ? " disabled" : "";
+          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
         } else {
-          html += `<td><button class="${btnCls}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("release_date")}</span>${epName}</span></td>`;
+          html += `<div class="season-box-title">${seasonLabel}</div>`;
         }
-        html += `<td${dateClass}>${dateText}</td></tr>`;
+        html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
+        seasonItems.forEach((it, i) => {
+          const f = formatDate(it.date);
+          const st = utcStateStr(it);
+          const dateClass = st ? ` class="${st}"` : "";
+          const epName = it.episode_name
+            ? `<div class="episode-name">${it.episode_name}</div>`
+            : "";
+          const watchedClass = it.watched ? " watched" : "";
+          const released = st === "date-past" || st === "date-today";
+          const prevWatched = i === 0 ? true : seasonItems[i - 1].watched;
+          const selectable =
+            data.media_type === "tv"
+              ? it.watched || (released && prevWatched)
+              : released;
+          const btnDisabled = !selectable ? " disabled" : "";
+          const selectableAttr = canSelectAll(it) ? 1 : 0;
+          const btnCls = it.watched ? "watch-btn on" : "watch-btn";
+          const checkIcon = it.watched ? CHECK_SVG : "";
+          const newCls = isNewEpisode(it) ? " new" : "";
+          const todayCls = st === "date-today" ? " today-release" : "";
+          const dateText = f.text;
+          html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectableAttr}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
+          if (data.media_type === "tv") {
+            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
+          } else {
+            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("release_date")}</span>${epName}</span></td>`;
+          }
+          html += `<td${dateClass}>${dateText}</td></tr>`;
+        });
+        html += "</tbody></table></div>";
       });
-      html += "</tbody></table></div>";
-    });
 
-    body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
+      body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
+      bindReleasesEvents();
+    };
 
-    if (data.media_type === "tv") {
+    const bindReleasesEvents = () => {
       body.querySelectorAll(".watch-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           if (btn.disabled) return;
-          const season = btn.dataset.s;
-          const episode = btn.dataset.e;
-          const watched = btn.dataset.w === "1" ? 0 : 1;
-          const res = await fetch("/api/episode/watch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tmdb_id: tmdbId,
-              season: Number(season),
-              episode: Number(episode),
-              watched,
-            }),
-          });
-          if (!res.ok) return;
-          btn.dataset.w = String(watched);
-          btn.classList.toggle("on", watched === 1);
-          btn.innerHTML = watched ? CHECK_SVG : "";
-          const tr = btn.closest("tr");
-          tr.classList.toggle("watched", watched === 1);
-          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
-          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
-
-          const seasonBox = btn.closest(".season-box");
-          const allRows = seasonBox.querySelectorAll("tbody tr");
-          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
-          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
-          const pct = releasedCount ? Math.round((done / releasedCount) * 100) : 0;
-          const prog = seasonBox.querySelector(".season-progress-text");
-          const bar = seasonBox.querySelector(".season-progress-fill");
-          if (prog) prog.textContent = `${done}/${releasedCount} · %${pct}`;
-          if (bar) bar.style.width = pct + "%";
-          const allBtn = seasonBox.querySelector(".season-watch-all");
-          if (allBtn) {
-            const allDone = releasedCount > 0 && done === releasedCount;
-            allBtn.dataset.w = allDone ? 0 : 1;
-            allBtn.textContent = allDone ? t("clear") : t("watch_all");
-            allBtn.disabled = releasedCount === 0;
+          const it = groups[btn.dataset.g][Number(btn.dataset.i)];
+          const newWatched = it.watched ? 0 : 1;
+          const isMovie = data.media_type === "movie";
+          try {
+            const res = await fetch(isMovie ? "/api/movie/watch" : "/api/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(
+                isMovie
+                  ? { tmdb_id: tmdbId, watched: newWatched }
+                  : { tmdb_id: tmdbId, season: Number(it.season), episode: Number(it.episode), watched: newWatched }
+              ),
+            });
+            if (!res.ok) return;
+            it.watched = newWatched;
+            renderAll();
+            loadFollowed(mediaType === "tv" ? "dizi" : "film");
+          } catch (e) {
+            toast(t("error"));
           }
-          loadFollowed(mediaType === "tv" ? "dizi" : "film");
         });
       });
 
       body.querySelectorAll(".season-watch-all").forEach((btn) => {
         btn.addEventListener("click", async () => {
-          const season = btn.dataset.s;
-          const watched = btn.dataset.w === "1" ? 1 : 0;
-          const res = await fetch("/api/season/watch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tmdb_id: tmdbId,
-              season: Number(season),
-              watched,
-            }),
-          });
-          if (!res.ok) return;
-          const seasonBox = btn.closest(".season-box");
-          const rows = seasonBox.querySelectorAll("tbody tr");
-          rows.forEach((tr) => {
-            const isReleased = tr.dataset.released === "1";
-            const b = tr.querySelector(".watch-btn");
-            if (watched === 1 && !isReleased) {
-              if (b) b.disabled = true;
-              return;
-            }
-            tr.classList.toggle("watched", watched === 1);
-            b.dataset.w = String(watched);
-            b.classList.toggle("on", watched === 1);
-            b.innerHTML = watched ? CHECK_SVG : "";
-            b.disabled = false;
-            tr.classList.toggle("new", watched === 0 && isNewTr(tr));
-            tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
-          });
-          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
-          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
-          const pct = releasedCount ? Math.round((done / releasedCount) * 100) : 0;
-          const prog = seasonBox.querySelector(".season-progress-text");
-          const bar = seasonBox.querySelector(".season-progress-fill");
-          if (prog) prog.textContent = `${done}/${releasedCount} · %${pct}`;
-          if (bar) bar.style.width = pct + "%";
-          const allDone = releasedCount > 0 && done === releasedCount;
-          btn.dataset.w = allDone ? 0 : 1;
-          btn.textContent = allDone ? t("clear") : t("watch_all");
-          btn.disabled = releasedCount === 0;
-          loadFollowed(mediaType === "tv" ? "dizi" : "film");
-        });
-      });
-    }
-    if (data.media_type === "movie") {
-      body.querySelectorAll(".watch-btn").forEach((btn) => {
-        btn.addEventListener("click", async () => {
           if (btn.disabled) return;
-          const watched = btn.dataset.w === "1" ? 0 : 1;
-          const res = await fetch("/api/movie/watch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tmdb_id: tmdbId, watched }),
-          });
-          if (!res.ok) return;
-          btn.dataset.w = String(watched);
-          btn.classList.toggle("on", watched === 1);
-          btn.innerHTML = watched ? CHECK_SVG : "";
-          const tr = btn.closest("tr");
-          tr.classList.toggle("watched", watched === 1);
-          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
-          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
-          loadFollowed(mediaType === "tv" ? "dizi" : "film");
+          const seasonKey = btn.dataset.s;
+          const watched = btn.dataset.w === "1" ? 1 : 0;
+          try {
+            const res = await fetch("/api/season/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tmdb_id: tmdbId, season: Number(seasonKey), watched }),
+            });
+            if (!res.ok) return;
+            groups[seasonKey].forEach((it) => {
+              if (watched === 1 && !canSelectAll(it)) return;
+              it.watched = watched;
+            });
+            renderAll();
+            loadFollowed("dizi");
+          } catch (e) {
+            toast(t("error"));
+          }
         });
       });
-    }
+    };
+
+    renderAll();
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
@@ -239,8 +190,11 @@ function closeConfirm() {
 function showConfirm(text, onYes, opts = {}) {
   if (opts.title) document.getElementById("confirm-title").textContent = opts.title;
   document.getElementById("confirm-text").textContent = text;
+  const yesBtn = document.getElementById("confirm-yes");
+  yesBtn.textContent = opts.yes || t("confirm_yes");
+  yesBtn.classList.toggle("confirm-danger", opts.danger !== false);
   document.getElementById("confirm-modal").style.display = "flex";
-  document.getElementById("confirm-yes").onclick = () => {
+  yesBtn.onclick = () => {
     closeConfirm();
     onYes();
   };

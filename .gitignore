@@ -26,3 +26,7 @@ bak/
 db/
 static/bak/
 static/images/posters/
+
+# Baglanti bilgileri ve yerel arac dizinleri repoya girmez
+md/pi5.md
+.opencode/

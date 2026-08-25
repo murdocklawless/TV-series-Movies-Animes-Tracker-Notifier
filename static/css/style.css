@@ -2922,7 +2922,8 @@ input:-webkit-autofill:focus {
 }
 
 .season-watch-all:hover {
-  background: #2f3542;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
   color: #fff;
 }
 
@@ -2963,8 +2964,8 @@ input:-webkit-autofill:focus {
 }
 
 .releases-table .watch-btn:hover {
-  border-color: #fb923c;
-  color: #fb923c;
+  border-color: #16a34a;
+  color: #16a34a;
 }
 
 .releases-table .watch-btn:disabled {
