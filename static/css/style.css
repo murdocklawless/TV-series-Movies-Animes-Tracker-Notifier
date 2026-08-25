@@ -1612,20 +1612,51 @@ input:-webkit-autofill:focus {
   text-align: center;
   color: #f97316;
   margin: 8px 0 2px;
+  /* Uzun dil cevirilerinde baslik iki satira kirilmaz (Faz 24) */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.notif-group-title {
-  font-size: 0.78rem;
-  font-weight: 600;
+/* Bildirim Kanallari bolum basligi: kanal cercevesinin uzerinde (alt grup deseni) */
+.channels-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   text-align: center;
   color: #f97316;
   max-width: 400px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 10px 8px 6px;
-  border-bottom: 1px dotted #f97316;
+  margin: 10px auto 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bildirim Turleri grup akordeonlari: kapali boyut kanal kutulariyle birebir
+   (channel-box padding 4/14/10 + notify-row 12+12+24 = head 12px 8px + min-height 24px) */
+.notif-type-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 12px 8px;
+}
+
+.notif-type-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #B4B8C4;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.notif-type-box:hover .notif-type-title,
+.notif-type-box.accordion-open .notif-type-title {
+  color: #FFFFFF;
 }
 
 .switch {
@@ -3963,13 +3994,58 @@ select#s-email-provider.email-lit {
   padding-top: 6px;
 }
 
-/* Bildirim Ayarlari kanal kutulari: her kanal kendi cercevesinde */
-.channel-box {
+/* Bildirim Ayarlari kanal kutulari: her kanal kendi cercevesinde.
+   .notif-type-box: Faz 24b dis akordeon cerceve (#channels-accordion) ayni boyutta */
+.channel-box,
+.notif-type-box {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 4px 14px 10px;
   margin: 10px auto;
   max-width: 440px;
+}
+
+/* Akordeon: dis cerceve hover'da turuncu, tiklaninca ic cerceve asagi dogru genisler */
+.telegram-box,
+.accordion-box {
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.telegram-box:hover,
+.accordion-box:hover {
+  border-color: #f97316;
+}
+
+.telegram-box.telegram-open,
+.accordion-box.accordion-open {
+  border-color: #f97316;
+}
+
+.telegram-credentials,
+.ntfy-credentials,
+.discord-credentials,
+.email-credentials,
+.center-credentials {
+  margin-top: 12px;
+}
+
+.telegram-credentials.settings-form,
+.ntfy-credentials.settings-form,
+.discord-credentials.settings-form,
+.email-credentials.settings-form,
+.center-credentials.settings-form {
+  gap: 12px;
+}
+
+.telegram-box .notify-row,
+.accordion-box .notify-row {
+  cursor: pointer;
+}
+
+.telegram-box .switch,
+.accordion-box .switch {
+  cursor: pointer;
 }
 
 /* Kanal konfig butonlari: navbar .tab stili */
@@ -4017,14 +4093,16 @@ select#s-email-provider.email-lit {
 }
 
 /* Merkez modal: grup basliklari ortalanir (.notify-frame-title deseni) */
-#channel-center-modal .center-group-title {
+#channel-center-modal .center-group-title,
+#center-credentials .center-group-title {
   text-align: center;
 }
 
 /* Merkez modal: cerceve Bildirim Ayarlari kanal kutulariyle birebir ayni.
    width:100% sart — settings-form flex item'inda margin:auto stretch'i engellediginden
    fit-content kalirdi; block'taki width:auto davranisini taklit eder (440px border-box) */
-#channel-center-modal .channel-frame {
+#channel-center-modal .channel-frame,
+#center-credentials .channel-frame {
   max-width: 440px;
   width: 100%;
   margin: 0 auto;
@@ -4039,7 +4117,8 @@ select#s-email-provider.email-lit {
 /* Merkez modal: satirlar Bildirim Ayarlarindaki gibi; tek satir garantisi.
    ID secici .channel-frame > div column kuralini yener (label solda, switch/pulldown sagda).
    width:100% — flex item'da margin:auto fit-content'e dusurdugunden satir 400px'e yayilsin */
-#channel-center-modal .notify-row {
+#channel-center-modal .notify-row,
+#center-credentials .notify-row {
   flex-direction: row;
   justify-content: space-between;
   flex-wrap: nowrap;
@@ -4047,13 +4126,15 @@ select#s-email-provider.email-lit {
 }
 
 /* Liste Boyutu: combobox .switch ile ayni genislikte (46px) — sol/sag kenar switch'lerle hizali */
-#channel-center-modal .center-limit-combo {
+#channel-center-modal .center-limit-combo,
+#center-credentials .center-limit-combo {
   width: 46px;
   flex-shrink: 0;
 }
 
 /* select konteynere yaysin; "20" + ok 46px'e sigacak dar padding */
-#channel-center-modal .center-limit-combo select {
+#channel-center-modal .center-limit-combo select,
+#center-credentials .center-limit-combo select {
   width: 100%;
   padding: 12px 18px 12px 8px;
   background-position: right 4px center;
@@ -4062,12 +4143,53 @@ select#s-email-provider.email-lit {
 
 /* pulldown liste penceresi 46px combo'ya ORTALANIR (her yanda 37px); 120px okunur kalsin.
    Sadece bu modal — diger pulldown'lara dokunulmaz */
-#channel-center-modal .center-limit-combo .provider-list {
+#channel-center-modal .center-limit-combo .provider-list,
+#center-credentials .center-limit-combo .provider-list {
   left: 50%;
   transform: translateX(-50%);
   width: 120px;
 }
 
-.center-limit-row .saved-hint {
-  margin-left: 6px;
+/* Mobil: Bildirim Ayarlari label'lari tek satir — desktop'a dokunulmaz (768px alti) */
+@media (max-width: 768px) {
+  #settings-notify-modal .notif-type-head {
+    padding: 10px 8px;
+  }
+  #settings-notify-modal .notif-type-title {
+    font-size: 0.66rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #settings-notify-modal .channels-section-title,
+  #settings-notify-modal .notify-frame-title {
+    font-size: 0.66rem;
+  }
+  #settings-notify-modal .notify-row {
+    gap: 12px;
+    max-width: none;
+    padding: 10px 8px;
+  }
+  #settings-notify-modal .notify-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.88rem;
+  }
+  #settings-notify-modal .notify-name span[data-i18n] {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #settings-notify-modal .center-group-title {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #settings-notify-modal .center-example {
+    display: none;
+  }
 }

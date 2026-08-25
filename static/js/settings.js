@@ -19,21 +19,45 @@ const NOTIF_TYPES = [
 ];
 const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"]];
 
+function setNotifTypeVisible(group, on) {
+  const box = document.getElementById(`notif-type-box-${group}`);
+  if (!box) return;
+  const body = box.querySelector(".notif-type-body");
+  if (!body) return;
+  body.style.display = on ? "" : "none";
+  box.classList.toggle("accordion-open", on);
+}
+
 function renderNotifTypes() {
   const wrap = document.getElementById("notif-types-groups");
   if (!wrap) return;
   wrap.innerHTML = NOTIF_GROUPS.map(([g, label]) => `
-    <div class="notif-group-title" data-i18n="${label}">${escAttr(t(label))}</div>
-    ${NOTIF_TYPES.filter(([, gg]) => gg === g).map(([k]) => `
-      <div class="notify-row notify-type-row">
-        <span class="notify-name"><span data-i18n="notif_type_${k}">${escAttr(t("notif_type_" + k))}</span></span>
-        <label class="switch"><input type="checkbox" id="s-notif-${k}" checked /><span class="slider"></span></label>
-      </div>`).join("")}
-  `).join("");
+    <div class="channel-box accordion-box notif-type-box" id="notif-type-box-${g}">
+      <div class="notif-type-head">
+        <span class="notif-type-title" data-i18n="${label}">${escAttr(t(label))}</span>
+      </div>
+      <div class="notif-type-body" style="display:none">
+        ${NOTIF_TYPES.filter(([, gg]) => gg === g).map(([k]) => `
+          <div class="notify-row notify-type-row">
+            <span class="notify-name"><span data-i18n="notif_type_${k}">${escAttr(t("notif_type_" + k))}</span></span>
+            <label class="switch"><input type="checkbox" id="s-notif-${k}" checked /><span class="slider"></span></label>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
   const hint = document.getElementById("notify-saved-hint");
   NOTIF_TYPES.forEach(([k]) => {
     document.getElementById(`s-notif-${k}`).addEventListener("change", (e) => {
       saveSettingsPartial({ [`notif_${k}`]: e.target.checked ? "1" : "0" }, hint);
+    });
+  });
+  // Tek grup açık: bir head'e tiklaninca digerleri kapanir
+  NOTIF_GROUPS.forEach(([g]) => {
+    const box = document.getElementById(`notif-type-box-${g}`);
+    if (!box) return;
+    box.addEventListener("click", (e) => {
+      if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("button") || e.target.closest("a")) return;
+      const isOpen = box.querySelector(".notif-type-body").style.display !== "none";
+      NOTIF_GROUPS.forEach(([gg]) => setNotifTypeVisible(gg, !isOpen && gg === g));
     });
   });
 }
@@ -814,9 +838,10 @@ bindAutoSave("s-smtp-port", "smtp_port", (v) => v.trim());
 bindAutoSave("s-smtp-user", "smtp_user", (v) => v.trim());
 bindAutoSave("s-smtp-pass", "smtp_pass", (v) => v);
 
-["s-brevo-key", "s-email-from", "s-email-to", "s-smtp-host", "s-smtp-port", "s-smtp-user", "s-smtp-pass", "s-discord-webhook"].forEach((id) => {
-  document.getElementById(id).addEventListener("blur", () => {
-    const el = document.getElementById(id);
+["s-token", "s-chat", "s-ntfy", "s-discord-webhook", "s-brevo-key", "s-email-from", "s-email-to", "s-smtp-host", "s-smtp-port", "s-smtp-user", "s-smtp-pass"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("blur", () => {
     if (id === "s-smtp-pass" && el.value.trim()) state.hasSmtpPass = true;
     updateNotifyToggleStates();
   });
@@ -1138,19 +1163,81 @@ document.getElementById("test-email").onclick = async () => {
   await runChannelTest(body);
 };
 
-// Kanal alt modallari: Bildirim Ayarlari acik kalir, alt modal ustte acilir
-function openChannelModal(id) {
-  const ov = document.getElementById(id);
-  if (!ov) return;
-  ov.style.display = "flex";
-  if (id === "channel-email-modal") setEmailFrameVisible(true);
+// Akordeonlar: tum kanal ayarlari Bildirim Ayarlari kutularinin icine tasindi (modal -> kutu ici)
+function setTelegramVisible(on) {
+  const box = document.getElementById("telegram-box");
+  const inner = document.getElementById("telegram-credentials");
+  if (!box || !inner) return;
+  inner.style.display = on ? "" : "none";
+  box.classList.toggle("telegram-open", on);
+  box.classList.toggle("accordion-open", on);
+}
+function setNtfyVisible(on) {
+  const box = document.getElementById("ntfy-box");
+  const inner = document.getElementById("ntfy-credentials");
+  if (!box || !inner) return;
+  inner.style.display = on ? "" : "none";
+  box.classList.toggle("accordion-open", on);
+}
+function setDiscordVisible(on) {
+  const box = document.getElementById("discord-box");
+  const inner = document.getElementById("discord-credentials");
+  if (!box || !inner) return;
+  inner.style.display = on ? "" : "none";
+  box.classList.toggle("accordion-open", on);
+}
+function setEmailVisible(on) {
+  const box = document.getElementById("email-box");
+  const inner = document.getElementById("email-credentials");
+  if (!box || !inner) return;
+  inner.style.display = on ? "" : "none";
+  box.classList.toggle("accordion-open", on);
+  if (on) setEmailFrameVisible(true);
+}
+function setCenterVisible(on) {
+  const box = document.getElementById("center-box");
+  const inner = document.getElementById("center-credentials");
+  if (!box || !inner) return;
+  inner.style.display = on ? "" : "none";
+  box.classList.toggle("accordion-open", on);
 }
 
-document.getElementById("cfg-telegram").addEventListener("click", () => openChannelModal("channel-telegram-modal"));
-document.getElementById("cfg-ntfy").addEventListener("click", () => openChannelModal("channel-ntfy-modal"));
-document.getElementById("cfg-discord").addEventListener("click", () => openChannelModal("channel-discord-modal"));
-document.getElementById("cfg-email").addEventListener("click", () => openChannelModal("channel-email-modal"));
-document.getElementById("cfg-center").addEventListener("click", () => openChannelModal("channel-center-modal"));
+(function initAccordions() {
+  [
+    ["telegram-box", "telegram-credentials", "s-telegram-enabled", setTelegramVisible],
+    ["ntfy-box", "ntfy-credentials", "s-ntfy-enabled", setNtfyVisible],
+    ["discord-box", "discord-credentials", "s-discord-enabled", setDiscordVisible],
+    ["email-box", "email-credentials", "s-email-enabled", setEmailVisible],
+    ["center-box", "center-credentials", "s-center-enabled", setCenterVisible],
+  ].forEach(([boxId, innerId, switchId, setter]) => {
+    const box = document.getElementById(boxId);
+    const inner = document.getElementById(innerId);
+    if (!box || !inner) return;
+    box.addEventListener("click", (e) => {
+      if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("button") || e.target.closest("a") || e.target.closest(".provider-list")) return;
+      const isOpen = inner.style.display !== "none";
+      setter(!isOpen);
+    });
+    const sw = document.getElementById(switchId);
+    if (sw) sw.addEventListener("click", (e) => e.stopPropagation());
+  });
+})();
+
+// Faz 24b: Bildirim Kanallari dis akordeonu — 5 kanal kutusunu saran cerceve.
+// Ic kanal akordeonlari (initAccordions) aynen korunur; ic kutu tiklamalari dis akordeonu tetiklemez.
+(function initChannelsAccordion() {
+  const box = document.getElementById("channels-accordion");
+  const body = document.getElementById("channels-body");
+  if (!box || !body) return;
+  box.addEventListener("click", (e) => {
+    if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("button") || e.target.closest("a") || e.target.closest(".provider-list")) return;
+    // Ic kanal kutularina tiklaninca dis akordeon kapanmasin (katman 2 kendi handler'inda)
+    if (e.target.closest(".channel-box:not(#channels-accordion)")) return;
+    const isOpen = body.style.display !== "none";
+    body.style.display = isOpen ? "none" : "";
+    box.classList.toggle("accordion-open", !isOpen);
+  });
+})();
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
@@ -1163,7 +1250,7 @@ function refreshNotifMenuIfOpen() {
 function setCenterTime(mode) {
   const rel = document.getElementById("s-notif-relative");
   const abs = document.getElementById("s-notif-absdate");
-  const hint = document.querySelector("#channel-center-modal .saved-hint");
+  const hint = document.querySelector("#center-credentials .saved-hint") || document.querySelector("#channel-center-modal .saved-hint");
   // tam biri daima acik: aktif olan kapatilamaz, digerine gecilir
   if (!rel.checked && !abs.checked) {
     if (mode === "relative") rel.checked = true; else abs.checked = true;
@@ -1200,13 +1287,13 @@ document.getElementById("s-notif-absdate").addEventListener("change", () => {
 
 document.getElementById("s-notif-poster").addEventListener("change", (e) => {
   state.notifCenterPoster = e.target.checked;
-  saveSettingsPartial({ notif_center_poster: e.target.checked ? "1" : "0" }, document.querySelector("#channel-center-modal .saved-hint"));
+  saveSettingsPartial({ notif_center_poster: e.target.checked ? "1" : "0" }, document.querySelector("#center-credentials .saved-hint") || document.querySelector("#channel-center-modal .saved-hint"));
   refreshNotifMenuIfOpen();
 });
 
 document.getElementById("s-notif-hideread").addEventListener("change", (e) => {
   state.notifCenterHideRead = e.target.checked;
-  saveSettingsPartial({ notif_center_hide_read: e.target.checked ? "1" : "0" }, document.querySelector("#channel-center-modal .saved-hint"));
+  saveSettingsPartial({ notif_center_hide_read: e.target.checked ? "1" : "0" }, document.querySelector("#center-credentials .saved-hint") || document.querySelector("#channel-center-modal .saved-hint"));
   refreshNotifMenuIfOpen();
 });
 
@@ -1215,7 +1302,7 @@ document.getElementById("s-notif-limit").addEventListener("change", () => {
   const v = parseInt(el.value, 10);
   if (![20, 50, 100].includes(v)) return;
   state.notifCenterLimit = v;
-  saveSettingsPartial({ notif_center_limit: String(v) }, document.querySelector("#channel-center-modal .center-limit-row .saved-hint"));
+  saveSettingsPartial({ notif_center_limit: String(v) });
   refreshNotifMenuIfOpen();
 });
 
