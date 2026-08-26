@@ -1950,7 +1950,7 @@ input:-webkit-autofill:focus {
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 0;
+  border-radius: 6px;
   color: inherit;
 }
 
