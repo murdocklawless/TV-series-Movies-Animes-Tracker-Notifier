@@ -1842,7 +1842,7 @@ input:-webkit-autofill:focus {
 .tz-list .tz-cell {
   display: block;
   width: 100%;
-  padding: 8px 12px;
+  padding: 3px 12px;
   font-size: 0.95rem;
   color: #ddd;
   cursor: pointer;
@@ -1929,7 +1929,7 @@ input:-webkit-autofill:focus {
 .time-cell {
   display: block;
   width: 100%;
-  padding: 8px 10px;
+  padding: 3px 10px;
   text-align: center;
   background: transparent;
   border: none;
@@ -3183,6 +3183,7 @@ input:-webkit-autofill:focus {
     align-items: center;
     gap: 4px;
     width: auto;
+    margin-left: -14px;
   }
 
   .utils-tabs-group {
@@ -3192,6 +3193,7 @@ input:-webkit-autofill:focus {
     align-items: center;
     gap: 4px;
     width: auto;
+    margin-right: -14px;
   }
 
   .tabs-group {
