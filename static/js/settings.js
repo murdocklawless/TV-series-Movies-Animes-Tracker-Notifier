@@ -152,6 +152,15 @@ function initTimePicker(base) {
       };
       minuteBody.appendChild(btn);
     }
+  }
+
+  function scrollSelectedIntoView() {
+    const cur = input.value || "09:00";
+    const parts = cur.split(":");
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    if (isNaN(h) || h < 0 || h > 23) h = 9;
+    if (isNaN(m) || m < 0 || m > 59) m = 0;
     const sh = hourBody.children[h];
     if (sh) sh.scrollIntoView({ block: "center" });
     const sm = minuteBody.children[m];
@@ -170,6 +179,7 @@ function initTimePicker(base) {
       input.dispatchEvent(new Event("change"));
     } else {
       render();
+      scrollSelectedIntoView();
     }
   }
 
@@ -192,6 +202,7 @@ function initTimePicker(base) {
       picks = 0;
       render();
       list.style.display = "flex";
+      scrollSelectedIntoView();
       open = true;
       list.scrollIntoView({ block: "nearest" });
     } else {
