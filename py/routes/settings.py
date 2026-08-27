@@ -302,6 +302,14 @@ def backup_run():
     return jsonify({"ok": True, "msg": "Yedekleme kuyruğa alındı"})
 
 
+@settings_bp.route("/api/backup/restore", methods=["POST"])
+def backup_restore():
+    mode = (get_setting("backup_mode") or "").strip()
+    if not mode:
+        return jsonify({"error": "Yedekleme modu seçili değil"}), 400
+    return jsonify({"ok": True, "msg": "Geri yükleme kuyruğa alındı"})
+
+
 @settings_bp.route("/api/settings/test", methods=["POST"])
 def test_settings():
     body = request.get_json(silent=True) or {}

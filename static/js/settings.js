@@ -1048,6 +1048,13 @@ async function openFavListing(kind, ident, title) {
     const j = await r.json().catch(() => ({}));
     showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
   });
+  const restoreBtn = document.getElementById("backup-restore");
+  if (restoreBtn) restoreBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const r = await fetch("/api/backup/restore", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
+  });
 })();
 
 // Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
