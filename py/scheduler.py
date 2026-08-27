@@ -393,29 +393,38 @@ def check_notifications():
         except Exception:
             pass
         # 10-11 rescheduled / removed would need snapshot; skip for now but create generic if air_date changed recently? Use episodes table already has latest, snapshot via settings
-        # 12 unwatched_bulk — ana kapı: kullanıcı izlemeye başlamış olmalı (watched>=1).
-        # Aktif dizilerde yalnız dün yayınlanan bölüm varsa (ertesi sabah 1 kez);
-        # bitmiş dizilerde (Ended/Canceled) haftada 1 kez. Sayı değişimi tek başına tetiklemez.
+        # 12 unwatched_bulk — sadece takipte (in_watched!=1 ve izlenmemişe atılmamış) için.
+        # Kapılar: started>=1, cnt>=3, aktifte dün-yayın şartı; 7-gün kayan pencere (son bulk <7 gün ise sessiz).
         try:
+            if int(r["in_watched"] or 0) == 1:
+                raise StopIteration  # izlenmişe atılmış → artık takipte değil
+            # izlenmemişe atılmış kart takipten çıkmıştır (takipte değilse episodes/follow silinir; kalan izlenmemiş sorgusu zaten fire'ı engeller)
             started = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)).fetchone()["c"]
-            if started >= 1:
-                bulk_status = (r["status"] or "").strip()
-                finished = bulk_status in ("Ended", "Canceled", "Cancelled")
-                fire = False
-                if finished:
-                    iso_y, iso_w, _ = datetime.date.fromisoformat(today).isocalendar()
-                    bulk_key = f"bulk_{iso_y}-W{iso_w:02d}"
+            if started < 1:
+                raise StopIteration
+            # 7-gün kayan pencere: son bulk bildiriminden 7 gün dolmadıysa ateşleme yok
+            last = conn.execute("SELECT created_at FROM notifications WHERE type='unwatched_bulk' AND tmdb_id=? ORDER BY created_at DESC LIMIT 1", (r["tmdb_id"],)).fetchone()
+            if last and (now_ts - int(last["created_at"] or 0)) < 7 * 86400:
+                raise StopIteration
+            bulk_status = (r["status"] or "").strip()
+            finished = bulk_status in ("Ended", "Canceled", "Cancelled")
+            fire = False
+            bulk_key = today  # notified_date artık günün tarihi (dedupe ikinci kapı)
+            if not finished:
+                yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
+                aired_yesterday = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], yesterday)).fetchone()["c"]
+                if aired_yesterday > 0:
                     fire = True
                 else:
-                    yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
-                    aired_yesterday = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], yesterday)).fetchone()["c"]
-                    if aired_yesterday > 0:
-                        bulk_key = f"bulk_{yesterday}"
-                        fire = True
-                if fire:
-                    cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=0 AND air_date IS NOT NULL AND air_date < ?", (r["id"], today)).fetchone()["c"]
-                    if cnt >= 3:
-                        _notif_create(r["title"], f"{r['title']} {cnt} bölüm birikti", "unwatched_bulk", media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=bulk_key)
+                    fire = False
+            else:
+                fire = True
+            if fire:
+                cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=0 AND air_date IS NOT NULL AND air_date < ?", (r["id"], today)).fetchone()["c"]
+                if cnt >= 3:
+                    _notif_create(r["title"], f"{r['title']} {cnt} bölüm birikti", "unwatched_bulk", media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=bulk_key)
+        except StopIteration:
+            pass
         except Exception:
             pass
         # 13 vote threshold: check vote_average jump stored in settings snapshot
@@ -526,33 +535,38 @@ def check_anime_notifications():
             set_setting("notif_anime_ep", json.dumps(snap))
         except Exception:
             pass
-        # 20 anime_unwatched_bulk — ana kapı: kullanıcı izlemeye başlamış olmalı (watched>=1).
-        # RELEASING animede yalnız dün (UTC) yayınlanan bölüm varsa (ertesi sabah 1 kez);
-        # FINISHED/CANCELLED/HIATUS animede haftada 1 kez. Sayı değişimi tek başına tetiklemez.
+        # 20 anime_unwatched_bulk — sadece takipte (in_watched!=1) için.
+        # Kapılar: started>=1, cnt>=3, RELEASING'te dün-yayın şartı; 7-gün kayan pencere.
         try:
+            if int(a["in_watched"] or 0) == 1:
+                raise StopIteration  # izlenmişe atılmış → artık takipte değil
             started = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (a["id"],)).fetchone()["c"]
-            if started >= 1:
-                a_status = (a["status"] or "").strip()
-                finished = a_status in ("FINISHED", "CANCELLED", "HIATUS")
-                fire = False
-                if finished:
-                    iso_y, iso_w, _ = datetime.date.fromisoformat(today).isocalendar()
-                    bulk_key = f"abulk_{iso_y}-W{iso_w:02d}"
+            if started < 1:
+                raise StopIteration
+            last = conn.execute("SELECT created_at FROM notifications WHERE type='anime_unwatched_bulk' AND anilist_id=? ORDER BY created_at DESC LIMIT 1", (a["anilist_id"],)).fetchone()
+            if last and (now_ts - int(last["created_at"] or 0)) < 7 * 86400:
+                raise StopIteration
+            a_status = (a["status"] or "").strip()
+            finished = a_status in ("FINISHED", "CANCELLED", "HIATUS")
+            fire = False
+            bulk_key = today
+            if not finished:
+                yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
+                aired_yesterday = False
+                for ae in conn.execute("SELECT air_at FROM anime_episodes WHERE anime_id=? AND air_at IS NOT NULL AND watched=0", (a["id"],)).fetchall():
+                    if datetime.datetime.fromtimestamp(ae["air_at"], datetime.timezone.utc).date().isoformat() == yesterday:
+                        aired_yesterday = True
+                        break
+                if aired_yesterday:
                     fire = True
-                else:
-                    yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
-                    aired_yesterday = False
-                    for ae in conn.execute("SELECT air_at FROM anime_episodes WHERE anime_id=? AND air_at IS NOT NULL AND watched=0", (a["id"],)).fetchall():
-                        if datetime.datetime.fromtimestamp(ae["air_at"], datetime.timezone.utc).date().isoformat() == yesterday:
-                            aired_yesterday = True
-                            break
-                    if aired_yesterday:
-                        bulk_key = f"abulk_{yesterday}"
-                        fire = True
-                if fire:
-                    cnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=0 AND air_at IS NOT NULL AND air_at < ?", (a["id"], int(datetime.datetime.now(datetime.timezone.utc).timestamp()))).fetchone()["c"]
-                    if cnt >= 3:
-                        _notif_create(a["title"], f"{a['title']} {cnt} bölüm birikti", "anime_unwatched_bulk", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=bulk_key)
+            else:
+                fire = True
+            if fire:
+                cnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=0 AND air_at IS NOT NULL AND air_at < ?", (a["id"], int(datetime.datetime.now(datetime.timezone.utc).timestamp()))).fetchone()["c"]
+                if cnt >= 3:
+                    _notif_create(a["title"], f"{a['title']} {cnt} bölüm birikti", "anime_unwatched_bulk", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=bulk_key)
+        except StopIteration:
+            pass
         except Exception:
             pass
     conn.close()

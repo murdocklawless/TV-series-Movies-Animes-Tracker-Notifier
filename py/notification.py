@@ -18,6 +18,27 @@ def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_
     uretilmis ise True doner. Dis push kapilarinin da kullanmasi icin ayrik."""
     conn = get_db()
     try:
+        # birikme tiplerinde tmdb_id/anilist_id ile dedupe (aynı isimli farklı dizi çakışmasın)
+        if type_name in ("unwatched_bulk", "anime_unwatched_bulk"):
+            if tmdb_id is not None:
+                rows = conn.execute(
+                    "SELECT notified_date FROM notifications WHERE type=? AND tmdb_id=?",
+                    (type_name, tmdb_id),
+                ).fetchall()
+            elif anilist_id is not None:
+                rows = conn.execute(
+                    "SELECT notified_date FROM notifications WHERE type=? AND anilist_id=?",
+                    (type_name, anilist_id),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT notified_date FROM notifications WHERE type=? AND title=?",
+                    (type_name, title),
+                ).fetchall()
+            for r in rows:
+                if r["notified_date"] == notified_date:
+                    return True
+            return False
         if season is not None or episode is not None:
             rows = conn.execute(
                 "SELECT id, season, episode, tmdb_id, anilist_id, notified_date FROM notifications WHERE type=? AND title=?",
