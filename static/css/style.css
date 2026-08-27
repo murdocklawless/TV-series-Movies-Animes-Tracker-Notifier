@@ -4125,6 +4125,46 @@ select#s-email-provider.email-lit {
   border-color: #f97316;
 }
 
+.backup-ssh-textarea {
+  width: 100%;
+  max-width: 440px;
+  min-height: 190px;
+  max-height: 38vh;
+  padding: 10px 12px;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: pre;
+  overflow: auto;
+  resize: vertical;
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.backup-ssh-textarea::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.backup-ssh-textarea:focus {
+  outline: none;
+  border-color: #f97316;
+}
+
+.backup-key-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
 .telegram-box.telegram-open,
 .accordion-box.accordion-open {
   border-color: #f97316;

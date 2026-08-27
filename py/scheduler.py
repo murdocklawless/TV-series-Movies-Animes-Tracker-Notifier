@@ -690,6 +690,18 @@ def refresh_fav_listings_job():
         print("fav listings refresh failed:", e)
 
 
+def backup_job():
+    """Yedekleme cron'u (fail-soft): Database veya Herşeyi yedekle moduna göre rsync/samba hedefe."""
+    try:
+        mode = (get_setting("backup_mode") or "").strip()
+        if not mode:
+            return
+        # şimdilik stub: logla, gerçek rsync/samba implementasyonu Faz sonrası eklenecek
+        print(f"backup_job mode={mode} hour={get_setting('backup_hour') or '03:00'}")
+    except Exception as e:
+        print("backup job failed:", e)
+
+
 def _tmdb_genre_names():
     conn = get_db()
     rows = conn.execute("SELECT name FROM genres WHERE source='tmdb' ORDER BY name").fetchall()
@@ -834,6 +846,19 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
+    backup_h, backup_m = parse_notify_hour(get_setting("backup_hour") or "03:00")
+    if SCHEDULER.get_job("backup_job"):
+        SCHEDULER.remove_job("backup_job")
+    SCHEDULER.add_job(
+        backup_job,
+        "cron",
+        hour=backup_h,
+        minute=backup_m,
+        timezone=tz,
+        id="backup_job",
+        misfire_grace_time=3600,
+    )
+
     if not SCHEDULER.running:
         SCHEDULER.start()
     print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time)
@@ -852,6 +877,10 @@ def schedule_releases():
         pass
     try:
         print("next fav refresh:", SCHEDULER.get_job("fav_refresh").next_run_time)
+    except Exception:
+        pass
+    try:
+        print("next backup:", SCHEDULER.get_job("backup_job").next_run_time)
     except Exception:
         pass
 

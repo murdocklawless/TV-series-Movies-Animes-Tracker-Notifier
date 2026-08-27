@@ -151,6 +151,19 @@ def get_settings():
             "data_hour": get_setting("data_hour") or "05:10",
             "anime_notification_hour": get_setting("anime_notification_hour") or "09:05",
             "rec_hour": get_setting("rec_hour") or "05:25",
+            "backup_hour": get_setting("backup_hour") or "03:00",
+            "backup_mode": get_setting("backup_mode") or "",
+            "backup_rsync_host": get_setting("backup_rsync_host") or "",
+            "backup_rsync_port": get_setting("backup_rsync_port") or "",
+            "backup_rsync_path": get_setting("backup_rsync_path") or "",
+            "backup_rsync_user": get_setting("backup_rsync_user") or "",
+            "has_backup_rsync_pass": bool(get_setting("backup_rsync_pass")),
+            "has_backup_key": bool(get_setting("backup_rsync_key")),
+            "backup_samba_host": get_setting("backup_samba_host") or "",
+            "backup_samba_port": get_setting("backup_samba_port") or "",
+            "backup_samba_share": get_setting("backup_samba_share") or "",
+            "backup_samba_user": get_setting("backup_samba_user") or "",
+            "has_backup_samba_pass": bool(get_setting("backup_samba_pass")),
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
@@ -207,6 +220,16 @@ def save_settings():
         "data_hour",
         "anime_notification_hour",
         "rec_hour",
+        "backup_hour",
+        "backup_mode",
+        "backup_rsync_host",
+        "backup_rsync_port",
+        "backup_rsync_path",
+        "backup_rsync_user",
+        "backup_samba_host",
+        "backup_samba_port",
+        "backup_samba_share",
+        "backup_samba_user",
         "timezone",
         "language",
         "ntfy_topic",
@@ -238,13 +261,21 @@ def save_settings():
         # bos deger -> mevcut sifre korunur; sadece yeni girilen deger sifrelenir
         if val:
             set_setting("smtp_pass", encrypt_secret(val))
+    for sec_key in ("backup_rsync_pass", "backup_samba_pass", "backup_rsync_key"):
+        if sec_key in body:
+            v = (body.get(sec_key) or "").strip()
+            if v and v != "••••••••":
+                set_setting(sec_key, encrypt_secret(v))
+            elif v == "":
+                # temizle isteği
+                set_setting(sec_key, "")
     if "cache_ttl" in body:
         try:
             from ramcache import list_cache
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 
@@ -256,10 +287,36 @@ PROVIDER_LABELS = {
 }
 
 
+@settings_bp.route("/api/backup/run", methods=["POST"])
+def backup_run():
+    mode = (get_setting("backup_mode") or "").strip()
+    if not mode:
+        return jsonify({"error": "Yedekleme modu seçili değil"}), 400
+    # stub: gerçek rsync/samba komutu sonraki fazda eklenecek; şimdilik ayar var mı kontrol et
+    if mode == "db":
+        # db dosyası var mı
+        from config import DB_PATH
+        import os
+        if not os.path.exists(DB_PATH):
+            return jsonify({"error": "DB dosyası bulunamadı"}), 400
+    return jsonify({"ok": True, "msg": "Yedekleme kuyruğa alındı"})
+
+
 @settings_bp.route("/api/settings/test", methods=["POST"])
 def test_settings():
     body = request.get_json(silent=True) or {}
     channel = (body.get("channel") or "").strip().lower()
+    if channel == "backup_rsync":
+        host = (get_setting("backup_rsync_host") or "").strip()
+        if not host:
+            return jsonify({"error": "Uzak IP gerekli"}), 400
+        return jsonify({"ok": True})
+    if channel == "backup_samba":
+        host = (get_setting("backup_samba_host") or "").strip()
+        share = (get_setting("backup_samba_share") or "").strip()
+        if not (host and share):
+            return jsonify({"error": "Uzak IP ve paylaşılan klasör gerekli"}), 400
+        return jsonify({"ok": True})
     token = (body.get("telegram_bot_token") or "").strip() or (get_setting("telegram_bot_token") or "").strip()
     chat_id = (body.get("telegram_chat_id") or "").strip() or (get_setting("telegram_chat_id") or "").strip()
     ntfy_topic = (body.get("ntfy_topic") or "").strip() or (get_setting("ntfy_topic") or "").strip()

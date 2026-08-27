@@ -511,6 +511,36 @@ async function loadSettings() {
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
   document.getElementById("s-anime-hour").value = s.anime_notification_hour || "09:05";
   document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
+  document.getElementById("s-backup-hour").value = s.backup_hour || "03:00";
+  // yedekleme: mod (db/full) ve rsync/samba alanlari
+  const bm = s.backup_mode || "";
+  const dbSw = document.getElementById("s-backup-db");
+  const fullSw = document.getElementById("s-backup-full");
+  if (dbSw) dbSw.checked = bm === "db";
+  if (fullSw) fullSw.checked = bm === "full";
+  const rsH = document.getElementById("s-backup-rsync-host");
+  if (rsH) rsH.value = s.backup_rsync_host || "";
+  const rsP = document.getElementById("s-backup-rsync-port");
+  if (rsP) rsP.value = s.backup_rsync_port || "";
+  const rsPath = document.getElementById("s-backup-rsync-path");
+  if (rsPath) rsPath.value = s.backup_rsync_path || "";
+  const rsU = document.getElementById("s-backup-rsync-user");
+  if (rsU) rsU.value = s.backup_rsync_user || "";
+  const rsPass = document.getElementById("s-backup-rsync-pass");
+  if (rsPass) rsPass.value = "";
+  const rsKey = document.getElementById("s-backup-rsync-key-text");
+  if (rsKey) rsKey.value = s.has_backup_key ? "••••••••" : "";
+  rsKey.dataset.hasKey = s.has_backup_key ? "1" : "0";
+  const smH = document.getElementById("s-backup-samba-host");
+  if (smH) smH.value = s.backup_samba_host || "";
+  const smP = document.getElementById("s-backup-samba-port");
+  if (smP) smP.value = s.backup_samba_port || "";
+  const smShare = document.getElementById("s-backup-samba-share");
+  if (smShare) smShare.value = s.backup_samba_share || "";
+  const smU = document.getElementById("s-backup-samba-user");
+  if (smU) smU.value = s.backup_samba_user || "";
+  const smPass = document.getElementById("s-backup-samba-pass");
+  if (smPass) smPass.value = "";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
   document.getElementById("s-discord-webhook").value = s.discord_webhook_url || "";
   document.getElementById("s-brevo-key").value = s.brevo_api_key || "";
@@ -535,6 +565,7 @@ async function loadSettings() {
   initTimePicker("s-data-hour");
   initTimePicker("s-anime-hour");
   initTimePicker("s-rec-hour");
+  initTimePicker("s-backup-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = state.currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
@@ -856,6 +887,167 @@ async function openFavListing(kind, ident, title) {
   if (btn) btn.onclick = close;
   modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.style.display !== "none") close(); });
+})();
+
+// Yedekleme: sabit çerçeve 2 switch (biri açılırsa diğeri kapanır) + Rsync/Samba akordeonları
+(function initBackupSwitches() {
+  const dbSw = document.getElementById("s-backup-db");
+  const fullSw = document.getElementById("s-backup-full");
+  if (!dbSw || !fullSw) return;
+  dbSw.addEventListener("change", () => {
+    if (dbSw.checked) {
+      fullSw.checked = false;
+      saveSettingsPartial({ backup_mode: "db" }, dbSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    } else if (!fullSw.checked) {
+      saveSettingsPartial({ backup_mode: "" }, dbSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    } else {
+      saveSettingsPartial({ backup_mode: "full" }, dbSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    }
+  });
+  fullSw.addEventListener("change", () => {
+    if (fullSw.checked) {
+      dbSw.checked = false;
+      saveSettingsPartial({ backup_mode: "full" }, fullSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    } else if (!dbSw.checked) {
+      saveSettingsPartial({ backup_mode: "" }, fullSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    } else {
+      saveSettingsPartial({ backup_mode: "db" }, fullSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
+    }
+  });
+  // switch tıklaması akordeonu tetiklemesin
+  [dbSw, fullSw].forEach((sw) => sw.addEventListener("click", (e) => e.stopPropagation()));
+})();
+
+// Yedekleme Rsync/Samba akordeonları + port autofill + SSH key textarea/file
+(function initBackupAccordion() {
+  [["backup-rsync-box", "backup-rsync-body", "s-backup-rsync-port", "22"], ["backup-samba-box", "backup-samba-body", "s-backup-samba-port", "445"]].forEach(([boxId, bodyId, portId, defPort]) => {
+    const box = document.getElementById(boxId);
+    const body = document.getElementById(bodyId);
+    const portEl = document.getElementById(portId);
+    if (!box || !body) return;
+    box.addEventListener("click", (e) => {
+      if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("button") || e.target.closest("a") || e.target.closest(".provider-list") || e.target.closest("textarea")) return;
+      const isOpen = body.style.display !== "none";
+      document.getElementById("backup-rsync-body").style.display = "none";
+      document.getElementById("backup-samba-body").style.display = "none";
+      document.getElementById("backup-rsync-box").classList.remove("accordion-open");
+      document.getElementById("backup-samba-box").classList.remove("accordion-open");
+      if (!isOpen) {
+        body.style.display = "";
+        box.classList.add("accordion-open");
+        if (portEl && !portEl.value.trim()) {
+          portEl.value = defPort;
+          const hint = portEl.closest("label").querySelector(".saved-hint");
+          saveSettingsPartial({ [portEl.id.replace("s-", "").replace(/-/g, "_")]: defPort }, hint);
+        }
+      }
+    });
+  });
+  // SSH key textarea autosave (bulanıklaşınca)
+  const keyText = document.getElementById("s-backup-rsync-key-text");
+  if (keyText) {
+    // placeholder key gösteriliyorsa ilk odaklanmada temizle
+    keyText.addEventListener("focus", () => {
+      if (keyText.dataset.hasKey === "1" && keyText.value === "••••••••") {
+        keyText.value = "";
+        keyText.dataset.hasKey = "0";
+      }
+    });
+    keyText.addEventListener("blur", async () => {
+      const v = keyText.value.trim();
+      if (!v || v === "••••••••") return;
+      // OpenSSH format kontrolü (başlık)
+      if (!v.includes("BEGIN") || !v.includes("PRIVATE KEY")) {
+        toast("OpenSSH formatında olmalı (-----BEGIN OPENSSH PRIVATE KEY-----)", true);
+        return;
+      }
+      const hint = keyText.closest("label").querySelector(".saved-hint");
+      const ok = await saveSettingsPartial({ backup_rsync_key: v }, hint);
+      if (ok) keyText.dataset.hasKey = "1";
+    });
+  }
+  const keyFile = document.getElementById("s-backup-rsync-key-file");
+  const keyUpload = document.getElementById("s-backup-rsync-key-upload");
+  const keyClear = document.getElementById("s-backup-rsync-key-clear");
+  if (keyUpload && keyFile) {
+    keyUpload.addEventListener("click", (e) => {
+      e.stopPropagation();
+      keyFile.click();
+    });
+    keyFile.addEventListener("change", () => {
+      const f = keyFile.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = String(reader.result || "");
+        if (keyText) {
+          keyText.value = text;
+          keyText.focus();
+        }
+      };
+      reader.readAsText(f);
+      keyFile.value = "";
+    });
+  }
+  if (keyClear && keyText) {
+    keyClear.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      keyText.value = "";
+      keyText.dataset.hasKey = "0";
+      const hint = keyText.closest("label").querySelector(".saved-hint");
+      await saveSettingsPartial({ backup_rsync_key: "" }, hint);
+    });
+  }
+  // backup alanları autosave (blur)
+  [
+    ["s-backup-rsync-host", "backup_rsync_host"],
+    ["s-backup-rsync-port", "backup_rsync_port"],
+    ["s-backup-rsync-path", "backup_rsync_path"],
+    ["s-backup-rsync-user", "backup_rsync_user"],
+    ["s-backup-samba-host", "backup_samba_host"],
+    ["s-backup-samba-port", "backup_samba_port"],
+    ["s-backup-samba-share", "backup_samba_share"],
+    ["s-backup-samba-user", "backup_samba_user"],
+  ].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("blur", async () => {
+      const v = el.value.trim();
+      const hint = el.closest("label").querySelector(".saved-hint");
+      await saveSettingsPartial({ [key]: v }, hint);
+    });
+  });
+  // şifreler: boş bırakılırsa gönderme, doluysa kaydet
+  ["s-backup-rsync-pass", "s-backup-samba-pass"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const key = id.replace("s-", "").replace(/-/g, "_");
+    el.addEventListener("blur", async () => {
+      const v = el.value;
+      if (!v) return;
+      const hint = el.closest("label").querySelector(".saved-hint");
+      const ok = await saveSettingsPartial({ [key]: v }, hint);
+      if (ok) el.value = "";
+    });
+  });
+  // Test ve Şimdi Yedekle butonları
+  const testRsync = document.getElementById("test-backup-rsync");
+  if (testRsync) testRsync.addEventListener("click", (e) => {
+    e.stopPropagation();
+    runChannelTest({ channel: "backup_rsync" });
+  });
+  const testSamba = document.getElementById("test-backup-samba");
+  if (testSamba) testSamba.addEventListener("click", (e) => {
+    e.stopPropagation();
+    runChannelTest({ channel: "backup_samba" });
+  });
+  const nowBtn = document.getElementById("backup-now");
+  if (nowBtn) nowBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const r = await fetch("/api/backup/run", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
+  });
 })();
 
 // Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
@@ -1230,6 +1422,12 @@ document.getElementById("s-rec-hour").addEventListener("change", () => {
   const el = document.getElementById("s-rec-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ rec_hour: el.value }, hint);
+});
+
+document.getElementById("s-backup-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-backup-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ backup_hour: el.value }, hint);
 });
 
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {

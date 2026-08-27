@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=374" />
+  <link rel="stylesheet" href="/static/css/style.css?v=375" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -48,6 +48,7 @@
             <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-cache-modal"><i class="fa-solid fa-gauge-high"></i><span data-i18n="settings_cache">Cache Süresi</span></button>
+            <button class="settings-menu-item" data-target="settings-backup-modal"><i class="fa-solid fa-floppy-disk"></i><span data-i18n="settings_backup">Yedekleme</span></button>
           </div>
         </div>
         <div id="notif-menu" class="notif-menu">
@@ -312,6 +313,92 @@
           <div class="notif-type-body" id="fav-genres-body" style="display:none">
             <div id="fav-genres-list" class="fav-list"></div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-backup-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_backup">Yedekleme</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="channel-frame" id="backup-mode-frame">
+          <div class="notify-row">
+            <span class="notify-name" data-i18n="backup_db_only">Database Yedekle</span>
+            <label class="switch"><input type="checkbox" id="s-backup-db" /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name" data-i18n="backup_full">Herşeyi Yedekle</span>
+            <label class="switch"><input type="checkbox" id="s-backup-full" /><span class="slider"></span></label>
+          </div>
+        </div>
+        <div class="channel-box accordion-box notif-type-box" id="backup-rsync-box">
+          <div class="notif-type-head">
+            <span class="notif-type-title">Rsync</span>
+          </div>
+          <div class="notif-type-body" id="backup-rsync-body" style="display:none">
+            <div class="channel-frame">
+              <label><span class="settings-label-head"><span data-i18n="backup_remote_ip">Uzak IP</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-rsync-host" type="text" placeholder="192.168.1.100" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="label_port">Port</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-rsync-port" type="text" placeholder="22" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_remote_path">Uzak Yol</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-rsync-path" type="text" placeholder="/backups/tracker/" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_user">Kullanıcı Adı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-rsync-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_pass">Kullanıcı Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-rsync-pass" type="password" autocomplete="new-password" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_ssh_key">SSH Key</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <textarea id="s-backup-rsync-key-text" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea"></textarea>
+              </label>
+              <div class="backup-key-actions" style="display:flex; gap:8px; justify-content:center;">
+                <input type="file" id="s-backup-rsync-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
+                <button id="s-backup-rsync-key-upload" class="btn" data-i18n="backup_upload_key">Dosyadan Yükle</button>
+                <button id="s-backup-rsync-key-clear" class="btn" data-i18n="clear">Temizle</button>
+              </div>
+              <div class="test-row">
+                <button id="test-backup-rsync" class="channel-test-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="test_short">Test</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="channel-box accordion-box notif-type-box" id="backup-samba-box">
+          <div class="notif-type-head">
+            <span class="notif-type-title">Samba</span>
+          </div>
+          <div class="notif-type-body" id="backup-samba-body" style="display:none">
+            <div class="channel-frame">
+              <label><span class="settings-label-head"><span data-i18n="backup_remote_ip">Uzak IP</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-samba-host" type="text" placeholder="192.168.1.100" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="label_port">Port</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-samba-port" type="text" placeholder="445" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_samba_share">Paylaşılan Klasör Adı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-samba-share" type="text" placeholder="paylasim" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_samba_user">Samba Kullanıcı Adı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-samba-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" />
+              </label>
+              <label><span class="settings-label-head"><span data-i18n="backup_samba_pass">Samba Kullanıcı Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+                <input id="s-backup-samba-pass" type="password" autocomplete="new-password" spellcheck="false" data-lpignore="true" />
+              </label>
+              <div class="test-row">
+                <button id="test-backup-samba" class="channel-test-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="test_short">Test</span></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="test-row" style="margin-top:12px; justify-content:center;">
+          <button id="backup-now" class="btn primary" data-i18n="backup_now">Şimdi Yedekle</button>
         </div>
       </div>
     </div>
@@ -592,6 +679,22 @@
             </div>
           </div>
         </label>
+        <label><span class="settings-label-head"><span data-i18n="label_backup_hour" data-i18n-title="tip_backup_hour">Yedekleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-backup-hour" type="text" value="03:00" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="numeric" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-backup-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-backup-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-backup-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
         <label><span class="settings-label-head"><span data-i18n="label_rec_hour" data-i18n-title="tip_rec_hour">Öneri Bölümü Güncelleme Rotasyonu</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <div class="time-combobox">
             <input id="s-rec-hour" type="text" value="05:25" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="numeric" />
@@ -740,6 +843,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=375"></script>
+  <script type="module" src="/static/js/tracker.js?v=376"></script>
 </body>
 </html>
