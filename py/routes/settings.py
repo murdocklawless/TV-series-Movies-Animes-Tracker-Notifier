@@ -35,6 +35,11 @@ def fav_actors():
         actors.append({"person_id": person_id, "name": name})
         added = True
     set_setting("fav_actors", json.dumps(actors, ensure_ascii=False))
+    try:
+        from fav_listings import invalidate_fav_listing
+        invalidate_fav_listing("actor", str(person_id))
+    except Exception:
+        pass
     return jsonify({"ok": True, "added": added, "actors": actors})
 
 
@@ -382,6 +387,13 @@ def fav_genres():
         added = True
     set_setting("fav_genres", json.dumps(genres, ensure_ascii=False))
     bump()
+    try:
+        from fav_listings import invalidate_fav_listing
+        invalidate_fav_listing("genre", genre.lower() + "|all")
+        invalidate_fav_listing("genre", genre.lower() + "|tv")
+        invalidate_fav_listing("genre", genre.lower() + "|movie")
+    except Exception:
+        pass
     return jsonify({"ok": True, "added": added, "genres": genres})
 
 

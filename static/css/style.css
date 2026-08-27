@@ -1522,6 +1522,16 @@ input:-webkit-autofill:focus {
   border-radius: 8px;
 }
 
+.fav-item-clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fav-item-clickable:hover {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.08);
+}
+
 .fav-name {
   font-size: 0.85rem;
   color: #e5e9f0;
@@ -1636,11 +1646,33 @@ input:-webkit-autofill:focus {
 /* Bildirim Turleri grup akordeonlari: kapali boyut kanal kutulariyle birebir
    (channel-box padding 4/14/10 + notify-row 12+12+24 = head 12px 8px + min-height 24px) */
 .notif-type-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 24px;
-  padding: 12px 8px;
+  min-height: 20px;
+  padding: 8px 30px;
+  margin: 0 -14px;
+}
+
+.notif-type-head::after {
+  /* Kaynak: Bildirim Kanal Ayarları başlık oku — 5 kanal başlığına da aynı konum uygulanır */
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-size: 14px;
+  background-position: center;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+}
+
+.accordion-box.accordion-open .notif-type-head::after {
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .notif-type-title {
@@ -1655,8 +1687,57 @@ input:-webkit-autofill:focus {
 }
 
 .notif-type-box:hover .notif-type-title,
-.notif-type-box.accordion-open .notif-type-title {
+.notif-type-box.accordion-open:hover .notif-type-title,
+#fav-actors-box:hover .notif-type-title,
+#fav-actors-box.accordion-open:hover .notif-type-title,
+#fav-genres-box:hover .notif-type-title,
+#fav-genres-box.accordion-open:hover .notif-type-title {
   color: #FFFFFF;
+}
+
+/* Kanal akordeonlari (Telegram/ntfy/Discord/E-posta/Bildirim Merkezi): ok + switch sola + yukseklik 48px esitleme
+   Ok konumu dış başlık (.notif-type-head::after) ile birebir aynı: right 10px, 14px, #888, center
+   NOT: Bildirim Türleri iç satirlari (.notif-type-box .notify-type-row) akordeon degil — ok/sola-cekme burada uretilmez */
+.channel-box:not(.notif-type-box) .notify-row {
+  position: relative;
+  min-height: 20px;
+  margin: 0 -14px;
+  padding: 8px 76px 8px 14px;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.channel-box:not(.notif-type-box) .notify-row .notify-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.channel-box:not(.notif-type-box) .notify-row .switch {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.channel-box:not(.notif-type-box) .notify-row::after {
+  content: "";
+  position: absolute;
+  right: 0px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-size: 14px;
+  background-position: center;
+  transform: translateY(-50%);
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+
+.channel-box:not(.notif-type-box).accordion-open .notify-row::after,
+.telegram-box.telegram-open .notify-row::after {
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .switch {
@@ -4002,9 +4083,34 @@ select#s-email-provider.email-lit {
 .notif-type-box {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  padding: 4px 14px 10px;
+  padding: 5px 14px;
   margin: 10px auto;
   max-width: 440px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 5 kanal başlığı çerçevesi 1px üst/alttan küçült (2px toplam) — dış & alt grup hariç */
+.channel-box:not(.notif-type-box) {
+  padding: 4px 14px;
+}
+
+.settings-form input,
+.settings-form select,
+.tz-combobox input,
+.time-combobox input {
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.settings-form label {
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Akordeon: dis cerceve hover'da turuncu, tiklaninca ic cerceve asagi dogru genisler */

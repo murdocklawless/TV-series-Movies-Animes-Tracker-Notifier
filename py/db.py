@@ -214,6 +214,17 @@ def init_db():
             PRIMARY KEY(kind, id)
         )"""
     )
+    # Favori oyuncu/tur liste cache'i (actor limitsiz, genre 30; guncellik fp=today)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS fav_listing_cache (
+            kind TEXT NOT NULL,
+            ident TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            ts REAL NOT NULL,
+            fp TEXT,
+            PRIMARY KEY(kind, ident)
+        )"""
+    )
     conn.commit()
     conn.close()
 

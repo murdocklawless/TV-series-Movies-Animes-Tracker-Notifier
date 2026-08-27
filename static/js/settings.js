@@ -16,6 +16,7 @@ const NOTIF_TYPES = [
   ["movie_today", "movie"], ["movie_rescheduled", "movie"], ["networks_changed", "movie"],
   ["anime_episode_today", "anime"], ["anime_hiatus", "anime"], ["anime_cancelled", "anime"],
   ["anime_finished", "anime"], ["anime_releasing", "anime"], ["anime_episodes", "anime"],
+  ["anime_unwatched_bulk", "anime"],
 ];
 const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"]];
 
@@ -670,8 +671,10 @@ async function showSettingsSubmodal(id) {
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = el.id === id ? "flex" : "none";
   });
-  if (id === "settings-favactors-modal") renderFavActorsList();
-  if (id === "settings-favgenres-modal") renderFavGenresList();
+  if (id === "settings-favorites-modal") {
+    renderFavActorsList();
+    renderFavGenresList();
+  }
   if (id === "settings-notify-modal") updateNotifyToggleStates();
   closeSettingsMenu();
 }
@@ -695,11 +698,12 @@ async function renderFavActorsList() {
     }
     list.innerHTML = actors
       .map(
-        (a) => `<div class="fav-item"><span class="fav-name">${escAttr(a.name)}</span><button class="fav-heart" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}" data-tip="${t("fav_actor_remove")}">${HEART_SVG}</button></div>`
+        (a) => `<div class="fav-item fav-item-clickable" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}"><span class="fav-name">${escAttr(a.name)}</span><button class="fav-heart" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}" data-tip="${t("fav_actor_remove")}">${HEART_SVG}</button></div>`
       )
       .join("");
     list.querySelectorAll(".fav-heart").forEach((btn) => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
         const r = await fetch("/api/fav_actors", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -712,6 +716,12 @@ async function renderFavActorsList() {
           toast(t("fav_actor_removed", { name: btn.dataset.name }));
         }
       };
+    });
+    list.querySelectorAll(".fav-item-clickable").forEach((row) => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".fav-heart")) return;
+        openFavListing("actor", row.dataset.id, row.dataset.name);
+      });
     });
   } catch (e) {}
 }
@@ -729,11 +739,12 @@ async function renderFavGenresList() {
     }
     list.innerHTML = genres
       .map(
-        (g) => `<div class="fav-item"><span class="fav-name">${escAttr(g)}</span><button class="fav-heart" data-name="${escAttr(g)}" data-tip="${t("fav_genre_remove")}">${HEART_SVG}</button></div>`
+        (g) => `<div class="fav-item fav-item-clickable" data-name="${escAttr(g)}"><span class="fav-name">${escAttr(g)}</span><button class="fav-heart" data-name="${escAttr(g)}" data-tip="${t("fav_genre_remove")}">${HEART_SVG}</button></div>`
       )
       .join("");
     list.querySelectorAll(".fav-heart").forEach((btn) => {
-      btn.onclick = async () => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
         const r = await fetch("/api/fav_genres", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -747,8 +758,128 @@ async function renderFavGenresList() {
         }
       };
     });
+    list.querySelectorAll(".fav-item-clickable").forEach((row) => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".fav-heart")) return;
+        openFavListing("genre", row.dataset.name, row.dataset.name);
+      });
+    });
   } catch (e) {}
 }
+
+// Favori liste modalı — person-modal ile aynı boyut/grid, cache'li
+async function openFavListing(kind, ident, title) {
+  const modal = document.getElementById("fav-listing-modal");
+  const body = document.getElementById("fav-listing-body");
+  const ttl = document.getElementById("fav-listing-title");
+  if (!modal || !body) return;
+  ttl.textContent = title || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  try {
+    let url = "";
+    if (kind === "actor") url = `/api/favorites/actor/${encodeURIComponent(ident)}`;
+    else url = `/api/favorites/genre?name=${encodeURIComponent(ident)}&media=all`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) {
+      const { errText: _err } = await import("./i18n.js");
+      body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+    const items = data.items || [];
+    if (!items.length) {
+      body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
+      return;
+    }
+    const { posterHTML, scoreTag, typeLabel, formatDate, applyTitleHint } = await import("./utils.js");
+    const { openDetails } = await import("./components.js");
+    const { loadFollowed } = await import("./views.js");
+    const grid = document.createElement("div");
+    grid.className = "poster-grid person-grid";
+    for (const item of items) {
+      const div = document.createElement("div");
+      div.className = "card";
+      const mediaType = item.media_type || (kind === "actor" ? "tv" : "movie");
+      div.innerHTML = `
+        ${posterHTML(item.poster_path, item.title)}
+        <div class="info">
+          <div class="title">${escAttr(item.title)}</div>
+          <div class="meta">
+            <span class="badge badge-${mediaType}">${typeLabel(mediaType)}</span>
+            ${scoreTag(item.vote_average)}
+            ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
+            ${item.character ? `<div class="next-ep muted">${escAttr(item.character)}</div>` : ""}
+          </div>
+        </div>
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: mediaType,
+            title: item.title,
+            poster_path: item.poster_path,
+          }),
+        });
+        const j = await r.json();
+        const { t: _t } = await import("./i18n.js");
+        toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
+        if (r.ok) {
+          loadFollowed(mediaType === "tv" ? "dizi" : "film");
+          modal.style.display = "none";
+        }
+      };
+      div.onclick = () => {
+        openDetails(mediaType, item.tmdb_id, item.title);
+        modal.style.display = "none";
+      };
+      grid.appendChild(div);
+      applyTitleHint(div);
+    }
+    body.innerHTML = "";
+    body.appendChild(grid);
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+(function initFavListingModal() {
+  const modal = document.getElementById("fav-listing-modal");
+  if (!modal) return;
+  const close = () => { modal.style.display = "none"; };
+  const btn = document.getElementById("fav-listing-close");
+  if (btn) btn.onclick = close;
+  modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.style.display !== "none") close(); });
+})();
+
+// Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
+(function initFavoritesAccordion() {
+  [["fav-actors-box", "fav-actors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
+    const box = document.getElementById(boxId);
+    const body = document.getElementById(bodyId);
+    if (!box || !body) return;
+    box.addEventListener("click", (e) => {
+      if (e.target.closest("button") && e.target.closest(".fav-heart")) return;
+      if (e.target.closest(".fav-item")) return;
+      if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
+      const isOpen = body.style.display !== "none";
+      document.getElementById("fav-actors-body").style.display = "none";
+      document.getElementById("fav-genres-body").style.display = "none";
+      document.getElementById("fav-actors-box").classList.remove("accordion-open");
+      document.getElementById("fav-genres-box").classList.remove("accordion-open");
+      if (!isOpen) {
+        body.style.display = "";
+        box.classList.add("accordion-open");
+      }
+    });
+  });
+})();
 
 document.getElementById("tab-settings").addEventListener("click", (e) => {
   e.stopPropagation();

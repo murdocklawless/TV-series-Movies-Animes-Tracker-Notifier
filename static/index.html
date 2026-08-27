@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=363" />
+  <link rel="stylesheet" href="/static/css/style.css?v=370" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -44,8 +44,7 @@
           <div id="settings-menu" class="settings-menu">
             <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
             <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB API Key</span></button>
-            <button class="settings-menu-item tmdb-locked" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
-            <button class="settings-menu-item tmdb-locked" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-favorites-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favorites">Favoriler</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-cache-modal"><i class="fa-solid fa-gauge-high"></i><span data-i18n="settings_cache">Cache Süresi</span></button>
@@ -291,26 +290,29 @@
     </div>
   </div>
 
-  <div id="settings-favactors-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+  <div id="settings-favorites-modal" class="modal-overlay settings-modal-overlay" style="display:none">
     <div class="modal settings-modal">
       <div class="modal-header">
-        <h3 data-i18n="settings_favactors">Favori Oyuncular</h3>
+        <h3 data-i18n="settings_favorites">Favoriler</h3>
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="fav-actors-list" class="fav-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="settings-favgenres-modal" class="modal-overlay settings-modal-overlay" style="display:none">
-    <div class="modal settings-modal">
-      <div class="modal-header">
-        <h3 data-i18n="settings_favgenres">Favori Türler</h3>
-        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="fav-genres-list" class="fav-list"></div>
+        <div class="channel-box accordion-box notif-type-box" id="fav-actors-box">
+          <div class="notif-type-head">
+            <span class="notif-type-title" data-i18n="settings_favactors">Favori Oyuncular</span>
+          </div>
+          <div class="notif-type-body" id="fav-actors-body" style="display:none">
+            <div id="fav-actors-list" class="fav-list"></div>
+          </div>
+        </div>
+        <div class="channel-box accordion-box notif-type-box" id="fav-genres-box">
+          <div class="notif-type-head">
+            <span class="notif-type-title" data-i18n="settings_favgenres">Favori Türler</span>
+          </div>
+          <div class="notif-type-body" id="fav-genres-body" style="display:none">
+            <div id="fav-genres-list" class="fav-list"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -479,10 +481,8 @@
         </div>
           </div>
         </div>
-        <div class="notify-frame">
-          <div class="notify-frame-title" data-i18n="notif_frame_types">Bildirim Türleri</div>
-          <div id="notif-types-groups"></div>
-        </div>
+        <div class="notify-frame-title" data-i18n="notif_frame_types">Bildirim Türleri</div>
+        <div id="notif-types-groups"></div>
         <div id="notify-saved-hint" class="notify-saved" data-i18n="saved">Kaydedildi</div>
       </div>
     </div>
@@ -673,6 +673,17 @@
     </div>
   </div>
 
+  <!-- Fav listing modal (actor/genre) — .person-modal boyutunda -->
+  <div id="fav-listing-modal" class="modal-overlay" style="display:none">
+    <div class="modal person-modal">
+      <div class="modal-header">
+        <h3 id="fav-listing-title"></h3>
+        <button id="fav-listing-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div id="fav-listing-body" class="modal-body"></div>
+    </div>
+  </div>
+
   <!-- Favorite picker modal -->
   <div id="picker-modal" class="modal-overlay" style="display:none">
     <div class="modal picker-modal">
@@ -729,6 +740,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=372"></script>
+  <script type="module" src="/static/js/tracker.js?v=375"></script>
 </body>
 </html>

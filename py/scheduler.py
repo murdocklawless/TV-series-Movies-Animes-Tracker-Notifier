@@ -41,6 +41,7 @@ NOTIF_TYPES = [
     ("anime_finished", "anime"),
     ("anime_releasing", "anime"),
     ("anime_episodes", "anime"),
+    ("anime_unwatched_bulk", "anime"),
 ]
 
 # Dış kanala (Telegram/ntfy) check_releases'ten giden tipler; burada tekrar push edilmez
@@ -49,6 +50,67 @@ NOTIF_PUSH_EXCLUDED = {"episode_today", "movie_today"}
 
 def _notif_enabled(type_name):
     return get_setting(f"notif_{type_name}") != "0"
+
+
+def _extract_platform_networks(raw):
+    try:
+        vals = json.loads(raw) if isinstance(raw, str) else raw
+        if isinstance(vals, list) and vals:
+            v = str(vals[0] or "").strip()
+            if v:
+                return v
+    except Exception:
+        pass
+    if isinstance(raw, str) and raw.strip():
+        return raw.strip()
+    return ""
+
+
+def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_path=None, cover_url=None, remote_url=None, score=None, platform=None, status_line=None, status_color=None):
+    """E-posta karti icin dict kurar — web UI kartlariyla ayni yapi (ad/etiket/puan/platform/status)."""
+    mt = (media_type or ("anime" if anilist_id else "tv")).lower()
+    if mt not in ("tv", "movie", "anime"):
+        mt = "tv"
+    # poster
+    poster = (remote_url or "").strip()
+    if not poster:
+        if poster_path:
+            poster = TMDB_IMAGE_BASE + poster_path
+        elif cover_url:
+            poster = cover_url
+    # score/platform DB'den dene eger verilmemisse
+    sc = score
+    pf = platform
+    if sc is None or pf is None:
+        try:
+            conn = get_db()
+            if mt in ("tv", "movie") and tmdb_id:
+                row = conn.execute("SELECT vote_average, networks, release_date FROM followed WHERE tmdb_id=?", (tmdb_id,)).fetchone()
+                if row:
+                    if sc is None:
+                        sc = row["vote_average"]
+                    if pf is None:
+                        pf = _extract_platform_networks(row["networks"])
+            elif mt == "anime" and anilist_id:
+                row = conn.execute("SELECT score, studios FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+                if row:
+                    if sc is None:
+                        sc = row["score"]
+                    if pf is None and row["studios"]:
+                        pf = str(row["studios"]).strip()
+            conn.close()
+        except Exception:
+            pass
+    card = {
+        "title": title,
+        "media_type": mt,
+        "score": sc,
+        "platform": pf or "",
+        "poster_url": poster or "",
+        "status_line": status_line or "",
+        "status_color": status_color or "#22c55e",
+    }
+    return card
 
 
 def sync_episodes(conn, follow):
@@ -149,7 +211,7 @@ def check_releases():
     conn = get_db()
 
     rows = conn.execute(
-        "SELECT e.*, f.title, f.media_type, f.poster_path FROM episodes e "
+        "SELECT e.*, f.title, f.media_type, f.poster_path, f.vote_average, f.networks FROM episodes e "
         "JOIN followed f ON f.id = e.follow_id "
         "WHERE e.notified=0 AND e.air_date=?",
         (today,),
@@ -159,7 +221,14 @@ def check_releases():
         msg, poster = build_episode_message(
             row["title"], row["media_type"], row["season"], row["episode"], row["air_date"], row["poster_path"]
         )
-        if not enabled or notify_all(msg, poster):
+        # kartli e-posta (web UI #0f1117/#171a23) icin card kur
+        from messages_i18n import t as _t
+        try:
+            sl = _t("sl_episode_today", season=row["season"], episode=row["episode"])
+        except Exception:
+            sl = f"S{row['season']:02d}E{row['episode']:02d} · Bugün Yayınlanacak"
+        card = _build_card(row["title"], media_type=row["media_type"], tmdb_id=row["tmdb_id"] if "tmdb_id" in row.keys() else None, poster_path=row["poster_path"], remote_url=poster, score=row["vote_average"] if "vote_average" in row.keys() else None, platform=_extract_platform_networks(row["networks"]) if "networks" in row.keys() else None, status_line=sl, status_color="#f97316")
+        if not enabled or notify_all(msg, poster, card=card):
             conn.execute("UPDATE episodes SET notified=1 WHERE id=?", (row["id"],))
             conn.commit()
 
@@ -170,7 +239,13 @@ def check_releases():
     for movie in movies:
         enabled = _notif_enabled("movie_today")
         msg, poster = build_movie_message(movie["title"], movie["release_date"], movie["poster_path"])
-        if not enabled or notify_all(msg, poster):
+        from messages_i18n import t as _t2
+        try:
+            slm = _t2("sl_movie_today")
+        except Exception:
+            slm = "Bugün Vizyonda"
+        card_m = _build_card(movie["title"], media_type="movie", tmdb_id=movie["tmdb_id"], poster_path=movie["poster_path"], remote_url=poster, score=movie["vote_average"] if "vote_average" in movie.keys() else None, platform=_extract_platform_networks(movie["networks"]) if "networks" in movie.keys() else None, status_line=slm, status_color="#22c55e")
+        if not enabled or notify_all(msg, poster, card=card_m):
             conn.execute("UPDATE followed SET notified=1 WHERE id=?", (movie["id"],))
             conn.commit()
 
@@ -178,7 +253,7 @@ def check_releases():
     bump()
 
 
-def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None):
+def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None, card=None, score=None, platform=None, status_line=None, status_color=None):
     try:
         # tip kapalıysa hiçbir kanala gitmez
         if not _notif_enabled(type_name):
@@ -222,11 +297,34 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
         # bildirim merkezi (in-app) — kendi anahtarıyla açılır/kapanır
         if get_setting("notif_center_enabled") != "0":
             create_notification(title, message, type_name, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, season=season, episode=episode, poster_local=poster_local, remote_poster_url=remote_url, kind_for_thumb=kind, ident_for_thumb=ident, notified_date=notified_date)
+        # kartli e-posta icin card hazirla (web UI #0f1117/#171a23 replikasi)
+        if card is None:
+            # status renk haritasi (discord embed ile ayni)
+            cmap = {
+                "status_ended": "#22c55e", "anime_finished": "#22c55e", "movie_today": "#22c55e",
+                "status_canceled": "#ef4444", "anime_cancelled": "#ef4444",
+                "status_pilot": "#60a5fa", "season_planned": "#60a5fa", "movie_rescheduled": "#60a5fa", "anime_episodes": "#60a5fa",
+                "status_returning": "#f97316", "season_production": "#f97316", "season_upcoming": "#f97316",
+                "episode_today": "#f97316", "season_start": "#f97316", "anime_episode_today": "#f97316",
+                "unwatched_bulk": "#f97316", "anime_unwatched_bulk": "#f97316",
+                "vote_threshold": "#22c55e", "networks_changed": "#d4a017", "anime_hiatus": "#f59e0b", "anime_releasing": "#22c55e",
+            }
+            eff_color = status_color or cmap.get(type_name, "#22c55e")
+            eff_sl = status_line
+            if eff_sl is None:
+                # message'den title'i syir, kisa status satiri olustur
+                if message and title and message.startswith(title):
+                    eff_sl = message[len(title):].strip(" -:–—\n")
+                eff_sl = (eff_sl or message or "").strip()[:120]
+            try:
+                card = _build_card(title, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, poster_path=poster_path, cover_url=cover_url, remote_url=remote_url, score=score, platform=platform, status_line=eff_sl, status_color=eff_color)
+            except Exception:
+                card = None
         # dış kanal push'u — tek noktadan tüm kanallar (telegram+ntfy+discord+e-posta);
         # episode_today/movie_today check_releases'ten gider, çift göndermeyi önle
         if type_name not in NOTIF_PUSH_EXCLUDED:
             from notifications import notify_all
-            notify_all(message, remote_url)
+            notify_all(message, remote_url, card=card)
     except Exception as e:
         print(f"notif create failed {type_name} {title}: {e}")
 
@@ -295,11 +393,29 @@ def check_notifications():
         except Exception:
             pass
         # 10-11 rescheduled / removed would need snapshot; skip for now but create generic if air_date changed recently? Use episodes table already has latest, snapshot via settings
-        # 12 unwatched bulk
+        # 12 unwatched_bulk — ana kapı: kullanıcı izlemeye başlamış olmalı (watched>=1).
+        # Aktif dizilerde yalnız dün yayınlanan bölüm varsa (ertesi sabah 1 kez);
+        # bitmiş dizilerde (Ended/Canceled) haftada 1 kez. Sayı değişimi tek başına tetiklemez.
         try:
-            cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=0 AND air_date IS NOT NULL AND air_date < ?", (r["id"], today)).fetchone()["c"]
-            if cnt >= 3:
-                _notif_create(r["title"], f"{r['title']} {cnt} bölüm birikti", "unwatched_bulk", media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=f"bulk_{cnt}")
+            started = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)).fetchone()["c"]
+            if started >= 1:
+                bulk_status = (r["status"] or "").strip()
+                finished = bulk_status in ("Ended", "Canceled", "Cancelled")
+                fire = False
+                if finished:
+                    iso_y, iso_w, _ = datetime.date.fromisoformat(today).isocalendar()
+                    bulk_key = f"bulk_{iso_y}-W{iso_w:02d}"
+                    fire = True
+                else:
+                    yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
+                    aired_yesterday = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], yesterday)).fetchone()["c"]
+                    if aired_yesterday > 0:
+                        bulk_key = f"bulk_{yesterday}"
+                        fire = True
+                if fire:
+                    cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=0 AND air_date IS NOT NULL AND air_date < ?", (r["id"], today)).fetchone()["c"]
+                    if cnt >= 3:
+                        _notif_create(r["title"], f"{r['title']} {cnt} bölüm birikti", "unwatched_bulk", media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=bulk_key)
         except Exception:
             pass
         # 13 vote threshold: check vote_average jump stored in settings snapshot
@@ -408,6 +524,35 @@ def check_anime_notifications():
             snap[key] = cur
             from db import set_setting
             set_setting("notif_anime_ep", json.dumps(snap))
+        except Exception:
+            pass
+        # 20 anime_unwatched_bulk — ana kapı: kullanıcı izlemeye başlamış olmalı (watched>=1).
+        # RELEASING animede yalnız dün (UTC) yayınlanan bölüm varsa (ertesi sabah 1 kez);
+        # FINISHED/CANCELLED/HIATUS animede haftada 1 kez. Sayı değişimi tek başına tetiklemez.
+        try:
+            started = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (a["id"],)).fetchone()["c"]
+            if started >= 1:
+                a_status = (a["status"] or "").strip()
+                finished = a_status in ("FINISHED", "CANCELLED", "HIATUS")
+                fire = False
+                if finished:
+                    iso_y, iso_w, _ = datetime.date.fromisoformat(today).isocalendar()
+                    bulk_key = f"abulk_{iso_y}-W{iso_w:02d}"
+                    fire = True
+                else:
+                    yesterday = (datetime.date.fromisoformat(today) - datetime.timedelta(days=1)).isoformat()
+                    aired_yesterday = False
+                    for ae in conn.execute("SELECT air_at FROM anime_episodes WHERE anime_id=? AND air_at IS NOT NULL AND watched=0", (a["id"],)).fetchall():
+                        if datetime.datetime.fromtimestamp(ae["air_at"], datetime.timezone.utc).date().isoformat() == yesterday:
+                            aired_yesterday = True
+                            break
+                    if aired_yesterday:
+                        bulk_key = f"abulk_{yesterday}"
+                        fire = True
+                if fire:
+                    cnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=0 AND air_at IS NOT NULL AND air_at < ?", (a["id"], int(datetime.datetime.now(datetime.timezone.utc).timestamp()))).fetchone()["c"]
+                    if cnt >= 3:
+                        _notif_create(a["title"], f"{a['title']} {cnt} bölüm birikti", "anime_unwatched_bulk", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=bulk_key)
         except Exception:
             pass
     conn.close()
@@ -521,6 +666,16 @@ def refresh_recommendations_job():
         print("rec refresh failed:", e)
 
 
+def refresh_fav_listings_job():
+    """Favori oyuncu/tur listelerini guncelle (fail-soft, rec_hour ile ayni saatte)."""
+    try:
+        from fav_listings import refresh_all_fav_listings
+        refresh_all_fav_listings()
+        print("fav listings refresh tamam")
+    except Exception as e:
+        print("fav listings refresh failed:", e)
+
+
 def _tmdb_genre_names():
     conn = get_db()
     rows = conn.execute("SELECT name FROM genres WHERE source='tmdb' ORDER BY name").fetchall()
@@ -614,6 +769,17 @@ def schedule_releases():
         id="rec_refresh",
         misfire_grace_time=3600,
     )
+    if SCHEDULER.get_job("fav_refresh"):
+        SCHEDULER.remove_job("fav_refresh")
+    SCHEDULER.add_job(
+        refresh_fav_listings_job,
+        "cron",
+        hour=rec_h,
+        minute=rec_m,
+        timezone=tz,
+        id="fav_refresh",
+        misfire_grace_time=3600,
+    )
 
     hour, minute = parse_notify_hour(get_setting("notify_hour"))
     if SCHEDULER.get_job("release_check"):
@@ -668,6 +834,10 @@ def schedule_releases():
         pass
     try:
         print("next rec refresh:", SCHEDULER.get_job("rec_refresh").next_run_time)
+    except Exception:
+        pass
+    try:
+        print("next fav refresh:", SCHEDULER.get_job("fav_refresh").next_run_time)
     except Exception:
         pass
 

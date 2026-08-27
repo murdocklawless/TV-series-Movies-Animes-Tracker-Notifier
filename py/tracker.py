@@ -10,6 +10,7 @@ from routes.followed import followed_bp
 from routes.anime import anime_bp
 from routes.settings import settings_bp
 from routes.recommendations import recommendations_bp
+from routes.fav_listings import fav_listings_bp
 from notification import notification_bp
 
 app.register_blueprint(search_bp)
@@ -17,6 +18,7 @@ app.register_blueprint(followed_bp)
 app.register_blueprint(anime_bp)
 app.register_blueprint(settings_bp)
 app.register_blueprint(recommendations_bp)
+app.register_blueprint(fav_listings_bp)
 app.register_blueprint(notification_bp)
 
 init_db()
