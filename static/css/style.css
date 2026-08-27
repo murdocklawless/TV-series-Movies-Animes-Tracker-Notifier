@@ -1743,8 +1743,8 @@ input:-webkit-autofill:focus {
 .switch {
   position: relative;
   display: inline-block;
-  width: 46px;
-  height: 24px;
+  width: 41px;
+  height: 22px;
   flex-shrink: 0;
 }
 
@@ -1763,14 +1763,14 @@ input:-webkit-autofill:focus {
   bottom: 0;
   background: #3a4050;
   transition: 0.3s;
-  border-radius: 24px;
+  border-radius: 22px;
 }
 
 .switch .slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
   left: 3px;
   bottom: 3px;
   background: #fff;
@@ -1783,7 +1783,7 @@ input:-webkit-autofill:focus {
 }
 
 .switch input:checked + .slider:before {
-  transform: translateX(22px);
+  transform: translateX(19px);
 }
 
 .switch input:disabled + .slider {
@@ -4299,5 +4299,26 @@ select#s-email-provider.email-lit {
   }
   #settings-notify-modal .center-example {
     display: none;
+  }
+  /* 5 kanal başlığı okları mobilde 8px sola (desktop 0px → mobil 8px) — dış & alt grup hariç */
+  .channel-box:not(.notif-type-box) .notify-row::after {
+    right: 8px;
+  }
+  /* Mobilde tüm on/off switch'ler %25 küçült (desktop 46x24 korunur) — 14px topçuk */
+  .switch {
+    width: 34px;
+    height: 18px;
+  }
+  .switch .slider {
+    border-radius: 18px;
+  }
+  .switch .slider:before {
+    width: 14px;
+    height: 14px;
+    left: 2px;
+    bottom: 2px;
+  }
+  .switch input:checked + .slider:before {
+    transform: translateX(16px);
   }
 }
