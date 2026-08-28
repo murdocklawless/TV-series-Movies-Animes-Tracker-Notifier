@@ -1,6 +1,6 @@
 """SMTP sifreleri icin Fernet (AES128-CBC+HMAC) sifreleme yardimcilari.
 
-Anahtar /etc/tracker/.smtp_secret dosyasinda tutulur (chmod 600).
+Anahtar /etc/nextep/.smtp_secret dosyasinda tutulur (chmod 600).
 DB sizsa bile sifreler anahtar olmadan cozulemez.
 """
 

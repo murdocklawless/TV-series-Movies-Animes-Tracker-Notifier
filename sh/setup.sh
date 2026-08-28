@@ -3,7 +3,7 @@
 # Kullanım: sudo bash setup.sh   (isteğe bağlı: sudo PORT=8050 bash setup.sh)
 set -e
 
-APP_DIR="/etc/tracker"
+APP_DIR="/etc/nextep"
 PORT="${PORT:-8050}"
 
 echo "==> Kök yetkisi kontrol ediliyor..."
@@ -16,15 +16,15 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 echo "==> $APP_DIR klasörü hazırlanıyor..."
 mkdir -p "$APP_DIR/py" "$APP_DIR/requirements" "$APP_DIR/static/js" "$APP_DIR/static/css" "$APP_DIR/static/images"
-if [ -f "$SCRIPT_DIR/py/tracker.py" ]; then
-  cp -f "$SCRIPT_DIR/py/tracker.py" "$APP_DIR/py/"
+if [ -f "$SCRIPT_DIR/py/nextep.py" ]; then
+  cp -f "$SCRIPT_DIR/py/nextep.py" "$APP_DIR/py/"
   cp -f "$SCRIPT_DIR/requirements/requirements.txt" "$APP_DIR/requirements/" 2>/dev/null || true
-  cp -f "$SCRIPT_DIR/static/js/tracker.js" "$APP_DIR/static/js/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/js/nextep.js" "$APP_DIR/static/js/" 2>/dev/null || true
   cp -f "$SCRIPT_DIR/static/css/style.css" "$APP_DIR/static/css/" 2>/dev/null || true
   cp -f "$SCRIPT_DIR/static/index.html" "$APP_DIR/static/" 2>/dev/null || true
   echo "==> Kaynak dosyalar kopyalandı."
 else
-  echo "==> py/tracker.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
+  echo "==> py/nextep.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
 fi
 
 cd "$APP_DIR"
@@ -43,9 +43,9 @@ echo "==> Bağımlılıklar yükleniyor..."
 ./venv/bin/pip install -r requirements/requirements.txt
 
 echo "==> Systemd servisi kuruluyor (port: $PORT)..."
-cat > /etc/systemd/system/takip.service <<EOF
+cat > /etc/systemd/system/nextep.service <<EOF
 [Unit]
-Description=Takip Listesi - Dizi/Film Takip Uygulamasi
+Description=NextEp - Dizi/Film/Anime Takip Uygulamasi
 After=network.target
 
 [Service]
@@ -53,7 +53,7 @@ Type=simple
 User=root
 WorkingDirectory=$APP_DIR
 Environment=PORT=$PORT
-ExecStart=$APP_DIR/venv/bin/python $APP_DIR/py/tracker.py
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/py/nextep.py
 Restart=always
 RestartSec=5
 
@@ -62,7 +62,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now takip
+systemctl enable --now nextep
 
 echo "==> Servis başlatılıyor..."
 for i in $(seq 1 15); do
@@ -74,5 +74,5 @@ for i in $(seq 1 15); do
 done
 
 echo "!! Servis başladı ama yanıt vermedi. Durum:"
-systemctl status takip --no-pager || true
+systemctl status nextep --no-pager || true
 exit 1

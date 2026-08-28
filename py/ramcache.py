@@ -11,7 +11,7 @@ from flask import jsonify
 
 from db import get_db, get_setting, set_setting
 
-# Baslangiç zarfi: tracker.py backfill_votes/sync_genres calisirken bump
+# Baslangiç zarfi: nextep.py backfill_votes/sync_genres calisirken bump
 # bastirilir ki restore edilen cache aninda gecersiz olmasin.
 _startup_grace = True
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=375" />
+  <link rel="stylesheet" href="/static/css/style.css?v=381" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -348,7 +348,7 @@
                 <input id="s-backup-rsync-port" type="text" placeholder="22" inputmode="numeric" autocomplete="off" spellcheck="false" data-lpignore="true" />
               </label>
               <label><span class="settings-label-head"><span data-i18n="backup_remote_path">Uzak Yol</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                <input id="s-backup-rsync-path" type="text" placeholder="/backups/tracker/" autocomplete="off" spellcheck="false" data-lpignore="true" />
+                <input id="s-backup-rsync-path" type="text" placeholder="/backups/nextep/" autocomplete="off" spellcheck="false" data-lpignore="true" />
               </label>
               <label><span class="settings-label-head"><span data-i18n="backup_user">Kullanıcı Adı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
                 <input id="s-backup-rsync-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" />
@@ -359,13 +359,10 @@
               <label><span class="settings-label-head"><span data-i18n="backup_ssh_key">SSH Key</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
                 <textarea id="s-backup-rsync-key-text" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea"></textarea>
               </label>
-              <div class="backup-key-actions" style="display:flex; gap:8px; justify-content:center;">
+              <div class="backup-key-actions">
                 <input type="file" id="s-backup-rsync-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
-                <button id="s-backup-rsync-key-upload" class="btn" data-i18n="backup_upload_key">Dosyadan Yükle</button>
-                <button id="s-backup-rsync-key-clear" class="btn" data-i18n="clear">Temizle</button>
-              </div>
-              <div class="test-row">
-                <button id="test-backup-rsync" class="channel-test-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="test_short">Test</span></button>
+                <button id="s-backup-rsync-key-clear" class="tab" data-i18n="clear">Temizle</button>
+                <button id="s-backup-rsync-key-upload" class="tab" data-i18n="backup_upload_key">Dosyadan Yükle</button>
               </div>
             </div>
           </div>
@@ -391,9 +388,6 @@
               <label><span class="settings-label-head"><span data-i18n="backup_samba_pass">Samba Kullanıcı Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
                 <input id="s-backup-samba-pass" type="password" autocomplete="new-password" spellcheck="false" data-lpignore="true" />
               </label>
-              <div class="test-row">
-                <button id="test-backup-samba" class="channel-test-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-i18n="test_short">Test</span></button>
-              </div>
             </div>
           </div>
         </div>
@@ -844,6 +838,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=376"></script>
+  <script type="module" src="/static/js/nextep.js?v=377"></script>
 </body>
 </html>

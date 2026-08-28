@@ -666,7 +666,7 @@ def sync_genres():
     conn.commit()
     conn.close()
     bump()
-    print("sync_genres tamam", len(_tmdb_genre_names()), len(_anilist_genre_names()))
+    print("sync_genres tamam", len(_tmdb_genre_names()), len(_anilist_genre_names()), flush=True)
 
 
 def refresh_recommendations_job():
@@ -675,9 +675,9 @@ def refresh_recommendations_job():
     try:
         from recommendations import refresh_all_sections
         refresh_all_sections()
-        print("rec refresh tamam")
+        print("rec refresh tamam", flush=True)
     except Exception as e:
-        print("rec refresh failed:", e)
+        print("rec refresh failed:", e, flush=True)
 
 
 def refresh_fav_listings_job():
@@ -685,9 +685,9 @@ def refresh_fav_listings_job():
     try:
         from fav_listings import refresh_all_fav_listings
         refresh_all_fav_listings()
-        print("fav listings refresh tamam")
+        print("fav listings refresh tamam", flush=True)
     except Exception as e:
-        print("fav listings refresh failed:", e)
+        print("fav listings refresh failed:", e, flush=True)
 
 
 def backup_job():
@@ -696,10 +696,24 @@ def backup_job():
         mode = (get_setting("backup_mode") or "").strip()
         if not mode:
             return
+        # hedef çıkarımı: tek dolu ise o, ikisi dolu ise son seçilen (backup_last_target), yoksa rsync'e fallback
+        rsync_host = (get_setting("backup_rsync_host") or "").strip()
+        samba_host = (get_setting("backup_samba_host") or "").strip()
+        samba_share = (get_setting("backup_samba_share") or "").strip()
+        rsync_dolu = bool(rsync_host)
+        samba_dolu = bool(samba_host and samba_share)
+        target = None
+        if rsync_dolu and not samba_dolu:
+            target = "rsync"
+        elif samba_dolu and not rsync_dolu:
+            target = "samba"
+        elif rsync_dolu and samba_dolu:
+            last = (get_setting("backup_last_target") or "").strip().lower()
+            target = last if last in ("rsync", "samba") else "rsync"
         # şimdilik stub: logla, gerçek rsync/samba implementasyonu Faz sonrası eklenecek
-        print(f"backup_job mode={mode} hour={get_setting('backup_hour') or '03:00'}")
+        print(f"backup_job mode={mode} target={target or 'none'} hour={get_setting('backup_hour') or '03:00'}", flush=True)
     except Exception as e:
-        print("backup job failed:", e)
+        print("backup job failed:", e, flush=True)
 
 
 def _tmdb_genre_names():
@@ -861,26 +875,26 @@ def schedule_releases():
 
     if not SCHEDULER.running:
         SCHEDULER.start()
-    print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time)
-    print("next release check:", SCHEDULER.get_job("release_check").next_run_time)
+    print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time, flush=True)
+    print("next release check:", SCHEDULER.get_job("release_check").next_run_time, flush=True)
     try:
-        print("next notification check:", SCHEDULER.get_job("notification_check").next_run_time)
+        print("next notification check:", SCHEDULER.get_job("notification_check").next_run_time, flush=True)
     except Exception:
         pass
     try:
-        print("next anime check:", SCHEDULER.get_job("anime_check").next_run_time)
+        print("next anime check:", SCHEDULER.get_job("anime_check").next_run_time, flush=True)
     except Exception:
         pass
     try:
-        print("next rec refresh:", SCHEDULER.get_job("rec_refresh").next_run_time)
+        print("next rec refresh:", SCHEDULER.get_job("rec_refresh").next_run_time, flush=True)
     except Exception:
         pass
     try:
-        print("next fav refresh:", SCHEDULER.get_job("fav_refresh").next_run_time)
+        print("next fav refresh:", SCHEDULER.get_job("fav_refresh").next_run_time, flush=True)
     except Exception:
         pass
     try:
-        print("next backup:", SCHEDULER.get_job("backup_job").next_run_time)
+        print("next backup:", SCHEDULER.get_job("backup_job").next_run_time, flush=True)
     except Exception:
         pass
 

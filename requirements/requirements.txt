@@ -3,3 +3,5 @@ requests
 apscheduler
 waitress
 pillow
+smbprotocol
+pyspnego

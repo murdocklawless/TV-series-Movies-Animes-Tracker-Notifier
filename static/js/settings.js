@@ -593,6 +593,7 @@ async function loadSettings() {
   syncAutoSaveBaselines();
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
+  if (window.updateBackupButtonsState) window.updateBackupButtonsState();
 }
 
 function showMsg(text, ok) {
@@ -1030,28 +1031,117 @@ async function openFavListing(kind, ident, title) {
       if (ok) el.value = "";
     });
   });
-  // Test ve Şimdi Yedekle butonları
-  const testRsync = document.getElementById("test-backup-rsync");
-  if (testRsync) testRsync.addEventListener("click", (e) => {
-    e.stopPropagation();
-    runChannelTest({ channel: "backup_rsync" });
+  // Yedekle / Geri Yükle butonları - hedef mantığı (tablo)
+  function isRsyncDolu() {
+    const v = document.getElementById("s-backup-rsync-host")?.value.trim();
+    return !!v;
+  }
+  function isSambaDolu() {
+    const h = document.getElementById("s-backup-samba-host")?.value.trim();
+    const s = document.getElementById("s-backup-samba-share")?.value.trim();
+    return !!(h && s);
+  }
+  function getOpenBackupTarget() {
+    const rs = document.getElementById("backup-rsync-body");
+    const sm = document.getElementById("backup-samba-body");
+    if (rs && rs.style.display !== "none") return "rsync";
+    if (sm && sm.style.display !== "none") return "samba";
+    return null;
+  }
+  function updateBackupButtonsState() {
+    const nowBtn = document.getElementById("backup-now");
+    const restoreBtn = document.getElementById("backup-restore");
+    if (!nowBtn || !restoreBtn) return;
+    const rDolu = isRsyncDolu();
+    const sDolu = isSambaDolu();
+    const open = getOpenBackupTarget();
+    let target = null;
+    let tipKey = null;
+    let disabled = false;
+    // Tek taraf dolu -> hedef belli, seçim/tooltip yok
+    if (rDolu && !sDolu) {
+      target = "rsync";
+    } else if (!rDolu && sDolu) {
+      target = "samba";
+    } else if (rDolu && sDolu) {
+      // İkisi dolu -> açık akordeon belirler
+      if (!open) {
+        disabled = true;
+        tipKey = "tip_backup_choose";
+      } else {
+        target = open;
+        tipKey = target === "rsync" ? "tip_backup_rsync" : "tip_backup_samba";
+      }
+    } else {
+      // Hiçbiri dolu değil
+      disabled = true;
+      tipKey = "tip_backup_empty";
+    }
+    // Yedekle butonu
+    nowBtn.disabled = disabled;
+    restoreBtn.disabled = disabled;
+    if (target === "rsync") {
+      nowBtn.setAttribute("data-i18n", "backup_now_rsync");
+      nowBtn.textContent = t("backup_now_rsync");
+      restoreBtn.setAttribute("data-i18n", "backup_restore_rsync");
+      restoreBtn.textContent = t("backup_restore_rsync");
+    } else if (target === "samba") {
+      nowBtn.setAttribute("data-i18n", "backup_now_samba");
+      nowBtn.textContent = t("backup_now_samba");
+      restoreBtn.setAttribute("data-i18n", "backup_restore_samba");
+      restoreBtn.textContent = t("backup_restore_samba");
+    } else {
+      nowBtn.setAttribute("data-i18n", "backup_now");
+      nowBtn.textContent = t("backup_now");
+      restoreBtn.setAttribute("data-i18n", "backup_restore");
+      restoreBtn.textContent = t("backup_restore");
+    }
+    // Tooltip - sadece gerektiğinde
+    if (tipKey) {
+      const tip = t(tipKey);
+      nowBtn.setAttribute("data-tip", tip);
+      restoreBtn.setAttribute("data-tip", tip);
+    } else {
+      nowBtn.removeAttribute("data-tip");
+      restoreBtn.removeAttribute("data-tip");
+    }
+    // dataset target for click handler
+    nowBtn.dataset.target = target || "";
+    restoreBtn.dataset.target = target || "";
+  }
+  // Akordeon toggle sonrası güncelle (port autofill sonrası da)
+  const _origBoxes = ["backup-rsync-box", "backup-samba-box"].map((id) => document.getElementById(id)).filter(Boolean);
+  _origBoxes.forEach((box) => box.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0)));
+  // Host/share input blur sonrası (dolu değişebilir)
+  ["s-backup-rsync-host", "s-backup-samba-host", "s-backup-samba-share"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("blur", () => setTimeout(updateBackupButtonsState, 300));
+    if (el) el.addEventListener("input", () => setTimeout(updateBackupButtonsState, 0));
   });
-  const testSamba = document.getElementById("test-backup-samba");
-  if (testSamba) testSamba.addEventListener("click", (e) => {
-    e.stopPropagation();
-    runChannelTest({ channel: "backup_samba" });
-  });
+  // Modal açılırken ve ayarlar yüklenince
+  const backupMenuItem = document.querySelector('.settings-menu-item[data-target="settings-backup-modal"]');
+  if (backupMenuItem) backupMenuItem.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0));
+  // loadSettings sonrası için global hook
+  window.updateBackupButtonsState = updateBackupButtonsState;
+  // İlk durum + dil değişiminde güncelle
+  setTimeout(updateBackupButtonsState, 0);
+  document.addEventListener("app:langchange", updateBackupButtonsState);
+
   const nowBtn = document.getElementById("backup-now");
   if (nowBtn) nowBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    const r = await fetch("/api/backup/run", { method: "POST" });
+    const target = nowBtn.dataset.target || getOpenBackupTarget() || (isRsyncDolu() && !isSambaDolu() ? "rsync" : !isRsyncDolu() && isSambaDolu() ? "samba" : "");
+    if (!target) return;
+    const r = await fetch("/api/backup/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }) });
     const j = await r.json().catch(() => ({}));
     showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
   });
   const restoreBtn = document.getElementById("backup-restore");
   if (restoreBtn) restoreBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    const r = await fetch("/api/backup/restore", { method: "POST" });
+    const target = restoreBtn.dataset.target || getOpenBackupTarget() || (isRsyncDolu() && !isSambaDolu() ? "rsync" : !isRsyncDolu() && isSambaDolu() ? "samba" : "");
+    if (!target) return;
+    const r = await fetch("/api/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }) });
     const j = await r.json().catch(() => ({}));
     showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
   });

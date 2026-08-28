@@ -1,7 +1,7 @@
 # Pulldown Menü — E-posta Sağlayıcısı (Stil ve Açılır Pencere Dokümanı)
 
-> İnceleme tarihi: 2026-08-24 · Kaynak: pi `/etc/tracker` canlı kod (yerel kopyayla md5 doğrulamalı senkron)
-> Sürümler: `style.css?v=343` · `tracker.js?v=348` (settings.js + i18n.js dahil)
+> İnceleme tarihi: 2026-08-24 · Kaynak: pi `/etc/nextep` canlı kod (yerel kopyayla md5 doğrulamalı senkron)
+> Sürümler: `style.css?v=343` · `nextep.js?v=348` (settings.js + i18n.js dahil)
 
 ## 0. Desenin Uygulandığı Yerler
 
@@ -172,9 +172,9 @@ style.css ~3823:
 - **Mobil:** Genel mobil select kuralı (height 33px, width %100) + chevron grubundaki
   padding override uygulanır; popup genişliği combobox'ı takip eder.
 - **Erişilebilirlik:** Klavye ile Enter/Space açar, ESC kapatır; satırlar gerçek `<button>`.
-- **Sürümler:** CSS değişikliğinde `style.css?v=` bump, JS değişikliğinde `tracker.js?v=`
+- **Sürümler:** CSS değişikliğinde `style.css?v=` bump, JS değişikliğinde `nextep.js?v=`
   bump gerekir (statik dosyalar restart istemez).
-- **İlgili yedekler (pi `/etc/tracker/bak/`):**
+- **İlgili yedekler (pi `/etc/nextep/bak/`):**
   - `20260823_230921` — ilk özel popup uygulaması öncesi
   - `20260823_233422` — genişlik/aktiflik düzeltmeleri öncesi
   - `20260823_234123` — akordeon gömme öncesi

@@ -1,4 +1,4 @@
-# TV-series-Movies-Animes-Tracker-Notifier
+# TV-series-Movies-Animes-nextep-Notifier
 
 Dizi ve filmleri takip eden, yeni bölümlerin yayın tarihlerini takvimde gösteren ve çıkış gününde Telegram üzerinden bildirim gönderen web uygulaması. Tüm veriler TMDB (The Movie Database) API'sinden gelir.
 
@@ -23,7 +23,7 @@ Dizi ve filmleri takip eden, yeni bölümlerin yayın tarihlerini takvimde göst
 
 ## Kurulum (Raspberry Pi / Debian)
 
-1. Klasöre kopyalayın: `/etc/tracker`
+1. Klasöre kopyalayın: `/etc/nextep`
 2. Sanal ortam oluşturup paketleri kurun:
    ```
    python3 -m venv venv
@@ -31,7 +31,7 @@ Dizi ve filmleri takip eden, yeni bölümlerin yayın tarihlerini takvimde göst
    ```
 3. systemd servisi kurun:
    ```
-   cp service/takip.service /etc/systemd/system/
+   cp service/nextep.service /etc/systemd/system/
    systemctl daemon-reload
    systemctl enable --now takip
    ```
@@ -55,5 +55,5 @@ Servis 8050 portunda çalışır (`PORT` ortam değişkeniyle değiştirilebilir
 
 ## Not
 
-- `db/tracker.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
+- `db/nextep.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
 - `backup_pre_calendar/` klasörü, takvim özelliği öncesi sürümün yedeğini içerir.

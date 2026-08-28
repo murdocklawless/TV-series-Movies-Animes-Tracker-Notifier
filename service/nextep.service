@@ -1,0 +1,15 @@
+[Unit]
+Description=NextEp - Dizi/Film/Anime Takip Uygulamasi
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/nextep
+Environment=PORT=8050
+ExecStart=/etc/nextep/venv/bin/python /etc/nextep/py/nextep.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

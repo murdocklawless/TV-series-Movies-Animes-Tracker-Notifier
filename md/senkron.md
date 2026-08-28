@@ -47,4 +47,4 @@
 
 ## 5. Dağıtım (workflow kuralı)
 
-1. Yerelde düzenle → 2. `scp -i pi5_key` `py/*` + `static/*` → `pi:/etc/tracker/` → 3. `python3 -m py_compile` → 4. `systemctl restart takip` → 5. `md5sum` MATCH → 6. `md/AGENTS.md` Faz 21 notu.
+1. Yerelde düzenle → 2. `scp -i pi5_key` `py/*` + `static/*` → `pi:/etc/nextep/` → 3. `python3 -m py_compile` → 4. `systemctl restart takip` → 5. `md5sum` MATCH → 6. `md/AGENTS.md` Faz 21 notu.

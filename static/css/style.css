@@ -169,6 +169,11 @@ nav {
   color: #fff;
 }
 
+.tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Medya ikonları: masaüstünde metin buton devam eder, ikon gizli */
 .media-tab-icon,
 .media-toggle-icon {
@@ -4157,12 +4162,14 @@ select#s-email-provider.email-lit {
   border-color: #f97316;
 }
 
-.backup-key-actions {
+.channel-frame > .backup-key-actions {
   display: flex;
-  gap: 8px;
+  flex-direction: row;
+  gap: 12px;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-top: 12px;
 }
 
 .telegram-box.telegram-open,
@@ -4273,6 +4280,53 @@ select#s-email-provider.email-lit {
   width: 100%;
 }
 
+/* Yedekleme modu: Database / Herşeyi Yedekle aynı satır (channel-frame > div column override) */
+#backup-mode-frame {
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  gap: 0;
+}
+#backup-mode-frame .notify-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Rsync/Samba inputları TMDB tablosu ile birebir (textarea hariç) */
+#backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),
+#backup-samba-box .channel-frame input:not(.backup-ssh-textarea) {
+  padding: 12px 14px;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  color-scheme: dark;
+  cursor: pointer;
+}
+#backup-rsync-box .channel-frame input:not(.backup-ssh-textarea):focus,
+#backup-samba-box .channel-frame input:not(.backup-ssh-textarea):focus {
+  outline: none;
+  border-color: #f97316;
+}
+#backup-rsync-box .channel-frame label,
+#backup-samba-box .channel-frame label {
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  font-weight: 500;
+  color: #aab;
+  font-size: 0.9rem;
+}
+
 /* Liste Boyutu: combobox .switch ile ayni genislikte (46px) — sol/sag kenar switch'lerle hizali */
 #channel-center-modal .center-limit-combo,
 #center-credentials .center-limit-combo {
@@ -4360,5 +4414,14 @@ select#s-email-provider.email-lit {
   }
   .switch input:checked + .slider:before {
     transform: translateX(16px);
+  }
+  /* Backup Rsync/Samba inputları mobilde de TMDB ile birebir (textarea hariç) */
+  #backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),
+  #backup-samba-box .channel-frame input:not(.backup-ssh-textarea) {
+    height: 33px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    box-sizing: border-box;
   }
 }

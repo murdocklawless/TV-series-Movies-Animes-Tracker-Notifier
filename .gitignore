@@ -2,7 +2,7 @@ venv/
 __pycache__/
 *.pyc
 data.db
-tracker.db
+nextep.db
 *.db
 *.log
 backup_pre_calendar/
@@ -32,3 +32,4 @@ md/pi5.md
 .opencode/
 .smtp_secret
 tmp_push/
+restore/

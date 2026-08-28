@@ -1,22 +1,22 @@
 services:
-  takip:
+  nextep:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: ${DOCKER_IMAGE:-takip}
-    container_name: takip
+    image: ${DOCKER_IMAGE:-nextep}
+    container_name: nextep
     restart: unless-stopped
     ports:
       - "${PORT:-8050}:8050"
     environment:
       - PORT=8050
-      - DB_PATH=/app/data/tracker.db
+      - DB_PATH=/app/data/nextep.db
       - TMDB_API_KEY=${TMDB_API_KEY:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - NOTIFY_HOUR=${NOTIFY_HOUR:-}
     volumes:
-      - takip-data:/app/data
+      - nextep-data:/app/data
 
 volumes:
-  takip-data:
+  nextep-data:
