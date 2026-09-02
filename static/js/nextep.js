@@ -6,6 +6,7 @@ import { switchView, loadFollowed, loadUnwatched, views } from "./views.js";
 import { closeResultsModal } from "./search.js";
 import "./settings.js";
 import "./notification.js";
+import "./tv.js";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
 let lastView = "dizi";
@@ -170,3 +171,12 @@ document.addEventListener("touchend", hideTip);
 document.addEventListener("click", (e) => {
   if (!e.target.closest("[data-tip]")) hideTip();
 }, true);
+
+// ---- TV keepalive (only when is-tv) ----
+try {
+  const isTvKeep = () => document.documentElement.classList.contains("is-tv") || document.documentElement.classList.contains("tv-mode") || (window.NextEpTV && window.NextEpTV.isTv && window.NextEpTV.isTv());
+  setInterval(() => {
+    if (!isTvKeep()) return;
+    fetch("/api/settings", { cache: "no-store" }).catch(() => {});
+  }, 5 * 60 * 1000);
+} catch (_) {}

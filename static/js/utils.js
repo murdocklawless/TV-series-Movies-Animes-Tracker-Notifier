@@ -32,7 +32,7 @@ window.noPosterFallback = function () {
   return `<div class="no-poster">${FILM_SVG}</div>`;
 };
 
-function posterHTML(posterPath, title, withBadge, posterLocal, posterLocalW185) {
+function posterHTML(posterPath, title, withBadge, posterLocal, posterLocalW185, withInfo) {
   let src = null, srcset = null;
   if (posterLocalW185 && posterLocal) {
     src = posterLocalW185;
@@ -42,14 +42,16 @@ function posterHTML(posterPath, title, withBadge, posterLocal, posterLocalW185) 
   } else if (posterPath) {
     src = `${IMAGE_BASE}${posterPath}`;
   }
+  const tvSizes = (document.documentElement && (document.documentElement.classList.contains('is-tv') || document.documentElement.classList.contains('tv-mode'))) ? '119px' : '170px';
   const img = src
-    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="170px"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
+    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="${tvSizes}"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
     : `<div class="no-poster">${FILM_SVG}</div>`;
   const badge = withBadge ? `<span class="badge-watched">${CHECK_SVG}</span>` : "";
-  return `<div class="poster-wrap">${img}${badge}</div>`;
+  const infoBtn = withInfo ? `<button class="info-btn" data-tip="Info">${INFO_SVG}</button>` : "";
+  return `<div class="poster-wrap">${img}${infoBtn}${badge}</div>`;
 }
 
-function animePosterHTML(coverUrl, title, withBadge, posterLocal, posterLocalW185) {
+function animePosterHTML(coverUrl, title, withBadge, posterLocal, posterLocalW185, withInfo) {
   let src = null, srcset = null;
   if (posterLocalW185 && posterLocal) {
     src = posterLocalW185;
@@ -59,11 +61,13 @@ function animePosterHTML(coverUrl, title, withBadge, posterLocal, posterLocalW18
   } else if (coverUrl) {
     src = coverUrl;
   }
+  const tvSizes2 = (document.documentElement && (document.documentElement.classList.contains('is-tv') || document.documentElement.classList.contains('tv-mode'))) ? '119px' : '170px';
   const img = src
-    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="170px"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
+    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="${tvSizes2}"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
     : `<div class="no-poster">${FILM_SVG}</div>`;
   const badge = withBadge ? `<span class="badge-watched">${CHECK_SVG}</span>` : "";
-  return `<div class="poster-wrap">${img}${badge}</div>`;
+  const infoBtn = withInfo ? `<button class="info-btn" data-tip="Info">${INFO_SVG}</button>` : "";
+  return `<div class="poster-wrap">${img}${infoBtn}${badge}</div>`;
 }
 
 function scoreTag(v) {
@@ -115,6 +119,14 @@ const CALENDAR_SVG = `
     <line x1="16" y1="2" x2="16" y2="6"></line>
     <line x1="8" y1="2" x2="8" y2="6"></line>
     <line x1="3" y1="10" x2="21" y2="10"></line>
+  </svg>`;
+
+const INFO_SVG = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="16" x2="12" y2="12"></line>
+    <line x1="12" y1="8" x2="12.01" y2="8"></line>
   </svg>`;
 
 function tzLocale() {
@@ -297,7 +309,7 @@ function fmtScore(v) {
 
 
 export {
-  IMAGE_BASE, HEART_SVG, CHECK_SVG, FILM_SVG, CALENDAR_SVG,
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG,
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,

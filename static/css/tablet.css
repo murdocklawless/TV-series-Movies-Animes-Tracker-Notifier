@@ -1,0 +1,328 @@
+/* tablet.css — iPad vb (601px-1366px) — max-width:1366px */
+@media (max-width:1366px) {
+  html:not(.is-tv):not(.tv-mode) .notif-menu {
+    right: 0;
+    left: auto;
+    min-width: 0;
+    width: calc(100vw - 24px);
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) nav {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "logo logo"
+      "media utils";
+    gap: 10px;
+    padding: 12px 14px;
+    align-items: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .logo {
+    grid-area: logo;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .logo > div {
+    text-align: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-tabs-group {
+    grid-area: media;
+    justify-self: start;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    margin-left: -14px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .utils-tabs-group {
+    grid-area: utils;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    margin-right: -14px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .tabs-group {
+    display: flex;
+    gap: 4px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .tabs-group .tab,
+  html:not(.is-tv):not(.tv-mode) #tab-search,
+  html:not(.is-tv):not(.tv-mode) #tab-settings,
+  html:not(.is-tv):not(.tv-mode) #tab-notif,
+  html:not(.is-tv):not(.tv-mode) .sort-wrap .tab,
+  html:not(.is-tv):not(.tv-mode) .notif-wrap .tab {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-tab-icon {
+    display: inline-block;
+    font-size: 0.8rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-toggle-icon {
+    display: inline-block;
+    font-size: 1rem;
+  }
+
+html:not(.is-tv):not(.tv-mode) #tab-dizi span,
+  html:not(.is-tv):not(.tv-mode) #tab-film span,
+  html:not(.is-tv):not(.tv-mode) #tab-anime span,
+  html:not(.is-tv):not(.tv-mode) #tab-unwatched span,
+  html:not(.is-tv):not(.tv-mode) #tab-watched span,
+  html:not(.is-tv):not(.tv-mode) #tab-recommend span,
+  html:not(.is-tv):not(.tv-mode) #tab-search span {
+    display: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #tab-settings {
+    padding: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .unwatched-section-title {
+    font-size: 0.82rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) main {
+    padding: 14px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .poster-grid {
+    gap: 12px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .poster-grid .card {
+    width: 120px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .person-grid .card {
+    width: 120px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .person-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    grid-template-columns: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .actor-grid .picker-item {
+    width: calc((100% - 8px) / 2);
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info {
+    padding: 8px 9px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .title {
+    font-size: 0.82rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-actions .btn {
+    width: auto;
+    min-width: 160px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-card {
+    padding: 20px 18px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .search-action-btn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    min-width: 64px;
+    min-height: 33px;
+    font-size: 0.8rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-toggle button {
+    width: 36px;
+    height: 33px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-toggle button span {
+    display: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .search-bar input {
+    height: 33px;
+    padding: 0 16px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .search-card {
+    padding: 18px 14px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form input,
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select {
+    width: 100%;
+    box-sizing: border-box;
+    height: 33px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    color-scheme: dark;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select {
+    padding-right: 30px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select#s-lang,
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select#s-cache-ttl,
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select#s-email-provider {
+    padding: 0 30px 0 16px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-actions .btn {
+    min-height: 33px;
+    padding: 0 22px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-actions .btn.primary {
+    background: #f97316;
+    border: 1px solid #f97316;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .settings-actions .btn:not(.primary) {
+    background: transparent;
+    border: 1px solid #2a2f3d;
+  }
+}
+
+@media (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) .rec-placeholder {
+    width: 120px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .rec-placeholder .ph-spin {
+    width: 40px;
+    height: 40px;
+    border-width: 4px;
+  }
+}
+
+@media (max-width: 1366px) {
+  /* Ara acilinca input basligin yanina sigismazsa alt satira iner:
+     1. satir = baslik + butonlar, 2. satir = tam genislik input */
+  html:not(.is-tv):not(.tv-mode) .hidden-modal .modal-header {
+    flex-wrap: wrap;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #hidden-search-input {
+    order: 3;
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #hidden-list {
+    gap: 12px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .hidden-tile {
+    width: 90px;
+  }
+}
+
+@media (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notif-type-head {
+    padding: 10px 8px;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notif-type-title {
+    font-size: 0.66rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .channels-section-title,
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notify-frame-title {
+    font-size: 0.66rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notify-row {
+    gap: 12px;
+    max-width: none;
+    padding: 10px 8px;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notify-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.88rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .notify-name span[data-i18n] {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .center-group-title {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-notify-modal .center-example {
+    display: none;
+  }
+  /* 5 kanal başlığı okları mobilde 8px sola (desktop 0px → mobil 8px) — dış & alt grup hariç */
+  html:not(.is-tv):not(.tv-mode) .channel-box:not(.notif-type-box) .notify-row::after {
+    right: 8px;
+  }
+  /* Mobilde tüm on/off switch'ler %25 küçült (desktop 46x24 korunur) — 14px topçuk */
+  html:not(.is-tv):not(.tv-mode) .switch {
+    width: 34px;
+    height: 18px;
+  }
+  html:not(.is-tv):not(.tv-mode) .switch .slider {
+    border-radius: 18px;
+  }
+  html:not(.is-tv):not(.tv-mode) .switch .slider:before {
+    width: 14px;
+    height: 14px;
+    left: 2px;
+    bottom: 2px;
+  }
+  html:not(.is-tv):not(.tv-mode) .switch input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+  /* Backup Rsync/Samba inputları mobilde de TMDB ile birebir (textarea hariç) */
+  #backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),
+  html:not(.is-tv):not(.tv-mode) #backup-samba-box .channel-frame input:not(.backup-ssh-textarea) {
+    height: 33px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+}

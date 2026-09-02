@@ -1,0 +1,331 @@
+/* mobil.css — telefonlar (max-width:600px / 480px / hover:none) */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .badge-watched {
+    width: 26px;
+    height: 26px;
+    right: 6px;
+    bottom: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .badge-watched svg {
+    width: 12px;
+    height: 12px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .remove,
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn,
+  html:not(.is-tv):not(.tv-mode) .card .move-btn,
+  html:not(.is-tv):not(.tv-mode) .card .move-back-btn,
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn {
+    width: 26px;
+    height: 26px;
+    top: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .remove {
+    right: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
+    left: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn {
+    left: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .move-btn {
+    left: 50%;
+    transform: translateX(-50%);
+    top: 6px !important;
+    width: 26px !important;
+    height: 26px !important;
+    display: flex !important;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .move-back-btn {
+    left: 50%;
+    transform: translateX(-50%);
+    top: 6px !important;
+    width: 26px !important;
+    height: 26px !important;
+    display: flex !important;
+  }
+}
+
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .details-wrap {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .details-poster {
+    width: 140px;
+    height: 210px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .details-poster-col {
+    width: 100%;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .details-main {
+    width: 100%;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .details-cast-list {
+    grid-template-columns: 1fr;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .cast-item {
+    width: 275px;
+    margin: 0 auto;
+  }
+}
+
+@media (hover: none) {
+  html:not(.is-tv):not(.tv-mode) .card .remove {
+    display: block;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
+    display: flex;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  html:not(.is-tv):not(.tv-mode) .poster-grid {
+    gap: 8px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .poster-grid .card {
+    width: calc((100% - 16px) / 3);
+  }
+
+  html:not(.is-tv):not(.tv-mode) #view-anime .poster-grid .card {
+    width: calc((100% - 24px) / 3);
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .title {
+    font-size: 0.78rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .remove,
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn,
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn {
+    width: 26px;
+    height: 26px;
+    top: 6px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
+    left: 6px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn {
+    left: 6px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn i {
+    font-size: 0.78rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .remove {
+    right: 6px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #view-search h2,
+  html:not(.is-tv):not(.tv-mode) #view-settings h2,
+  html:not(.is-tv):not(.tv-mode) .modal-header h3 {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .filter-add-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: safe center;
+    gap: 6px;
+    margin-bottom: 10px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .filter-add-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .filter-add-btn {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    border-radius: 16px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .toast {
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    font-size: 0.8rem;
+    padding: 10px 14px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-overlay {
+    padding: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal {
+    max-width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #releases-modal > .modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .confirm-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .details-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .person-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .picker-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .value-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal {
+    max-width: 92%;
+    max-height: none;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid #2a2f3d;
+    padding: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .details-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .person-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .picker-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
+  html:not(.is-tv):not(.tv-mode) #releases-modal > .modal {
+    max-height: 90vh;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal-overlay {
+    padding: 14px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .settings-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    height: auto;
+    border-radius: 14px;
+    border: 1px solid #262a36;
+    padding: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .modal-header h3 {
+    font-weight: 600;
+    color: #f97316;
+    font-size: 1.05rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-header {
+    padding: 14px 16px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-header h3 {
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-close {
+    font-size: 1.8rem;
+    padding: 4px 10px;
+    flex-shrink: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .modal-body {
+    padding: 12px 12px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
+    padding: 12px 12px 25px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .releases-table {
+    font-size: 0.88rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .releases-table th,
+  html:not(.is-tv):not(.tv-mode) .releases-table td {
+    padding: 9px 8px;
+  }
+
+  .releases-table th:first-child,
+  html:not(.is-tv):not(.tv-mode) .releases-table td:first-child {
+    width: 70%;
+  }
+
+  .releases-table th:last-child,
+  html:not(.is-tv):not(.tv-mode) .releases-table td:last-child {
+    width: 30%;
+    font-size: 0.7rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .releases-table .watch-btn {
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .season-box-title {
+    padding: 9px 12px;
+    flex-wrap: nowrap;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .season-box-title .season-name {
+    font-size: 0.85rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .season-line,
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
+    flex-basis: 100%;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .badge {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    margin: 0 2px 3px 0;
+  }
+
+html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
+    font-size: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-basis: 100%;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep.anime-ep {
+    flex-direction: column;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep.anime-ep .next-ep-sep {
+    display: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep .next-ep-days {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .card .info-btn { width:26px; height:26px; left:6px; bottom:6px; }
+  html:not(.is-tv):not(.tv-mode) .card .info-btn svg { width:14px; height:14px; }
+}

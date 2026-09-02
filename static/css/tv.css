@@ -1,0 +1,201 @@
+/* tv.css — Android TV (html.is-tv / html.tv-mode) */
+@media (hover: hover) {
+  html.is-tv .card:hover, html.tv-mode .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+  html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn { display:flex; }
+}
+
+html.is-tv .modal-overlay, html.tv-mode .modal-overlay { top:0; left:0; right:0; bottom:0; }
+
+html.is-tv .modal-overlay .modal, html.tv-mode .modal-overlay .modal,
+html.is-tv #releases-modal > .modal, html.tv-mode #releases-modal > .modal {
+  max-height: 92%;
+  height: auto;
+}
+
+html.is-tv .modal-overlay .modal-body, html.tv-mode .modal-overlay .modal-body { overflow-y: auto; }
+
+html.is-tv .card:focus, html.is-tv .card:focus-visible, html.tv-mode .card:focus, html.tv-mode .card:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  border-color: #f97316 !important;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px rgba(249,115,22,0.35), 0 8px 24px rgba(0,0,0,0.45);
+}
+
+html.is-tv .tab:focus, html.tv-mode .tab:focus, html.is-tv .tab:focus-visible, html.tv-mode .tab:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  border-color: #f97316 !important;
+  background: rgba(249,115,22,0.3) !important;
+  color: #fff !important;
+}
+
+html.is-tv .card .calendar-btn:focus { outline:2px solid #f97316; outline-offset:1px; }
+
+html.is-tv .card:focus-within .remove, html.tv-mode .card:focus-within .remove,
+html.is-tv .card:focus-within .calendar-btn, html.tv-mode .card:focus-within .calendar-btn,
+html.is-tv .card:focus-within .info-btn, html.tv-mode .card:focus-within .info-btn,
+html.is-tv .card:focus-within .move-btn, html.tv-mode .card:focus-within .move-btn,
+html.is-tv .card:focus-within .hide-btn, html.tv-mode .card:focus-within .hide-btn,
+html.is-tv .card:focus-within .move-back-btn, html.tv-mode .card:focus-within .move-back-btn { display:flex; }
+
+html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn,
+html.is-tv .card .info-btn, html.tv-mode .card .info-btn { display:flex; }
+
+html.is-tv .hidden-by-modal, html.tv-mode .hidden-by-modal { display:none !important; }
+
+html.is-tv .tabs-group .tab, html.tv-mode .tabs-group .tab {
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1; height: 34px; padding: 7px 13px; border-width: 1px; vertical-align: middle;
+  font-size: 0.78rem;
+}
+
+html.is-tv #tab-sort, html.tv-mode #tab-sort, html.is-tv #tab-settings, html.tv-mode #tab-settings { top: 0; }
+
+html.is-tv .utils-tabs-group #tab-search, html.tv-mode .utils-tabs-group #tab-search {
+  padding: 7px 13px;
+}
+
+html.is-tv .logo, html.tv-mode .logo { font-size: 0.95rem; }
+
+html.is-tv .logo-title, html.tv-mode .logo-title { white-space: nowrap; }
+
+html.is-tv .logo-img, html.tv-mode .logo-img { width: 34px; height: 34px; padding: calc(8px * 34 / 96); border-radius: calc(12px * 34 / 96); box-sizing: border-box; image-rendering: -webkit-optimize-contrast; }
+
+html.is-tv .logo-img { content: url("/static/images/nextep_tv_logo.png"); }
+
+html.is-tv #tab-exit, html.tv-mode #tab-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+html.is-tv #tab-exit:hover, html.tv-mode #tab-exit:hover,
+html.is-tv #tab-exit:focus, html.tv-mode #tab-exit:focus {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fff;
+}
+
+html.is-tv #tab-settings, html.tv-mode #tab-settings { display: none !important; }
+
+html.is-tv .card:focus-within, html.tv-mode .card:focus-within {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+html.is-tv .notif-menu, html.tv-mode .notif-menu { max-height: 340px; }
+
+html.is-tv .notif-list, html.tv-mode .notif-list { max-height: 300px; }
+
+html.is-tv .fav-list, html.tv-mode .fav-list { max-height: 340px; }
+
+html.is-tv .person-grid, html.tv-mode .person-grid { max-height: 400px; }
+
+html.is-tv .picker-grid, html.tv-mode .picker-grid { max-height: 340px; }
+
+html.is-tv .backup-ssh-textarea, html.tv-mode .backup-ssh-textarea { max-height: 220px; }
+
+html.is-tv .poster-grid, html.tv-mode .poster-grid { gap: 12.6px; }
+
+html.is-tv .poster-grid .card, html.tv-mode .poster-grid .card { width: 119px; }
+
+html.is-tv .card, html.tv-mode .card { border-radius: 8.4px; }
+
+html.is-tv .badge-watched, html.tv-mode .badge-watched { right: 5.6px; bottom: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .badge-watched svg, html.tv-mode .badge-watched svg { width: 9.8px; height: 9.8px; }
+
+html.is-tv .card .remove, html.tv-mode .card .remove { top: 5.6px; right: 5.6px; width: 21px; height: 21px; font-size: 0.77rem; }
+
+html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn { top: 5.6px; left: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .card .hide-btn, html.tv-mode .card .hide-btn { top: 5.6px; left: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .card .hide-btn i, html.tv-mode .card .hide-btn i { font-size: 0.595rem; }
+
+html.is-tv .card .move-btn, html.tv-mode .card .move-btn, html.is-tv .card .move-back-btn, html.tv-mode .card .move-back-btn { top: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .card .move-btn i, html.tv-mode .card .move-btn i, html.is-tv .card .move-back-btn i, html.tv-mode .card .move-back-btn i { font-size: 0.595rem; }
+
+html.is-tv .card .info-btn, html.tv-mode .card .info-btn { left: 5.6px; bottom: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .card .info-btn svg, html.tv-mode .card .info-btn svg { width: 11.2px; height: 11.2px; }
+
+html.is-tv .card .info, html.tv-mode .card .info { padding: 7px 8.4px; }
+
+html.is-tv .card .info .title, html.tv-mode .card .info .title { font-size: 0.63rem; line-height: 0.91; min-height: 1.82em; margin-bottom: 2.8px; }
+
+html.is-tv .card .info .meta, html.tv-mode .card .info .meta { font-size: 0.56rem; }
+
+html.is-tv .card .info .meta .badge, html.tv-mode .card .info .meta .badge { font-size: 0.49rem; padding: 0.7px 5.6px; border-radius: 699.3px; margin: 0 1.4px 2.8px 0; border-width: 0.7px; }
+
+html.is-tv .badge-platform, html.tv-mode .badge-platform { max-width: 63px; }
+
+html.is-tv .card .calendar-btn svg, html.tv-mode .card .calendar-btn svg { width: 11.2px; height: 11.2px; }
+
+html.is-tv .card .info .meta .badge.badge-platform, html.tv-mode .card .info .meta .badge.badge-platform { display: block; width: fit-content; margin: 2.8px auto 0 auto; max-width: 63px; }
+
+html.is-tv .card .info .meta .next-ep, html.tv-mode .card .info .meta .next-ep { font-size: 0.525rem; margin-top: 2.1px; gap: 2.8px; }
+
+html.is-tv .card .info .meta .next-ep .next-ep-days, html.tv-mode .card .info .meta .next-ep .next-ep-days { font-size: 0.476rem; padding: 0.7px 4.2px; min-width: 11.2px; line-height: 0.98; border-width: 0.7px; }
+
+html.is-tv .card .info .meta .next-ep.anime-ep, html.tv-mode .card .info .meta .next-ep.anime-ep { gap: 2.8px; }
+
+html.is-tv .season-line, html.tv-mode .season-line { margin-top: 2.8px; min-height: 12.6px; gap: 2.8px; }
+
+html.is-tv .season-count-badge, html.tv-mode .season-count-badge, html.is-tv .episode-count, html.tv-mode .episode-count { font-size: 0.49rem; padding: 0.7px 5.6px; }
+
+html.is-tv .no-poster, html.tv-mode .no-poster { font-size: 1.4rem; }
+
+html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 2px solid #f97316; outline-offset: 2px; color: #FFF !important; border-color: #f97316 !important; background: rgba(249,115,22,0.15) !important; }
+
+html.is-tv .section-refresh:focus-visible, html.tv-mode .section-refresh:focus-visible, html.is-tv .section-hide:focus-visible, html.tv-mode .section-hide:focus-visible, html.is-tv .section-move-up:focus-visible, html.tv-mode .section-move-up:focus-visible, html.is-tv .section-move-down:focus-visible, html.tv-mode .section-move-down:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
+
+/* Fix: TV nav should stay desktop 3-col even when tablet max-width 1366 applies */
+html.is-tv nav, html.tv-mode nav {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  grid-template-areas: none !important;
+  gap: 12px !important;
+  padding: 16px 24px !important;
+  align-items: center !important;
+}
+html.is-tv .media-tabs-group, html.tv-mode .media-tabs-group {
+  grid-area: auto !important;
+  justify-self: auto !important;
+  margin-left: 0 !important;
+}
+html.is-tv .utils-tabs-group, html.tv-mode .utils-tabs-group {
+  grid-area: auto !important;
+  justify-self: end !important;
+  margin-right: 0 !important;
+}
+html.is-tv .logo, html.tv-mode .logo {
+  grid-area: auto !important;
+  display: flex !important;
+  width: auto !important;
+}
+
+/* TV medya butonlarında simgeleri kaldır — utils'e dokunma */
+html.is-tv .media-tabs-group .media-tab-icon,
+html.tv-mode .media-tabs-group .media-tab-icon,
+html.is-tv .media-tabs-group .media-toggle-icon,
+html.tv-mode .media-tabs-group .media-toggle-icon {
+  display: none !important;
+}
+html.is-tv .media-tabs-group .tab span,
+html.tv-mode .media-tabs-group .tab span {
+  display: inline !important;
+}
+
+/* utils/ara butonundaki Ara & Ekle text'ini kaldır — ikon kalsın */
+html.is-tv #tab-search span,
+html.tv-mode #tab-search span {
+  display: none !important;
+}
+

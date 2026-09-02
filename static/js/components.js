@@ -1,8 +1,17 @@
 ﻿// Faz 4: components — modal bileşenleri (yayın takvimi, detaylar, kişi, anime detay/takvim, izlenmemiş, onay).
 import { state } from "./state.js";
+function isTvUIActive() {
+  try {
+    const d = document.documentElement;
+    if (d && (d.classList.contains("is-tv") || d.classList.contains("tv-mode"))) return true;
+    return !!(window.NextEpTV && typeof window.NextEpTV.isTv === "function" && window.NextEpTV.isTv());
+  } catch { return false; }
+}
+function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
+
 import { t, errText, animeGenreLabel } from "./i18n.js";
 import {
-  IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG,
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, utcStateStr, isNewEpisode, tzLocale,
@@ -108,6 +117,27 @@ async function openReleases(mediaType, tmdbId, title) {
 
       body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
       bindReleasesEvents();
+      // TV: takvimde son izlenmemis -> yoksa son izlenen odak
+      try {
+        if (isTvUIActive()) {
+          const btns = Array.from(body.querySelectorAll('.watch-btn'));
+          if (btns.length) {
+            let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
+            btns.forEach((btn, idx) => {
+              if (btn.disabled) return;
+              const g = btn.dataset.g;
+              const i = Number(btn.dataset.i);
+              const it = groups[g] ? groups[g][i] : null;
+              if (!it) return;
+              if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+              else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
+            });
+            const targetIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
+            const target = targetIdx !== -1 ? btns[targetIdx] : null;
+            if (target) setTimeout(() => { try { target.focus(); target.scrollIntoView({block:'nearest'}); } catch(_){} }, 120);
+          }
+        }
+      } catch(_){}
     };
 
     const bindReleasesEvents = () => {
@@ -447,8 +477,9 @@ const grid = document.createElement("div");
 data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
+    cardTvAttrs(div, item.title||"");
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
 <div class="meta">
@@ -459,7 +490,7 @@ data.forEach((item) => {
         </div>
         </div>
         ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
-        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = async (e) => {
         e.stopPropagation();
@@ -488,6 +519,8 @@ data.forEach((item) => {
           openReleases(item.media_type, item.tmdb_id, item.title);
         };
       }
+      const infoBtnP = div.querySelector(".info-btn");
+      if (infoBtnP) infoBtnP.onclick = (e) => { e.stopPropagation(); div.click(); };
       div.onclick = () => {
         openDetails(item.media_type, item.tmdb_id, item.title);
         modal.style.display = "none";
@@ -569,6 +602,24 @@ async function openUnwatchedModal(item, isAnime) {
         }
       });
     });
+    // TV: ilk izlenmemis -> yoksa ilk izlenen odak (Lioness S1E1)
+    try {
+      if (isTvUIActive()) {
+          const btns = Array.from(body.querySelectorAll('.uw-watch'));
+        if (btns.length) {
+          let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
+          btns.forEach((btn, idx) => {
+            const it = sorted[Number(btn.dataset.i)];
+            if (!it) return;
+            if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+            else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
+          });
+          const tIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
+          const target = tIdx !== -1 ? btns[tIdx] : null;
+          if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
+        }
+      }
+    } catch(_){}
   };
 
   item.items = (item.items || []).map((it, idx) => ({ ...it, idx }));
@@ -716,6 +767,26 @@ async function openAnimeSchedule(id, title) {
           }
         });
       });
+      // TV: ilk izlenmemis -> yoksa ilk izlenen odak
+      try {
+        if (isTvUIActive()) {
+          const btns = Array.from(body.querySelectorAll('.anime-watch'));
+          if (btns.length) {
+            let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
+            btns.forEach((btn, idx) => {
+              if (btn.disabled) return;
+              const ep = Number(btn.dataset.e);
+              const it = items.find(x=>x.episode===ep);
+              if (!it) return;
+              if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+              else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
+            });
+            const tIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
+            const target = tIdx !== -1 ? btns[tIdx] : null;
+            if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
+          }
+        }
+      } catch(_){}
     };
 
     renderTable();

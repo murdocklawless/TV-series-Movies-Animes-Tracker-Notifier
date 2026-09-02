@@ -1,3 +1,4 @@
+/* style.css — desktop + base (default) — min-width:1367px desktop, base ortak */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -39,6 +40,9 @@ nav {
   height: 48px;
   border-radius: 8px;
   object-fit: cover;
+  box-sizing: border-box;
+  padding: 2px;
+  background: transparent;
 }
 
 .logo-title {
@@ -134,6 +138,7 @@ nav {
   }
 }
 
+
 .logo-sub {
   font-size: 0.6rem;
   font-weight: 400;
@@ -181,7 +186,7 @@ nav {
 }
 
 /* Ek güvence: desktop'ta ikonlar asla görünmez */
-@media (min-width: 769px) {
+@media (min-width: 1367px) {
   /* Desktop: 3 sütunlu grid -> logo sol, media ortada, utils sağda */
   nav {
     display: grid;
@@ -223,6 +228,7 @@ nav {
     top: -1px;
   }
 }
+
 
 main {
   max-width: 1200px;
@@ -323,52 +329,6 @@ main {
   stroke-width: 3;
 }
 
-@media (max-width: 600px) {
-  .badge-watched {
-    width: 26px;
-    height: 26px;
-    right: 6px;
-    bottom: 6px;
-  }
-  .badge-watched svg {
-    width: 12px;
-    height: 12px;
-  }
-  .card .remove,
-  .card .calendar-btn,
-  .card .move-btn,
-  .card .move-back-btn,
-  .card .hide-btn {
-    width: 26px;
-    height: 26px;
-    top: 6px;
-  }
-  .card .remove {
-    right: 6px;
-  }
-  .card .calendar-btn {
-    left: 6px;
-  }
-  .card .hide-btn {
-    left: 6px;
-  }
-  .card .move-btn {
-    left: 50%;
-    transform: translateX(-50%);
-    top: 6px !important;
-    width: 26px !important;
-    height: 26px !important;
-    display: flex !important;
-  }
-  .card .move-back-btn {
-    left: 50%;
-    transform: translateX(-50%);
-    top: 6px !important;
-    width: 26px !important;
-    height: 26px !important;
-    display: flex !important;
-  }
-}
 
 .card .no-poster {
   width: 100%;
@@ -549,6 +509,8 @@ main {
   border-radius: 50%;
   cursor: pointer;
   display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .card .calendar-btn {
@@ -1438,15 +1400,6 @@ input:-webkit-autofill:focus {
   margin-top: 4px;
 }
 
-@media (max-width:768px) {
-  .notif-menu {
-    right: 0;
-    left: auto;
-    min-width: 0;
-    width: calc(100vw - 24px);
-    max-width: 360px;
-  }
-}
 
 .settings-modal {
   max-width: 480px;
@@ -2512,6 +2465,7 @@ input:-webkit-autofill:focus {
   }
 }
 
+
 .cast-item {
   display: flex;
   align-items: center;
@@ -2809,34 +2763,6 @@ input:-webkit-autofill:focus {
   padding: 30px 0;
 }
 
-@media (max-width: 600px) {
-  .details-wrap {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .details-poster {
-    width: 140px;
-    height: 210px;
-  }
-
-  .details-poster-col {
-    width: 100%;
-  }
-
-  .details-main {
-    width: 100%;
-  }
-
-  .details-cast-list {
-    grid-template-columns: 1fr;
-  }
-
-  .cast-item {
-    width: 275px;
-    margin: 0 auto;
-  }
-}
 
 .releases-loading,
 .releases-error {
@@ -3224,469 +3150,12 @@ input:-webkit-autofill:focus {
 /* ============ Responsive / Mobile ============ */
 
 /* Dokunmatik cihazlarda hover yok, butonlar her zaman görünür */
-@media (hover: none) {
-  .card .remove {
-    display: block;
-  }
-  .card .calendar-btn {
-    display: flex;
-  }
-  .card .hide-btn {
-    display: flex;
-  }
-}
 
 /* Tablet ve altı */
-@media (max-width: 768px) {
-  nav {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "logo logo"
-      "media utils";
-    gap: 10px;
-    padding: 12px 14px;
-    align-items: center;
-  }
-
-  .logo {
-    grid-area: logo;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .logo > div {
-    text-align: center;
-  }
-
-  .media-tabs-group {
-    grid-area: media;
-    justify-self: start;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    width: auto;
-    margin-left: -14px;
-  }
-
-  .utils-tabs-group {
-    grid-area: utils;
-    justify-self: end;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    width: auto;
-    margin-right: -14px;
-  }
-
-  .tabs-group {
-    display: flex;
-    gap: 4px;
-  }
-
-  .tabs-group .tab,
-  #tab-search,
-  #tab-settings,
-  #tab-notif,
-  .sort-wrap .tab,
-  .notif-wrap .tab {
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .media-tab-icon {
-    display: inline-block;
-    font-size: 0.8rem;
-  }
-
-  .media-toggle-icon {
-    display: inline-block;
-    font-size: 1rem;
-  }
-
-#tab-dizi span,
-  #tab-film span,
-  #tab-anime span,
-  #tab-unwatched span,
-  #tab-watched span,
-  #tab-recommend span,
-  #tab-search span {
-    display: none;
-  }
-
-  #tab-settings {
-    padding: 0;
-  }
-
-  .unwatched-section-title {
-    font-size: 0.82rem;
-  }
-
-  main {
-    padding: 14px;
-  }
-
-  .poster-grid {
-    gap: 12px;
-  }
-
-  .poster-grid .card {
-    width: 120px;
-  }
-
-  .person-grid .card {
-    width: 120px;
-  }
-
-  .person-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    grid-template-columns: none;
-  }
-
-  .actor-grid .picker-item {
-    width: calc((100% - 8px) / 2);
-  }
-
-  .card .info {
-    padding: 8px 9px;
-  }
-
-  .card .info .title {
-    font-size: 0.82rem;
-  }
-
-  .settings-actions {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .settings-actions .btn {
-    width: auto;
-    min-width: 160px;
-  }
-
-  .settings-card {
-    padding: 20px 18px;
-  }
-
-  .search-action-btn {
-    padding-top: 8px;
-    padding-bottom: 8px;
-    min-width: 64px;
-    min-height: 33px;
-    font-size: 0.8rem;
-  }
-
-  .media-toggle button {
-    width: 36px;
-    height: 33px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .media-toggle button span {
-    display: none;
-  }
-
-  .search-bar input {
-    height: 33px;
-    padding: 0 16px;
-  }
-
-  .search-card {
-    padding: 18px 14px;
-  }
-
-  .settings-modal .settings-form input,
-  .settings-modal .settings-form select {
-    width: 100%;
-    box-sizing: border-box;
-    height: 33px;
-    padding: 0 16px;
-    border-radius: 10px;
-    font-size: 1rem;
-    color-scheme: dark;
-  }
-
-  .settings-modal .settings-form select {
-    padding-right: 30px;
-  }
-
-  .settings-modal .settings-form select#s-lang,
-  .settings-modal .settings-form select#s-cache-ttl,
-  .settings-modal .settings-form select#s-email-provider {
-    padding: 0 30px 0 16px;
-  }
-
-  .settings-modal .settings-actions .btn {
-    min-height: 33px;
-    padding: 0 22px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .settings-modal .settings-actions .btn.primary {
-    background: #f97316;
-    border: 1px solid #f97316;
-  }
-
-  .settings-modal .settings-actions .btn:not(.primary) {
-    background: transparent;
-    border: 1px solid #2a2f3d;
-  }
-}
 
 /* Telefon (dar ekran) */
-@media (max-width: 480px) {
-  .poster-grid {
-    gap: 8px;
-  }
-
-  .poster-grid .card {
-    width: calc((100% - 16px) / 3);
-  }
-
-  #view-anime .poster-grid .card {
-    width: calc((100% - 24px) / 3);
-  }
-
-  .card .info .title {
-    font-size: 0.78rem;
-  }
-
-  .card .remove,
-  .card .calendar-btn,
-  .card .hide-btn {
-    width: 26px;
-    height: 26px;
-    top: 6px;
-  }
-
-  .card .calendar-btn {
-    left: 6px;
-  }
-
-  .card .hide-btn {
-    left: 6px;
-  }
-
-  .card .hide-btn i {
-    font-size: 0.78rem;
-  }
-
-  .card .remove {
-    right: 6px;
-  }
-
-  #view-search h2,
-  #view-settings h2,
-  .modal-header h3 {
-    font-size: 0.95rem;
-  }
-}
 
 /* Modal mobilde tam ekran */
-@media (max-width: 600px) {
-  .filter-add-row {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    justify-content: safe center;
-    gap: 6px;
-    margin-bottom: 10px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .filter-add-row::-webkit-scrollbar {
-    display: none;
-  }
-
-  .filter-add-btn {
-    flex-shrink: 0;
-    padding: 5px 10px;
-    font-size: 0.75rem;
-    border-radius: 16px;
-  }
-
-  .toast {
-    width: max-content;
-    max-width: calc(100vw - 32px);
-    font-size: 0.8rem;
-    padding: 10px 14px;
-    white-space: normal;
-    text-align: center;
-  }
-
-  .modal-overlay {
-    padding: 0;
-  }
-
-  .modal {
-    max-width: 100%;
-    max-height: 100vh;
-    height: 100vh;
-    border-radius: 0;
-    border: none;
-  }
-
-  #releases-modal > .modal,
-  .modal-overlay .confirm-modal,
-  .modal-overlay .details-modal,
-  .modal-overlay .person-modal,
-  .modal-overlay .picker-modal,
-  .modal-overlay .value-modal,
-  .modal-overlay .unwatched-modal,
-  .modal-overlay .hidden-modal {
-    max-width: 92%;
-    max-height: none;
-    height: auto;
-    border-radius: 12px;
-    border: 1px solid #2a2f3d;
-    padding: 0;
-  }
-
-  .modal-overlay .details-modal,
-  .modal-overlay .person-modal,
-  .modal-overlay .picker-modal,
-  .modal-overlay .unwatched-modal,
-  .modal-overlay .hidden-modal,
-  #releases-modal > .modal {
-    max-height: 90vh;
-  }
-
-  .settings-modal-overlay {
-    padding: 14px;
-  }
-
-  .modal-overlay .settings-modal {
-    width: 100%;
-    max-width: none;
-    max-height: 90vh;
-    height: auto;
-    border-radius: 14px;
-    border: 1px solid #262a36;
-    padding: 0;
-  }
-
-  .settings-modal .modal-header h3 {
-    font-weight: 600;
-    color: #f97316;
-    font-size: 1.05rem;
-  }
-
-  .modal-header {
-    padding: 14px 16px;
-  }
-
-  .modal-header h3 {
-    white-space: normal;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-  }
-
-  .modal-close {
-    font-size: 1.8rem;
-    padding: 4px 10px;
-    flex-shrink: 0;
-  }
-
-  .modal-body {
-    padding: 12px 12px;
-  }
-
-  .settings-modal .modal-body {
-    padding: 12px 12px 25px;
-  }
-
-  .releases-table {
-    font-size: 0.88rem;
-  }
-
-  .releases-table th,
-  .releases-table td {
-    padding: 9px 8px;
-  }
-
-  .releases-table th:first-child,
-  .releases-table td:first-child {
-    width: 70%;
-  }
-
-  .releases-table th:last-child,
-  .releases-table td:last-child {
-    width: 30%;
-    font-size: 0.7rem;
-  }
-
-  .releases-table .watch-btn {
-    width: 18px;
-    height: 18px;
-    font-size: 0.7rem;
-  }
-
-  .season-box-title {
-    padding: 9px 12px;
-    flex-wrap: nowrap;
-  }
-
-  .season-box-title .season-name {
-    font-size: 0.85rem;
-  }
-
-  .card .info .meta {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-  }
-
-  .card .info .meta .season-line,
-  .card .info .meta .next-ep {
-    flex-basis: 100%;
-  }
-
-  .card .info .meta .badge {
-    font-size: 0.6rem;
-    padding: 1px 6px;
-    margin: 0 2px 3px 0;
-  }
-
-.card .info .meta .next-ep {
-    font-size: 0.6rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    flex-basis: 100%;
-  }
-
-  .card .info .meta .next-ep.anime-ep {
-    flex-direction: column;
-  }
-
-  .card .info .meta .next-ep.anime-ep .next-ep-sep {
-    display: none;
-  }
-
-  .card .info .meta .next-ep .next-ep-days {
-    font-size: 0.6rem;
-  }
-}
 
 
 .cache-info {
@@ -3732,17 +3201,6 @@ input:-webkit-autofill:focus {
   animation: rec-spin 0.9s linear infinite;
 }
 
-@media (max-width: 768px) {
-  .rec-placeholder {
-    width: 120px;
-  }
-
-  .rec-placeholder .ph-spin {
-    width: 40px;
-    height: 40px;
-    border-width: 4px;
-  }
-}
 
 /* Gizlenen öneriler modalı (Faz 18) */
 .hidden-modal {
@@ -3893,34 +3351,14 @@ input:-webkit-autofill:focus {
 /* Desktop: FA glif metrikleri + 11.52px kesirli kutunun 1x DPR yuvarlamasi
    glifi ~1px yukari ciziyor; tam piksel boyut + 1px asagi optik duzeltme.
    Mobil override YOK — mobil render piksel bazinda aynen korunur. */
-@media (min-width: 769px) {
+@media (min-width: 1367px) {
   .hidden-restore i {
     font-size: 12px;
     transform: translateY(1px);
   }
 }
 
-@media (max-width: 768px) {
-  /* Ara acilinca input basligin yanina sigismazsa alt satira iner:
-     1. satir = baslik + butonlar, 2. satir = tam genislik input */
-  .hidden-modal .modal-header {
-    flex-wrap: wrap;
-  }
 
-  #hidden-search-input {
-    order: 3;
-    flex: 1 1 100%;
-    width: auto;
-  }
-
-  #hidden-list {
-    gap: 12px;
-  }
-
-  .hidden-tile {
-    width: 90px;
-  }
-}
 
 /* E-posta saglayici ipucu (uygulama sifresi vb.) */
 .settings-hint {
@@ -4353,75 +3791,23 @@ select#s-email-provider.email-lit {
 }
 
 /* Mobil: Bildirim Ayarlari label'lari tek satir — desktop'a dokunulmaz (768px alti) */
-@media (max-width: 768px) {
-  #settings-notify-modal .notif-type-head {
-    padding: 10px 8px;
-  }
-  #settings-notify-modal .notif-type-title {
-    font-size: 0.66rem;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #settings-notify-modal .channels-section-title,
-  #settings-notify-modal .notify-frame-title {
-    font-size: 0.66rem;
-  }
-  #settings-notify-modal .notify-row {
-    gap: 12px;
-    max-width: none;
-    padding: 10px 8px;
-  }
-  #settings-notify-modal .notify-name {
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.88rem;
-  }
-  #settings-notify-modal .notify-name span[data-i18n] {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #settings-notify-modal .center-group-title {
-    font-size: 0.72rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  #settings-notify-modal .center-example {
-    display: none;
-  }
-  /* 5 kanal başlığı okları mobilde 8px sola (desktop 0px → mobil 8px) — dış & alt grup hariç */
-  .channel-box:not(.notif-type-box) .notify-row::after {
-    right: 8px;
-  }
-  /* Mobilde tüm on/off switch'ler %25 küçült (desktop 46x24 korunur) — 14px topçuk */
-  .switch {
-    width: 34px;
-    height: 18px;
-  }
-  .switch .slider {
-    border-radius: 18px;
-  }
-  .switch .slider:before {
-    width: 14px;
-    height: 14px;
-    left: 2px;
-    bottom: 2px;
-  }
-  .switch input:checked + .slider:before {
-    transform: translateX(16px);
-  }
-  /* Backup Rsync/Samba inputları mobilde de TMDB ile birebir (textarea hariç) */
-  #backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),
-  #backup-samba-box .channel-frame input:not(.backup-ssh-textarea) {
-    height: 33px;
-    padding: 0 16px;
-    border-radius: 10px;
-    font-size: 1rem;
-    box-sizing: border-box;
-  }
+
+/* ===== TV Mode (Android TV 14 WebView) — isolated, no desktop/mobile impact ===== */
+/* Card hover stays the ORIGINAL scale(1.06) on desktop; only TV gets the TV hover variant */
+/* Android TV WebView can resolve vh against a broken/zero viewport height (wide-viewport mode),
+   which collapses .modal { max-height:80vh } to 0 => modal renders as a thin line in the center.
+   On TV: pin overlay with explicit offsets (no `inset` dependency) and cap modal height with %,
+   which resolves against the fixed overlay (real screen) instead of vh. */
+.card .info-btn {
+  position:absolute; left:8px; bottom:8px; width:30px; height:30px; border:none; background:rgba(0,0,0,0.6); border-radius:50%;
+  display:none; align-items:center; justify-content:center; color:#e879f9; cursor:pointer; z-index:2;
 }
+.card .info-btn svg { width:16px; height:16px; }
+/* TV: navbar medya+utils butonlari %15 kucultulur + ikon-only utils hizasi (desktop 10/8 ve top:-1px yalniz TV'de ezilir) */
+/* TV: #tab-search desktop padding'i (10px/8px) ID ogunlugu ile TV kuralini eziyor — hizala */
+/* TV: logo basligi tek satira sigsin */
+/* TV: cikis (x) butonu — utils stilinde, kirmizi cerceve+ikon; ayarlar gizlenir */
+#tab-exit { display: none; }
+/* TV: kart buton modundayken (odak kartin icinde) kart turuncu kalmaya devam eder */
+/* TV: vh birimleri Android TV WebView'da sifira cozulebiliyor — acilir menuler/listeler px'e cekilir (1080p CSS ~540px) */
+/* TV: kart + iç elemanlar %30 küçültme — exact *0.7, yuvarlamasız (hizalama korunur) */

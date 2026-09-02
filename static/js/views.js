@@ -4,11 +4,22 @@ import { t } from "./i18n.js";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
-  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, CHECK_SVG, toast, tzLocale,
+  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, toast, tzLocale,
 } from "./utils.js";
 import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, showConfirm, openUnwatchedModal } from "./components.js";
 import { renderChips, closeResultsModal } from "./search.js";
 import { closeSettingsMenu } from "./settings.js";
+function isTvUIActive() {
+  try {
+    const d = document.documentElement;
+    if (d && (d.classList.contains("is-tv") || d.classList.contains("tv-mode"))) return true;
+    return !!(window.NextEpTV && typeof window.NextEpTV.isTv === "function" && window.NextEpTV.isTv());
+  } catch { return false; }
+}
+function setTvCardAttrs(div, item) {
+  try { if (!isTvUIActive()) return; div.tabIndex = 0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId = item.tmdb_id; if(item.anilist_id) div.dataset.anilistId = item.anilist_id; if(item.media_type) div.dataset.mediaType = item.media_type; if(item.id) div.dataset.dbId = item.id; if(item.isAnime) div.dataset.isAnime = '1'; div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal = div.querySelector('.calendar-btn'); if(cal){ cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); cal.click(); }}); } const rem = div.querySelector('.remove'); if(rem){ rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); rem.click(); }}); } const mv = div.querySelector('.move-btn,.move-back-btn'); if(mv){ mv.tabIndex=0; mv.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); mv.click(); }}); } const hb = div.querySelector('.hide-btn'); if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } const ib = div.querySelector('.info-btn'); if(ib){ ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); ib.click(); }}); } if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } } catch {}
+}
+
 
 const views = {
   dizi: document.getElementById("view-dizi"),
@@ -249,11 +260,12 @@ async function loadFollowed(view) {
       (item.media_type === "tv" && item.next_episode && isToday(item.next_episode.air_date)) ||
       (item.media_type === "movie" && dateState(item.release_date) === "date-today");
     div.className = todayNow ? "card today-release-card" : "card";
+    setTvCardAttrs(div, item);
     const isMovieWatched = item.media_type === "movie" && item.watched == 1;
     const isTvCompleted = item.media_type === "tv" && item.completed;
     const showBadge = isMovieWatched || isTvCompleted;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185)}
+      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -298,6 +310,8 @@ async function loadFollowed(view) {
       e.stopPropagation();
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
+    const infoBtn = div.querySelector(".info-btn");
+    if(infoBtn) infoBtn.onclick = (e)=>{ e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
     const moveBtn = div.querySelector(".move-btn");
     if (moveBtn) {
       moveBtn.onclick = async (e) => {
@@ -374,8 +388,9 @@ async function loadAnime() {
     const animeToday = !!item.next_episode && utcDayStr(item.next_episode.airing_at) === utcTodayStr();
     const animeCompleted = !!item.completed;
     div.className = animeToday ? "card today-release-card" : "card";
+    setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true});
     div.innerHTML = `
-      ${animePosterHTML(item.cover_url, item.title, animeCompleted, item.poster_local, item.poster_local_w185)}
+      ${animePosterHTML(item.cover_url, item.title, animeCompleted, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -405,6 +420,8 @@ async function loadAnime() {
       e.stopPropagation();
       openAnimeSchedule(item.id, item.title);
     };
+    const infoBtnA = div.querySelector(".info-btn");
+    if(infoBtnA) infoBtnA.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(item.id, item.anilist_id, item.title); };
     const animeMoveBtn = div.querySelector(".move-btn");
     if (animeMoveBtn) {
       animeMoveBtn.onclick = async (e) => {
@@ -482,6 +499,7 @@ async function loadUnwatched() {
     const div = document.createElement("div");
     const singleToday = item.unwatched === 1 && isToday((item.items[0] || {}).air_date);
     div.className = singleToday ? "card today-release-card" : "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     let bottom;
     if (item.unwatched === 1) {
       const lbl = unwatchedFirstLabel(item);
@@ -492,7 +510,7 @@ async function loadUnwatched() {
       bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
     }
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185)}
+      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -508,6 +526,7 @@ async function loadUnwatched() {
       e.stopPropagation();
       openUnwatchedModal(item, false);
     };
+    const ib2 = div.querySelector(".info-btn"); if(ib2) ib2.onclick = (e)=>{ e.stopPropagation(); openDetails("tv", item.tmdb_id, item.title); };
     div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
     showsGrid.appendChild(div);
     applyTitleHint(div);
@@ -516,13 +535,14 @@ async function loadUnwatched() {
   movies.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     let dateLine = item.release_date
       ? dateState(item.release_date) === "date-past"
         ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
         : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
       : `<div>${t("date_unknown")}</div>`;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185)}
+      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -538,6 +558,7 @@ async function loadUnwatched() {
       e.stopPropagation();
       openReleases("movie", item.tmdb_id, item.title);
     };
+    const ib3 = div.querySelector(".info-btn"); if(ib3) ib3.onclick = (e)=>{ e.stopPropagation(); openDetails("movie", item.tmdb_id, item.title); };
     div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
     moviesGrid.appendChild(div);
     applyTitleHint(div);
@@ -547,6 +568,7 @@ async function loadUnwatched() {
     const div = document.createElement("div");
     const singleToday = item.unwatched === 1 && !!item.items[0] && utcDayStr(item.items[0].air_at) === utcTodayStr();
     div.className = singleToday ? "card today-release-card" : "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     let bottom;
     if (item.unwatched === 1) {
       const lbl = unwatchedFirstLabel(item);
@@ -557,7 +579,7 @@ async function loadUnwatched() {
       bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
     }
     div.innerHTML = `
-      ${animePosterHTML(item.cover_url, item.title, false, item.poster_local, item.poster_local_w185)}
+      ${animePosterHTML(item.cover_url, item.title, false, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -573,6 +595,7 @@ async function loadUnwatched() {
       e.stopPropagation();
       openUnwatchedModal(item, true);
     };
+    const ib4 = div.querySelector(".info-btn"); if(ib4) ib4.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(item.id, item.anilist_id, item.title); };
     div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
     animeGrid.appendChild(div);
     applyTitleHint(div);
@@ -624,8 +647,9 @@ async function loadWatched() {
   shows.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185)}
+      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -642,6 +666,7 @@ async function loadWatched() {
       e.stopPropagation();
       openReleases("tv", item.tmdb_id, item.title);
     };
+    const ibW = div.querySelector(".info-btn"); if(ibW) ibW.onclick = (e)=>{ e.stopPropagation(); openDetails("tv", item.tmdb_id, item.title); };
     div.querySelector(".move-back-btn").onclick = async (e) => {
       e.stopPropagation();
       await moveBackFromWatched(item, "dizi");
@@ -654,13 +679,14 @@ async function loadWatched() {
   movies.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     let dateLine = item.release_date
       ? dateState(item.release_date) === "date-past"
         ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
         : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
       : `<div>${t("date_unknown")}</div>`;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185)}
+      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -689,8 +715,9 @@ async function loadWatched() {
   animes.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
+        try{ setTvCardAttrs(div, item); }catch{}
     div.innerHTML = `
-      ${animePosterHTML(item.cover_url, item.title, true, item.poster_local, item.poster_local_w185)}
+      ${animePosterHTML(item.cover_url, item.title, true, item.poster_local, item.poster_local_w185, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -871,11 +898,12 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
   items.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
+        try{ setTvCardAttrs(div, item); }catch{}
     div.dataset.rid = item.tmdb_id || item.anilist_id;
     const moveBtn = recMoveBtnHTML(item);
     if (isAnime) {
       div.innerHTML = `
-        ${animePosterHTML(item.cover_url, item.title)}
+        ${animePosterHTML(item.cover_url, item.title, false, undefined, undefined, true)}
         <div class="info">
           <div class="title">${item.title}</div>
           <div class="meta">
@@ -885,7 +913,7 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
         </div>
         ${moveBtn}
         ${recHideBtnHTML(item)}
-        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {
         e.stopPropagation();
@@ -925,7 +953,7 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
       div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
     } else {
       div.innerHTML = `
-        ${posterHTML(item.poster_path, item.title)}
+        ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
         <div class="info">
           <div class="title">${item.title}</div>
           <div class="meta">
@@ -936,7 +964,7 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
         </div>
         ${moveBtn}
         ${recHideBtnHTML(item)}
-        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {
         e.stopPropagation();
@@ -1233,6 +1261,10 @@ function moveSection(section, dir, prefix, viewId, emptyId) {
   const target = dir === "up" ? idx - 1 : idx + 1;
   if (target < 0 || target >= visible.length) return;
   const empty = document.getElementById(emptyId);
+  // Preserve focus on the clicked button across DOM move (TV D-pad)
+  const ae = document.activeElement;
+  const aeBtn = ae && ae.closest && (ae.closest('.section-move-up')||ae.closest('.section-move-down')||ae.closest('.section-refresh')||ae.closest('.section-hide'));
+  const aeIsHeader = !!(aeBtn && aeBtn.closest && aeBtn.closest('.unwatched-section-title'));
   if (dir === "up") {
     view.insertBefore(wrap, visible[target]);
   } else {
@@ -1249,6 +1281,7 @@ function moveSection(section, dir, prefix, viewId, emptyId) {
   order[target] = targetId;
   saveSectionOrder(prefix, order);
   updateMoveButtons(viewId);
+  try{ if(aeIsHeader && aeBtn && document.contains(aeBtn)) aeBtn.focus(); }catch(_){}
 }
 
 document.addEventListener("click", (e) => {

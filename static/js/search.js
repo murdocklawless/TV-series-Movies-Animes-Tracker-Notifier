@@ -2,10 +2,21 @@
 import { state } from "./state.js";
 import { t, animeGenreLabel } from "./i18n.js";
 import {
-  posterHTML, scoreTag, typeLabel, formatDate, CALENDAR_SVG, escAttr,
+  posterHTML, scoreTag, typeLabel, formatDate, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint,
 } from "./utils.js";
 import { switchView } from "./views.js";
+function isTvUIActive() {
+  try {
+    const d = document.documentElement;
+    if (d && (d.classList.contains("is-tv") || d.classList.contains("tv-mode"))) return true;
+    return !!(window.NextEpTV && typeof window.NextEpTV.isTv === "function" && window.NextEpTV.isTv());
+  } catch { return false; }
+}
+function setTvSearchCardAttrs(div, item){
+  try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
+}
+
 import { openDetails, openReleases, openAnimeDetails } from "./components.js";
 
 function currentMedia() {
@@ -210,8 +221,9 @@ async function doTitleSearch(q, media, signal) {
   data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
+    setTvSearchCardAttrs(div, item);
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -247,6 +259,7 @@ async function doTitleSearch(q, media, signal) {
         openReleases(item.media_type, item.tmdb_id, item.title);
       };
     }
+    const ib = div.querySelector(".info-btn"); if(ib) ib.onclick = (e)=>{ e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
     div.onclick = () => openDetails(item.media_type, item.tmdb_id, item.title);
     grid.appendChild(div);
     applyTitleHint(div);
@@ -274,8 +287,9 @@ async function doAnimeTitleSearch(q, signal) {
   data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
+    setTvSearchCardAttrs(div, item);
     div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      <div class="poster-wrap">${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}<button class="info-btn" data-tip="Info">${INFO_SVG}</button></div>
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -298,6 +312,7 @@ async function doAnimeTitleSearch(q, signal) {
       toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
       if (r.ok) switchView("anime");
     };
+    const ib2 = div.querySelector(".info-btn"); if(ib2) ib2.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(null, item.anilist_id, item.title); };
     div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
     animeGrid.appendChild(div);
     applyTitleHint(div);
@@ -437,7 +452,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
       const div = document.createElement("div");
       div.className = "card";
       div.innerHTML = `
-        ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+        <div class="poster-wrap">${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}<button class="info-btn" data-tip="Info">${INFO_SVG}</button></div>
         <div class="info">
           <div class="title">${item.title}</div>
           <div class="meta">
@@ -446,7 +461,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
             ${item.status ? `<span class="badge badge-anime-status">${animeStatusLabel(item.status)}</span>` : ""}
           </div>
         </div>
-        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = async (e) => {
         e.stopPropagation();
@@ -459,7 +474,8 @@ async function doComboSearch(q, chipsArr, media, signal) {
         toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
         if (r.ok) doComboSearch(q, chipsArr, media);
       };
-      div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
+      const ib3 = div.querySelector(".info-btn"); if(ib3) ib3.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(null, item.anilist_id, item.title); };
+    div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
       animeGrid.appendChild(div);
     });
     return;
@@ -474,8 +490,9 @@ async function doComboSearch(q, chipsArr, media, signal) {
   data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
+    setTvSearchCardAttrs(div, item);
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -485,7 +502,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
         </div>
       </div>
-      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
     `;
     div.querySelector(".remove").onclick = async (e) => {
@@ -502,15 +519,18 @@ async function doComboSearch(q, chipsArr, media, signal) {
       });
       const j = await r.json();
       toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
-      if (r.ok) doComboSearch(q, chipsArr, media);
+      if (r.ok) {
+        doTitleSearch(q, media, signal);
+      }
     };
-    const calBtn = div.querySelector(".calendar-btn");
-    if (calBtn) {
-      calBtn.onclick = (e) => {
+    const cal = div.querySelector(".calendar-btn");
+    if (cal) {
+      cal.onclick = (e) => {
         e.stopPropagation();
         openReleases(item.media_type, item.tmdb_id, item.title);
       };
     }
+    const ib4 = div.querySelector(".info-btn"); if(ib4) ib4.onclick = (e)=>{ e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
     div.onclick = () => openDetails(
       item.media_type,
       item.tmdb_id,
