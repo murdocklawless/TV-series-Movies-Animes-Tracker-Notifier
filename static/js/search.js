@@ -91,6 +91,56 @@ function updateFilterButtons() {
 
 const CHIP_ORDER = { media: 0, actor: 1, char: 1, genre: 2, year: 3, score: 4 };
 
+// Tür listesi farkı (M4): önceki liste localStorage'da tutulur, picker açılışında
+// taze çekilip fark bulunur; yeni tür varsa toast + (TV) ilk yeni türe odak.
+function prevGenreKey(source) { return `prevGenres_${source}`; }
+function readPrevGenres(source) {
+  try {
+    const v = JSON.parse(localStorage.getItem(prevGenreKey(source)) || "null");
+    return Array.isArray(v) ? v : null;
+  } catch(_) { return null; }
+}
+function writePrevGenres(source, list) {
+  try { localStorage.setItem(prevGenreKey(source), JSON.stringify(list || [])); } catch(_) {}
+}
+async function freshGenreList(source) {
+  const prev = readPrevGenres(source);
+  const list = await loadGenres(source, true);
+  writePrevGenres(source, list);
+  if (!prev) return [];
+  return list.filter((g) => !prev.includes(g));
+}
+
+// TV: chip silinince odak komşuda kalır (sol → yoksa sağ); chip kalmadıysa
+// .filter-add-row'daki ilk görünür butona (en soldaki) gider. Desktop'ta dokunulmaz.
+function focusChipAfterRemove(removedPos) {
+  try {
+    if (!isTvUIActive()) return;
+    const box = document.getElementById("filter-chips");
+    if (!box) return;
+    const xs = Array.from(box.querySelectorAll(".chip-x"));
+    if (xs.length) {
+      // silinenin solu varsa sol komşu, yoksa sağ komşu (yeni listedeki konuma göre)
+      const target = removedPos > 0 ? (xs[removedPos - 1] || xs[xs.length - 1]) : xs[0];
+      if (target) { try { target.focus(); } catch(_){} }
+      return;
+    }
+    const ids = ["filter-media-movie", "filter-media-tv", "filter-actor", "filter-genre", "filter-year", "filter-score"];
+    for (const id of ids) {
+      const b = document.getElementById(id);
+      if (!b || b.disabled) continue;
+      try {
+        const s = getComputedStyle(b);
+        if (s.display === "none" || s.visibility === "hidden") continue;
+        const r = b.getBoundingClientRect();
+        if (!r.width && !r.height) continue;
+      } catch { continue; }
+      try { b.focus(); } catch(_){}
+      return;
+    }
+  } catch {}
+}
+
 function renderChips() {
   const box = document.getElementById("filter-chips");
   const sorted = state.chips.slice().sort(
@@ -103,8 +153,14 @@ function renderChips() {
     .join("");
   box.querySelectorAll(".chip-x").forEach((btn) => {
     btn.onclick = () => {
-      state.chips.splice(Number(btn.dataset.i), 1);
+      const removedIdx = Number(btn.dataset.i);
+      const sortedBefore = state.chips.slice().sort(
+        (a, b) => (CHIP_ORDER[a.type] ?? 9) - (CHIP_ORDER[b.type] ?? 9)
+      );
+      const removedPos = sortedBefore.findIndex((c) => state.chips.indexOf(c) === removedIdx);
+      state.chips.splice(removedIdx, 1);
       renderChips();
+      focusChipAfterRemove(removedPos);
     };
   });
   updateMediaButtons();
@@ -120,13 +176,50 @@ function renderChips() {
 function openValueModal(kind) {
   const title = document.getElementById("value-title");
   const input = document.getElementById("value-input");
+  const modal = document.getElementById("value-modal");
   title.textContent = t(kind === "year" ? "search_type_year" : "search_type_score");
   input.dataset.filter = kind;
   input.value = "";
   input.maxLength = kind === "year" ? 4 : 3;
   input.placeholder = t(kind === "year" ? "year_placeholder" : "score_placeholder");
-  document.getElementById("value-modal").style.display = "flex";
+  try { modal.dataset.opener = kind === "year" ? "filter-year" : "filter-score"; } catch(_){}
+  modal.style.display = "flex";
   input.focus();
+}
+
+// Merkezi kapatıcılar: gizle + (TV) açan filtre butonuna odak iadesi.
+// opener: picker'da pickerMode'dan, value'da dataset.opener'dan çözülür.
+function openerButtonFor(modal) {
+  try {
+    if (!modal) return null;
+    if (modal.id === "picker-modal") {
+      const m = state.pickerMode;
+      return document.getElementById((m === "fav_actor" || m === "fav_anime_char") ? "filter-actor" : "filter-genre");
+    }
+    if (modal.id === "value-modal") {
+      const id = modal.dataset.opener;
+      return id ? document.getElementById(id) : null;
+    }
+    return null;
+  } catch { return null; }
+}
+function closePickerModal() {
+  try { document.getElementById("picker-modal").style.display = "none"; } catch(_){}
+  try {
+    if (isTvUIActive()) {
+      const b = openerButtonFor(document.getElementById("picker-modal"));
+      if (b) b.focus();
+    }
+  } catch(_){}
+}
+function closeValueModal() {
+  try { document.getElementById("value-modal").style.display = "none"; } catch(_){}
+  try {
+    if (isTvUIActive()) {
+      const b = openerButtonFor(document.getElementById("value-modal"));
+      if (b) b.focus();
+    }
+  } catch(_){}
 }
 
 function setSearchBtnLoading(btn, loading) {
@@ -233,7 +326,7 @@ async function doTitleSearch(q, media, signal) {
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
         </div>
       </div>
-      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
     `;
     div.querySelector(".remove").onclick = async (e) => {
@@ -264,6 +357,7 @@ async function doTitleSearch(q, media, signal) {
     grid.appendChild(div);
     applyTitleHint(div);
   });
+  focusFirstResultCard();
 }
 
 async function doAnimeTitleSearch(q, signal) {
@@ -317,6 +411,7 @@ async function doAnimeTitleSearch(q, signal) {
     animeGrid.appendChild(div);
     applyTitleHint(div);
   });
+  focusFirstResultCard();
 }
 
 document.getElementById("normal-search-btn").onclick = runNormalSearch;
@@ -341,11 +436,9 @@ document.getElementById("filter-genre").onclick = () => openPicker(currentMedia(
 document.getElementById("filter-year").onclick = () => openValueModal("year");
 document.getElementById("filter-score").onclick = () => openValueModal("score");
 
-document.getElementById("value-close").onclick = () => {
-  document.getElementById("value-modal").style.display = "none";
-};
+document.getElementById("value-close").onclick = () => closeValueModal();
 document.getElementById("value-modal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) document.getElementById("value-modal").style.display = "none";
+  if (e.target === e.currentTarget) closeValueModal();
 });
 document.getElementById("value-go").onclick = () => {
   const kind = document.getElementById("value-input").dataset.filter;
@@ -374,8 +467,9 @@ document.getElementById("value-go").onclick = () => {
     }
   }
   state.chips.push({ type: kind, label: val, value: val });
-  document.getElementById("value-modal").style.display = "none";
   renderChips();
+  // TV: chip eklenince kendi butonuna dön (yıl→yıl, puan→puan)
+  closeValueModal();
 };
 
 function setResultsTitle(text) {
@@ -385,6 +479,22 @@ function setResultsTitle(text) {
 
 function openResultsModal() {
   document.getElementById("search-results-modal").style.display = "flex";
+}
+
+// TV: sonuç modalı açılınca ilk sonuç kartına odak (X atlanır); kart yoksa X'te kalır.
+function focusFirstResultCard() {
+  try {
+    if (!isTvUIActive()) return;
+    for (const gid of ["search-results", "anime-results"]) {
+      const g = document.getElementById(gid);
+      if (!g || g.style.display === "none") continue;
+      const card = g.querySelector(".card");
+      if (card) {
+        try { card.focus(); card.scrollIntoView({ block: "nearest" }); } catch(_){}
+        return;
+      }
+    }
+  } catch {}
 }
 
 function closeResultsModal() {
@@ -451,6 +561,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
     data.forEach((item) => {
       const div = document.createElement("div");
       div.className = "card";
+      setTvSearchCardAttrs(div, item);
       div.innerHTML = `
         <div class="poster-wrap">${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}<button class="info-btn" data-tip="Info">${INFO_SVG}</button></div>
         <div class="info">
@@ -478,6 +589,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
     div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
       animeGrid.appendChild(div);
     });
+    focusFirstResultCard();
     return;
   }
   grid.style.display = "";
@@ -502,7 +614,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
         </div>
       </div>
-${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
     `;
     div.querySelector(".remove").onclick = async (e) => {
@@ -542,6 +654,7 @@ ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calend
     grid.appendChild(div);
     applyTitleHint(div);
   });
+  focusFirstResultCard();
 }
 
 setMedia("dizi");
@@ -550,7 +663,9 @@ renderChips();
 async function openPicker(mode) {
   state.pickerMode = mode;
   state.pickerSelected.clear();
+  let freshGenres = [];
   const modal = document.getElementById("picker-modal");
+  try { modal.dataset.opener = (mode === "fav_actor" || mode === "fav_anime_char") ? "filter-actor" : "filter-genre"; } catch(_){}
   const title = document.getElementById("picker-title");
   const body = document.getElementById("picker-body");
   if (mode === "fav_actor") {
@@ -611,7 +726,12 @@ async function openPicker(mode) {
           )
           .join("")}</div>`
       : `<div class="picker-empty">${t("no_fav_anime_genre")}</div>`;
-    const allGenres = await loadGenres("anilist");
+    const allGenres = await loadGenres("anilist", true);
+    try {
+      const prevA = readPrevGenres("anilist");
+      writePrevGenres("anilist", allGenres);
+      if (prevA) freshGenres = allGenres.filter((g) => !prevA.includes(g));
+    } catch(_) {}
     const allItems = allGenres.length
       ? `<div class="picker-grid genre-grid">${allGenres.map(
           (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
@@ -647,7 +767,12 @@ async function openPicker(mode) {
           )
           .join("")}</div>`
       : `<div class="picker-empty">${t("no_fav_genre")}</div>`;
-    const allGenres = await loadGenres("tmdb");
+    const allGenres = await loadGenres("tmdb", true);
+    try {
+      const prevT = readPrevGenres("tmdb");
+      writePrevGenres("tmdb", allGenres);
+      if (prevT) freshGenres = allGenres.filter((g) => !prevT.includes(g));
+    } catch(_) {}
     const allItems = allGenres.length
       ? `<div class="picker-grid genre-grid">${allGenres.map(
           (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
@@ -673,6 +798,12 @@ async function openPicker(mode) {
       </div>`;
   }
   body.querySelectorAll(".picker-item").forEach((el) => {
+    try { el.tabIndex = 0; el.setAttribute("role", "button"); } catch(_){}
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " " || ev.keyCode === 23) {
+        ev.preventDefault(); ev.stopPropagation(); el.click();
+      }
+    });
     el.onclick = () => {
       el.classList.toggle("sel");
       const id = el.dataset.id;
@@ -681,14 +812,29 @@ async function openPicker(mode) {
     };
   });
   modal.style.display = "flex";
-  document.getElementById("picker-free-input").focus();
+  if (freshGenres.length) {
+    try { toast(t("new_genres_toast", { n: freshGenres.length })); } catch(_){}
+    if (isTvUIActive()) {
+      let target = null;
+      body.querySelectorAll(".picker-item").forEach((el) => {
+        if (!target && el.dataset && el.dataset.id === freshGenres[0]) target = el;
+      });
+      if (target) {
+        try { target.focus(); target.scrollIntoView({block: "nearest"}); } catch(_){}
+      } else {
+        document.getElementById("picker-free-input").focus();
+      }
+    } else {
+      document.getElementById("picker-free-input").focus();
+    }
+  } else {
+    document.getElementById("picker-free-input").focus();
+  }
 }
 
-document.getElementById("picker-close").onclick = () => {
-  document.getElementById("picker-modal").style.display = "none";
-};
+document.getElementById("picker-close").onclick = () => closePickerModal();
 document.getElementById("picker-modal").addEventListener("click", (e) => {
-  if (e.target === e.currentTarget) document.getElementById("picker-modal").style.display = "none";
+  if (e.target === e.currentTarget) closePickerModal();
 });
 document.getElementById("search-results-close").onclick = closeResultsModal;
 document.getElementById("search-results-modal").addEventListener("click", (e) => {
@@ -717,6 +863,8 @@ document.getElementById("picker-go").onclick = () => {
   }
   document.getElementById("picker-modal").style.display = "none";
   renderChips();
+  // TV: chip eklenince kendisini açan filtre butonuna dön (oyuncu→oyuncu, tür→tür)
+  closePickerModal();
 };
 
 

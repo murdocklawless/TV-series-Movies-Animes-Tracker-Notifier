@@ -13,6 +13,7 @@ export const state = {
   tmdbKeySet: false,
   currentLang: "tr",
   currentTz: "Europe/Istanbul",
+  serverToday: null,
   allTimezones: [],
 
   sortKey: "added",

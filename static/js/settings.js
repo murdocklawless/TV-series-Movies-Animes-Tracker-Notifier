@@ -567,6 +567,7 @@ async function loadSettings() {
   initTimePicker("s-rec-hour");
   initTimePicker("s-backup-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
+  state.serverToday = s.server_today || null;
   document.getElementById("s-tz").value = state.currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
   document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
@@ -834,7 +835,7 @@ async function openFavListing(kind, ident, title) {
       div.className = "card";
       const mediaType = item.media_type || (kind === "actor" ? "tv" : "movie");
       div.innerHTML = `
-        ${posterHTML(item.poster_path, item.title)}
+        ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
         <div class="info">
           <div class="title">${escAttr(item.title)}</div>
           <div class="meta">
@@ -846,6 +847,8 @@ async function openFavListing(kind, ident, title) {
         </div>
         <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
+      const ibFav = div.querySelector(".info-btn");
+      if (ibFav) ibFav.onclick = (ev) => { ev.stopPropagation(); div.click(); };
       div.querySelector(".remove").onclick = async (e) => {
         e.stopPropagation();
         const r = await fetch("/api/follow", {

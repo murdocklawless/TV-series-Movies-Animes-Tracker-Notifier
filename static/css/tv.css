@@ -96,7 +96,10 @@ html.is-tv .fav-list, html.tv-mode .fav-list { max-height: 340px; }
 
 html.is-tv .person-grid, html.tv-mode .person-grid { max-height: 400px; }
 
-html.is-tv .picker-grid, html.tv-mode .picker-grid { max-height: 340px; }
+/* Picker çift-kaydırma: iç grid'ler kendi kaydırıcısını kapatır, tek kaydırıcı
+   modal-body kalır — odaklanınca scrollIntoView iki kabı birden oynatıp
+   bir satır fazla kaydırmaz */
+html.is-tv .picker-grid, html.tv-mode .picker-grid { max-height: none; overflow-y: visible; }
 
 html.is-tv .backup-ssh-textarea, html.tv-mode .backup-ssh-textarea { max-height: 220px; }
 
@@ -197,5 +200,113 @@ html.tv-mode .media-tabs-group .tab span {
 html.is-tv #tab-search span,
 html.tv-mode #tab-search span {
   display: none !important;
+}
+
+/* Takvim bugün vurgusu: TV'de de mavi+bold kesin görünsün (web ile birebir, !important WebView override'ına karşı) */
+html.is-tv .releases-table td.date-today, html.tv-mode .releases-table td.date-today {
+  color: #6f9ec9 !important;
+  font-weight: 700 !important;
+}
+html.is-tv .releases-table tr.today-release .episode-label, html.tv-mode .releases-table tr.today-release .episode-label,
+html.is-tv .releases-table tr.today-release .episode-name, html.tv-mode .releases-table tr.today-release .episode-name {
+  color: #6f9ec9 !important;
+  font-weight: 700 !important;
+}
+
+/* Picker D-pad odağı: turuncu çerçeve (hover deseniyle birebir) */
+html.is-tv .picker-item:focus, html.tv-mode .picker-item:focus,
+html.is-tv .picker-item:focus-visible, html.tv-mode .picker-item:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  border-color: #f97316 !important;
+  background: rgba(249, 115, 22, 0.15) !important;
+}
+
+/* Ara butonları D-pad odağı: navbar medya buton hover'ıyla aynı */
+html.is-tv #normal-search-btn:focus, html.tv-mode #normal-search-btn:focus,
+html.is-tv #normal-search-btn:focus-visible, html.tv-mode #normal-search-btn:focus-visible,
+html.is-tv #search-btn:focus, html.tv-mode #search-btn:focus,
+html.is-tv #search-btn:focus-visible, html.tv-mode #search-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  background: rgba(249, 115, 22, 0.3) !important;
+  border-color: #f97316 !important;
+  color: #fff !important;
+}
+
+/* Arama seçici D-pad odağı: sistem turuncusu (beyaz varsayılan halka yerine) */
+html.is-tv .media-toggle button:focus, html.tv-mode .media-toggle button:focus,
+html.is-tv .media-toggle button:focus-visible, html.tv-mode .media-toggle button:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  background: rgba(249, 115, 22, 0.3) !important;
+  border-color: #f97316 !important;
+  color: #fff !important;
+}
+/* Filtre tag'leri kimlik renklerini korur, turuncu işaret outline'dan gelir */
+html.is-tv .filter-add-btn:focus, html.tv-mode .filter-add-btn:focus,
+html.is-tv .filter-add-btn:focus-visible, html.tv-mode .filter-add-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+html.is-tv .chip-x:focus, html.tv-mode .chip-x:focus,
+html.is-tv .chip-x:focus-visible, html.tv-mode .chip-x:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 1px;
+}
+
+/* Modal başlık butonları (X/takvim/refresh) odak çerçevesi: dikdörtgen +
+   yuvarlak köşe (refresh butonuyla birebir, radius 4px) */
+html.is-tv .modal-close, html.tv-mode .modal-close {
+  border-radius: 4px;
+}
+
+/* Bölüm başlık butonları + gizlenenler ara/X: aynı dikdörtgen-yuvarlak çerçeve */
+html.is-tv .section-refresh, html.tv-mode .section-refresh,
+html.is-tv .section-hide, html.tv-mode .section-hide,
+html.is-tv .section-move-up, html.tv-mode .section-move-up,
+html.is-tv .section-move-down, html.tv-mode .section-move-down,
+html.is-tv .hidden-header-btn, html.tv-mode .hidden-header-btn {
+  border-radius: 4px;
+}
+
+/* Jenerik TV odak halkası: beyaz varsayılan halka yerine sistem turuncusu.
+   Kimlik renkleri/zeminler korunur, yalnız outline gelir. */
+html.is-tv .modal-close:focus, html.tv-mode .modal-close:focus,
+html.is-tv .modal-close:focus-visible, html.tv-mode .modal-close:focus-visible,
+html.is-tv .watch-btn:focus, html.tv-mode .watch-btn:focus,
+html.is-tv .watch-btn:focus-visible, html.tv-mode .watch-btn:focus-visible,
+html.is-tv .uw-watch:focus, html.tv-mode .uw-watch:focus,
+html.is-tv .uw-watch:focus-visible, html.tv-mode .uw-watch:focus-visible,
+html.is-tv .anime-watch:focus, html.tv-mode .anime-watch:focus,
+html.is-tv .anime-watch:focus-visible, html.tv-mode .anime-watch:focus-visible,
+html.is-tv .season-watch-all:focus, html.tv-mode .season-watch-all:focus,
+html.is-tv .season-watch-all:focus-visible, html.tv-mode .season-watch-all:focus-visible,
+html.is-tv .card .remove:focus, html.tv-mode .card .remove:focus,
+html.is-tv .card .remove:focus-visible, html.tv-mode .card .remove:focus-visible,
+html.is-tv .card .info-btn:focus, html.tv-mode .card .info-btn:focus,
+html.is-tv .card .info-btn:focus-visible, html.tv-mode .card .info-btn:focus-visible,
+html.is-tv .card .move-btn:focus, html.tv-mode .card .move-btn:focus,
+html.is-tv .card .move-btn:focus-visible, html.tv-mode .card .move-btn:focus-visible,
+html.is-tv .card .move-back-btn:focus, html.tv-mode .card .move-back-btn:focus,
+html.is-tv .card .move-back-btn:focus-visible, html.tv-mode .card .move-back-btn:focus-visible,
+html.is-tv .card .hide-btn:focus, html.tv-mode .card .hide-btn:focus,
+html.is-tv .card .hide-btn:focus-visible, html.tv-mode .card .hide-btn:focus-visible,
+html.is-tv .card .calendar-btn:focus, html.tv-mode .card .calendar-btn:focus,
+html.is-tv .card .calendar-btn:focus-visible, html.tv-mode .card .calendar-btn:focus-visible,
+html.is-tv .btn:focus, html.tv-mode .btn:focus,
+html.is-tv .btn:focus-visible, html.tv-mode .btn:focus-visible,
+html.is-tv #details-calendar:focus, html.tv-mode #details-calendar:focus,
+html.is-tv #details-calendar:focus-visible, html.tv-mode #details-calendar:focus-visible,
+html.is-tv .sort-item:focus, html.tv-mode .sort-item:focus,
+html.is-tv .sort-item:focus-visible, html.tv-mode .sort-item:focus-visible,
+html.is-tv .settings-menu-item:focus, html.tv-mode .settings-menu-item:focus,
+html.is-tv .settings-menu-item:focus-visible, html.tv-mode .settings-menu-item:focus-visible,
+html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,
+html.is-tv .notif-item:focus-visible, html.tv-mode .notif-item:focus-visible,
+html.is-tv .hidden-header-btn:focus, html.tv-mode .hidden-header-btn:focus,
+html.is-tv .hidden-header-btn:focus-visible, html.tv-mode .hidden-header-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
 }
 

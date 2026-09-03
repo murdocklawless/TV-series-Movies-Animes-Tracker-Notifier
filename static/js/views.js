@@ -4,10 +4,10 @@ import { t } from "./i18n.js";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
-  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, toast, tzLocale,
+  isToday, dateState, utcDayStr, utcTodayStr, isReleaseToday, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, toast, tzLocale,
 } from "./utils.js";
 import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, showConfirm, openUnwatchedModal } from "./components.js";
-import { renderChips, closeResultsModal } from "./search.js";
+import { renderChips, closeResultsModal, setMedia } from "./search.js";
 import { closeSettingsMenu } from "./settings.js";
 function isTvUIActive() {
   try {
@@ -84,7 +84,16 @@ tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.watched.onclick = () => switchView("watched");
 tabs.recommend.onclick = () => switchView("recommend");
-tabs.search.onclick = () => switchView("search");
+tabs.search.onclick = () => {
+  switchView("search");
+  try {
+    const d = document.documentElement;
+    if (d && (d.classList.contains("is-tv") || d.classList.contains("tv-mode"))) {
+      setMedia("dizi");
+      setTimeout(() => { try { const m = document.getElementById("media-dizi"); if (m) m.focus(); } catch(_){} }, 60);
+    }
+  } catch(_){}
+};
 document.getElementById("search-close").onclick = () => switchView(prevView);
 
 const SORT_VIEWS = ["dizi", "film", "anime", "unwatched", "watched"];
@@ -257,8 +266,8 @@ async function loadFollowed(view) {
   items.forEach((item) => {
     const div = document.createElement("div");
     const todayNow =
-      (item.media_type === "tv" && item.next_episode && isToday(item.next_episode.air_date)) ||
-      (item.media_type === "movie" && dateState(item.release_date) === "date-today");
+      (item.media_type === "tv" && item.next_episode && isReleaseToday({ date: item.next_episode.air_date })) ||
+      (item.media_type === "movie" && isReleaseToday({ date: item.release_date }));
     div.className = todayNow ? "card today-release-card" : "card";
     setTvCardAttrs(div, item);
     const isMovieWatched = item.media_type === "movie" && item.watched == 1;
@@ -275,14 +284,14 @@ async function loadFollowed(view) {
           ${
             item.media_type === "tv"
               ? item.next_episode
-                ? isToday(item.next_episode.air_date)
+                ? isReleaseToday({ date: item.next_episode.air_date })
                   ? `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} ${t("today_airing")}</div>`
                   : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} · ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)}${isMobile() ? "" : " · "}<span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`
                 : tvStatusText(item)
               : item.release_date
                 ? dateState(item.release_date) === "date-past"
                   ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
-                  : dateState(item.release_date) === "date-today"
+                  : isReleaseToday({ date: item.release_date })
                     ? `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`
                     : `<div class="next-ep">${formatDate(item.release_date).text} · <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`
                 : `<div>${t("date_unknown")}</div>`
@@ -353,8 +362,8 @@ function animeNextText(next, status) {
   }
   const d = new Date(next.airing_at * 1000);
   const now = Date.now();
+  if (isReleaseToday({ air_time: next.airing_at })) return `<div class="next-ep today">EP ${next.episode} ${t("today_airing")}</div>`;
   const diffDays = Math.floor((d.getTime() - now) / 86400000);
-  if (diffDays <= 0) return `<div class="next-ep today">EP ${next.episode} ${t("today_airing")}</div>`;
   const loc = tzLocale();
   let txt;
   try {
@@ -385,7 +394,7 @@ async function loadAnime() {
 
   items.forEach((item) => {
     const div = document.createElement("div");
-    const animeToday = !!item.next_episode && utcDayStr(item.next_episode.airing_at) === utcTodayStr();
+    const animeToday = !!item.next_episode && isReleaseToday({ air_time: item.next_episode.airing_at });
     const animeCompleted = !!item.completed;
     div.className = animeToday ? "card today-release-card" : "card";
     setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true});
@@ -497,7 +506,7 @@ async function loadUnwatched() {
 
   shows.forEach((item) => {
     const div = document.createElement("div");
-    const singleToday = item.unwatched === 1 && isToday((item.items[0] || {}).air_date);
+    const singleToday = item.unwatched === 1 && isReleaseToday({ date: (item.items[0] || {}).air_date });
     div.className = singleToday ? "card today-release-card" : "card unwatched-card";
         try{ setTvCardAttrs(div, item); }catch{}
     let bottom;
@@ -566,7 +575,7 @@ async function loadUnwatched() {
 
   animes.forEach((item) => {
     const div = document.createElement("div");
-    const singleToday = item.unwatched === 1 && !!item.items[0] && utcDayStr(item.items[0].air_at) === utcTodayStr();
+    const singleToday = item.unwatched === 1 && !!item.items[0] && isReleaseToday({ air_time: item.items[0].air_at });
     div.className = singleToday ? "card today-release-card" : "card unwatched-card";
         try{ setTvCardAttrs(div, item); }catch{}
     let bottom;
@@ -911,8 +920,8 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
             ${item.score ? scoreTag(item.score / 10) : ""}
           </div>
         </div>
-        ${moveBtn}
         ${recHideBtnHTML(item)}
+        ${moveBtn}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {
@@ -962,8 +971,8 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
             ${platformTag(item.networks)}
           </div>
         </div>
-        ${moveBtn}
         ${recHideBtnHTML(item)}
+        ${moveBtn}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {

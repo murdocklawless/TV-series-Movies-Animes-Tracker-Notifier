@@ -14,7 +14,7 @@ import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
-  canSelectAll, utcStateStr, isNewEpisode, tzLocale,
+  canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr,
 } from "./utils.js";
 import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js";
 import { setMedia, renderChips, doComboSearch } from "./search.js";
@@ -56,7 +56,7 @@ async function openReleases(mediaType, tmdbId, title) {
       return 0;
     });
 
-    const renderAll = () => {
+    const renderAll = (focusKey) => {
       let html = "";
       seasonNames.forEach((seasonKey) => {
         const seasonItems = groups[seasonKey].sort((a, b) => {
@@ -86,12 +86,13 @@ async function openReleases(mediaType, tmdbId, title) {
         seasonItems.forEach((it, i) => {
           const f = formatDate(it.date);
           const st = utcStateStr(it);
-          const dateClass = st ? ` class="${st}"` : "";
+          const isToday = isReleaseToday(it);
+          const dateClass = isToday ? ` class="date-today"` : (st ? ` class="${st}"` : "");
           const epName = it.episode_name
             ? `<div class="episode-name">${it.episode_name}</div>`
             : "";
           const watchedClass = it.watched ? " watched" : "";
-          const released = st === "date-past" || st === "date-today";
+          const released = st === "date-past" || st === "date-today" || isToday;
           const prevWatched = i === 0 ? true : seasonItems[i - 1].watched;
           const selectable =
             data.media_type === "tv"
@@ -102,7 +103,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const btnCls = it.watched ? "watch-btn on" : "watch-btn";
           const checkIcon = it.watched ? CHECK_SVG : "";
           const newCls = isNewEpisode(it) ? " new" : "";
-          const todayCls = st === "date-today" ? " today-release" : "";
+          const todayCls = isToday ? " today-release" : "";
           const dateText = f.text;
           html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectableAttr}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
           if (data.media_type === "tv") {
@@ -117,25 +118,40 @@ async function openReleases(mediaType, tmdbId, title) {
 
       body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
       bindReleasesEvents();
-      // TV: takvimde son izlenmemis -> yoksa son izlenen odak
+      // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
       try {
-        if (isTvUIActive()) {
-          const btns = Array.from(body.querySelectorAll('.watch-btn'));
-          if (btns.length) {
-            let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
-            btns.forEach((btn, idx) => {
-              if (btn.disabled) return;
-              const g = btn.dataset.g;
-              const i = Number(btn.dataset.i);
-              const it = groups[g] ? groups[g][i] : null;
-              if (!it) return;
-              if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
-              else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
-            });
-            const targetIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
-            const target = targetIdx !== -1 ? btns[targetIdx] : null;
-            if (target) setTimeout(() => { try { target.focus(); target.scrollIntoView({block:'nearest'}); } catch(_){} }, 120);
+        if (focusKey && (focusKey.g !== undefined || focusKey.s !== undefined)) {
+          let same = null;
+          if (focusKey.g !== undefined) {
+            same = body.querySelector(`.watch-btn[data-g="${focusKey.g}"][data-i="${focusKey.i}"]`);
+            if (same && same.disabled) same = null;
+          } else if (focusKey.s !== undefined) {
+            same = body.querySelector(`.season-watch-all[data-s="${focusKey.s}"]`);
+            if (same && same.disabled) same = null;
           }
+          if (same) { try { same.focus(); same.scrollIntoView({block:'nearest'}); } catch(_){} return; }
+        }
+        const btns = Array.from(body.querySelectorAll('.watch-btn'));
+        if (btns.length) {
+          let firstUnwatchedIdx = -1, lastWatchedIdx = -1;
+          btns.forEach((btn, idx) => {
+            if (btn.disabled) return;
+            const g = btn.dataset.g;
+            const i = Number(btn.dataset.i);
+            const it = groups[g] ? groups[g][i] : null;
+            if (!it) return;
+            if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+            if (it.watched) lastWatchedIdx = idx;
+          });
+          let targetIdx = -1;
+          if (firstUnwatchedIdx !== -1) targetIdx = firstUnwatchedIdx;
+          else if (lastWatchedIdx !== -1) targetIdx = lastWatchedIdx;
+          else {
+            const firstEnabled = btns.findIndex(b=>!b.disabled);
+            if (firstEnabled !== -1) targetIdx = firstEnabled;
+          }
+          const target = targetIdx !== -1 ? btns[targetIdx] : null;
+          if (target) setTimeout(() => { try { target.focus(); target.scrollIntoView({block:'nearest'}); } catch(_){} }, 120);
         }
       } catch(_){}
     };
@@ -144,7 +160,8 @@ async function openReleases(mediaType, tmdbId, title) {
       body.querySelectorAll(".watch-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
           if (btn.disabled) return;
-          const it = groups[btn.dataset.g][Number(btn.dataset.i)];
+          const gk = btn.dataset.g, ik = Number(btn.dataset.i);
+          const it = groups[gk][ik];
           const newWatched = it.watched ? 0 : 1;
           const isMovie = data.media_type === "movie";
           try {
@@ -159,7 +176,7 @@ async function openReleases(mediaType, tmdbId, title) {
             });
             if (!res.ok) return;
             it.watched = newWatched;
-            renderAll();
+            renderAll({g: gk, i: ik});
             loadFollowed(mediaType === "tv" ? "dizi" : "film");
           } catch (e) {
             toast(t("error"));
@@ -183,7 +200,7 @@ async function openReleases(mediaType, tmdbId, title) {
               if (watched === 1 && !canSelectAll(it)) return;
               it.watched = watched;
             });
-            renderAll();
+            renderAll({s: seasonKey});
             loadFollowed("dizi");
           } catch (e) {
             toast(t("error"));
@@ -489,7 +506,7 @@ data.forEach((item) => {
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
         </div>
         </div>
-        ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+        ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = async (e) => {
@@ -549,7 +566,7 @@ async function openUnwatchedModal(item, isAnime) {
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
 
-  const renderList = () => {
+  const renderList = (savedIdx) => {
     const sorted = [...item.items].sort((a, b) =>
       a.season != null
         ? (a.season - b.season) || (a.episode - b.episode)
@@ -579,7 +596,8 @@ async function openUnwatchedModal(item, isAnime) {
     body.querySelectorAll(".uw-watch").forEach((btn) => {
       btn.addEventListener("click", async () => {
         if (btn.classList.contains("locked")) return;
-        const it = sorted[Number(btn.dataset.i)];
+        const savedIdx = Number(btn.dataset.i);
+        const it = sorted[savedIdx];
         const newWatched = it.watched ? 0 : 1;
         try {
           if (isAnime) {
@@ -596,28 +614,36 @@ async function openUnwatchedModal(item, isAnime) {
             });
           }
           it.watched = newWatched;
-          renderList();
+          renderList(savedIdx);
         } catch (e) {
           toast(t("error"));
         }
       });
     });
-    // TV: ilk izlenmemis -> yoksa ilk izlenen odak (Lioness S1E1)
+    // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
     try {
-      if (isTvUIActive()) {
-          const btns = Array.from(body.querySelectorAll('.uw-watch'));
-        if (btns.length) {
-          let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
-          btns.forEach((btn, idx) => {
-            const it = sorted[Number(btn.dataset.i)];
-            if (!it) return;
-            if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
-            else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
-          });
-          const tIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
-          const target = tIdx !== -1 ? btns[tIdx] : null;
-          if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
+      if (savedIdx !== undefined && savedIdx !== null) {
+        const same = body.querySelector(`.uw-watch[data-i="${savedIdx}"]`);
+        if (same && !same.classList.contains("locked")) { try { same.focus(); same.scrollIntoView({block:'nearest'}); } catch(_){} return; }
+      }
+      const btns = Array.from(body.querySelectorAll('.uw-watch'));
+      if (btns.length) {
+        let firstUnwatchedIdx = -1, lastWatchedIdx = -1;
+        btns.forEach((btn, idx) => {
+          const it = sorted[Number(btn.dataset.i)];
+          if (!it) return;
+          if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+          if (it.watched) lastWatchedIdx = idx;
+        });
+        let tIdx = -1;
+        if (firstUnwatchedIdx !== -1) tIdx = firstUnwatchedIdx;
+        else if (lastWatchedIdx !== -1) tIdx = lastWatchedIdx;
+        else {
+          const firstEnabled = btns.findIndex(b=>!b.disabled);
+          if (firstEnabled !== -1) tIdx = firstEnabled;
         }
+        const target = tIdx !== -1 ? btns[tIdx] : null;
+        if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
       }
     } catch(_){}
   };
@@ -692,7 +718,7 @@ async function openAnimeSchedule(id, title) {
     const now = Date.now();
     const releasedCount = items.filter((it) => it.airing_at && it.airing_at * 1000 <= now).length;
 
-    const renderTable = () => {
+    const renderTable = (savedEp) => {
       const releasedWatched = items.filter((it) => it.watched && it.airing_at && it.airing_at * 1000 <= now).length;
       const allWatched = releasedCount > 0 && releasedWatched === releasedCount;
       const pct = releasedCount ? Math.round((releasedWatched / releasedCount) * 100) : 0;
@@ -709,16 +735,25 @@ async function openAnimeSchedule(id, title) {
           } catch (e) {
             dateText = d.toLocaleString();
           }
-          if (d.getTime() < now) cls = "date-past";
-          else if (d.getTime() > now) cls = "date-future";
-          else cls = "date-today";
+          const day = utcDayStr(it.airing_at);
+          const localT = todayInTzStr();
+          if (day === localT) cls = "date-today";
+          else if (day && day < localT) cls = "date-past";
+          else if (day && day > localT) cls = "date-future";
+          else {
+            // fallback to time comparison when day strings unavailable
+            if (d.getTime() < now) cls = "date-past";
+            else if (d.getTime() > now) cls = "date-future";
+            else cls = "date-today";
+          }
         }
         const released = it.airing_at && it.airing_at * 1000 <= now;
         const prevWatched = i === 0 ? true : items[i - 1].watched;
         const selectable = released && prevWatched;
         const btnDisabled = !selectable ? " disabled" : "";
         const watchedCls = it.watched ? " watched" : "";
-        html += `<tr class="${watchedCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
+        const todayCls = cls === "date-today" ? " today-release" : "";
+        html += `<tr class="${watchedCls}${todayCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
       });
       html += "</tbody></table></div>";
       body.innerHTML = html;
@@ -737,7 +772,7 @@ async function openAnimeSchedule(id, title) {
             if (!r.ok) return;
             const idx = items.findIndex((it) => it.episode === episode);
             if (idx >= 0) items[idx].watched = newWatched;
-            renderTable();
+            renderTable(episode);
             if (typeof loadAnime === "function") loadAnime();
           } catch (e) {
             toast(t("error"));
@@ -760,31 +795,44 @@ async function openAnimeSchedule(id, title) {
               });
               if (r.ok) it.watched = watched;
             }
-            renderTable();
+            renderTable('all');
             if (typeof loadAnime === "function") loadAnime();
           } catch (e) {
             toast(t("error"));
           }
         });
       });
-      // TV: ilk izlenmemis -> yoksa ilk izlenen odak
+      // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
       try {
-        if (isTvUIActive()) {
-          const btns = Array.from(body.querySelectorAll('.anime-watch'));
-          if (btns.length) {
-            let firstUnwatchedIdx = -1, firstWatchedIdx = -1;
-            btns.forEach((btn, idx) => {
-              if (btn.disabled) return;
-              const ep = Number(btn.dataset.e);
-              const it = items.find(x=>x.episode===ep);
-              if (!it) return;
-              if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
-              else if (it.watched && firstWatchedIdx === -1) firstWatchedIdx = idx;
-            });
-            const tIdx = firstUnwatchedIdx !== -1 ? firstUnwatchedIdx : firstWatchedIdx;
-            const target = tIdx !== -1 ? btns[tIdx] : null;
-            if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
+        if (savedEp !== undefined && savedEp !== null) {
+          if (savedEp === 'all') {
+            const allBtn = body.querySelector('.season-watch-all');
+            if (allBtn && !allBtn.disabled) { try { allBtn.focus(); allBtn.scrollIntoView({block:'nearest'}); } catch(_){} return; }
+          } else {
+            const same = body.querySelector(`.anime-watch[data-e="${savedEp}"]`);
+            if (same && !same.disabled) { try { same.focus(); same.scrollIntoView({block:'nearest'}); } catch(_){} return; }
           }
+        }
+        const btns = Array.from(body.querySelectorAll('.anime-watch'));
+        if (btns.length) {
+          let firstUnwatchedIdx = -1, lastWatchedIdx = -1;
+          btns.forEach((btn, idx) => {
+            if (btn.disabled) return;
+            const ep = Number(btn.dataset.e);
+            const it = items.find(x=>x.episode===ep);
+            if (!it) return;
+            if (!it.watched && firstUnwatchedIdx === -1) firstUnwatchedIdx = idx;
+            if (it.watched) lastWatchedIdx = idx;
+          });
+          let tIdx = -1;
+          if (firstUnwatchedIdx !== -1) tIdx = firstUnwatchedIdx;
+          else if (lastWatchedIdx !== -1) tIdx = lastWatchedIdx;
+          else {
+            const firstEnabled = btns.findIndex(b=>!b.disabled);
+            if (firstEnabled !== -1) tIdx = firstEnabled;
+          }
+          const target = tIdx !== -1 ? btns[tIdx] : null;
+          if (target) setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:'nearest'});}catch(_){} }, 120);
         }
       } catch(_){}
     };

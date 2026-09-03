@@ -5,7 +5,7 @@ import zoneinfo
 
 from flask import Blueprint, jsonify, request
 
-from db import get_setting, set_setting
+from db import get_setting, set_setting, today_str
 from crypto_util import encrypt_secret, decrypt_secret
 from notifications import ntfy_topic_clean, _send_generic_smtp, _email_card_html
 from messages_i18n import t
@@ -400,6 +400,7 @@ def get_settings():
             "smtp_user": get_setting("smtp_user") or "",
             "has_smtp_pass": bool(get_setting("smtp_pass")),
             "cache_ttl": get_setting("cache_ttl") or "3600",
+            "server_today": today_str(),
             **{f"notif_{k}": get_setting(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
     )

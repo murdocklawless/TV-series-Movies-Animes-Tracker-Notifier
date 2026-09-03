@@ -29,6 +29,7 @@ document.addEventListener("app:langchange", () => {
     const res = await fetch("/api/settings");
     const s = await res.json();
     state.tmdbKeySet = !!s.tmdb_api_key;
+    state.serverToday = s.server_today || state.serverToday;
     if (s.language) {
       state.currentTz = s.timezone || state.currentTz;
       applyLang(s.language.split("-")[0]);

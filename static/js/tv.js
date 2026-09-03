@@ -38,8 +38,9 @@ export function pushModal(el) {
   el.dataset.prevFocus = prev && prev.id ? prev.id : "";
   el._prevEl = prev;
   modalStack.push(el);
-  // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil
-  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal')) return;
+  // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil;
+  // picker'da free-input'ta, sonuç modalında ilk kartta kalsın (açılış focus'unu observer çalmasın)
+  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'value-modal')) return;
   // focus first focusable (no scroll — scroll can yank fixed overlay in WebView)
   try {
     const f = el.querySelector('button, [href], input, select, [tabindex]:not([tabindex="-1"])');
@@ -55,20 +56,56 @@ export function popModal(el) {
     top = modalStack.pop();
   }
   try {
-    if (top && top._prevEl && top._prevEl.focus) focusNoScroll(top._prevEl);
+    const live = top && top._prevEl ? resolveLiveButton(top._prevEl) : null;
+    if (live) focusNoScroll(live);
     else if (top && top.dataset.prevFocus) {
       const p = document.getElementById(top.dataset.prevFocus);
-      if (p) focusNoScroll(p);
+      if (p && document.contains(p)) focusNoScroll(p);
     }
   } catch {}
   return top;
+}
+// loadFollowed/loadAnime grid'i yeniden çizince saklanan kart/btn detached kalır;
+// aynı kartı dataset kimliğiyle yeniden bul (canlı DOM'a dön)
+function resolveLiveCard(oldCard) {
+  try {
+    if (!oldCard) return null;
+    if (document.contains(oldCard)) return oldCard;
+    const d = oldCard.dataset || {};
+    const sels = [];
+    if (d.dbId) sels.push(`.card[data-db-id="${d.dbId}"]`);
+    if (d.tmdbId && d.mediaType) sels.push(`.card[data-tmdb-id="${d.tmdbId}"]`);
+    if (d.anilistId) sels.push(`.card[data-anilist-id="${d.anilistId}"]`);
+    for (const s of sels) {
+      const found = document.querySelector(s);
+      if (found) return found;
+    }
+    return null;
+  } catch { return null; }
+}
+function resolveLiveButton(oldBtn) {
+  try {
+    if (!oldBtn) return null;
+    if (document.contains(oldBtn)) return oldBtn;
+    const card = oldBtn.closest && oldBtn.closest('.card');
+    const liveCard = card ? resolveLiveCard(card) : null;
+    if (liveCard) {
+      const cls = ['calendar-btn','info-btn','remove','move-btn','move-back-btn','hide-btn'].find(c=>oldBtn.classList && oldBtn.classList.contains(c));
+      if (cls) {
+        const nb = liveCard.querySelector('.'+cls);
+        if (nb) return nb;
+      }
+      return liveCard;
+    }
+    return null;
+  } catch { return null; }
 }
 export function topModal() { return modalStack[modalStack.length - 1] || null; }
 window._tvModalStack = modalStack;
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","details-modal","confirm-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-form","notification-modal"];
+  const ids = ["releases-modal","details-modal","confirm-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -101,18 +138,20 @@ document.addEventListener("keydown", (e) => {
   }
   const top = topModal();
   if (top) {
-    const isCardModal = top.id === 'releases-modal' || top.id === 'details-modal';
+    const isCardModal = top.id === 'releases-modal' || top.id === 'details-modal' || top.id === 'unwatched-modal';
     if (isCardModal && buttonMode && buttonMode.card) {
-      const prev = top._prevEl;
+      const liveCard = resolveLiveCard(buttonMode.card) || buttonMode.card;
+      buttonMode.card = liveCard;
+      const prev = top._prevEl ? (resolveLiveButton(top._prevEl) || null) : null;
       e.preventDefault(); e.stopPropagation();
       try { top.style.display = "none"; } catch {}
       popModal(top);
       try {
-        const btns = cardButtons(buttonMode.card);
+        const btns = cardButtons(liveCard);
         let idx = -1;
         if (prev) idx = btns.indexOf(prev);
         if (idx === -1) {
-          if (top.id === 'releases-modal') idx = btns.findIndex(b=>b.classList.contains('calendar-btn'));
+          if (top.id === 'releases-modal' || top.id === 'unwatched-modal') idx = btns.findIndex(b=>b.classList.contains('calendar-btn'));
           else if (top.id === 'details-modal') idx = btns.findIndex(b=>b.classList.contains('info-btn'));
         }
         if (idx !== -1 && btns[idx]) {
@@ -126,9 +165,23 @@ document.addEventListener("keydown", (e) => {
       } catch(_){}
       return;
     }
+    // Sonuç modalında buton modundayken Back karta döner, modal açık kalır
+    if (top.id === 'search-results-modal' && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
+      e.preventDefault(); e.stopPropagation();
+      exitButtonMode();
+      return;
+    }
     e.preventDefault(); e.stopPropagation();
     try { top.style.display = "none"; } catch {}
     popModal(top);
+    // picker/value: hangi buton açtıysa ona dön (dataset.opener; örn. tür→tür)
+    try {
+      const oid = top.dataset && top.dataset.opener;
+      if (oid) {
+        const ob = document.getElementById(oid);
+        if (ob && !ob.disabled && isVisible(ob)) focusEl(ob);
+      }
+    } catch(_){}
     return;
   }
   if (buttonMode) {
@@ -136,6 +189,13 @@ document.addEventListener("keydown", (e) => {
     exitButtonMode();
     return;
   }
+  try {
+    const sv = document.getElementById('view-search');
+    if (sv && sv.classList.contains('active')) {
+      const c = document.getElementById('search-close');
+      if (c) { e.preventDefault(); e.stopPropagation(); c.click(); return; }
+    }
+  } catch(_){}
 });
 
 function isTvMode() {
@@ -157,6 +217,19 @@ function isCard(el){ return !!(el && el.classList && el.classList.contains('card
 function cardButtons(card){
   const out = Array.from(card.querySelectorAll(CARD_BTN_SEL)).filter(el=>isVisible(el)&&!el.disabled);
   out.forEach((b)=>{ try{ b.tabIndex = 0; }catch(_){} });
+  // Kanonik sıra: takvim -> taşı -> info -> takibi bırak (yalnız takvimli kartlarda;
+  // takvimsiz kartlar DOM sırasında kalır)
+  try {
+    if (out.some((b)=>b.classList && b.classList.contains('calendar-btn'))) {
+      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'info-btn': 2, 'hide-btn': 3, 'remove': 4 };
+      const rank = (b) => {
+        if (!b.classList) return 9;
+        for (const k of Object.keys(RANK)) if (b.classList.contains(k)) return RANK[k];
+        return 9;
+      };
+      out.sort((a, b) => rank(a) - rank(b));
+    }
+  } catch(_){}
   return out;
 }
 function sectionHeaderButtons(h2){
@@ -244,9 +317,10 @@ function locate(el, rows){
 }
 
 function focusEl(el){
-  try{ el.focus(); }catch(_){}
+  try{ focusNoScroll(el); }catch(_){}
   try{
     if (el.closest && el.closest('.modal-overlay')){
+      // odak zaten kaydırmasız verildi; tek minimal kaydırma
       el.scrollIntoView({block:"nearest", inline:"nearest"});
       return;
     }
@@ -333,12 +407,74 @@ function gridMove(dir){
 function enterButtonMode(card){
   const btns = cardButtons(card);
   if (!btns.length) return;
-  buttonMode = { card, idx: 0 };
-  focusEl(btns[0]);
+  // Takvim varsa ilk odak takvim (eski davranış); yoksa (önerilenler/fav) info ilk sırada kalır
+  let idx = btns.findIndex((b)=>b.classList.contains('calendar-btn'));
+  if (idx === -1) idx = 0;
+  buttonMode = { card, idx };
+  focusEl(btns[idx]);
+}
+// Sonuç modalı kart seviyesi 2D navigasyon (kart-içi butonlara dalmaz;
+// butonlara OK ile buton modunda girilir, Back ile karta dönülür)
+function resultsModalMove(top, dir, e){
+  try {
+    const closeBtn = top.querySelector('#search-results-close');
+    const cards = Array.from(top.querySelectorAll('.card')).filter(el=>isVisible(el)&&!el.disabled);
+    if (!cards.length) return false;
+    const ae = document.activeElement;
+    if (closeBtn && ae === closeBtn){
+      const t = (dir === 'down' || dir === 'right') ? cards[0] : cards[cards.length - 1];
+      e.preventDefault(); focusEl(t); return true;
+    }
+    let card = isCard(ae) ? ae : (ae && ae.closest && ae.closest('.card')) || null;
+    if (!card || !top.contains(card)){
+      const t = (dir === 'down' || dir === 'right') ? cards[0] : cards[cards.length - 1];
+      e.preventDefault(); focusEl(t); return true;
+    }
+    cards.sort((a,b)=>rectT(a)-rectT(b)||rectC(a)-rectC(b));
+    const TOL = 24, rows = [];
+    for (const c of cards){
+      const t = rectT(c);
+      let placed = false;
+      for (const g of rows){
+        if (Math.abs(rectT(g[0]) - t) <= TOL){ g.push(c); placed = true; break; }
+      }
+      if (!placed) rows.push([c]);
+    }
+    rows.sort((a,b)=>rectT(a[0])-rectT(b[0]));
+    rows.forEach(r=>r.sort((a,b)=>rectC(a)-rectC(b)));
+    let ri = -1, ci = -1;
+    rows.forEach((r,i)=>{ const j = r.indexOf(card); if (j !== -1){ ri = i; ci = j; } });
+    if (ri === -1){ e.preventDefault(); focusEl(cards[0]); return true; }
+    let target = null;
+    if (dir === 'left' || dir === 'right'){
+      const row = rows[ri];
+      const step = dir === 'right' ? 1 : -1;
+      target = row[(ci + step + row.length) % row.length];
+    } else {
+      const nr = dir === 'down' ? ri + 1 : ri - 1;
+      if (nr < 0 || nr >= rows.length){
+        if (closeBtn) target = closeBtn;
+        else {
+          const wrap = dir === 'down' ? rows[0] : rows[rows.length - 1];
+          const srcC = rectC(card);
+          let best = wrap[0], bestD = Infinity;
+          for (const el of wrap){ const d = Math.abs(rectC(el) - srcC); if (d < bestD){ bestD = d; best = el; } }
+          target = best;
+        }
+      } else {
+        const srcC = rectC(card);
+        let best = rows[nr][0], bestD = Infinity;
+        for (const el of rows[nr]){ const d = Math.abs(rectC(el) - srcC); if (d < bestD){ bestD = d; best = el; } }
+        target = best;
+      }
+    }
+    if (target){ e.preventDefault(); focusEl(target); return true; }
+    return false;
+  } catch { return false; }
 }
 function exitButtonMode(){
   if (!buttonMode) return;
-  const card = buttonMode.card;
+  const card = resolveLiveCard(buttonMode.card) || buttonMode.card;
   buttonMode = null;
   if (card) focusEl(card);
 }
@@ -388,6 +524,22 @@ document.addEventListener("keydown", (e)=>{
   const dir = dirFromEvent(e);
   if (top){
     if (!dir) return;
+    // Sonuç modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
+    // buton modunda kart-içi butonlar (modal kapanmaz)
+    if (top.id === 'search-results-modal'){
+      if (buttonMode && !(buttonMode.card && top.contains(buttonMode.card))) buttonMode = null;
+      if (buttonMode && buttonMode.card) {
+        const liveR = resolveLiveCard(buttonMode.card);
+        if (liveR) buttonMode.card = liveR;
+        const btns = cardButtons(buttonMode.card);
+        if (!btns.length){ exitButtonMode(); e.preventDefault(); return; }
+        if (dir === 'left') buttonMode.idx = (buttonMode.idx - 1 + btns.length) % btns.length;
+        else buttonMode.idx = (buttonMode.idx + 1) % btns.length;
+        e.preventDefault(); focusEl(btns[buttonMode.idx]); return;
+      }
+      if (resultsModalMove(top, dir, e)) return;
+      // kart yoksa jenerik cycle'a düş (X vb.)
+    }
     // Releases/Unwatched/Anime schedule: custom X <-> episode cycle, disabled atlanir
     const isScheduleModal = top.id === 'releases-modal' || top.id === 'unwatched-modal' || (top.querySelector('.anime-watch') && top.id === 'releases-modal');
     if (isScheduleModal || top.id === 'releases-modal' || top.id === 'unwatched-modal'){
@@ -412,15 +564,14 @@ document.addEventListener("keydown", (e)=>{
               let lastTarget = null;
               // try to find last unwatched else last watched among episodeBtns
               // Use data attributes to detect watched state: .on class or data-w
-              let firstUnwatched = null, firstWatched = null;
+              let firstUnwatched = null, lastWatched = null;
               episodeBtns.forEach(btn=>{
                 const isWatched = btn.classList.contains('on') || btn.dataset.w === '1' || btn.classList.contains('watched');
                 if (!isWatched && !firstUnwatched) firstUnwatched = btn;
-                else if (isWatched && !firstWatched) firstWatched = btn;
+                if (isWatched) lastWatched = btn;
               });
-              // For releases/unwatched, fallback to first element if no watched marker
-              if (!firstUnwatched && !firstWatched && episodeBtns.length) firstWatched = episodeBtns[0];
-              lastTarget = firstUnwatched || firstWatched || episodeBtns[0];
+              if (!firstUnwatched && !lastWatched && episodeBtns.length) lastWatched = episodeBtns[0];
+              lastTarget = firstUnwatched || lastWatched || episodeBtns[0];
               if (lastTarget){ e.preventDefault(); focusEl(lastTarget); return; }
             }
           }
@@ -428,12 +579,12 @@ document.addEventListener("keydown", (e)=>{
           let i = visibleCycle.indexOf(ae);
           if (i === -1){
             // If focus is on disabled or outside, go to lastTarget or first
-            let firstUnwatched = null, firstWatched = null;
+            let firstUnwatched = null, lastWatched = null;
             episodeBtns.forEach(btn=>{
               const isWatched = btn.classList.contains('on') || btn.dataset.w === '1';
-              if (!isWatched && !firstUnwatched) firstUnwatched = btn; else if (isWatched && !firstWatched) firstWatched = btn;
+              if (!isWatched && !firstUnwatched) firstUnwatched = btn; if (isWatched) lastWatched = btn;
             });
-            const start = firstUnwatched || firstWatched || visibleCycle[0];
+            const start = firstUnwatched || lastWatched || visibleCycle[0];
             e.preventDefault(); focusEl(start); return;
           }
           let n = (dir==='right'||dir==='down') ? (i+1)%visibleCycle.length : (i-1+visibleCycle.length)%visibleCycle.length;
@@ -459,6 +610,8 @@ document.addEventListener("keydown", (e)=>{
     return;
   }
   if (buttonMode){
+    const liveDir = resolveLiveCard(buttonMode.card);
+    if (liveDir) buttonMode.card = liveDir;
     const btns = cardButtons(buttonMode.card);
     if (!btns.length){ exitButtonMode(); return; }
     if (dir === 'left'){
@@ -471,15 +624,106 @@ document.addEventListener("keydown", (e)=>{
     focusEl(btns[buttonMode.idx]);
     return;
   }
+  if (handleSearchViewNav(e, dir)) return;
   gridMove(dir);
 });
+
+// ---- view-search D-pad (TV): dikey cycle + yatay gruplar ----
+const SEARCH_MEDIA_IDS = ['#media-dizi','#media-film','#media-anime'];
+const SEARCH_FILTER_IDS = ['#filter-media-movie','#filter-media-tv','#filter-actor','#filter-genre','#filter-year','#filter-score'];
+function isSearchViewActive(){
+  try { const v = document.getElementById('view-search'); return !!(v && v.classList.contains('active')); } catch { return false; }
+}
+function searchVisible(sel){
+  try { const el = document.querySelector(sel); return (el && isVisible(el) && !el.disabled) ? el : null; } catch { return null; }
+}
+function searchChipXList(){
+  try {
+    const box = document.getElementById('filter-chips');
+    if (!box) return [];
+    return Array.from(box.querySelectorAll('.chip-x')).filter(el=>isVisible(el)&&!el.disabled);
+  } catch { return []; }
+}
+function searchVerticalChain(){
+  const chain = [];
+  const x = searchVisible('#search-close'); if (x) chain.push(x);
+  const dizi = searchVisible('#media-dizi'); if (dizi) chain.push(dizi);
+  const inp = searchVisible('#normal-search-input'); if (inp) chain.push(inp);
+  const nbtn = searchVisible('#normal-search-btn'); if (nbtn) chain.push(nbtn);
+  const fmovie = searchVisible('#filter-media-movie'); if (fmovie) chain.push(fmovie);
+  const xs = searchChipXList(); if (xs.length) chain.push(xs[0]);
+  const sbtn = searchVisible('#search-btn'); if (sbtn) chain.push(sbtn);
+  return chain;
+}
+function handleSearchViewNav(e, dir){
+  if (!isSearchViewActive()) return false;
+  const ae = document.activeElement;
+  if (dir === 'left' || dir === 'right'){
+    const media = SEARCH_MEDIA_IDS.map(searchVisible).filter(Boolean);
+    if (ae && media.includes(ae) && media.length){
+      const n = dir === 'right' ? (media.indexOf(ae)+1)%media.length : (media.indexOf(ae)-1+media.length)%media.length;
+      e.preventDefault(); focusEl(media[n]); return true;
+    }
+    const filters = SEARCH_FILTER_IDS.map(searchVisible).filter(Boolean);
+    if (ae && filters.includes(ae) && filters.length){
+      const n = dir === 'right' ? (filters.indexOf(ae)+1)%filters.length : (filters.indexOf(ae)-1+filters.length)%filters.length;
+      e.preventDefault(); focusEl(filters[n]); return true;
+    }
+    const xs = searchChipXList();
+    if (ae && xs.includes(ae) && xs.length){
+      const n = dir === 'right' ? (xs.indexOf(ae)+1)%xs.length : (xs.indexOf(ae)-1+xs.length)%xs.length;
+      e.preventDefault(); focusEl(xs[n]); return true;
+    }
+  }
+  const chain = searchVerticalChain();
+  if (!chain.length) return false;
+  let i = chain.indexOf(ae);
+  if (i === -1){
+    const media = SEARCH_MEDIA_IDS.map(searchVisible).filter(Boolean);
+    if (ae && media.includes(ae)) i = chain.indexOf(searchVisible('#media-dizi'));
+    else {
+      const filters = SEARCH_FILTER_IDS.map(searchVisible).filter(Boolean);
+      if (ae && filters.includes(ae)) i = chain.indexOf(searchVisible('#filter-media-movie'));
+      else {
+        const xs = searchChipXList();
+        if (ae && xs.includes(ae)) i = chain.findIndex(el=>el && el.classList && el.classList.contains('chip-x'));
+      }
+    }
+    if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
+  }
+  const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
+  e.preventDefault(); focusEl(chain[n]); return true;
+}
 
 // OK/Enter: header butonunu / buton modunda kart butonunu CALISTIRIR; kart odakliyken buton moduna girer
 document.addEventListener("keydown", (e)=>{
   if (!isTvMode()) return;
   if (!isOkKey(e)) return;
-  if (topModal()) return;
+  const tm = topModal();
+  // Sonuç modalında kart OK'i buton moduna girer (detay info butonundan açılır)
+  if (tm && tm.id === 'search-results-modal'){
+    if (buttonMode && !(buttonMode.card && tm.contains(buttonMode.card))) buttonMode = null;
+    const ae0 = document.activeElement;
+    const card0 = ae0 && (isCard(ae0) ? ae0 : (ae0.closest && ae0.closest('.card'))) || null;
+    if (!buttonMode && card0 && tm.contains(card0)){
+      e.preventDefault(); e.stopPropagation();
+      enterButtonMode(card0);
+      return;
+    }
+    if (buttonMode) {
+      const liveM = resolveLiveCard(buttonMode.card);
+      if (liveM) buttonMode.card = liveM;
+      const btns = cardButtons(buttonMode.card);
+      const b = btns[buttonMode.idx];
+      if (b){ e.preventDefault(); e.stopPropagation(); b.click(); }
+      return;
+    }
+    return;
+  }
+  if (tm) return;
   if (buttonMode){
+    const liveOk = resolveLiveCard(buttonMode.card);
+    if (liveOk) buttonMode.card = liveOk;
     const btns = cardButtons(buttonMode.card);
     const b = btns[buttonMode.idx];
     if (b){ e.preventDefault(); e.stopPropagation(); b.click(); }
@@ -506,7 +750,8 @@ document.addEventListener("click", (e)=>{
   if (!isTvMode()) return;
   if (e.detail !== 0) return;
   const t = e.target;
-  if (t && isCard(t) && !topModal()){
+  const tm2 = topModal();
+  if (t && isCard(t) && (!tm2 || (tm2.id === 'search-results-modal' && tm2.contains(t)))){
     e.preventDefault(); e.stopPropagation();
     enterButtonMode(t);
   }
@@ -521,6 +766,7 @@ try {
 } catch(_) {}
 
 function ensureTvFocus(){
+  try { if (topModal()) return; } catch {}
   if (document.activeElement && document.activeElement !== document.body) return;
   const rows = buildGrid();
   for (const row of rows){ if (row.length){ focusEl(row[0]); return; } }

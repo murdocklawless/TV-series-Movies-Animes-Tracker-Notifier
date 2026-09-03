@@ -548,7 +548,6 @@ main {
 
 .card .move-btn:hover {
   color: #f0abfc;
-  background: rgba(0, 0, 0, 0.8);
 }
 
 .card .move-back-btn {
@@ -583,7 +582,6 @@ main {
 
 .card .move-back-btn:hover {
   color: #f0abfc;
-  background: rgba(0, 0, 0, 0.8);
 }
 
 .card .hide-btn {
@@ -612,7 +610,14 @@ main {
 
 .card .hide-btn:hover {
   color: #fca5a5;
-  background: rgba(0, 0, 0, 0.8);
+}
+
+.card .calendar-btn:hover {
+  color: #bae6fd;
+}
+
+.card .remove:hover {
+  color: #fca5a5;
 }
 
 .card:hover .remove {
@@ -2873,11 +2878,11 @@ input:-webkit-autofill:focus {
   border-bottom: none;
 }
 
-/* İzleme durumu */
+/* İzleme durumu — progress bar akışkan ama başlık tam ortasında (A tam merkez) */
 .season-box-title {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
@@ -2886,18 +2891,19 @@ input:-webkit-autofill:focus {
   font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
   min-width: 0;
+  justify-self: start;
 }
 
 .season-progress {
-  flex: 1;
+  width: clamp(175px, 33%, 300px);
   min-width: 0;
   height: 14px;
   background: #262a36;
   border-radius: 7px;
   overflow: hidden;
   position: relative;
+  justify-self: center;
 }
 
 .season-progress-fill {
@@ -2930,6 +2936,7 @@ input:-webkit-autofill:focus {
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  justify-self: end;
 }
 
 .season-watch-all:hover {

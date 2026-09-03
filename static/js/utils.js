@@ -4,9 +4,11 @@ import { t } from "./i18n.js";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
-async function loadGenres(source) {
-  if (source === "tmdb" && state.tmdbGenresCache) return state.tmdbGenresCache;
-  if (source === "anilist" && state.anilistGenresCache) return state.anilistGenresCache;
+async function loadGenres(source, force) {
+  if (!force) {
+    if (source === "tmdb" && state.tmdbGenresCache) return state.tmdbGenresCache;
+    if (source === "anilist" && state.anilistGenresCache) return state.anilistGenresCache;
+  }
   try {
     const r = await fetch(`/api/genres?source=${source}`);
     const j = await r.json();
@@ -268,6 +270,8 @@ function daysHint(dateStr) {
 }
 
 function todayInTz() {
+  const iso = state.serverToday;
+  if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(iso + "T00:00:00");
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: state.currentTz,
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -293,6 +297,27 @@ function dateState(dateStr) {
   return "date-today";
 }
 
+function todayInTzStr() {
+  const d = todayInTz();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+function isReleaseToday(it) {
+  if (!it) return false;
+  if (it.air_time) {
+    const day = utcDayStr(it.air_time);
+    if (!day) return false;
+    return day === todayInTzStr();
+  }
+  if (it.date) {
+    return dateState(it.date) === "date-today";
+  }
+  return false;
+}
+
 function fmtRuntime(min) {
   if (!min) return "";
   const h = Math.floor(min / 60);
@@ -313,6 +338,6 @@ export {
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,
-  isMobile, daysUntil, daysHint, todayInTz, isToday, dateState,
+  isMobile, daysUntil, daysHint, todayInTz, todayInTzStr, isReleaseToday, isToday, dateState,
   fmtRuntime, fmtScore,
 };

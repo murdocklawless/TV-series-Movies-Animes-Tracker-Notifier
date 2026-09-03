@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=398" />
-  <link rel="stylesheet" href="/static/css/tablet.css?v=398" />
-  <link rel="stylesheet" href="/static/css/mobil.css?v=398" />
-  <link rel="stylesheet" href="/static/css/tv.css?v=398" />
+  <link rel="stylesheet" href="/static/css/style.css?v=404" />
+  <link rel="stylesheet" href="/static/css/tablet.css?v=404" />
+  <link rel="stylesheet" href="/static/css/mobil.css?v=404" />
+  <link rel="stylesheet" href="/static/css/tv.css?v=404" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -171,9 +171,9 @@
           <div class="search-block">
             <h3 class="search-block-title" data-i18n="search_basic">Ara</h3>
             <div class="media-toggle">
-              <button id="media-dizi" class="active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-toggle-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
-              <button id="media-film" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-toggle-icon"></i><span data-i18n="tab_film">Film</span></button>
-              <button id="media-anime" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-toggle-icon"></i><span data-i18n="tab_anime">Anime</span></button>
+              <button id="media-dizi" class="active" data-i18n="tab_dizi"><span data-i18n="tab_dizi">Dizi</span></button>
+              <button id="media-film" data-i18n="tab_film"><span data-i18n="tab_film">Film</span></button>
+              <button id="media-anime" data-i18n="tab_anime"><span data-i18n="tab_anime">Anime</span></button>
             </div>
             <div class="search-bar">
               <input id="normal-search-input" type="text" placeholder="Film veya dizi ara..." data-i18n="search_placeholder" />
@@ -808,7 +808,7 @@
         <button id="value-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body value-body">
-        <input id="value-input" type="text" />
+        <input id="value-input" type="text" inputmode="numeric" pattern="[0-9]*" />
       </div>
       <div class="modal-footer">
         <button id="value-go" class="btn primary"><span data-i18n="picker_add">Ekle</span></button>
@@ -842,6 +842,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=399"></script>
+  <script type="module" src="/static/js/nextep.js?v=407"></script>
 </body>
 </html>
