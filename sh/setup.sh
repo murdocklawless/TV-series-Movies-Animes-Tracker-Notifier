@@ -5,8 +5,10 @@
 #   sudo PORT=8051 BRANCH=main REPO_URL=https://...git bash sh/setup.sh
 # Davranış:
 #   - /etc/nextep yok/boş ise   -> SIFIR KURULUM (boş DB, init_db ilk açılışta oluşturur)
-#   - marker dosyaların tümü var -> GÜNCELLEME (bilgi mesajı + yedek + restart)
+#   - klondaki tüm dosyalar mevcut -> GÜNCELLEME (bilgi mesajı + yedek + restart)
 #   - klasör dolu ama eksik dosya -> TAMAMLAMA (eksikler eklenir, DB korunur)
+#   - soru sorulmaz: 8050 doluysa en yakın boş port otomatik seçilir
+#   - sahipsiz servis (çalışıyor ama dizin yok/boş) durdurulup kaldırılır
 # Mevcut DB (db/*.db), .env ve .smtp_secret ASLA ezilmez/taşınmaz.
 set -e
 
@@ -21,10 +23,11 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# ---------- 3. Bileşen kontrolü (eksikse kur) ----------
-echo "==> Sistem bileşenleri kontrol ediliyor (python3, sqlite3, curl, git, tzdata)..."
-MISSING_PKGS=""
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+# ---------- 2. Bileşen kontrolü (eksikse kur) ----------
+echo "==> Sistem bileşenleri kontrol ediliyor (python3, sqlite3, curl, git, tzdata, ca-certificates)..."
+MISSING_PKGS=""
 
 PY_OK=""
 if have_cmd python3; then
@@ -78,6 +81,13 @@ else
   MISSING_PKGS="$MISSING_PKGS tzdata"
 fi
 
+if dpkg -s ca-certificates >/dev/null 2>&1; then
+  echo "    ca-certificates bulundu (TLS/SMTP dogrulama)"
+else
+  echo "    ca-certificates bulunamadı -> kurulacak"
+  MISSING_PKGS="$MISSING_PKGS ca-certificates"
+fi
+
 if [ -n "$MISSING_PKGS" ]; then
   # shellcheck disable=SC2086
   echo "==> Eksik paketler kuruluyor:$MISSING_PKGS"
@@ -87,7 +97,7 @@ else
   echo "==> Tüm sistem bileşenleri mevcut, apt-get atlandı."
 fi
 
-# ---------- 4. Staging klonu ----------
+# ---------- 3. Staging klonu ----------
 echo "==> Repo klonlanıyor: $REPO_URL (dal: $BRANCH)..."
 STAGE="$(mktemp -d /tmp/nextep-setup-XXXXXX)"
 cleanup() { rm -rf "$STAGE"; }
@@ -109,29 +119,136 @@ if [ ! -f "$STAGE/py/nextep.py" ] || [ ! -f "$STAGE/requirements/requirements.tx
   exit 1
 fi
 
-# ---------- 5. Mod tespiti ----------
-MARKERS="py/nextep.py py/config.py py/routes service/nextep.service static/index.html requirements/requirements.txt"
+# ---------- 4. Sahipsiz servis + mod tespiti ----------
+# Beklenen dosya listesi = klon otoritesi (senkron kapsamıyla birebir: py/static/requirements/service/sh)
+EXPECTED="$(git -C "$STAGE" ls-files 'py/*' 'static/*' 'requirements/*' 'service/*' 'sh/*' 2>/dev/null || true)"
+if [ -z "$EXPECTED" ]; then
+  echo "HATA: klondan dosya listesi alınamadı." >&2
+  exit 1
+fi
+
+NEXTEP_ACTIVE=""
+if systemctl is-active --quiet nextep 2>/dev/null; then
+  NEXTEP_ACTIVE="1"
+fi
+UNIT_PORT=""
+if [ -f /etc/systemd/system/nextep.service ]; then
+  UNIT_PORT="$(sed -n 's/^Environment=PORT=//p' /etc/systemd/system/nextep.service | head -n 1 | tr -d '[:space:]')"
+fi
+
+remove_orphan_service() {
+  echo "    artık servis durdurulup kaldırılıyor..."
+  systemctl stop nextep 2>/dev/null || true
+  systemctl disable nextep 2>/dev/null || true
+  rm -f /etc/systemd/system/nextep.service
+  systemctl daemon-reload 2>/dev/null || true
+  NEXTEP_ACTIVE=""
+  UNIT_PORT=""
+}
+
 MODE="FRESH"
-if [ -d "$APP_DIR" ] && [ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
-  ALL_PRESENT="1"
-  for m in $MARKERS; do
-    if [ ! -e "$APP_DIR/$m" ]; then
-      ALL_PRESENT=""
-      break
+if [ ! -d "$APP_DIR" ] || [ -z "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+  if [ -n "$NEXTEP_ACTIVE" ]; then
+    if [ ! -d "$APP_DIR" ]; then
+      echo "==> UYARI: nextep servisi çalışıyor ama $APP_DIR bulunamadı — artık servis kaldırılıyor, $PORT ile sıfır kurulum yapılacak."
+    else
+      echo "==> UYARI: nextep servisi çalışıyor ama $APP_DIR boş — artık servis kaldırılıyor, $PORT ile sıfır kurulum yapılacak."
+    fi
+    remove_orphan_service
+  fi
+  MODE="FRESH"
+else
+  MISSING_COUNT=0
+  # shellcheck disable=SC2086
+  for f in $EXPECTED; do
+    if [ ! -e "$APP_DIR/$f" ]; then
+      MISSING_COUNT=$((MISSING_COUNT + 1))
     fi
   done
-  if [ -n "$ALL_PRESENT" ]; then
+  if [ "$MISSING_COUNT" -eq 0 ]; then
     MODE="UPDATE"
   else
     MODE="COMPLETE"
+    echo "==> BİLGİ: $MISSING_COUNT dosya eksik, tamamlanıyor ve güncelleniyor."
+  fi
+  if [ -n "$NEXTEP_ACTIVE" ]; then
+    if [ -n "$UNIT_PORT" ] && [ "$UNIT_PORT" != "$PORT" ]; then
+      echo "==> BİLGİ: mevcut kurulumun portu korunuyor ($UNIT_PORT); istenen $PORT kullanılmayacak."
+      PORT="$UNIT_PORT"
+    fi
+    if [ "$MODE" = "UPDATE" ]; then
+      echo "==> BİLGİ: mevcut kurulum tespit edildi, güncelleniyor (port korunuyor: $PORT)."
+    else
+      echo "==> BİLGİ: mevcut kurulum eksik dosyalı, tamamlanıyor ve güncelleniyor (port korunuyor: $PORT)."
+    fi
   fi
 fi
 
 case "$MODE" in
   FRESH)    echo "==> Mod: SIFIR KURULUM ($APP_DIR yok veya boş)." ;;
   UPDATE)   echo "==> Mod: GÜNCELLEME — mevcut kurulum tespit edildi ($APP_DIR dolu, tüm uygulama dosyaları mevcut)." ;;
-  COMPLETE) echo "==> Mod: TAMAMLAMA — $APP_DIR dolu ama bazı uygulama dosyaları eksik; eksikler eklenecek, mevcut veriler korunacak." ;;
+  COMPLETE) echo "==> Mod: TAMAMLAMA — eksikler senkronla eklenecek, mevcut veriler korunacak." ;;
 esac
+
+# ---------- 5. Port seçimi (soru sorulmaz; en yakın boş port otomatik) ----------
+# Kendi servisimiz bu porta bağlıysa (UPDATE/COMPLETE + aktif) seçim atlanır.
+port_free() {
+  if have_cmd timeout; then
+    timeout 1 bash -c "exec 3<>/dev/tcp/127.0.0.1/$1" 2>/dev/null || return 0
+    return 1
+  fi
+  (exec 3<>/dev/tcp/127.0.0.1/$1) 2>/dev/null || return 0
+  return 1
+}
+
+port_owner() {
+  local p="$1" owner=""
+  if have_cmd ss; then
+    owner="$(ss -ltnp 2>/dev/null | grep ":$p " | grep -o 'users:(("[^"]*"' | head -n 1 | cut -d'"' -f2 || true)"
+  fi
+  if [ -z "$owner" ] && [ -r /proc/net/tcp ] && [ -r /proc/net/tcp6 ]; then
+    local hex
+    hex="$(printf '%04X' "$p" 2>/dev/null || true)"
+    owner="$(grep -i ":$hex " /proc/net/tcp /proc/net/tcp6 2>/dev/null | head -n 1 | awk '{print $10}' || true)"
+    if [ -n "$owner" ] && [ "$owner" != "0" ]; then
+      owner="inode:$owner"
+    else
+      owner=""
+    fi
+  fi
+  echo "${owner:-bilinmiyor}"
+}
+
+NEED_PORT_CHECK="1"
+if [ -n "$NEXTEP_ACTIVE" ] && [ -n "$UNIT_PORT" ] && [ "$UNIT_PORT" = "$PORT" ]; then
+  NEED_PORT_CHECK=""
+fi
+
+if [ -n "$NEED_PORT_CHECK" ]; then
+  if port_free "$PORT"; then
+    echo "==> Port $PORT boş, kullanılacak."
+  else
+    OWNER="$(port_owner "$PORT")"
+    # Adaylar: 8050'ye uzaklığa göre (8049,8051,8048,8052,8047,8053, sonra ±3 genişleme)
+    FOUND=""
+    DIST="1"
+    while [ -z "$FOUND" ]; do
+      for CAND in $((PORT - DIST)) $((PORT + DIST)); do
+        if [ "$CAND" -ge 1 ] && [ "$CAND" -le 65535 ] && port_free "$CAND"; then
+          FOUND="$CAND"
+          break
+        fi
+      done
+      DIST=$((DIST + 1))
+      if [ "$DIST" -gt 1000 ]; then
+        echo "HATA: $PORT çevresinde boş port bulunamadı." >&2
+        exit 1
+      fi
+    done
+    echo "==> BİLGİ: $PORT meşgul (sahip: $OWNER), otomatik port seçildi: $FOUND."
+    PORT="$FOUND"
+  fi
+fi
 
 # ---------- 6. Yedek (güncelleme/tamamlama öncesi) ----------
 if [ "$MODE" != "FRESH" ]; then
