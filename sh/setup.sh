@@ -377,7 +377,10 @@ if [ -n "$OK" ]; then
       echo "==> TAMAMLAMA bitti (eksik dosyalar eklendi, commit: $NEW_COMMIT). Servis yeniden başlatıldı."
       ;;
   esac
-  echo "==> Uygulama http://${IP:-<cihaz-ip>}:$PORT adresinde çalışıyor."
+  echo "==> Geçici klasör kaldırıldı ($STAGE)."
+  rm -rf "$STAGE"
+  trap - EXIT
+  echo "==> NextEp http://${IP:-<cihaz-ip>}:$PORT adresinde çalışıyor."
   exit 0
 fi
 
