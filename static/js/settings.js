@@ -1178,29 +1178,33 @@ async function openFavListing(kind, ident, title) {
 
 // NextEp Güncelleme: versiyon satırı + ayrıntı modalı + kontrol/güncelle butonları
 let lastAppVer = { local: "", remote: "", available: false, changes: [] };
-let lastDetailEntry = null;
-function fillAppUpdateDetail(entry) {
+let lastDetailEntries = [];
+function fillAppUpdateDetail(entries) {
   const verEl = document.getElementById("appupdate-detail-ver");
   const ul = document.getElementById("appupdate-detail-list");
   if (!verEl || !ul) return;
   const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const lang = (document.documentElement.lang || "tr").toLowerCase().startsWith("tr") ? "tr" : "en";
-  if (!entry) {
+  if (!entries || !entries.length) {
     verEl.textContent = "";
     ul.innerHTML = `<li>${esc(t("appupdate_no_notes"))}</li>`;
     return;
   }
-  const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
-  verEl.textContent = entry.date ? `${entry.version} · ${entry.date}` : entry.version;
-  ul.innerHTML = items.length
-    ? items.map((it) => `<li>${esc(it)}</li>`).join("")
-    : `<li>${esc(t("appupdate_no_notes"))}</li>`;
+  verEl.textContent = "";
+  ul.innerHTML = entries.map((entry) => {
+    const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
+    const head = entry.date ? `${entry.version} · ${entry.date}` : entry.version;
+    return `<li class="app-change-ver">${esc(head)}</li>` +
+      (items.length
+        ? items.map((it) => `<li>${esc(it)}</li>`).join("")
+        : `<li>${esc(t("appupdate_no_notes"))}</li>`);
+  }).join("");
 }
-function openAppUpdateDetail(entry) {
+function openAppUpdateDetail(entries) {
   const modal = document.getElementById("appupdate-detail-modal");
   if (!modal) return;
-  lastDetailEntry = entry || null;
-  fillAppUpdateDetail(lastDetailEntry);
+  lastDetailEntries = Array.isArray(entries) ? entries : [];
+  fillAppUpdateDetail(lastDetailEntries);
   modal.style.display = "flex";
 }
 function renderAppVersion() {
@@ -1232,8 +1236,8 @@ async function checkAppUpdate(showToast) {
       } catch (e) {
         lastAppVer.changes = [];
       }
-      // Yalnız en yeni sürümün notları, yalnız kullanıcı kontrol istediyse
-      if (showToast) openAppUpdateDetail(lastAppVer.changes.length ? lastAppVer.changes[0] : null);
+      // Sistem sürümünden sonraki TÜM sürümlerin notları, yalnız kullanıcı kontrol istediyse
+      if (showToast) openAppUpdateDetail(lastAppVer.changes);
     }
     if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
   } catch (e) {
@@ -1271,7 +1275,7 @@ async function checkAppUpdate(showToast) {
   document.addEventListener("app:langchange", () => {
     renderAppVersion();
     const dm = document.getElementById("appupdate-detail-modal");
-    if (dm && dm.style.display === "flex") fillAppUpdateDetail(lastDetailEntry);
+    if (dm && dm.style.display === "flex") fillAppUpdateDetail(lastDetailEntries);
   });
 })();
 

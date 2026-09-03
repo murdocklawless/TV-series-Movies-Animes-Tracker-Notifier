@@ -1,6 +1,8 @@
 # Uygulama güncelleme motoru: VERSION karşılaştırma, snapshot, senkron, pip, rollback.
+import base64
 import datetime
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -14,7 +16,7 @@ import time
 import requests
 
 from config import BASE_DIR
-from db import get_setting, set_setting
+from db import get_setting, set_setting, db_version_get, db_version_set
 
 REPO_SLUG = "murdocklawless/TV-series-Movies-Animes-Tracker-Notifier"
 BRANCH = "main"
@@ -51,20 +53,118 @@ def fetch_remote_version(timeout=20):
 
 
 def check_update():
-    """(local, remote, available) — ağ hatasında (local, "", False)."""
-    local = local_version()
+    """(local, remote, available, known) — ağ hatasında (local, "", False, True).
+
+    Tablo gerçeğin evidir: dosya farklıysa sessizce tablo değeriyle eşitlenir
+    (aynıysa dokunulmaz). Bilinmeyen yerel sürüm "en eski" sayılır → körlenme yok."""
+    try:
+        db_ver = db_version_get()
+    except Exception:
+        db_ver = ""
+    file_ver = local_version()
+    if db_ver and file_ver != db_ver:
+        try:
+            _write_version_file(db_ver)
+        except Exception as e:
+            print(f"app-update version sync failed: {e}", flush=True)
+    local = db_ver or file_ver
     try:
         remote = fetch_remote_version()
     except Exception as e:
         print(f"app-update check failed: {e}", flush=True)
-        return local, "", False
+        return local, "", False, True
     if remote:
         try:
             set_setting("app_remote_version", remote)
         except Exception:
             pass
-    available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
-    return local, remote, available
+    try:
+        published = fetch_published_versions()
+    except Exception:
+        published = set()
+    known = True if not published else ((not local) or local in published)
+    if known:
+        available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
+    else:
+        available = bool(remote)
+    return local, remote, available, known
+
+
+def _write_version_file(number):
+    path = os.path.join(BASE_DIR, "VERSION")
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(str(number).strip() + "\n")
+    os.replace(tmp, path)
+
+
+KNOWN_VERSIONS_TTL = 20 * 3600
+
+
+def _git_version_history(timeout=20):
+    """Git'teki VERSION geçmişi: dosyaya dokunan commit'lerin içerikleri (GitHub API)."""
+    out = set()
+    headers = {"Accept": "application/vnd.github+json"}
+    url = f"https://api.github.com/repos/{REPO_SLUG}/commits?path=VERSION&sha={BRANCH}&per_page=100"
+    r = requests.get(url, timeout=timeout, headers=headers)
+    r.raise_for_status()
+    commits = r.json()
+    if not isinstance(commits, list):
+        return out
+    for c in commits:
+        sha = (c or {}).get("sha")
+        if not sha:
+            continue
+        cr = requests.get(
+            f"https://api.github.com/repos/{REPO_SLUG}/contents/VERSION?ref={sha}",
+            timeout=timeout, headers=headers,
+        )
+        cr.raise_for_status()
+        body = cr.json() or {}
+        try:
+            val = base64.b64decode(body.get("content") or "").decode("utf-8", "replace").strip()
+        except Exception:
+            continue
+        if val:
+            out.add(val)
+    return out
+
+
+def fetch_published_versions():
+    """Yayınlanmış sürüm kümesi: uzak CHANGELOG başlıkları + git VERSION geçmişi + uzak VERSION.
+
+    Sonuç günlük önbelleğe alınır (settings.app_known_versions); tamamen ulaşılamazsa
+    boş küme döner (çağıran fail-open davranır)."""
+    try:
+        raw = get_setting("app_known_versions")
+        ts = float(get_setting("app_known_versions_ts") or 0)
+        if raw and (time.time() - ts) < KNOWN_VERSIONS_TTL:
+            cached = json.loads(raw)
+            if isinstance(cached, list):
+                return set(cached)
+    except Exception:
+        pass
+    versions = set()
+    try:
+        versions.update(e["version"] for e in parse_changelog(fetch_remote_changelog()))
+    except Exception as e:
+        print(f"app-update published/changelog failed: {e}", flush=True)
+    try:
+        versions.update(_git_version_history())
+    except Exception as e:
+        print(f"app-update published/git failed: {e}", flush=True)
+    try:
+        versions.add(fetch_remote_version())
+    except Exception:
+        pass
+    versions = {v for v in versions if v}
+    if versions:
+        try:
+            set_setting("app_known_versions", json.dumps(sorted(versions)))
+            set_setting("app_known_versions_ts", str(time.time()))
+        except Exception:
+            pass
+    return versions
 
 
 def fetch_remote_changelog(timeout=20):
@@ -237,6 +337,10 @@ def apply_update(remote_url=None):
                 raise RuntimeError(f"pip kurulumu doğrulanamadı (bkz. {pip_log})")
         to_ver = local_version()
         try:
+            db_version_set(to_ver)
+        except Exception as e:
+            print(f"app-update version record failed: {e}", flush=True)
+        try:
             with open(JUST_UPDATED_MARK, "w", encoding="utf-8") as f:
                 f.write(f"{time.time():.0f}\n{local}\n{to_ver}\n")
         except OSError as e:
@@ -306,6 +410,16 @@ def rollback(reason=""):
                 timeout=900, check=False,
             )
             print("app-update rollback: pip freeze geri kuruldu", flush=True)
+        try:
+            with open(JUST_UPDATED_MARK, encoding="utf-8") as f:
+                _lines = f.read().split("\n")
+            if len(_lines) > 1 and _lines[1].strip():
+                db_version_set(_lines[1].strip())
+        except Exception:
+            try:
+                db_version_set(local_version())
+            except Exception:
+                pass
         clear_just_updated()
         _restart_service()
         try:

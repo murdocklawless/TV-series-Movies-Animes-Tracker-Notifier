@@ -25,6 +25,19 @@ app.register_blueprint(notification_bp)
 
 init_db()
 try:
+    # İlk açılış tohumu: version tablosu boşsa dosyadaki formatı-düzgün değer yazılır.
+    # Dolu tablo asla ezilmez; anlamsal doğrulama (yayınlanmış küme) her check_update'te
+    # yapılır — bilinmeyen değer güncellenebilir sayıldığından sistem kendiliğinden yakınsar.
+    from db import db_version_get, db_version_set
+    from app_update import _ver_tuple, local_version
+    if not db_version_get():
+        _fv = local_version()
+        if _ver_tuple(_fv):
+            db_version_set(_fv)
+            print(f"version seed: {_fv}", flush=True)
+except Exception as e:
+    print(f"version seed failed: {e}", flush=True)
+try:
     ttl = int(get_setting("cache_ttl") or 3600)
 except (TypeError, ValueError):
     ttl = 3600

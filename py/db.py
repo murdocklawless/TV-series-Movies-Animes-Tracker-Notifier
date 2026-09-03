@@ -16,6 +16,13 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.execute(
+        """CREATE TABLE IF NOT EXISTS version (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            number TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT ''
+        )"""
+    )
+    conn.execute(
         """CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -284,6 +291,29 @@ def set_setting(key, value):
         "INSERT INTO settings (key, value) VALUES (?, ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         (key, value),
+    )
+    conn.commit()
+    conn.close()
+
+
+def db_version_get():
+    """version tablosundaki gerçek sürüm (yoksa "")."""
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT number FROM version WHERE id=1").fetchone()
+        conn.close()
+        return (row["number"] or "").strip() if row else ""
+    except Exception:
+        return ""
+
+
+def db_version_set(number):
+    """Gerçek sürümü version tablosuna yazar (upsert, tek satır)."""
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO version (id, number, updated_at) VALUES (1, ?, datetime('now')) "
+        "ON CONFLICT(id) DO UPDATE SET number=excluded.number, updated_at=excluded.updated_at",
+        (str(number or "").strip(),),
     )
     conn.commit()
     conn.close()

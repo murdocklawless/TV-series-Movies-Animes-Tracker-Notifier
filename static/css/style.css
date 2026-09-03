@@ -3800,6 +3800,15 @@ select#s-email-provider.email-lit {
 .app-changes-list li {
   margin: 3px 0;
 }
+.app-changes-list .app-change-ver {
+  list-style: none;
+  color: #f97316;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.app-changes-list .app-change-ver:first-child {
+  margin-top: 0;
+}
 
 /* Rsync/Samba inputları TMDB tablosu ile birebir (textarea hariç) */
 #backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),

@@ -699,7 +699,7 @@ def app_update_job():
         )
         from notifications import notify_all
 
-        local, remote, available = check_update()
+        local, remote, available, _known = check_update()
         if not available:
             return
         auto = (get_setting("app_auto_update") or "0").strip() == "1"
