@@ -1085,12 +1085,21 @@ async function openFavListing(kind, ident, title) {
     nowBtn.disabled = disabled;
     restoreBtn.disabled = disabled;
     // Güncelleme modalındaki Yedekleme Saati: hedef yoksa kapalı + bilgi tooltip'i
+    // (data-tip satırın tamamına yazılır: disabled input fare olayı üretmez,
+    //  başlık span'i ise input üzerinden hover'da atlanır; satır kapsayınca
+    //  özel tooltip her noktada çalışır)
     const backupHourInput = document.getElementById("s-backup-hour");
     if (backupHourInput) {
       const hourBlocked = !rDolu && !sDolu;
       backupHourInput.disabled = hourBlocked;
-      const hourLabel = backupHourInput.closest("label")?.querySelector('[data-i18n="label_backup_hour"]');
-      if (hourLabel) hourLabel.setAttribute("data-tip", t(hourBlocked ? "tip_backup_hour_empty" : "tip_backup_hour"));
+      const hourRow = backupHourInput.closest("label");
+      const hourTip = t(hourBlocked ? "tip_backup_hour_empty" : "tip_backup_hour");
+      if (hourRow) {
+        if (hourBlocked) hourRow.setAttribute("data-tip", hourTip);
+        else hourRow.removeAttribute("data-tip");
+      }
+      const hourLabel = hourRow?.querySelector('[data-i18n="label_backup_hour"]');
+      if (hourLabel) hourLabel.setAttribute("data-tip", hourTip);
     }
     if (target === "rsync") {
       nowBtn.setAttribute("data-i18n", "backup_now_rsync");
