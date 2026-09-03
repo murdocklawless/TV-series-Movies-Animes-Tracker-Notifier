@@ -3803,6 +3803,7 @@ select#s-email-provider.email-lit {
 .app-changes-list .app-change-ver {
   list-style: none;
   color: #f97316;
+  font-size: 0.85rem;
   font-weight: 700;
   margin-top: 6px;
 }

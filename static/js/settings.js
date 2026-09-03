@@ -1193,7 +1193,7 @@ function fillAppUpdateDetail(entries) {
   verEl.textContent = "";
   ul.innerHTML = entries.map((entry) => {
     const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
-    const head = entry.date ? `${entry.version} · ${entry.date}` : entry.version;
+    const head = entry.date ? `VERSION ${entry.version} · ${entry.date}` : `VERSION ${entry.version}`;
     return `<li class="app-change-ver">${esc(head)}</li>` +
       (items.length
         ? items.map((it) => `<li>${esc(it)}</li>`).join("")
