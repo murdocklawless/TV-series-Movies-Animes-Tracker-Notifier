@@ -1160,7 +1160,7 @@ input:-webkit-autofill:focus {
   top: calc(100% + 8px);
   right: 0;
   left: auto;
-  min-width: 200px;
+  min-width: 240px;
   background: #1e2230;
   border: 1px solid #3a4050;
   border-radius: 10px;
@@ -1186,6 +1186,7 @@ input:-webkit-autofill:focus {
   color: #c8cdd8;
   font-size: 0.9rem;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
