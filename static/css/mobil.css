@@ -249,6 +249,19 @@
     padding: 12px 12px 25px;
   }
 
+  html:not(.is-tv):not(.tv-mode) #settings-menu {
+    min-width: 0;
+    width: fit-content;
+    max-width: calc(100vw - 16px);
+  }
+
+  html:not(.is-tv):not(.tv-mode) .settings-menu-item {
+    width: auto;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+  }
+
   html:not(.is-tv):not(.tv-mode) .releases-table {
     font-size: 0.88rem;
   }
@@ -278,10 +291,28 @@
   html:not(.is-tv):not(.tv-mode) .season-box-title {
     padding: 9px 12px;
     flex-wrap: nowrap;
+    gap: 6px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   html:not(.is-tv):not(.tv-mode) .season-box-title .season-name {
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .season-progress {
+    width: 100%;
+    min-width: 60px;
+    max-width: 140px;
+    height: 12px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .season-progress-text {
+    font-size: 0.62rem;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .season-watch-all {
+    font-size: 0.68rem;
+    padding: 2px 8px;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .info .meta {

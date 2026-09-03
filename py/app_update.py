@@ -19,13 +19,14 @@ from db import get_setting, set_setting
 REPO_SLUG = "murdocklawless/TV-series-Movies-Animes-Tracker-Notifier"
 BRANCH = "main"
 REMOTE_VERSION_URL = f"https://raw.githubusercontent.com/{REPO_SLUG}/{BRANCH}/VERSION"
+REMOTE_CHANGELOG_URL = f"https://raw.githubusercontent.com/{REPO_SLUG}/{BRANCH}/CHANGELOG.md"
 SNAP_ROOT = "/etc/snapshot/app-update"
 JUST_UPDATED_MARK = os.path.join(SNAP_ROOT, ".just-updated")
 KEEP_SNAPS = 5
 UPDATE_WINDOW_SEC = 30 * 60
 
 SYNC_TREES = ("py", "static", "requirements", "service", "sh")
-SYNC_FILES = ("VERSION",)
+SYNC_FILES = ("VERSION", "CHANGELOG.md")
 SKIP_DIRS = {"venv", "__pycache__", ".git", "bak", "backup", "tmp_push", ".opencode", "md"}
 SKIP_FILES = {".env", ".smtp_secret"}
 
@@ -64,6 +65,46 @@ def check_update():
             pass
     available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
     return local, remote, available
+
+
+def fetch_remote_changelog(timeout=20):
+    r = requests.get(REMOTE_CHANGELOG_URL, timeout=timeout)
+    r.raise_for_status()
+    return r.text
+
+
+def parse_changelog(text):
+    """CHANGELOG.md -> [{version, tr:[...], en:[...]}] (dosya sırası, yeni önce)."""
+    out = []
+    cur = None
+    sec = None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        m = re.match(r"^##\s+(\S+)", line)
+        if m:
+            cur = {"version": m.group(1), "tr": [], "en": []}
+            out.append(cur)
+            sec = None
+            continue
+        m = re.match(r"^###\s+(TR|EN)\s*$", line, re.IGNORECASE)
+        if m and cur is not None:
+            sec = m.group(1).lower()
+            continue
+        if cur is not None and sec in ("tr", "en") and line.startswith("- "):
+            cur[sec].append(line[2:].strip())
+    return [e for e in out if e["tr"] or e["en"]]
+
+
+def changelog_between(text, local, remote):
+    """(local, remote] aralığındaki kayıtlar, yeni sürüm önce."""
+    lv, rv = _ver_tuple(local), _ver_tuple(remote)
+    res = []
+    for e in parse_changelog(text):
+        v = _ver_tuple(e["version"])
+        if v and (not lv or v > lv) and (not rv or v <= rv):
+            res.append(e)
+    res.sort(key=lambda e: _ver_tuple(e["version"]), reverse=True)
+    return res
 
 
 def _snap_dir(ts=None):

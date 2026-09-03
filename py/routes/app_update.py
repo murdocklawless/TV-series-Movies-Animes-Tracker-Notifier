@@ -2,7 +2,7 @@ import threading
 
 from flask import Blueprint, jsonify
 
-from app_update import check_update, apply_update
+from app_update import check_update, apply_update, fetch_remote_changelog, changelog_between
 
 app_update_bp = Blueprint("app_update", __name__)
 
@@ -24,3 +24,15 @@ def app_update_run():
     except Exception as e:
         return jsonify({"error": f"Güncelleme hatası: {e}"}), 500
     return jsonify({"ok": True, "updated": True, "from": from_ver, "to": to_ver})
+
+
+@app_update_bp.route("/api/app-update/changelog", methods=["GET"])
+def app_update_changelog():
+    local, remote, _available = check_update()
+    try:
+        text = fetch_remote_changelog()
+    except Exception as e:
+        return jsonify({"local": local, "remote": remote, "changes": [],
+                        "error": f"Değişiklik notu alınamadı: {e}"})
+    return jsonify({"local": local, "remote": remote,
+                    "changes": changelog_between(text, local, remote)})

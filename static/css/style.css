@@ -1160,11 +1160,13 @@ input:-webkit-autofill:focus {
   top: calc(100% + 8px);
   right: 0;
   left: auto;
-  min-width: 240px;
+  min-width: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
   background: #1e2230;
   border: 1px solid #3a4050;
   border-radius: 10px;
-  padding: 6px;
+  padding: 4px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
   display: none;
   z-index: 20;
@@ -1179,7 +1181,7 @@ input:-webkit-autofill:focus {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 9px 12px;
+  padding: 9px 10px 9px 6px;
   background: none;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -3749,7 +3751,7 @@ select#s-email-provider.email-lit {
   padding: 6px 8px;
 }
 
-/* Uygulama Güncelleme modalı: oto satırı + ortalanmış versiyon satırı */
+/* NextEp Güncelleme modalı: oto satırı + ortalanmış versiyon satırı */
 #appupdate-auto-frame {
   max-width: 440px;
   width: 100%;
@@ -3781,6 +3783,34 @@ select#s-email-provider.email-lit {
 .app-version-line .new-version {
   color: #16a34a;
   font-weight: 700;
+}
+#appupdate-changes-frame {
+  max-width: 440px;
+  width: 100%;
+  margin: 12px auto 0;
+  padding: 8px 14px;
+}
+.app-changes-title {
+  font-weight: 600;
+}
+.app-changes-list {
+  margin: 4px 0 6px;
+  padding-left: 22px;
+  color: #c8cdd8;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.app-changes-list li {
+  margin: 3px 0;
+}
+.app-changes-list .app-change-ver {
+  list-style: none;
+  color: #f97316;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.app-changes-list .app-change-ver:first-child {
+  margin-top: 0;
 }
 
 /* Rsync/Samba inputları TMDB tablosu ile birebir (textarea hariç) */

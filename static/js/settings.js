@@ -608,7 +608,11 @@ function showMsg(text, ok) {
 
 function closeSettingsMenu() {
   const m = document.getElementById("settings-menu");
-  if (m) m.classList.remove("open");
+  if (m) {
+    m.classList.remove("open");
+    m.style.right = "";
+    m.style.width = "";
+  }
   const btn = document.getElementById("tab-settings");
   if (btn) btn.classList.remove("active");
 }
@@ -1172,8 +1176,33 @@ async function openFavListing(kind, ident, title) {
   });
 })();
 
-// Uygulama Güncelleme: versiyon satırı + kontrol/güncelle butonları
-let lastAppVer = { local: "", remote: "", available: false };
+// NextEp Güncelleme: versiyon satırı + yenilik listesi + kontrol/güncelle butonları
+let lastAppVer = { local: "", remote: "", available: false, changes: [], notesFailed: false };
+function renderAppChanges() {
+  const frame = document.getElementById("appupdate-changes-frame");
+  const ul = document.getElementById("appupdate-changes");
+  const verEl = document.getElementById("appupdate-changes-ver");
+  if (!frame || !ul) return;
+  if (!lastAppVer.available) {
+    frame.style.display = "none";
+    ul.innerHTML = "";
+    if (verEl) verEl.textContent = "";
+    return;
+  }
+  const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lang = (document.documentElement.lang || "tr").toLowerCase().startsWith("tr") ? "tr" : "en";
+  let html = "";
+  (lastAppVer.changes || []).forEach((c) => {
+    const items = (c[lang] && c[lang].length ? c[lang] : c.tr || []);
+    if (!items.length) return;
+    html += `<li class="app-change-ver">${esc(c.version)}</li>`;
+    items.forEach((it) => { html += `<li>${esc(it)}</li>`; });
+  });
+  if (!html) html = `<li>${esc(t("appupdate_no_notes"))}</li>`;
+  if (verEl) verEl.textContent = lastAppVer.remote ? `(${lastAppVer.remote})` : "";
+  ul.innerHTML = html;
+  frame.style.display = "";
+}
 function renderAppVersion() {
   const el = document.getElementById("appupdate-version-text");
   const runBtn = document.getElementById("appupdate-run");
@@ -1186,6 +1215,7 @@ function renderAppVersion() {
   }
   el.innerHTML = html;
   runBtn.disabled = !lastAppVer.available;
+  renderAppChanges();
 }
 async function checkAppUpdate(showToast) {
   const checkBtn = document.getElementById("appupdate-check");
@@ -1193,8 +1223,18 @@ async function checkAppUpdate(showToast) {
   try {
     const r = await fetch("/api/app-update/check");
     const j = await r.json();
-    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available };
+    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available, changes: [], notesFailed: false };
     renderAppVersion();
+    if (lastAppVer.available) {
+      try {
+        const rc = await fetch("/api/app-update/changelog");
+        const jc = await rc.json().catch(() => ({}));
+        lastAppVer.changes = Array.isArray(jc.changes) ? jc.changes : [];
+      } catch (e) {
+        lastAppVer.changes = [];
+      }
+      renderAppChanges();
+    }
     if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
   } catch (e) {
     if (showToast) showMsg(t("error"), false);
@@ -1214,7 +1254,7 @@ async function checkAppUpdate(showToast) {
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.updated) {
         showMsg(t("appupdate_started", { ver: j.to }), true);
-        lastAppVer = { local: j.to || lastAppVer.remote, remote: j.to || "", available: false };
+        lastAppVer = { local: j.to || lastAppVer.remote, remote: j.to || "", available: false, changes: [], notesFailed: false };
         renderAppVersion();
       } else {
         showMsg(j.error || t("error"), false);
@@ -1264,6 +1304,20 @@ document.getElementById("tab-settings").addEventListener("click", (e) => {
   } else {
     activateUtilityTab(document.getElementById("tab-settings"));
     menu.classList.add("open");
+    // Desktop: pencere-sol bildirim butonu soluna, pencere-sağ dişli butonu sağına dayanır
+    // (pencere = dişliSağ - bildirimSol kadar genişler). Mesafe dile/yakınlaştırmaya bağlı
+    // olduğundan açılış anında ölçülür; mobil/TV'de menü dişli altında dar kalır.
+    if (window.matchMedia("(min-width: 769px)").matches && !document.documentElement.classList.contains("is-tv") && !document.documentElement.classList.contains("tv-mode")) {
+      const notif = document.getElementById("tab-notif");
+      const wrap = document.querySelector(".settings-wrap");
+      if (notif && wrap) {
+        menu.style.right = "";
+        menu.style.width = (wrap.getBoundingClientRect().right - notif.getBoundingClientRect().left) + "px";
+      }
+    } else {
+      menu.style.right = "";
+      menu.style.width = "";
+    }
   }
 });
 document.querySelectorAll(".settings-menu-item").forEach((btn) => {
