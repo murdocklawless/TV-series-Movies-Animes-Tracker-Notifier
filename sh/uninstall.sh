@@ -43,10 +43,17 @@ fi
 echo "==> Servis durduruluyor..."
 systemctl stop nextep 2>/dev/null || true
 systemctl disable nextep 2>/dev/null || true
+systemctl stop nextep-healthcheck.timer 2>/dev/null || true
+systemctl disable nextep-healthcheck.timer 2>/dev/null || true
 
 echo "==> Systemd servisi siliniyor..."
 rm -f /etc/systemd/system/nextep.service
+rm -f /etc/systemd/system/nextep-healthcheck.service
+rm -f /etc/systemd/system/nextep-healthcheck.timer
 systemctl daemon-reload 2>/dev/null || true
+
+echo "==> Snapshot dizini siliniyor (/etc/snapshot)..."
+rm -rf /etc/snapshot
 
 if [ "$DIR_STATE" = "yok" ] || [ "$DIR_STATE" = "bos" ]; then
   # Sorulacak database yok (dizin yok/bos) — soru atlanir
@@ -54,6 +61,14 @@ if [ "$DIR_STATE" = "yok" ] || [ "$DIR_STATE" = "bos" ]; then
   echo "==> Dogrulama..."
   if systemctl list-unit-files 2>/dev/null | grep -q "^nextep.service"; then
     echo "!! nextep.service hala kayitli." >&2
+    exit 1
+  fi
+  if systemctl list-unit-files 2>/dev/null | grep -q "^nextep-healthcheck"; then
+    echo "!! nextep-healthcheck unitleri hala kayitli." >&2
+    exit 1
+  fi
+  if [ -d /etc/snapshot ]; then
+    echo "!! /etc/snapshot hala var, silinemedi." >&2
     exit 1
   fi
   if [ -d "$APP_DIR" ]; then
@@ -126,6 +141,15 @@ fi
 echo "==> Dogrulama..."
 if systemctl list-unit-files 2>/dev/null | grep -q "^nextep.service"; then
   echo "!! nextep.service hala kayitli." >&2
+  exit 1
+fi
+if systemctl list-unit-files 2>/dev/null | grep -q "^nextep-healthcheck"; then
+  echo "!! nextep-healthcheck unitleri hala kayitli." >&2
+  exit 1
+fi
+if [ -d /etc/snapshot ]; then
+  echo "!! /etc/snapshot hala var, silinemedi." >&2
+  ls -la /etc/snapshot >&2 || true
   exit 1
 fi
 if [ -n "$WIPE_DB" ]; then

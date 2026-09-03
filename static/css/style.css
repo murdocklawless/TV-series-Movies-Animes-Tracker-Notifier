@@ -3746,6 +3746,37 @@ select#s-email-provider.email-lit {
   max-width: 400px;
 }
 
+/* Uygulama Güncelleme modalı: oto satırı + ortalanmış versiyon satırı */
+#appupdate-auto-frame {
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  gap: 0;
+}
+#appupdate-auto-frame .notify-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 400px;
+}
+#appupdate-version-frame {
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+}
+.app-version-line {
+  text-align: center;
+  padding: 12px 8px;
+  color: #B4B8C4;
+  font-size: 0.88rem;
+}
+.app-version-line .new-version {
+  color: #16a34a;
+  font-weight: 700;
+}
+
 /* Rsync/Samba inputları TMDB tablosu ile birebir (textarea hariç) */
 #backup-rsync-box .channel-frame input:not(.backup-ssh-textarea),
 #backup-samba-box .channel-frame input:not(.backup-ssh-textarea) {

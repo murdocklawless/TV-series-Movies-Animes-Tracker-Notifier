@@ -52,6 +52,7 @@
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-cache-modal"><i class="fa-solid fa-gauge-high"></i><span data-i18n="settings_cache">Cache Süresi</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-backup-modal"><i class="fa-solid fa-floppy-disk"></i><span data-i18n="settings_backup">Yedekleme</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-appupdate-modal"><i class="fa-solid fa-cloud-arrow-up"></i><span data-i18n="settings_appupdate">Uygulama Güncelleme</span></button>
           </div>
         </div>
         <button id="tab-exit" class="tab" data-tip="Çıkış"><i class="fa-solid fa-xmark"></i></button>
@@ -403,6 +404,30 @@
     </div>
   </div>
 
+  <div id="settings-appupdate-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_appupdate">Uygulama Güncelleme</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="channel-frame" id="appupdate-auto-frame">
+          <div class="notify-row">
+            <span class="notify-name" data-i18n="appupdate_auto">Otomatik Güncelleme</span>
+            <label class="switch"><input type="checkbox" id="s-appupdate-auto" /><span class="slider"></span></label>
+          </div>
+        </div>
+        <div class="channel-frame" id="appupdate-version-frame">
+          <div class="app-version-line"><span id="appupdate-version-text" data-i18n="app_version_loading">Sürüm bilgisi yükleniyor...</span></div>
+        </div>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+          <button id="appupdate-check" class="tab" data-i18n="appupdate_check">Güncellemeleri Kontrol Et</button>
+          <button id="appupdate-run" class="tab" data-i18n="appupdate_run" disabled>Uygulamayı Güncelle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="settings-notify-modal" class="modal-overlay settings-modal-overlay" style="display:none">
     <div class="modal settings-modal">
       <div class="modal-header">
@@ -690,6 +715,22 @@
               <div class="time-col">
                 <div class="time-col-title" data-i18n="time_minute">Dakika</div>
                 <div class="time-col-body" id="s-rec-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
+        <label><span class="settings-label-head"><span data-i18n="label_appupdate_hour" data-i18n-title="tip_appupdate_hour">Uygulama Güncelleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-appupdate-hour" type="text" value="04:00" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="numeric" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-appupdate-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-appupdate-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-appupdate-minute-list"></div>
               </div>
             </div>
           </div>

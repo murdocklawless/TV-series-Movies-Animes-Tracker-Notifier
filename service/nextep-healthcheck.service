@@ -1,0 +1,7 @@
+[Unit]
+Description=NextEp watchdog (saglik yoklamasi)
+After=network.target nextep.service
+
+[Service]
+Type=oneshot
+ExecStart=/etc/nextep/sh/healthcheck.sh

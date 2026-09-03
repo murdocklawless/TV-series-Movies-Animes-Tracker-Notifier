@@ -377,6 +377,9 @@ def get_settings():
             "backup_samba_share": get_setting("backup_samba_share") or "",
             "backup_samba_user": get_setting("backup_samba_user") or "",
             "has_backup_samba_pass": bool(get_setting("backup_samba_pass")),
+            "app_auto_update": get_setting("app_auto_update") or "0",
+            "app_update_hour": get_setting("app_update_hour") or "04:00",
+            "app_remote_version": get_setting("app_remote_version") or "",
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
@@ -444,6 +447,8 @@ def save_settings():
         "backup_samba_port",
         "backup_samba_share",
         "backup_samba_user",
+        "app_auto_update",
+        "app_update_hour",
         "timezone",
         "language",
         "ntfy_topic",
@@ -489,7 +494,7 @@ def save_settings():
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 

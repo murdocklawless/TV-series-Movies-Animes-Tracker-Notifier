@@ -122,7 +122,7 @@ fi
 
 # ---------- 4. Sahipsiz servis + mod tespiti ----------
 # Beklenen dosya listesi = klon otoritesi (senkron kapsamıyla birebir: py/static/requirements/service/sh)
-EXPECTED="$(git -C "$STAGE" ls-files 'py/*' 'static/*' 'requirements/*' 'service/*' 'sh/*' 2>/dev/null || true)"
+EXPECTED="$(git -C "$STAGE" ls-files 'py/*' 'static/*' 'requirements/*' 'service/*' 'sh/*' 'VERSION' 2>/dev/null || true)"
 if [ -z "$EXPECTED" ]; then
   echo "HATA: klondan dosya listesi alınamadı." >&2
   exit 1
@@ -283,6 +283,9 @@ if have_cmd rsync; then
   rsync -a "$STAGE/requirements/" "$APP_DIR/requirements/"
   rsync -a "$STAGE/service/" "$APP_DIR/service/"
   rsync -a "$STAGE/sh/" "$APP_DIR/sh/" 2>/dev/null || true
+  if [ -f "$STAGE/VERSION" ]; then
+    cp -af "$STAGE/VERSION" "$APP_DIR/VERSION"
+  fi
 else
   rm -rf "$APP_DIR/py" "$APP_DIR/static" "$APP_DIR/requirements" "$APP_DIR/service"
   mkdir -p "$APP_DIR/py" "$APP_DIR/static" "$APP_DIR/requirements" "$APP_DIR/service" "$APP_DIR/sh"
@@ -291,6 +294,9 @@ else
   cp -a "$STAGE/requirements/." "$APP_DIR/requirements/"
   cp -a "$STAGE/service/." "$APP_DIR/service/"
   cp -a "$STAGE/sh/." "$APP_DIR/sh/" 2>/dev/null || true
+  if [ -f "$STAGE/VERSION" ]; then
+    cp -af "$STAGE/VERSION" "$APP_DIR/VERSION"
+  fi
 fi
 rm -f "$APP_DIR/.env" 2>/dev/null || true
 echo "    senkron tamamlandı (db/*.db, .env, .smtp_secret korunur; venv'e dokunulmaz)."
@@ -351,6 +357,18 @@ systemctl daemon-reload
 systemctl enable --now nextep
 if [ "$MODE" = "UPDATE" ] || [ "$MODE" = "COMPLETE" ]; then
   systemctl restart nextep
+fi
+
+# ---------- 9b. Watchdog timer ----------
+chmod +x "$APP_DIR/sh/healthcheck.sh" 2>/dev/null || true
+if [ -f "$APP_DIR/service/nextep-healthcheck.service" ] && [ -f "$APP_DIR/service/nextep-healthcheck.timer" ]; then
+  cp -f "$APP_DIR/service/nextep-healthcheck.service" /etc/systemd/system/nextep-healthcheck.service
+  cp -f "$APP_DIR/service/nextep-healthcheck.timer" /etc/systemd/system/nextep-healthcheck.timer
+  systemctl daemon-reload
+  systemctl enable --now nextep-healthcheck.timer
+  echo "==> Watchdog timer kuruldu (2 dk)."
+else
+  echo "    (uyarı: watchdog unit dosyaları yok, timer kurulmadı)"
 fi
 
 # ---------- 10. Doğrulama ----------

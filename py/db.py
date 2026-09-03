@@ -250,6 +250,8 @@ ENV_KEYS = {
     "backup_samba_port": "BACKUP_SAMBA_PORT",
     "backup_samba_share": "BACKUP_SAMBA_SHARE",
     "backup_samba_user": "BACKUP_SAMBA_USER",
+    "app_auto_update": "APP_AUTO_UPDATE",
+    "app_update_hour": "APP_UPDATE_HOUR",
     "timezone": "TIMEZONE",
     "language": "LANGUAGE",
     "ntfy_topic": "NTFY_TOPIC",

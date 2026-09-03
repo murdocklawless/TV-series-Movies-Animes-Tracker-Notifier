@@ -513,6 +513,9 @@ async function loadSettings() {
   document.getElementById("s-anime-hour").value = s.anime_notification_hour || "09:05";
   document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
   document.getElementById("s-backup-hour").value = s.backup_hour || "03:00";
+  document.getElementById("s-appupdate-hour").value = s.app_update_hour || "04:00";
+  const appAuto = document.getElementById("s-appupdate-auto");
+  if (appAuto) appAuto.checked = (s.app_auto_update || "0") === "1";
   // yedekleme: mod (db/full) ve rsync/samba alanlari
   const bm = s.backup_mode || "";
   const dbSw = document.getElementById("s-backup-db");
@@ -567,6 +570,7 @@ async function loadSettings() {
   initTimePicker("s-anime-hour");
   initTimePicker("s-rec-hour");
   initTimePicker("s-backup-hour");
+  initTimePicker("s-appupdate-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   state.serverToday = s.server_today || null;
   document.getElementById("s-tz").value = state.currentTz;
@@ -1168,6 +1172,65 @@ async function openFavListing(kind, ident, title) {
   });
 })();
 
+// Uygulama Güncelleme: versiyon satırı + kontrol/güncelle butonları
+let lastAppVer = { local: "", remote: "", available: false };
+function renderAppVersion() {
+  const el = document.getElementById("appupdate-version-text");
+  const runBtn = document.getElementById("appupdate-run");
+  if (!el || !runBtn) return;
+  const safe = (v) => String(v || "").replace(/[^0-9.]/g, "");
+  const cur = safe(lastAppVer.local);
+  let html = `${t("app_version_current")} ${cur}`;
+  if (lastAppVer.available && lastAppVer.remote) {
+    html += ` -&gt; <span class="new-version">${t("app_version_new")} ${safe(lastAppVer.remote)}</span>`;
+  }
+  el.innerHTML = html;
+  runBtn.disabled = !lastAppVer.available;
+}
+async function checkAppUpdate(showToast) {
+  const checkBtn = document.getElementById("appupdate-check");
+  if (checkBtn) checkBtn.disabled = true;
+  try {
+    const r = await fetch("/api/app-update/check");
+    const j = await r.json();
+    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available };
+    renderAppVersion();
+    if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
+  } catch (e) {
+    if (showToast) showMsg(t("error"), false);
+  } finally {
+    if (checkBtn) checkBtn.disabled = false;
+  }
+}
+(function initAppUpdate() {
+  const checkBtn = document.getElementById("appupdate-check");
+  if (checkBtn) checkBtn.addEventListener("click", () => checkAppUpdate(true));
+  const runBtn = document.getElementById("appupdate-run");
+  if (runBtn) runBtn.addEventListener("click", async () => {
+    if (runBtn.disabled) return;
+    runBtn.disabled = true;
+    try {
+      const r = await fetch("/api/app-update/run", { method: "POST" });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.updated) {
+        showMsg(t("appupdate_started", { ver: j.to }), true);
+        lastAppVer = { local: j.to || lastAppVer.remote, remote: j.to || "", available: false };
+        renderAppVersion();
+      } else {
+        showMsg(j.error || t("error"), false);
+        runBtn.disabled = !!lastAppVer.available;
+      }
+    } catch (e) {
+      showMsg(t("error"), false);
+      runBtn.disabled = !!lastAppVer.available;
+    }
+  });
+  // Modal açılırken güncel durumu çek
+  const menuItem = document.querySelector('.settings-menu-item[data-target="settings-appupdate-modal"]');
+  if (menuItem) menuItem.addEventListener("click", () => setTimeout(() => checkAppUpdate(false), 0));
+  document.addEventListener("app:langchange", renderAppVersion);
+})();
+
 // Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
 (function initFavoritesAccordion() {
   [["fav-actors-box", "fav-actors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
@@ -1546,6 +1609,16 @@ document.getElementById("s-backup-hour").addEventListener("change", () => {
   const el = document.getElementById("s-backup-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ backup_hour: el.value }, hint);
+});
+
+document.getElementById("s-appupdate-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-appupdate-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ app_update_hour: el.value }, hint);
+});
+
+document.getElementById("s-appupdate-auto").addEventListener("change", (e) => {
+  saveSettingsPartial({ app_auto_update: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
 
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {

@@ -1,0 +1,10 @@
+[Unit]
+Description=NextEp watchdog her 2 dakikada
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+Unit=nextep-healthcheck.service
+
+[Install]
+WantedBy=timers.target

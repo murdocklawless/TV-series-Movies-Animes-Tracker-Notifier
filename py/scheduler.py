@@ -690,6 +690,49 @@ def refresh_fav_listings_job():
         print("fav listings refresh failed:", e, flush=True)
 
 
+def app_update_job():
+    """Uygulama güncelleme cron'u (fail-soft): yeni sürüm + oto-açık ise günceller."""
+    try:
+        from app_update import (
+            check_update, apply_update, localhost_healthy,
+            just_updated_within, rollback, UPDATE_WINDOW_SEC,
+        )
+        from notifications import notify_all
+
+        local, remote, available = check_update()
+        if not available:
+            return
+        auto = (get_setting("app_auto_update") or "0").strip() == "1"
+        if not auto:
+            print(f"app_update_job: yeni sürüm mevcut ({local} -> {remote}), oto kapalı — beklendi", flush=True)
+            return
+        print(f"app_update_job: güncelleniyor ({local} -> {remote})", flush=True)
+        try:
+            from_ver, to_ver = apply_update()
+        except Exception as e:
+            print(f"app_update_job failed: {e}", flush=True)
+            return
+        # Restart sonrası sağlık bekle (uygulama ~40 sn'de açılır)
+        ok = False
+        for _ in range(12):
+            import time as _t
+            _t.sleep(10)
+            if localhost_healthy(timeout=10):
+                ok = True
+                break
+        if ok:
+            print(f"app_update_job: {from_ver} -> {to_ver} sağlıklı", flush=True)
+            try:
+                notify_all(f"NextEp güncellendi: {from_ver} → {to_ver}.")
+            except Exception:
+                pass
+        else:
+            print("app_update_job: güncelleme sonrası sağlıksız — rollback", flush=True)
+            rollback(reason=f"{from_ver} → {to_ver} sonrası sağlık kontrolü başarısız")
+    except Exception as e:
+        print(f"app_update_job failed: {e}", flush=True)
+
+
 def backup_job():
     """Yedekleme cron'u (fail-soft): Database veya Herşeyi yedekle moduna göre rsync/samba hedefe."""
     try:
@@ -876,6 +919,19 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
+    app_h, app_m = parse_notify_hour(get_setting("app_update_hour") or "04:00")
+    if SCHEDULER.get_job("app_update_job"):
+        SCHEDULER.remove_job("app_update_job")
+    SCHEDULER.add_job(
+        app_update_job,
+        "cron",
+        hour=app_h,
+        minute=app_m,
+        timezone=tz,
+        id="app_update_job",
+        misfire_grace_time=3600,
+    )
+
     if not SCHEDULER.running:
         SCHEDULER.start()
     print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time, flush=True)
@@ -898,6 +954,10 @@ def schedule_releases():
         pass
     try:
         print("next backup:", SCHEDULER.get_job("backup_job").next_run_time, flush=True)
+    except Exception:
+        pass
+    try:
+        print("next app update:", SCHEDULER.get_job("app_update_job").next_run_time, flush=True)
     except Exception:
         pass
 
