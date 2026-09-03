@@ -13,7 +13,8 @@
 set -e
 
 APP_DIR="/etc/nextep"
-PORT="${PORT:-8050}"
+PORT_REQ="${PORT:-}"
+PORT="${PORT_REQ:-8050}"
 REPO_URL="${REPO_URL:-https://github.com/murdocklawless/TV-series-Movies-Animes-Tracker-Notifier.git}"
 BRANCH="${BRANCH:-main}"
 
@@ -173,8 +174,12 @@ else
   fi
   if [ -n "$NEXTEP_ACTIVE" ]; then
     if [ -n "$UNIT_PORT" ] && [ "$UNIT_PORT" != "$PORT" ]; then
-      echo "==> BİLGİ: mevcut kurulumun portu korunuyor ($UNIT_PORT); istenen $PORT kullanılmayacak."
-      PORT="$UNIT_PORT"
+      if [ -n "$PORT_REQ" ]; then
+        echo "==> BİLGİ: PORT ortam değişkeniyle istendi ($PORT); mevcut servis portu ($UNIT_PORT) değiştirilecek."
+      else
+        echo "==> BİLGİ: mevcut kurulumun portu korunuyor ($UNIT_PORT); istenen $PORT kullanılmayacak."
+        PORT="$UNIT_PORT"
+      fi
     fi
     if [ "$MODE" = "UPDATE" ]; then
       echo "==> BİLGİ: mevcut kurulum tespit edildi, güncelleniyor (port korunuyor: $PORT)."
