@@ -3736,6 +3736,7 @@ select#s-email-provider.email-lit {
   max-width: 440px;
   width: 100%;
   margin: 0 auto;
+  padding: 8px 14px;
   gap: 0;
 }
 #backup-mode-frame .notify-row {
@@ -3745,13 +3746,15 @@ select#s-email-provider.email-lit {
   flex-wrap: nowrap;
   width: 100%;
   max-width: 400px;
+  padding: 6px 8px;
 }
 
 /* Uygulama Güncelleme modalı: oto satırı + ortalanmış versiyon satırı */
 #appupdate-auto-frame {
   max-width: 440px;
   width: 100%;
-  margin: 0 auto;
+  margin: 0 auto 12px;
+  padding: 8px 14px;
   gap: 0;
 }
 #appupdate-auto-frame .notify-row {
@@ -3761,17 +3764,19 @@ select#s-email-provider.email-lit {
   flex-wrap: nowrap;
   width: 100%;
   max-width: 400px;
+  padding: 6px 8px;
 }
 #appupdate-version-frame {
   max-width: 440px;
   width: 100%;
   margin: 0 auto;
+  padding: 8px 14px;
 }
 .app-version-line {
   text-align: center;
-  padding: 12px 8px;
-  color: #B4B8C4;
-  font-size: 0.88rem;
+  padding: 6px 8px;
+  color: #c8cdd8;
+  font-size: 0.95rem;
 }
 .app-version-line .new-version {
   color: #16a34a;
