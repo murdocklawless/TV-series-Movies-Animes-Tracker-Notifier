@@ -199,6 +199,7 @@ function initTimePicker(base) {
   }
 
   function toggle() {
+    if (input.disabled) return;
     if (!open) {
       picks = 0;
       render();
@@ -1083,6 +1084,14 @@ async function openFavListing(kind, ident, title) {
     // Yedekle butonu
     nowBtn.disabled = disabled;
     restoreBtn.disabled = disabled;
+    // Güncelleme modalındaki Yedekleme Saati: hedef yoksa kapalı + bilgi tooltip'i
+    const backupHourInput = document.getElementById("s-backup-hour");
+    if (backupHourInput) {
+      const hourBlocked = !rDolu && !sDolu;
+      backupHourInput.disabled = hourBlocked;
+      const hourLabel = backupHourInput.closest("label")?.querySelector('[data-i18n="label_backup_hour"]');
+      if (hourLabel) hourLabel.setAttribute("data-tip", t(hourBlocked ? "tip_backup_hour_empty" : "tip_backup_hour"));
+    }
     if (target === "rsync") {
       nowBtn.setAttribute("data-i18n", "backup_now_rsync");
       nowBtn.textContent = t("backup_now_rsync");

@@ -710,6 +710,9 @@ def backup_job():
         elif rsync_dolu and samba_dolu:
             last = (get_setting("backup_last_target") or "").strip().lower()
             target = last if last in ("rsync", "samba") else "rsync"
+        if not target:
+            # Hedef yok (rsync/samba girilmemis): bos yere calisma, sessiz gec
+            return
         # şimdilik stub: logla, gerçek rsync/samba implementasyonu Faz sonrası eklenecek
         print(f"backup_job mode={mode} target={target or 'none'} hour={get_setting('backup_hour') or '03:00'}", flush=True)
     except Exception as e:

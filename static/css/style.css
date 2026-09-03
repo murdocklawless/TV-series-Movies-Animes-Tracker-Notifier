@@ -2047,6 +2047,11 @@ input:-webkit-autofill:focus {
   cursor: text;
 }
 
+.settings-modal .settings-form .time-combobox input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .time-clock {
   position: absolute;
   right: 14px;
