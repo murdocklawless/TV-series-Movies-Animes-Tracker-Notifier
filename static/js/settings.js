@@ -1176,32 +1176,32 @@ async function openFavListing(kind, ident, title) {
   });
 })();
 
-// NextEp Güncelleme: versiyon satırı + yenilik listesi + kontrol/güncelle butonları
-let lastAppVer = { local: "", remote: "", available: false, changes: [], notesFailed: false };
-function renderAppChanges() {
-  const frame = document.getElementById("appupdate-changes-frame");
-  const ul = document.getElementById("appupdate-changes");
-  const verEl = document.getElementById("appupdate-changes-ver");
-  if (!frame || !ul) return;
-  if (!lastAppVer.available) {
-    frame.style.display = "none";
-    ul.innerHTML = "";
-    if (verEl) verEl.textContent = "";
-    return;
-  }
+// NextEp Güncelleme: versiyon satırı + ayrıntı modalı + kontrol/güncelle butonları
+let lastAppVer = { local: "", remote: "", available: false, changes: [] };
+let lastDetailEntry = null;
+function fillAppUpdateDetail(entry) {
+  const verEl = document.getElementById("appupdate-detail-ver");
+  const ul = document.getElementById("appupdate-detail-list");
+  if (!verEl || !ul) return;
   const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const lang = (document.documentElement.lang || "tr").toLowerCase().startsWith("tr") ? "tr" : "en";
-  let html = "";
-  (lastAppVer.changes || []).forEach((c) => {
-    const items = (c[lang] && c[lang].length ? c[lang] : c.tr || []);
-    if (!items.length) return;
-    html += `<li class="app-change-ver">${esc(c.version)}</li>`;
-    items.forEach((it) => { html += `<li>${esc(it)}</li>`; });
-  });
-  if (!html) html = `<li>${esc(t("appupdate_no_notes"))}</li>`;
-  if (verEl) verEl.textContent = lastAppVer.remote ? `(${lastAppVer.remote})` : "";
-  ul.innerHTML = html;
-  frame.style.display = "";
+  if (!entry) {
+    verEl.textContent = "";
+    ul.innerHTML = `<li>${esc(t("appupdate_no_notes"))}</li>`;
+    return;
+  }
+  const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
+  verEl.textContent = entry.date ? `${entry.version} · ${entry.date}` : entry.version;
+  ul.innerHTML = items.length
+    ? items.map((it) => `<li>${esc(it)}</li>`).join("")
+    : `<li>${esc(t("appupdate_no_notes"))}</li>`;
+}
+function openAppUpdateDetail(entry) {
+  const modal = document.getElementById("appupdate-detail-modal");
+  if (!modal) return;
+  lastDetailEntry = entry || null;
+  fillAppUpdateDetail(lastDetailEntry);
+  modal.style.display = "flex";
 }
 function renderAppVersion() {
   const el = document.getElementById("appupdate-version-text");
@@ -1215,7 +1215,6 @@ function renderAppVersion() {
   }
   el.innerHTML = html;
   runBtn.disabled = !lastAppVer.available;
-  renderAppChanges();
 }
 async function checkAppUpdate(showToast) {
   const checkBtn = document.getElementById("appupdate-check");
@@ -1223,17 +1222,18 @@ async function checkAppUpdate(showToast) {
   try {
     const r = await fetch("/api/app-update/check");
     const j = await r.json();
-    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available, changes: [], notesFailed: false };
+    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available, changes: [] };
     renderAppVersion();
     if (lastAppVer.available) {
       try {
         const rc = await fetch("/api/app-update/changelog");
         const jc = await rc.json().catch(() => ({}));
-        lastAppVer.changes = Array.isArray(jc.changes) ? jc.changes : [];
+        if (Array.isArray(jc.changes)) lastAppVer.changes = jc.changes;
       } catch (e) {
         lastAppVer.changes = [];
       }
-      renderAppChanges();
+      // Yalnız en yeni sürümün notları, yalnız kullanıcı kontrol istediyse
+      if (showToast) openAppUpdateDetail(lastAppVer.changes.length ? lastAppVer.changes[0] : null);
     }
     if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
   } catch (e) {
@@ -1254,7 +1254,7 @@ async function checkAppUpdate(showToast) {
       const j = await r.json().catch(() => ({}));
       if (r.ok && j.updated) {
         showMsg(t("appupdate_started", { ver: j.to }), true);
-        lastAppVer = { local: j.to || lastAppVer.remote, remote: j.to || "", available: false, changes: [], notesFailed: false };
+        lastAppVer = { local: j.to || lastAppVer.remote, remote: j.to || "", available: false, changes: [] };
         renderAppVersion();
       } else {
         showMsg(j.error || t("error"), false);
@@ -1268,7 +1268,11 @@ async function checkAppUpdate(showToast) {
   // Modal açılırken güncel durumu çek
   const menuItem = document.querySelector('.settings-menu-item[data-target="settings-appupdate-modal"]');
   if (menuItem) menuItem.addEventListener("click", () => setTimeout(() => checkAppUpdate(false), 0));
-  document.addEventListener("app:langchange", renderAppVersion);
+  document.addEventListener("app:langchange", () => {
+    renderAppVersion();
+    const dm = document.getElementById("appupdate-detail-modal");
+    if (dm && dm.style.display === "flex") fillAppUpdateDetail(lastDetailEntry);
+  });
 })();
 
 // Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok

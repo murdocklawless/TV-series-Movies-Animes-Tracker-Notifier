@@ -3784,14 +3784,11 @@ select#s-email-provider.email-lit {
   color: #16a34a;
   font-weight: 700;
 }
-#appupdate-changes-frame {
+#appupdate-detail-frame {
   max-width: 440px;
   width: 100%;
-  margin: 12px auto 0;
+  margin: 0 auto;
   padding: 8px 14px;
-}
-.app-changes-title {
-  font-weight: 600;
 }
 .app-changes-list {
   margin: 4px 0 6px;
@@ -3802,15 +3799,6 @@ select#s-email-provider.email-lit {
 }
 .app-changes-list li {
   margin: 3px 0;
-}
-.app-changes-list .app-change-ver {
-  list-style: none;
-  color: #f97316;
-  font-weight: 700;
-  margin-top: 6px;
-}
-.app-changes-list .app-change-ver:first-child {
-  margin-top: 0;
 }
 
 /* Rsync/Samba inputları TMDB tablosu ile birebir (textarea hariç) */

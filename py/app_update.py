@@ -74,15 +74,17 @@ def fetch_remote_changelog(timeout=20):
 
 
 def parse_changelog(text):
-    """CHANGELOG.md -> [{version, tr:[...], en:[...]}] (dosya sırası, yeni önce)."""
+    """CHANGELOG.md -> [{version, date, tr:[...], en:[...]}] (dosya sırası, yeni önce).
+
+    Başlık formatı: `## X.Y - GG/AA/YYYY-SS:DD` (tarih opsiyonel, eski başlıklar çalışır)."""
     out = []
     cur = None
     sec = None
     for raw in (text or "").splitlines():
         line = raw.strip()
-        m = re.match(r"^##\s+(\S+)", line)
+        m = re.match(r"^##\s+(\S+)(?:\s*-\s*(\S+))?", line)
         if m:
-            cur = {"version": m.group(1), "tr": [], "en": []}
+            cur = {"version": m.group(1), "date": m.group(2) or "", "tr": [], "en": []}
             out.append(cur)
             sec = None
             continue

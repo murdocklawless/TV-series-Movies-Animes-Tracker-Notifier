@@ -1,7 +1,7 @@
 # NextEp Değişiklik Geçmişi
-<!-- Yeni sürümde en üste `## X.Y` bölümü + `### TR` / `### EN` listesi ekle -->
+<!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
-## 1.12
+## 1.12 - 04/09/2026-01:25
 ### TR
 - Mobil takvim modalında ilerleme çubuğu Temizle butonuyla çakışmayacak şekilde daraltıldı.
 - "Uygulama Güncelleme" adı menü, başlık, saat etiketi ve butonda "NextEp Güncelleme" olarak değiştirildi.
