@@ -14,6 +14,32 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+# ---------- Durum tespiti (kaldirma oncesi) ----------
+DIR_STATE="yok"
+if [ -d "$APP_DIR" ]; then
+  if [ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+    DIR_STATE="dolu"
+  else
+    DIR_STATE="bos"
+  fi
+fi
+SVC="yok"
+if [ -f /etc/systemd/system/nextep.service ]; then
+  SVC="var"
+fi
+
+if [ "$DIR_STATE" = "yok" ] && [ "$SVC" = "yok" ]; then
+  echo "==> Bilgi: kaldirilacak bir sey yok (dizin ve servis bulunamadi)."
+  exit 0
+fi
+if [ "$DIR_STATE" = "yok" ] && [ "$SVC" = "var" ]; then
+  echo "==> Uyari: /etc/nextep bulunamadi ama nextep.service mevcut — servis kaldiriliyor."
+elif [ "$DIR_STATE" = "bos" ] && [ "$SVC" = "var" ]; then
+  echo "==> Uyari: /etc/nextep klasoru bos ama nextep.service mevcut — servis kaldirilacak, bos klasor silinecek."
+elif [ "$DIR_STATE" = "dolu" ] && [ "$SVC" = "yok" ]; then
+  echo "==> Bilgi: nextep.service bulunamadi — yalniz uygulama dizini /etc/nextep silinecek."
+fi
+
 echo "==> Servis durduruluyor..."
 systemctl stop nextep 2>/dev/null || true
 systemctl disable nextep 2>/dev/null || true
@@ -21,6 +47,33 @@ systemctl disable nextep 2>/dev/null || true
 echo "==> Systemd servisi siliniyor..."
 rm -f /etc/systemd/system/nextep.service
 systemctl daemon-reload 2>/dev/null || true
+
+if [ "$DIR_STATE" = "yok" ] || [ "$DIR_STATE" = "bos" ]; then
+  # Sorulacak database yok (dizin yok/bos) — soru atlanir
+  rmdir "$APP_DIR" 2>/dev/null || true
+  echo "==> Dogrulama..."
+  if systemctl list-unit-files 2>/dev/null | grep -q "^nextep.service"; then
+    echo "!! nextep.service hala kayitli." >&2
+    exit 1
+  fi
+  if [ -d "$APP_DIR" ]; then
+    echo "!! $APP_DIR hala var, silinemedi." >&2
+    exit 1
+  fi
+  echo "==> Uninstall tamamlandi: nextep.service kaldirildi."
+  echo "==> Not: python3/python3-venv/curl gibi sistem paketleri korunur."
+  exit 0
+fi
+
+# ---------- Database bilgisi (durum 5: database mevcutsa bildir) ----------
+if [ -f "$DB_FILE" ]; then
+  DB_SIZE="$(du -h "$DB_FILE" 2>/dev/null | cut -f1 || true)"
+  if [ -n "$DB_SIZE" ]; then
+    echo "==> Bilgi: mevcut database bulundu ($DB_FILE, $DB_SIZE)."
+  else
+    echo "==> Bilgi: mevcut database bulundu ($DB_FILE)."
+  fi
+fi
 
 # ---------- Database sorusu ----------
 WIPE_DB=""
