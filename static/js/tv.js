@@ -105,7 +105,7 @@ window._tvModalStack = modalStack;
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","details-modal","confirm-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","details-modal","confirm-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -625,6 +625,7 @@ document.addEventListener("keydown", (e)=>{
     return;
   }
   if (handleSearchViewNav(e, dir)) return;
+  if (handleLoginViewNav(e, dir)) return;
   gridMove(dir);
 });
 
@@ -691,6 +692,32 @@ function handleSearchViewNav(e, dir){
     }
     if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
   }
+  const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
+  e.preventDefault(); focusEl(chain[n]); return true;
+}
+
+// ---- Faz 30 login view D-pad: dikey lineer zincir (oturum yokken nav gizli) ----
+function isLoginViewActive(){
+  try { const v = document.getElementById('view-login'); return !!(v && v.classList.contains('active')); } catch { return false; }
+}
+function loginChain(){
+  const ids = ['#login-user','#login-pass','#login-pass2','#login-go','#login-register','#login-new','#login-save','#login-forgot'];
+  const out = [];
+  for (const sel of ids){
+    try {
+      const el = document.querySelector(sel);
+      if (el && isVisible(el) && !el.disabled) out.push(el);
+    } catch {}
+  }
+  return out;
+}
+function handleLoginViewNav(e, dir){
+  if (!isLoginViewActive()) return false;
+  const chain = loginChain();
+  if (!chain.length) return false;
+  const ae = document.activeElement;
+  let i = chain.indexOf(ae);
+  if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
   const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
   e.preventDefault(); focusEl(chain[n]); return true;
 }

@@ -11,7 +11,7 @@ function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=
 
 import { t, errText, animeGenreLabel } from "./i18n.js";
 import {
-  IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG, INFO_SVG,
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr,
@@ -78,7 +78,12 @@ async function openReleases(mediaType, tmdbId, title) {
           const pct = total ? Math.round((watched / total) * 100) : 0;
           const allWatched = total > 0 && watched === total;
           const btnDisabled = total === 0 ? " disabled" : "";
-          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
+          const multiSeason = seasonNames.length > 1;
+          const isFirstSeason = multiSeason && seasonKey === seasonNames[0];
+          const seasonCode = "S" + String(seasonKey).padStart(2, "0");
+          const watchTipText = allWatched ? t("season_mark_unwatched", { code: seasonCode }) : t("season_mark_watched", { code: seasonCode });
+          const watchIcon = allWatched ? EYE_OFF_SVG : EYE_SVG;
+          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}">${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
         } else {
           html += `<div class="season-box-title">${seasonLabel}</div>`;
         }
@@ -189,6 +194,32 @@ async function openReleases(mediaType, tmdbId, title) {
           if (btn.disabled) return;
           const seasonKey = btn.dataset.s;
           const watched = btn.dataset.w === "1" ? 1 : 0;
+          // Tek sezonlu dizide Temizle -> clear-apply (tampon otomatik uygulanir)
+          if (data.media_type === "tv" && watched === 0 && seasonNames.length === 1) {
+            btn.disabled = true;
+            try {
+              const res = await fetch("/api/seasons/clear-apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tmdb_id: tmdbId }),
+              });
+              const j = await res.json();
+              if (!res.ok) return;
+              data.items.forEach((it) => { it.watched = 0; });
+              (j.applied || []).forEach((a) => {
+                const it = data.items.find((x) => x.season === a.season && x.episode === a.episode);
+                if (it) it.watched = 1;
+              });
+              toast(j.applied && j.applied.length ? t("clear_applied", { n: j.applied.length }) : t("clear_no_signals"));
+              renderAll({s: seasonKey});
+              loadFollowed("dizi");
+            } catch (e) {
+              toast(t("error"));
+            } finally {
+              btn.disabled = false;
+            }
+            return;
+          }
           try {
             const res = await fetch("/api/season/watch", {
               method: "POST",
@@ -204,6 +235,34 @@ async function openReleases(mediaType, tmdbId, title) {
             loadFollowed("dizi");
           } catch (e) {
             toast(t("error"));
+          }
+        });
+      });
+
+      body.querySelectorAll(".season-clear-all").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          btn.disabled = true;
+          try {
+            const res = await fetch("/api/seasons/clear-apply", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tmdb_id: tmdbId }),
+            });
+            const j = await res.json();
+            if (!res.ok) return;
+            data.items.forEach((it) => { it.watched = 0; });
+            (j.applied || []).forEach((a) => {
+              const it = data.items.find((x) => x.season === a.season && x.episode === a.episode);
+              if (it) it.watched = 1;
+            });
+            toast(j.applied && j.applied.length ? t("clear_applied", { n: j.applied.length }) : t("clear_no_signals"));
+            renderAll();
+            loadFollowed("dizi");
+          } catch (e) {
+            toast(t("error"));
+          } finally {
+            btn.disabled = false;
           }
         });
       });
@@ -723,7 +782,11 @@ async function openAnimeSchedule(id, title) {
       const allWatched = releasedCount > 0 && releasedWatched === releasedCount;
       const pct = releasedCount ? Math.round((releasedWatched / releasedCount) * 100) : 0;
       let html = `<div class="season-box">`;
-      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><button class="season-watch-all" data-w="${allWatched ? 0 : 1}"${releasedCount ? "" : " disabled"}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
+      const rawTitleA = data.title || title || "";
+      const truncA = rawTitleA.length > 30 ? rawTitleA.slice(0, 30) : rawTitleA;
+      const watchTipTextA = allWatched ? t("season_mark_unwatched", { code: truncA }) : t("season_mark_watched", { code: truncA });
+      const watchIconA = allWatched ? EYE_OFF_SVG : EYE_SVG;
+      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
@@ -784,6 +847,32 @@ async function openAnimeSchedule(id, title) {
         btn.addEventListener("click", async () => {
           if (btn.disabled) return;
           const watched = btn.dataset.w === "1" ? 1 : 0;
+          // Temizle -> clear-apply (tampon otomatik uygulanir)
+          if (watched === 0) {
+            btn.disabled = true;
+            try {
+              const r = await fetch("/api/seasons/clear-apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ anilist_id: data.anilist_id }),
+              });
+              const j = await r.json();
+              if (!r.ok) return;
+              items.forEach((it) => { it.watched = 0; });
+              (j.applied || []).forEach((a) => {
+                const idx = items.findIndex((it) => it.episode === a.episode);
+                if (idx >= 0) items[idx].watched = 1;
+              });
+              toast(j.applied && j.applied.length ? t("clear_applied", { n: j.applied.length }) : t("clear_no_signals"));
+              renderTable('all');
+              if (typeof loadAnime === "function") loadAnime();
+            } catch (e) {
+              toast(t("error"));
+            } finally {
+              btn.disabled = false;
+            }
+            return;
+          }
           const targets = items.filter((it) => it.airing_at && it.airing_at * 1000 <= now);
           try {
             for (const it of targets) {

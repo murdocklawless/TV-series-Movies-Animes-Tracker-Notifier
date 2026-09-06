@@ -7,14 +7,25 @@ import { closeResultsModal } from "./search.js";
 import "./settings.js";
 import "./notification.js";
 import "./tv.js";
+import { bootAuth } from "./auth.js";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
-let lastView = "dizi";
-try {
-  lastView = localStorage.getItem("activeView") || "dizi";
-} catch (e) {}
-if (!views[lastView]) lastView = "dizi";
-switchView(lastView);
+// Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama
+// verileri yalnız giriş sonrası (auth:ready) yüklenir.
+let _appStarted = false;
+function startApp() {
+  if (_appStarted) return;
+  _appStarted = true;
+  let lastView = "dizi";
+  try {
+    lastView = localStorage.getItem("activeView") || "dizi";
+  } catch (e) {}
+  if (!views[lastView]) lastView = "dizi";
+  switchView(lastView);
+  loadInitialData();
+}
+document.addEventListener("auth:ready", startApp);
+bootAuth();
 
 // Dil değişince aktif görünümü yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
@@ -23,8 +34,9 @@ document.addEventListener("app:langchange", () => {
   if (views.unwatched.classList.contains("active")) loadUnwatched();
 });
 
-// ---- İlk veri yüklemeleri ----
-(async () => {
+// ---- İlk veri yüklemeleri (yalnız giriş sonrası) ----
+function loadInitialData() {
+  (async () => {
   try {
     const res = await fetch("/api/settings");
     const s = await res.json();
@@ -79,6 +91,7 @@ document.addEventListener("app:langchange", () => {
     /* yoksay */
   }
 })();
+} // loadInitialData
 
 // ---- Özel tooltip ----
 let tipEl = null;

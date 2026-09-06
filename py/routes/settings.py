@@ -403,6 +403,7 @@ def get_settings():
             "smtp_user": get_setting("smtp_user") or "",
             "has_smtp_pass": bool(get_setting("smtp_pass")),
             "cache_ttl": get_setting("cache_ttl") or "3600",
+            "tp_base_url": get_setting("tp_base_url") or "",
             "server_today": today_str(),
             **{f"notif_{k}": get_setting(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
@@ -471,6 +472,7 @@ def save_settings():
         "smtp_port",
         "smtp_user",
         "cache_ttl",
+        "tp_base_url",
         *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:

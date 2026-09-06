@@ -1,6 +1,17 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.4 - 06/09/2026-20:20
+### TR
+- Çoklu kullanıcı geldi: giriş ekranıyla kullanıcı adı ve şifreyle giriş yapılır.
+- Yeni cihazda kayıt olunur, ilk kayıt yönetici olur, sonrakiler yönetici onayıyla açılır.
+- Şifresini unutan yöneticiye istek gönderir, verilen geçici şifreyle ilk girişte yeniler.
+- Yönetici, ayarlardaki Admin bölümünden bekleyen kayıtları ve üyeleri yönetir.
+### EN
+- Multi-user is here: sign in with username and password on the login screen.
+- Register on a new device; the first account becomes admin, later ones open with admin approval.
+- Forgotten passwords go to the admin as a request; sign in with the temporary password and set a new one.
+- The admin manages pending registrations and members from the Admin section in settings.
 ## 1.3 - 06/09/2026-17:40
 ### TR
 - Stremio'da izlenen dizi ve film artık hep algılanıyor, çift kayıt olmuyor.

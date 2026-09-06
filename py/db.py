@@ -232,6 +232,72 @@ def init_db():
             PRIMARY KEY(kind, ident)
         )"""
     )
+    # Stremio -> izlendi sinyal tamponu (Stremio izleme senkronu, Faz 29).
+    # Her altyazi sinyali kaydedilir; clear-apply uygulayinca satir silinir; gecelik budanir.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS stremio_signals (
+            dedupe TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            tmdb_id INTEGER,
+            anilist_id INTEGER,
+            season INTEGER,
+            episode INTEGER,
+            ts INTEGER NOT NULL
+        )"""
+    )
+    # Harici anime ID eslemeleri (kitsu/tmdb/imdb/tvdb/trakt -> anilist_id). Kalici onbellek.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_id_map (
+            source TEXT NOT NULL,
+            external_id TEXT NOT NULL,
+            anilist_id INTEGER NOT NULL,
+            ts INTEGER NOT NULL,
+            PRIMARY KEY(source, external_id)
+        )"""
+    )
+    # Eszamanli Stremio sinyallerinde cift follow olusmasin (Faz 29b yaris duzeltmesi)
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_followed_tmdb ON followed(tmdb_id, media_type)"
+    )
+    # Faz 30 coklu kullanici: hesaplar, oturumlar, sifre sifirlama istekleri, kaba-kuvvet kilidi.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            status TEXT NOT NULL DEFAULT 'pending',
+            force_pw_change INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT ''
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            device TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        )"""
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)"
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS password_resets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open',
+            created_at TEXT NOT NULL DEFAULT ''
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS login_attempts (
+            key TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0,
+            locked_until INTEGER NOT NULL DEFAULT 0
+        )"""
+    )
     conn.commit()
     conn.close()
 

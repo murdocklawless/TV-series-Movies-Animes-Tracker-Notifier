@@ -1,8 +1,9 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang } from "./i18n.js";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
 import { sortMenu, activateUtilityTab, closeSortMenu } from "./views.js";
+import { showConfirm } from "./components.js";
 
 // ---- Search ----
 // ---- Settings ----
@@ -718,6 +719,7 @@ async function showSettingsSubmodal(id) {
     renderFavGenresList();
   }
   if (id === "settings-notify-modal") updateNotifyToggleStates();
+  if (id === "settings-thirdparty-modal") renderThirdPartyApps();
   closeSettingsMenu();
 }
 
@@ -1919,5 +1921,174 @@ document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
 
 // e-posta akordeonu kapsami yukarida Faz 19c dinleyicisine eklendi
 
+// ---- Third Party Apps (Faz 29): genisletilebilir uygulama kartlari ----
+// Yeni uygulama = backend THIRDPARTY_APPS'e satir + buraya renderer. Cekirdek donguye dokunulmaz.
+
+let tpStremioOpen = false;
+let tpBaseUrl = "";
+
+async function renderThirdPartyApps() {
+  const wrap = document.getElementById("thirdparty-apps");
+  if (!wrap) return;
+  wrap.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  let apps = [];
+  try {
+    const r = await fetch("/api/thirdparty/status", { cache: "no-store" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "status");
+    apps = j.apps || [];
+  } catch (e) {
+    wrap.innerHTML = `<div class="releases-error">${errText((e && e.message) || "") || t("data_failed")}</div>`;
+    return;
+  }
+  try {
+    const s = await fetch("/api/settings", { cache: "no-store" });
+    const sj = await s.json();
+    tpBaseUrl = (s.ok && sj && sj.tp_base_url ? String(sj.tp_base_url) : "").trim();
+  } catch (_) {
+    tpBaseUrl = "";
+  }
+  if (!apps.length) {
+    wrap.innerHTML = `<div class="fav-empty">${t("tp_empty")}</div>`;
+    return;
+  }
+  wrap.innerHTML = apps
+    .map((app) => {
+      const renderer = thirdPartyAppRenderers[app.id];
+      try {
+        return renderer ? renderer(app) : `<div class="channel-box notif-type-box"><div class="notif-type-head"><span class="notif-type-title">${escAttr(app.name || app.id)}</span></div></div>`;
+      } catch (e) {
+        return `<div class="channel-box notif-type-box"><div class="notif-type-head"><span class="notif-type-title">${escAttr(app.name || app.id)}</span></div></div>`;
+      }
+    })
+    .join("");
+  bindThirdPartyEvents();
+}
+
+const thirdPartyAppRenderers = {
+  stremio: (app) => `
+    <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}" id="tp-app-stremio">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid fa-cubes"></i> ${escAttr(app.name || "Stremio")}</span>
+      </div>
+      <div class="notif-type-body" style="display:${tpStremioOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_status")}</span>
+            <span class="tp-status-value ${app.connected ? "tp-connected" : "tp-not-connected"}">${app.connected ? t("tp_connected") : t("tp_not_connected")}</span>
+          </div>
+          ${app.lastSignal ? `<div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>` : ""}
+        </div>
+        ${app.installUrl ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
+            <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+          </label>
+        </div>` : ""}
+        ${tpBaseUrl ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span></span>
+            <div class="tp-url-box"><a id="tp-base-link" href="${escAttr(tpBaseUrl)}" target="_blank" rel="noopener">${escAttr(tpBaseUrl)}</a></div>
+          </label>
+        </div>` : ""}
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+          <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
+          ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+        </div>
+      </div>
+    </div>`,
+};
+
+function formatSignalTime(ts) {
+  try {
+    const d = new Date(ts * 1000);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleString();
+  } catch (e) {
+    return "—";
+  }
+}
+
+function bindThirdPartyEvents() {
+  const tpBox = document.getElementById("tp-app-stremio");
+  if (tpBox) {
+    const tpHead = tpBox.querySelector(".notif-type-head");
+    const tpBody = tpBox.querySelector(".notif-type-body");
+    if (tpHead && tpBody) {
+      tpHead.addEventListener("click", (e) => {
+        if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
+        tpStremioOpen = tpBody.style.display === "none";
+        tpBody.style.display = tpStremioOpen ? "block" : "none";
+        tpBox.classList.toggle("accordion-open", tpStremioOpen);
+      });
+    }
+  }
+  const copyBtn = document.getElementById("tp-stremio-copy");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      const input = document.getElementById("tp-stremio-url");
+      if (!input) return;
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(input.value);
+        ok = true;
+      } catch (e) {
+        ok = false;
+      }
+      if (!ok) {
+        try {
+          input.select();
+          input.setSelectionRange(0, 99999);
+          ok = document.execCommand("copy");
+        } catch (e2) {
+          ok = false;
+        }
+      }
+      toast(ok ? t("tp_copied") : t("error"));
+    });
+  }
+  const refreshBtn = document.getElementById("tp-stremio-refresh");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add("loading");
+      try {
+        const r = await fetch("/api/thirdparty/stremio/refresh-uuid", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "refresh");
+        toast(t("tp_uuid_refreshed"));
+        renderThirdPartyApps();
+      } catch (e) {
+        toast(errText((e && e.message) || "") || t("error"), true);
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove("loading");
+      }
+    });
+  }
+  const disconnectBtn = document.getElementById("tp-stremio-disconnect");
+  if (disconnectBtn) {
+    disconnectBtn.addEventListener("click", () => {
+      showConfirm(t("tp_confirm_disconnect"), async () => {
+        try {
+          const r = await fetch("/api/thirdparty/stremio/disconnect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || "disconnect");
+          toast(t("tp_disconnected"));
+          renderThirdPartyApps();
+        } catch (e) {
+          toast(errText((e && e.message) || "") || t("error"), true);
+        }
+      }, { yes: t("confirm_yes") });
+    });
+  }
+}
+
 export { loadSettings, renderFavActorsList, renderFavGenresList, saveSettingsPartial,
-         updateNotifyToggleStates, closeSettingsMenu, showSettingsSubmodal, closeSettingsModals };
+         updateNotifyToggleStates, closeSettingsMenu, showSettingsSubmodal, closeSettingsModals, renderThirdPartyApps };

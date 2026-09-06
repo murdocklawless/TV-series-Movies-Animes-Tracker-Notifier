@@ -1,5 +1,6 @@
 import json
 import datetime
+import time
 
 import requests
 
@@ -147,6 +148,10 @@ query ($id: Int) {
     studios(isMain: true) {
       nodes { name }
     }
+    externalLinks {
+      site
+      url
+    }
     characters(sort: ROLE, perPage: 12) {
       nodes {
         id
@@ -164,6 +169,77 @@ def anilist_detail(anime_id):
     if not data:
         return None
     return data.get("Media")
+
+
+def load_anime_map(conn, source, external_id):
+    """anime_id_map onbellekinden harici ID -> anilist_id (yoksa None)."""
+    try:
+        row = conn.execute(
+            "SELECT anilist_id FROM anime_id_map WHERE source=? AND external_id=?",
+            (source, str(external_id)),
+        ).fetchone()
+        return row["anilist_id"] if row else None
+    except Exception:
+        return None
+
+
+def store_anime_map(conn, source, external_id, anilist_id):
+    """Harici ID -> anilist_id eslemesini kalici onbellege yazar. Fail-soft."""
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO anime_id_map (source, external_id, anilist_id, ts) VALUES (?, ?, ?, ?)",
+            (source, str(external_id), int(anilist_id), int(time.time())),
+        )
+    except Exception:
+        pass
+
+
+def resolve_external_anilist(source, external_id):
+    """Harici anime ID'yi anilist_id'ye cevirir (Kitsu API mappings uzerinden).
+
+    source: kitsu | tmdb | imdb | tvdb | trakt. Hata/cozumsuz -> None (cagiran atlar,
+    yanlis yazma yapilmaz). Sonuc anime_id_map'e yazilir (cagiran taraf).
+    """
+    try:
+        external_id = str(external_id).strip()
+        if not external_id:
+            return None
+        if source == "kitsu":
+            url = f"https://kitsu.io/api/edge/anime/{external_id}/mappings?filter[externalSite]=anilist"
+            r = requests.get(url, timeout=15, headers={"Accept": "application/vnd.api+json"})
+            if r.status_code != 200:
+                return None
+            for it in (r.json().get("data") or []):
+                attrs = it.get("attributes") or {}
+                if attrs.get("externalSite") == "anilist" and str(attrs.get("externalId") or "").isdigit():
+                    return int(attrs["externalId"])
+            return None
+        site_map = {"tmdb": "tmdb", "imdb": "imdb", "tvdb": "tvdb", "trakt": "trakt"}
+        site = site_map.get(source)
+        if not site:
+            return None
+        candidates = [external_id]
+        if source == "imdb" and external_id.startswith("tt"):
+            candidates.append(external_id[2:])
+        kitsu_id = None
+        for cand in candidates:
+            url = f"https://kitsu.io/api/edge/mappings?filter[externalSite]={site}&filter[externalId]={cand}"
+            r = requests.get(url, timeout=15, headers={"Accept": "application/vnd.api+json"})
+            if r.status_code != 200:
+                continue
+            for it in (r.json().get("data") or []):
+                rel = ((it.get("relationships") or {}).get("anime") or {}).get("data") or {}
+                kid = rel.get("id")
+                if kid:
+                    kitsu_id = kid
+                    break
+            if kitsu_id:
+                break
+        if not kitsu_id:
+            return None
+        return resolve_external_anilist("kitsu", kitsu_id)
+    except Exception:
+        return None
 
 
 ANIME_SCHEDULE_QUERY = """

@@ -18,8 +18,8 @@ PORT="${PORT:-8050}"
 mkdir -p "$RUN_DIR"
 
 healthy() {
-  curl -sf -m 10 -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null \
-    && curl -sf -m 10 -o /dev/null "http://127.0.0.1:$PORT/api/followed" 2>/dev/null
+  # Faz 30: /api/* oturum ister (401) — saglik yoklamasi yalniz /'ya bakar.
+  curl -sf -m 10 -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null
 }
 
 notify_all_py() {

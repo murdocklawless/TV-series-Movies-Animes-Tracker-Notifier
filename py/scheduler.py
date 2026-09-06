@@ -690,6 +690,15 @@ def refresh_fav_listings_job():
         print("fav listings refresh failed:", e, flush=True)
 
 
+def stremio_prune_job():
+    """Stremio sinyal tamponunu buda (gecelik, fail-soft)."""
+    try:
+        from routes.stremio import prune_stremio_signals
+        prune_stremio_signals()
+    except Exception as e:
+        print("stremio prune failed:", e, flush=True)
+
+
 def app_update_job():
     """Uygulama güncelleme cron'u (fail-soft): yeni sürüm + oto-açık ise günceller."""
     try:
@@ -916,6 +925,19 @@ def schedule_releases():
         minute=backup_m,
         timezone=tz,
         id="backup_job",
+        misfire_grace_time=3600,
+    )
+
+    # Stremio sinyal tamponu budama: gecelik (backup saati sonrasi sabit 03:30)
+    if SCHEDULER.get_job("stremio_prune"):
+        SCHEDULER.remove_job("stremio_prune")
+    SCHEDULER.add_job(
+        stremio_prune_job,
+        "cron",
+        hour=3,
+        minute=30,
+        timezone=tz,
+        id="stremio_prune",
         misfire_grace_time=3600,
     )
 

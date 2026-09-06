@@ -29,6 +29,8 @@ static/images/posters/
 
 # Baglanti bilgileri ve yerel arac dizinleri repoya girmez
 md/pi5.md
+md/pi4.md
+md/vps.md
 .opencode/
 .smtp_secret
 tmp_push/

@@ -2894,6 +2894,13 @@ input:-webkit-autofill:focus {
   gap: 10px;
 }
 
+.season-box-title .season-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-self: end;
+}
+
 .season-name {
   white-space: nowrap;
   font-size: 0.85rem;
@@ -2935,28 +2942,150 @@ input:-webkit-autofill:focus {
 }
 
 .season-watch-all {
-  background: #262a36;
-  border: 1px solid #3a4050;
-  color: #c9cedb;
-  font-size: 0.72rem;
-  padding: 3px 10px;
-  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 0;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
 }
 
-.season-watch-all:hover {
-  background: rgba(249, 115, 22, 0.3);
-  border-color: #f97316;
-  color: #fff;
+.season-watch-all:not(.is-clear):hover {
+  background: transparent;
+  border: none;
+  color: #16a34a;
+}
+
+.season-watch-all.is-clear {
+  color: #B4B8C4;
+}
+
+.season-watch-all.is-clear:hover {
+  background: transparent;
+  border: none;
+  color: #fca5a5;
 }
 
 .season-watch-all:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.season-clear-all {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.season-clear-all:hover {
+  background: transparent;
+  border: none;
+  color: #fca5a5;
+}
+
+.season-clear-all:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Third Party Apps modal (Faz 29) */
+#thirdparty-apps .tp-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  gap: 12px;
+}
+
+.tp-status-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tp-status-value.tp-connected { color: #22c55e; font-weight: 400; }
+.tp-status-value.tp-not-connected { color: #ef4444; }
+
+.tp-last-signal {
+  font-size: 0.95rem;
+  font-weight: 400;
+  white-space: nowrap;
+  color: #22c55e;
+}
+
+.tp-sub-box {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tp-url-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.tp-url-box input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4050;
+  background: #171a23;
+  color: #c9cedb;
+}
+
+.tp-url-box button {
+  font-size: 0.95rem;
+  padding: 8px 10px;
+}
+
+.tp-url-box a {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a4050;
+  background: #171a23;
+  color: #c9cedb;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.tp-url-box a:hover {
+  border-color: #f97316;
+  color: #fff;
 }
 
 .releases-table .watch-btn {
@@ -3887,4 +4016,43 @@ select#s-email-provider.email-lit {
 #tab-exit { display: none; }
 /* TV: kart buton modundayken (odak kartin icinde) kart turuncu kalmaya devam eder */
 /* TV: vh birimleri Android TV WebView'da sifira cozulebiliyor — acilir menuler/listeler px'e cekilir (1080p CSS ~540px) */
-/* TV: kart + iç elemanlar %30 küçültme — exact *0.7, yuvarlamasız (hizalama korunur) */
+/* TV: kart + iç elemanlar %30 küçültme — exact *0.7, yuvarlamasız (hizalama korunur) *//* Faz 30 login ekrani: ortalanmis tek cerceve, alt alta kutular + .tab butonlar */
+body.logged-out nav { display: none; }
+body.logged-out main { padding: 0; }
+#view-login.active { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 40px); }
+.login-frame { background: #171a23; border: 1px solid #F97316; border-radius: 12px; max-width: 480px; width: min(480px, 92vw); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 10px; }
+.login-frame.register-mode { border-color: #166534; }
+.login-frame h2 { color: #f97316; margin: 0 0 8px; text-align: center; }
+.login-frame.register-mode h2 { color: #22c55e; }
+.login-frame input { background: #171a23; border: 1px solid #2a2f3d; border-radius: 8px; color: #fff; padding: 12px; font-size: 1rem; width: 100%; box-sizing: border-box; }
+.login-frame input:focus { border-color: #f97316; outline: none; }
+.login-frame.register-mode input:focus { border-color: #22c55e; }
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 42px; }
+.pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #aab; cursor: pointer; padding: 8px; font-size: 0.9rem; }
+.pw-eye:hover { color: #fff; }
+.login-hint { color: #4ade80; font-size: 0.7rem; margin: -4px 0 4px; }
+.login-note { color: #fbbf24; }
+.login-btns { display: flex; gap: 10px; margin-top: 6px; }
+.login-btns .tab { flex: 1; justify-content: center; }
+.login-btns #login-register:hover { background: rgba(34, 197, 94, 0.3); border-color: #22c55e; color: #fff; }
+.login-frame.register-mode #login-go { border-color: #2a2f3d; color: #aab; }
+.login-frame.register-mode #login-go:hover { border-color: #F97316; color: #fff; background: rgba(249, 115, 22, 0.3); }
+.login-frame.register-mode #login-register { border-color: #22c55e; color: #fff; }
+.login-link { background: none; border: none; color: #aab; cursor: pointer; font-size: 0.8rem; margin-top: 4px; }
+.login-link:hover { color: #fff; }
+/* Faz 30 admin modal satirlari + rozet */
+.admin-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #2a2f3d; }
+.admin-row:last-child { border-bottom: none; }
+.admin-name { font-weight: 600; }
+.admin-sub { color: #aab; font-size: 0.75rem; }
+.admin-actions { display: flex; gap: 6px; }
+.admin-actions .tab { padding: 5px 10px; font-size: 0.75rem; }
+.admin-temp { background: #171a23; border: 1px dashed #22c55e; border-radius: 8px; padding: 10px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.admin-empty { color: #aab; font-size: 0.85rem; padding: 4px 0 10px; }
+#menu-admin-item .notif-badge { margin-left: auto; }
+/* Faz 30 admin modal: 3 cerceve aralıklı dizilir (yalnız bu modal) */
+#settings-admin-modal .modal-body { display: flex; flex-direction: column; gap: 12px; }
+/* Faz 30 admin modal: satir icerikleri cerceveye ortali */
+#settings-admin-modal .admin-row { justify-content: center; text-align: center; }
+#settings-admin-modal .admin-empty { text-align: center; }
