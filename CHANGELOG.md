@@ -1,6 +1,17 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.3 - 06/09/2026-17:40
+### TR
+- Stremio'da izlenen dizi ve film artık hep algılanıyor, çift kayıt olmuyor.
+- Stremio NextEp eklentisi telefonda ve bilgisayarda çalışır hale geldi.
+- Takvimde butonlar kaymıyor, düzgün şekilde sağda duruyor.
+- Dizi izlerken atlayarak izlenen bölüm takvimde izlendi sayılmaz, sırayla izleyince işlenir; eski artıklar temizlendi.
+### EN
+- Series and movies watched in Stremio are now always detected, with no duplicate entries.
+- The Stremio NextEp add-on now works on phone and computer.
+- Calendar buttons no longer shift around, they sit neatly on the right.
+- When watching a series, an episode watched out of order is not marked as watched in the calendar; watching in order counts; old leftovers were cleaned up.
 ## 1.13 - 04/09/2026-02:28
 ### TR
 - Sürüm bilgisi veritabanındaki `version` tablosunda tutuluyor; VERSION dosyası farklıysa sessizce düzeltilir.
