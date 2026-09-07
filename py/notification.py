@@ -3,10 +3,20 @@ import json
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from auth import get_current_user
 from ramcache import list_cache, bump, gen, cached_response
 from poster_store import versioned_web_path
 
 notification_bp = Blueprint("notification", __name__)
+
+
+def _me_id():
+    """Oturumdaki kullanici id'si (yoksa 0). Faz 31: kisisel bildirim suzgeci."""
+    try:
+        u = get_current_user()
+        return u["id"] if u else 0
+    except Exception:
+        return 0
 
 
 def _now_ts():
@@ -62,10 +72,11 @@ def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_
         conn.close()
 
 
-def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None):
+def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None, user_id=0):
     """Insert notification if not duplicate. Handles thumbnail generation.
     kind_for_thumb: tv/movie/anime, ident_for_thumb: tmdb_id/anilist_id
     remote_poster_url: fallback url (w500 or cover) to ensure thumb if w500 missing.
+    user_id: 0 = herkese acik; >0 yalniz hedef kullaniciya (Faz 31 rol bildirimi).
     Returns new id or None if duplicate."""
     conn = get_db()
     try:
@@ -105,8 +116,8 @@ def create_notification(title, message, type_name, media_type=None, tmdb_id=None
             pass
 
     conn.execute(
-        "INSERT INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts()),
+        "INSERT INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts(), user_id or 0),
     )
     conn.commit()
     nid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -128,15 +139,16 @@ def list_notifications():
         offset = 0
     limit = max(1, min(100, limit))
     offset = max(0, offset)
-    key = ("notif_list", gen(), unread or "", limit, offset)
+    uid = _me_id()
+    key = ("notif_list", gen(), uid, unread or "", limit, offset)
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
-        rows = conn.execute("SELECT * FROM notifications WHERE is_read=0 ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+        rows = conn.execute("SELECT * FROM notifications WHERE is_read=0 AND (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+        rows = conn.execute("SELECT * FROM notifications WHERE (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
     conn.close()
     out = []
     for r in rows:
@@ -153,15 +165,16 @@ def list_notifications():
 @notification_bp.route("/api/notifications/count", methods=["GET"])
 def count_notifications():
     unread = request.args.get("unread")
-    key = ("notif_count", gen(), unread or "")
+    uid = _me_id()
+    key = ("notif_count", gen(), uid, unread or "")
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
-        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE is_read=0").fetchone()["c"]
+        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE is_read=0 AND (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
     else:
-        c = conn.execute("SELECT COUNT(*) c FROM notifications").fetchone()["c"]
+        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
     conn.close()
     payload = {"count": c}
     list_cache.set(key, payload)
@@ -176,8 +189,9 @@ def mark_read(nid):
         is_read = 1
     else:
         is_read = 1 if is_read else 0
+    uid = _me_id()
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read=? WHERE id=?", (is_read, nid))
+    conn.execute("UPDATE notifications SET is_read=? WHERE id=? AND (user_id=0 OR user_id=?)", (is_read, nid, uid))
     conn.commit()
     conn.close()
     bump()
@@ -186,8 +200,9 @@ def mark_read(nid):
 
 @notification_bp.route("/api/notifications/read-all", methods=["POST"])
 def mark_all_read():
+    uid = _me_id()
     conn = get_db()
-    conn.execute("UPDATE notifications SET is_read=1 WHERE is_read=0")
+    conn.execute("UPDATE notifications SET is_read=1 WHERE is_read=0 AND (user_id=0 OR user_id=?)", (uid,))
     conn.commit()
     conn.close()
     bump()
@@ -196,9 +211,10 @@ def mark_all_read():
 
 @notification_bp.route("/api/notifications/<int:nid>", methods=["DELETE"])
 def delete_one(nid):
+    uid = _me_id()
     conn = get_db()
     # also delete thumb/poster? keep files as they may be used elsewhere, but thumbnail could be removed if no other notification references it - keep for now
-    conn.execute("DELETE FROM notifications WHERE id=?", (nid,))
+    conn.execute("DELETE FROM notifications WHERE id=? AND (user_id=0 OR user_id=?)", (nid, uid))
     conn.commit()
     conn.close()
     bump()
@@ -208,8 +224,9 @@ def delete_one(nid):
 @notification_bp.route("/api/notifications", methods=["DELETE"])
 def delete_all():
     # clear all
+    uid = _me_id()
     conn = get_db()
-    conn.execute("DELETE FROM notifications")
+    conn.execute("DELETE FROM notifications WHERE (user_id=0 OR user_id=?)", (uid,))
     conn.commit()
     conn.close()
     bump()

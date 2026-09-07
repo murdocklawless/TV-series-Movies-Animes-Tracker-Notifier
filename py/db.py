@@ -283,6 +283,17 @@ def init_db():
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)"
     )
+    # Faz 31d: kalp-atisi son gorulme (cevrimici = taze last_seen).
+    cols_s = [r["name"] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "last_seen" not in cols_s:
+        conn.execute("ALTER TABLE sessions ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0")
+    # Faz 31: kisisel bildirimler (rol degisimi) icin hedef kullanici; 0 = herkese acik.
+    cols_n = [r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()]
+    if "user_id" not in cols_n:
+        conn.execute("ALTER TABLE notifications ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, is_read, created_at)"
+    )
     conn.execute(
         """CREATE TABLE IF NOT EXISTS password_resets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

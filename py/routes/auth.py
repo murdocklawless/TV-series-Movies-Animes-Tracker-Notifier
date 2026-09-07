@@ -1,5 +1,6 @@
 """Faz 30 coklu kullanici: kayit/giris/oturum/admin uclari."""
 import datetime
+import time
 
 from flask import Blueprint, jsonify, request
 
@@ -23,6 +24,8 @@ from auth import (
     verify_password,
 )
 from db import get_db
+
+from notification import create_notification
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -218,6 +221,46 @@ def _user_dict(row):
     }
 
 
+# Faz 31d: cevrimici esigi (sn). Ping 30 sn'de bir; veda sinyali gelemeyen
+# (cokus/kesinti) en gec bu surede dusmus sayilir.
+ONLINE_WINDOW = 90
+
+
+@auth_bp.route("/api/auth/ping", methods=["POST"])
+@login_required
+def auth_ping():
+    user = get_current_user()
+    token = request.cookies.get(SESSION_COOKIE) or ""
+    now = int(time.time())
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE sessions SET last_seen=? WHERE token=? AND user_id=?",
+            (now, token, user["id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True, "now": now})
+
+
+@auth_bp.route("/api/auth/exit", methods=["POST"])
+@login_required
+def auth_exit():
+    user = get_current_user()
+    token = request.cookies.get(SESSION_COOKIE) or ""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE sessions SET last_seen=0 WHERE token=? AND user_id=?",
+            (token, user["id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
+
+
 @auth_bp.route("/api/auth/pending", methods=["GET"])
 @admin_required
 def auth_pending():
@@ -247,12 +290,23 @@ def auth_pending():
 @auth_bp.route("/api/auth/members", methods=["GET"])
 @admin_required
 def auth_members():
+    now = int(time.time())
+    cutoff = now - ONLINE_WINDOW
     conn = get_db()
     try:
         rows = conn.execute("SELECT * FROM users ORDER BY id").fetchall()
+        out = []
+        for r in rows:
+            d = _user_dict(r)
+            on = conn.execute(
+                "SELECT 1 FROM sessions WHERE user_id=? AND expires_at>? AND last_seen>? LIMIT 1",
+                (r["id"], now, cutoff),
+            ).fetchone()
+            d["online"] = bool(on)
+            out.append(d)
     finally:
         conn.close()
-    return jsonify({"members": [_user_dict(r) for r in rows]})
+    return jsonify({"members": out})
 
 
 @auth_bp.route("/api/auth/approve", methods=["POST"])
@@ -373,4 +427,126 @@ def auth_kick():
     except (TypeError, ValueError):
         return jsonify({"error": "auth_nouser"}), 404
     drop_user_sessions(user_id)
+    return jsonify({"ok": True})
+
+
+def _other_admin_count(conn, exclude_id):
+    row = conn.execute(
+        "SELECT COUNT(*) AS c FROM users WHERE role='admin' AND status='active' AND id!=?",
+        (exclude_id,),
+    ).fetchone()
+    return row["c"] if row else 0
+
+
+def _role_notify(target_id, actor_name, to_admin):
+    """Baskasi rol degistirince hedefe kisisel bildirim; kendi isleminde sessiz."""
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT username FROM users WHERE id=?", (target_id,)).fetchone()
+        conn.close()
+        if not row or row["username"] == actor_name:
+            return
+    except Exception:
+        return
+    import time as _time
+
+    kind = "role_admin" if to_admin else "role_member"
+    title = "Admin yapıldınız" if to_admin else "Üye yapıldınız"
+    msg = f"{actor_name} tarafından {'admin' if to_admin else 'üye'} yapıldınız"
+    try:
+        # time_ns: art arda degisimlerde ayni-saniye dedupe yutmasin.
+        create_notification(title, msg, kind, notified_date=f"role_{_time.time_ns()}_{target_id}",
+                            user_id=target_id)
+    except Exception:
+        pass
+
+
+@auth_bp.route("/api/auth/promote", methods=["POST"])
+@admin_required
+def auth_promote():
+    actor = get_current_user()
+    body = request.get_json(silent=True) or {}
+    try:
+        user_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "auth_nouser"}), 404
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row or row["status"] != "active" or row["role"] == "admin":
+            return jsonify({"error": "auth_nouser"}), 404
+        conn.execute("UPDATE users SET role='admin' WHERE id=?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    _role_notify(user_id, actor["username"], True)
+    return jsonify({"ok": True})
+
+
+@auth_bp.route("/api/auth/demote", methods=["POST"])
+@admin_required
+def auth_demote():
+    actor = get_current_user()
+    body = request.get_json(silent=True) or {}
+    try:
+        user_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "auth_nouser"}), 404
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row or row["status"] != "active" or row["role"] != "admin":
+            return jsonify({"error": "auth_nouser"}), 404
+        # Son admin inemez (id==1 ozel yasagi yerine gecer).
+        if _other_admin_count(conn, user_id) < 1:
+            return jsonify({"error": "auth_last_admin"}), 403
+        conn.execute("UPDATE users SET role='member' WHERE id=?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+    _role_notify(user_id, actor["username"], False)
+    return jsonify({"ok": True})
+
+
+# Faz 32'de user_id kolonu gelen tablolar buraya eklenir (sifir kirinti).
+_USER_TABLES = ["sessions", "password_resets", "notifications"]
+
+
+def _delete_user_everything(user_id):
+    conn = get_db()
+    try:
+        for tbl in _USER_TABLES:
+            col = "user_id"
+            try:
+                conn.execute(f"DELETE FROM {tbl} WHERE {col}=?", (user_id,))
+            except Exception:
+                pass
+        conn.execute("DELETE FROM users WHERE id=?", (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@auth_bp.route("/api/auth/delete", methods=["POST"])
+@admin_required
+def auth_delete():
+    actor = get_current_user()
+    body = request.get_json(silent=True) or {}
+    try:
+        user_id = int(body.get("id") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "auth_nouser"}), 404
+    if user_id == actor["id"]:
+        return jsonify({"error": "auth_self"}), 403
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "auth_nouser"}), 404
+        if row["role"] == "admin" and row["status"] == "active":
+            if _other_admin_count(conn, user_id) < 1:
+                return jsonify({"error": "auth_last_admin"}), 403
+    finally:
+        conn.close()
+    _delete_user_everything(user_id)
     return jsonify({"ok": True})

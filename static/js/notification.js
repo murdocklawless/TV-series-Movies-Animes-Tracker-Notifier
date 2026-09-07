@@ -99,6 +99,7 @@ async function fetchList() {
       const div = document.createElement("div");
       div.className = "notif-item" + (n.is_read ? "" : " unread");
       div.dataset.id = n.id;
+      if (n.type) div.dataset.ntype = n.type;
       let thumbHtml = "";
       if (state.notifCenterPoster) {
         const thumb = n.thumbnail_local || n.poster_local || "";

@@ -1,6 +1,6 @@
 // Faz 30: kimlik — giris/kayit ekranı, oturum boot, admin modalı, rol kapıları.
 import { t } from "./i18n.js";
-import { toast } from "./utils.js";
+import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js";
 import { showConfirm } from "./components.js";
 import { switchView } from "./views.js";
 
@@ -134,9 +134,10 @@ function ensureForceRow() {
   const eye = document.createElement("button");
   eye.type = "button";
   eye.className = "pw-eye";
+  eye.tabIndex = -1;
   eye.dataset.for = "login-new";
   eye.setAttribute("data-i18n-title", "login_show_pw");
-  eye.innerHTML = '<i class="fa-solid fa-eye"></i>';
+  eye.innerHTML = '<i class="fa-regular fa-eye"></i>';
   wrap.appendChild(np);
   wrap.appendChild(eye);
   const sv = document.createElement("button");
@@ -191,6 +192,32 @@ function enterApp(user) {
   switchView(v);
   if (isAdmin()) refreshAdminBadge();
   document.dispatchEvent(new CustomEvent("auth:ready"));
+  startHeartbeat();
+}
+
+// ---- Faz 31d kalp-atisi: acilista aninda + 30 sn'de bir; kapanista veda sinyali ----
+let beatTimer = null;
+function sendPing() {
+  if (!currentUser) return;
+  api("/api/auth/ping", { method: "POST" }).catch(() => {});
+}
+function startHeartbeat() {
+  sendPing();
+  if (beatTimer) clearInterval(beatTimer);
+  beatTimer = setInterval(sendPing, 30000);
+  if (!startHeartbeat._wired) {
+    startHeartbeat._wired = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") sendPing();
+    });
+    window.addEventListener("pagehide", () => {
+      if (!currentUser) return;
+      try {
+        const blob = new Blob([JSON.stringify({})], { type: "application/json" });
+        navigator.sendBeacon("/api/auth/exit", blob);
+      } catch (_) {}
+    });
+  }
 }
 
 function applyRoleGates() {
@@ -384,7 +411,7 @@ export async function loadAdminLists() {
       pl.appendChild(
         adminRow(u.username, u.created_at, [
           [t("admin_approve"), () => adminCall("/api/auth/approve", u.id)],
-          [t("admin_reject"), () => adminConfirm(() => adminCall("/api/auth/reject", u.id)), true],
+          [t("admin_reject"), () => adminConfirm(() => adminCall("/api/auth/reject", u.id), `${t("admin_reject")} — ${u.username}`, t("settings_admin")), true],
         ])
       );
     });
@@ -402,33 +429,120 @@ export async function loadAdminLists() {
   const ml = document.getElementById("admin-members-list");
   ml.innerHTML = "";
   if (mres.ok) {
+    const actives = (mdata.members || []).filter((x) => x.role === "admin" && x.status === "active");
     (mdata.members || []).forEach((u) => {
-      if (u.id === 1) {
-        ml.appendChild(adminRow(u.username, t("admin_role_admin"), []));
-        return;
-      }
-      const role = u.role === "admin" ? t("admin_role_admin") : t("admin_role_member");
-      const st =
-        u.status === "active" ? t("admin_status_active") : u.status === "pending" ? t("admin_status_pending") : t("admin_status_passive");
-      const btns = [];
-      if (u.status === "pending") btns.push([t("admin_approve"), () => adminCall("/api/auth/approve", u.id)]);
-      if (u.status === "active") {
-        btns.push([t("admin_deactivate"), () => adminConfirm(() => adminCall("/api/auth/deactivate", u.id)), true]);
-        btns.push([t("admin_kick"), () => adminCall("/api/auth/kick", u.id)]);
-      }
-      if (u.status !== "active") btns.push([t("admin_activate"), () => adminCall("/api/auth/activate", u.id)]);
-      ml.appendChild(adminRow(u.username, `${role} · ${st}`, btns));
+      ml.appendChild(memberChip(u, actives.length));
     });
   }
   refreshAdminBadge();
+  armAdminRefresh();
+}
+
+// Faz 31d: admin modali acikken 30 sn'de bir sessiz yenileme (F5 yok).
+let adminTimer = null;
+function adminModalOpen() {
+  try {
+    const ov = document.getElementById("settings-admin-modal");
+    return !!(ov && ov.style.display !== "none" && isVisibleEl(ov));
+  } catch (_) {
+    return false;
+  }
+}
+function isVisibleEl(el) {
+  try {
+    const s = getComputedStyle(el);
+    return s.display !== "none" && s.visibility !== "hidden";
+  } catch (_) {
+    return false;
+  }
+}
+function armAdminRefresh() {
+  if (adminTimer) clearInterval(adminTimer);
+  adminTimer = null;
+  if (!adminModalOpen()) return;
+  adminTimer = setInterval(() => {
+    if (!adminModalOpen() || !isAdmin()) {
+      clearInterval(adminTimer);
+      adminTimer = null;
+      return;
+    }
+    loadAdminLists();
+  }, 30000);
+}
+
+function roleIcon(inner, tipKey, colorCls, fn, dead, isSvg) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "role-icon " + colorCls + (dead ? " dead" : "");
+  b.innerHTML = isSvg ? inner : `<i class="fa-regular ${inner}"></i>`;
+  b.setAttribute("data-i18n-title", tipKey);
+  b.setAttribute("data-tip", t(tipKey));
+  if (dead) {
+    b.setAttribute("aria-disabled", "true");
+    b.tabIndex = -1;
+  } else {
+    b.addEventListener("click", fn);
+  }
+  return b;
+}
+
+function memberChip(u, activeAdmins) {
+  const d = document.createElement("div");
+  d.className = "member-chip";
+  const left = document.createElement("div");
+  left.className = "member-text";
+  const nm = document.createElement("div");
+  nm.className = "member-name" + (u.online ? " online" : "");
+  nm.textContent = u.username;
+  nm.title = u.username;
+  left.appendChild(nm);
+  const role = u.role === "admin" ? t("admin_role_admin") : t("admin_role_member");
+  const st =
+    u.status === "active" ? t("admin_status_active") : u.status === "pending" ? t("admin_status_pending") : t("admin_status_passive");
+  const sb = document.createElement("div");
+  sb.className = "member-sub" + (u.online ? " online" : "");
+  sb.textContent = `${role} · ${st}`;
+  left.appendChild(sb);
+  d.appendChild(left);
+  const icons = document.createElement("div");
+  icons.className = "member-icons";
+  const call = (path, id) => async () => {
+    const { res } = await apiJson(path, { method: "POST", body: JSON.stringify({ id }) });
+    if (res.ok) loadAdminLists();
+  };
+  if (u.id !== 1) {
+    if (u.status === "pending") {
+      icons.appendChild(roleIcon(ROLE_CHECK_SVG, "admin_approve", "c-green-dk", call("/api/auth/approve", u.id), false, true));
+      icons.appendChild(roleIcon(ROLE_X_SVG, "admin_reject", "c-red", () => adminConfirm(call("/api/auth/reject", u.id), `${t("admin_reject")} — ${u.username}`, t("settings_admin")), false, true));
+    } else if (u.status === "passive") {
+      icons.appendChild(roleIcon(ROLE_PLAY_SVG, "admin_activate", "c-orange", call("/api/auth/activate", u.id), false, true));
+      icons.appendChild(roleIcon(ROLE_X_SVG, "tip_delete", "c-red", () => adminConfirm(call("/api/auth/delete", u.id), t("del_confirm", { name: u.username }), t("tip_delete")), false, true));
+    } else if (u.role === "admin") {
+      const lastOne = activeAdmins <= 1;
+      icons.appendChild(roleIcon("fa-gem", "tip_demote", "c-red", call("/api/auth/demote", u.id), lastOne));
+      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => adminConfirm(call("/api/auth/deactivate", u.id), `${t("admin_deactivate")} — ${u.username}`, t("settings_admin")), false, true));
+      icons.appendChild(roleIcon(ROLE_STOP_SVG, "admin_kick", "c-gray", call("/api/auth/kick", u.id), false, true));
+      icons.appendChild(roleIcon(ROLE_X_SVG, "tip_delete", "c-red", () => adminConfirm(call("/api/auth/delete", u.id), t("del_confirm", { name: u.username }), t("tip_delete")), false, true));
+    } else {
+      icons.appendChild(roleIcon("fa-user", "tip_promote", "c-green", call("/api/auth/promote", u.id)));
+      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => adminConfirm(call("/api/auth/deactivate", u.id), `${t("admin_deactivate")} — ${u.username}`, t("settings_admin")), false, true));
+      icons.appendChild(roleIcon(ROLE_STOP_SVG, "admin_kick", "c-gray", call("/api/auth/kick", u.id), false, true));
+      icons.appendChild(roleIcon(ROLE_X_SVG, "tip_delete", "c-red", () => adminConfirm(call("/api/auth/delete", u.id), t("del_confirm", { name: u.username }), t("tip_delete")), false, true));
+    }
+  } else {
+    const admins = activeAdmins;
+    icons.appendChild(roleIcon("fa-gem", "tip_demote", "c-red", call("/api/auth/demote", u.id), admins <= 1));
+  }
+  if (icons.children.length) d.appendChild(icons);
+  return d;
 }
 
 async function adminCall(path, id) {
   const { res } = await apiJson(path, { method: "POST", body: JSON.stringify({ id }) });
   if (res.ok) loadAdminLists();
 }
-function adminConfirm(fn) {
-  showConfirm(t("logout_confirm"), fn, { danger: true });
+function adminConfirm(fn, text, title) {
+  showConfirm(text, fn, { danger: true, title: title || t("settings_admin") });
 }
 async function adminTemp(userId) {
   const { res, data } = await apiJson("/api/auth/reset-password", {
@@ -479,7 +593,7 @@ function doLogout() {
       } catch (_) {}
       location.reload();
     },
-    { danger: true }
+    { danger: true, title: t("settings_logout") }
   );
 }
 
@@ -517,7 +631,7 @@ function wireLogin() {
     const show = inp.type === "password";
     inp.type = show ? "text" : "password";
     const icon = eye.querySelector("i");
-    if (icon) icon.className = show ? "fa-solid fa-eye-slash" : "fa-solid fa-eye";
+    if (icon) icon.className = show ? "fa-regular fa-eye-slash" : "fa-regular fa-eye";
     eye.setAttribute("data-tip", t(show ? "login_hide_pw" : "login_show_pw"));
   });
   user.addEventListener("input", () => {

@@ -4053,6 +4053,33 @@ body.logged-out main { padding: 0; }
 #menu-admin-item .notif-badge { margin-left: auto; }
 /* Faz 30 admin modal: 3 cerceve aralıklı dizilir (yalnız bu modal) */
 #settings-admin-modal .modal-body { display: flex; flex-direction: column; gap: 12px; }
+/* Faz 31d: .channel-frame > div kuralı column dayatır — uye çipleri row olmaya zorlanır */
+#settings-admin-modal .member-chips { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; justify-content: center; }
 /* Faz 30 admin modal: satir icerikleri cerceveye ortali */
 #settings-admin-modal .admin-row { justify-content: center; text-align: center; }
 #settings-admin-modal .admin-empty { text-align: center; }
+/* Faz 31 uye cipleri: satirda 2, tek kalan ortada; halka cerceveli ikonlar sagda */
+.member-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.member-chip { display: flex; align-items: center; gap: 8px; width: calc((100% - 8px) / 2); min-width: 0; padding: 6px 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid #2a2f3b; border-radius: 8px; }
+.member-text { min-width: 0; flex: 1; }
+.member-name { font-size: 0.85rem; color: #e5e9f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-sub { font-size: 0.7rem; color: #aab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-name.online, .member-sub.online { color: #4ade80; }
+.member-icons { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
+.role-icon { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: transparent; border: 1px solid; border-radius: 50%; cursor: pointer; font-size: 0.65rem; transition: color 0.15s ease, border-color 0.15s ease; }
+.role-icon.c-green-dk { color: #166534; border-color: #166534; }
+.role-icon.c-green-dk:hover { color: #4ade80; border-color: #4ade80; }
+.role-icon.c-green { color: #22c55e; border-color: #22c55e; }
+.role-icon.c-green:hover { color: #86efac; border-color: #86efac; }
+.role-icon.c-red { color: #ef4444; border-color: #ef4444; }
+.role-icon.c-red:hover { color: #fca5a5; border-color: #fca5a5; }
+.role-icon.c-orange { color: #f97316; border-color: #f97316; }
+.role-icon.c-orange:hover { color: #fdba74; border-color: #fdba74; }
+.role-icon.c-gray { color: #6b7280; border-color: #6b7280; }
+.role-icon.c-gray:hover { color: #d1d5db; border-color: #d1d5db; }
+.role-icon.dead { cursor: not-allowed; }
+/* Faz 31 rol bildirimi: baslik tipe gore renkli */
+.notif-item[data-ntype="role_admin"] .notif-title { color: #f87171; }
+.notif-item[data-ntype="role_member"] .notif-title { color: #4ade80; }
+/* Faz 31c: onay modali iki satirli metin (silme onayi soru + aciklama) */
+#confirm-text { white-space: pre-line; }

@@ -38,6 +38,14 @@ const EYE_OFF_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none"
 
 const FILM_SVG = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="7" y1="3" x2="7" y2="21"></line><line x1="17" y1="3" x2="17" y2="21"></line><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>`;
 
+// Faz 31c: uye cip ikonlari — FA regular'da pause/stop (ve sade check/xmark/play)
+// bulunmadigindan satir-ici SVG (halka buton cercevesinde, currentColor ile boyanir).
+const ROLE_CHECK_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+const ROLE_X_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>`;
+const ROLE_PLAY_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="7 4 20 12 7 20 7 4"></polygon></svg>`;
+const ROLE_PAUSE_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="5" x2="8" y2="19"></line><line x1="16" y1="5" x2="16" y2="19"></line></svg>`;
+const ROLE_STOP_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>`;
+
 window.noPosterFallback = function () {
   return `<div class="no-poster">${FILM_SVG}</div>`;
 };
@@ -343,6 +351,7 @@ function fmtScore(v) {
 
 export {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, UNDO_SVG, EYE_SVG, EYE_OFF_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG,
+  ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG,
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,

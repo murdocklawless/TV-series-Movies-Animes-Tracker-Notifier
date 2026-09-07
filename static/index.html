@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=427" />
+  <link rel="stylesheet" href="/static/css/style.css?v=433" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=406" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=408" />
   <link rel="stylesheet" href="/static/css/tv.css?v=406" />
@@ -87,12 +87,12 @@
         <div id="login-user-hint" class="login-hint" data-i18n="login_user_hint">Kullanıcı adı en az 3 en fazla 20 karakter olabilir</div>
         <div class="pw-wrap">
           <input id="login-pass" type="password" autocomplete="current-password" maxlength="64" data-i18n="login_pass_ph" placeholder="Şifre" />
-          <button type="button" class="pw-eye" data-for="login-pass" data-i18n-title="login_show_pw"><i class="fa-solid fa-eye"></i></button>
+          <button type="button" class="pw-eye" data-for="login-pass" tabindex="-1" data-i18n-title="login_show_pw"><i class="fa-regular fa-eye"></i></button>
         </div>
         <div id="login-pass-hint" class="login-hint" data-i18n="login_pass_hint">Şifre en az 10 karakter olmalı ve, büyük, küçük harf, rakam ve sembol içermeli</div>
         <div class="pw-wrap" id="login-pass2-wrap" style="display:none">
           <input id="login-pass2" type="password" autocomplete="new-password" maxlength="64" data-i18n="login_pass2_ph" placeholder="Şifre (tekrar)" />
-          <button type="button" class="pw-eye" data-for="login-pass2" data-i18n-title="login_show_pw"><i class="fa-solid fa-eye"></i></button>
+          <button type="button" class="pw-eye" data-for="login-pass2" tabindex="-1" data-i18n-title="login_show_pw"><i class="fa-regular fa-eye"></i></button>
         </div>
         <div id="login-exists-note" class="login-hint login-note" style="display:none" data-i18n="login_registered_note">Bu hesap kayıtlı — giriş yap</div>
         <div class="login-btns">
@@ -460,7 +460,7 @@
         </div>
         <div class="channel-frame">
           <span class="notif-type-title" data-i18n="admin_members">Üyeler</span>
-          <div id="admin-members-list"></div>
+          <div id="admin-members-list" class="member-chips"></div>
         </div>
       </div>
     </div>
@@ -960,6 +960,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=424"></script>
+  <script type="module" src="/static/js/nextep.js?v=428"></script>
 </body>
 </html>

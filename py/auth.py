@@ -123,9 +123,9 @@ def create_session(user_id, device=""):
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO sessions (token, user_id, device, created_at, expires_at)"
-            " VALUES (?, ?, ?, ?, ?)",
-            (token, user_id, (device or "")[:120], now, now + SESSION_DAYS * 86400),
+            "INSERT INTO sessions (token, user_id, device, created_at, expires_at, last_seen)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (token, user_id, (device or "")[:120], now, now + SESSION_DAYS * 86400, now),
         )
         # Suresi dolmus oturumlari faldan buda.
         conn.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
@@ -284,6 +284,9 @@ _ADMIN_PATHS = (
     "/api/auth/activate",
     "/api/auth/reset-password",
     "/api/auth/kick",
+    "/api/auth/promote",
+    "/api/auth/demote",
+    "/api/auth/delete",
 )
 
 
