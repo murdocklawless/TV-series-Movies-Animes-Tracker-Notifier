@@ -86,6 +86,33 @@ def delete_signals(dedupes):
         pass
 
 
+def last_signal_row(user_id=None):
+    """En son sinyal satirinin tamami (detay gosterimi icin) veya None. Faz 32b: per-user."""
+    try:
+        conn = get_db()
+        if user_id is not None:
+            try:
+                row = conn.execute(
+                    "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts, user_id"
+                    " FROM stremio_signals WHERE user_id=? ORDER BY ts DESC LIMIT 1",
+                    (int(user_id),),
+                ).fetchone()
+            except Exception:
+                row = conn.execute(
+                    "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts"
+                    " FROM stremio_signals ORDER BY ts DESC LIMIT 1"
+                ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts"
+                " FROM stremio_signals ORDER BY ts DESC LIMIT 1"
+            ).fetchone()
+        conn.close()
+        return dict(row) if row else None
+    except Exception:
+        return None
+
+
 def last_signal_ts(user_id=None):
     """En son sinyal zamani (epoch saniye) veya None. Faz 32: per-user."""
     try:

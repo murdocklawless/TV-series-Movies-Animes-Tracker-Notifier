@@ -2024,7 +2024,10 @@ async function renderThirdPartyApps() {
 }
 
 const thirdPartyAppRenderers = {
-  stremio: (app) => `
+  stremio: (app) => {
+    const _note = tpStatusNote(app);
+    const _watch = tpWatchDetail(app);
+    return `
     <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}" id="tp-app-stremio">
       <div class="notif-type-head">
         <span class="notif-type-title"><i class="fa-solid fa-cubes"></i> ${escAttr(app.name || "Stremio")}</span>
@@ -2033,10 +2036,15 @@ const thirdPartyAppRenderers = {
         <div class="tp-sub-box">
           <div class="tp-status-row">
             <span class="notify-name">${t("tp_status")}</span>
-            <span class="tp-status-value ${app.connected ? "tp-connected" : "tp-not-connected"}">${app.connected ? t("tp_connected") : t("tp_not_connected")}</span>
+            <span class="tp-status-value ${tpStatusClass(app)}">${tpStatusText(app)}</span>
           </div>
-          ${app.lastSignal ? `<div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>` : ""}
+          ${_note ? `<div class="tp-frame-note">${_note}</div>` : ""}
         </div>
+        ${app.lastSignal ? `
+        <div class="tp-sub-box">
+          <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>
+          ${_watch ? `<div class="tp-frame-note tp-watch-detail" title="${_watch}">${_watch}</div>` : ""}
+        </div>` : ""}
         ${app.installUrl ? `
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
@@ -2054,8 +2062,56 @@ const thirdPartyAppRenderers = {
           ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
       </div>
-    </div>`,
+    </div>`;
+  },
 };
+
+function tpStatusClass(app) {
+  if (app.status === "connected") return "tp-connected";
+  if (app.status === "ready") return "tp-ready";
+  return "tp-not-connected";
+}
+
+function tpStatusText(app) {
+  if (app.status === "connected") return t("tp_connected");
+  if (app.status === "ready") return t("tp_ready");
+  return t("tp_not_connected");
+}
+
+function tpStatusNote(app) {
+  const note = app.note || "";
+  if (note === "connected") return escAttr(t("tp_note_connected"));
+  if (note === "ready_age" && app.lastSignal)
+    return escAttr(t("tp_note_ready_age", { age: formatRelativeAge(app.lastSignal) }));
+  if (note === "ready_none") return escAttr(t("tp_note_ready_none"));
+  if (note === "tunnel") return escAttr(t("tp_note_tunnel"));
+  return "";
+}
+
+function tpWatchDetail(app) {
+  const w = app.lastWatch;
+  if (!w || !w.title) return "";
+  if (w.kind === "tv" && w.season != null && w.episode != null)
+    return escAttr(t("tp_watch_tv", { title: w.title, s: w.season, e: w.episode }));
+  if (w.kind === "anime" && w.episode != null)
+    return escAttr(t("tp_watch_anime", { title: w.title, e: w.episode }));
+  return escAttr(t("tp_watch_movie", { title: w.title }));
+}
+
+function formatRelativeAge(ts) {
+  try {
+    const now = Date.now() / 1000;
+    const d = Math.max(0, Math.floor(now - Number(ts)));
+    if (d < 90) return t("tp_age_now");
+    const m = Math.floor(d / 60);
+    if (m < 90) return t("tp_age_minute", { n: m });
+    const h = Math.floor(m / 60);
+    if (h < 48) return t("tp_age_hour", { n: h });
+    return t("tp_age_day", { n: Math.floor(h / 24) });
+  } catch (e) {
+    return "";
+  }
+}
 
 function formatSignalTime(ts) {
   try {

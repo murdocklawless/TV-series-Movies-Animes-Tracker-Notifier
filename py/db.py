@@ -521,6 +521,8 @@ PERSONAL_KEYS = {
     "email_to",
     "tp_stremio_uuid",
     "tp_base_url",
+    "tp_stremio_manifest_ts",
+    "tp_stremio_verified_ts",
     "rec_seen",
     "rec_hidden",
     "rec_profile_fp",

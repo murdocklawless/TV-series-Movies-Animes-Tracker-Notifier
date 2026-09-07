@@ -3026,6 +3026,22 @@ input:-webkit-autofill:focus {
 
 .tp-status-value.tp-connected { color: #22c55e; font-weight: 400; }
 .tp-status-value.tp-not-connected { color: #ef4444; }
+.tp-status-value.tp-ready { color: #60a5fa; font-weight: 400; }
+
+.tp-frame-note {
+  color: #2e7d32;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.tp-watch-detail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .tp-last-signal {
   font-size: 0.95rem;

@@ -46,6 +46,7 @@ from stremio_buffer import (
     signals_for_anime,
     delete_signals,
     last_signal_ts,
+    last_signal_row,
     clear_all_signals,
 )
 
@@ -165,6 +166,118 @@ def _install_url(app_id, u):
     return f"{_base_url()}/{app_id}/{u}/manifest.json"
 
 
+# ---------------------------------------------------------------------------
+# Faz 32b: baglanti dogrulama damgalari (tam otomatik, kullanici butonu yok)
+# ---------------------------------------------------------------------------
+
+_MANIFEST_STAMP_TTL = 3600  # manifest damgasi en fazla saatte bir tazelenir
+
+
+def _stamp_manifest_ts(owner_id):
+    """Eklenti listesi manifest'i cekti = kurulu kaniti. Throttle'li yazar."""
+    try:
+        uid = int(owner_id or 0)
+    except (TypeError, ValueError):
+        return
+    if uid <= 0:
+        return
+    try:
+        import time as _t
+        from db import get_user_setting as _gus, set_user_setting as _sus
+        prev = _gus(uid, "tp_stremio_manifest_ts")
+        now = int(_t.time())
+        if prev:
+            try:
+                if now - int(float(prev)) < _MANIFEST_STAMP_TTL:
+                    return
+            except (TypeError, ValueError):
+                pass
+        _sus(uid, "tp_stremio_manifest_ts", str(now))
+    except Exception:
+        pass
+
+
+def _stamp_verified_ts(owner_id):
+    """Sinyal gercekten watched=1 yazdi = dogrulanmis baglanti kaniti."""
+    try:
+        uid = int(owner_id or 0)
+    except (TypeError, ValueError):
+        return
+    if uid <= 0:
+        return
+    try:
+        import time as _t
+        from db import set_user_setting as _sus
+        _sus(uid, "tp_stremio_verified_ts", str(int(_t.time())))
+    except Exception:
+        pass
+
+
+def _tunnel_ok():
+    """Ters tunel servisi ayakta mi? Fail-soft: birim yoksa/bilinmiyorsa True
+    (yanlis alarm, gercek kesintiden kotudur)."""
+    try:
+        import subprocess as _sp
+        p = _sp.run(
+            ["systemctl", "is-active", "nextep-tunnel"],
+            capture_output=True, text=True, timeout=8,
+        )
+        out = ((p.stdout or "") + (p.stderr or "")).strip().lower()
+        if "could not be found" in out or "not found" in out or "no such" in out:
+            return True
+        return p.returncode == 0 and out.startswith("active")
+    except Exception:
+        return True
+
+
+def _last_watch_detail(owner_id):
+    """Son sinyalin gorunur detayi {kind,title,season,episode} veya None.
+    Baslik, sinyal sahibinin kendi takip satirindan cozulur."""
+    try:
+        uid = int(owner_id or 0)
+    except (TypeError, ValueError):
+        return None
+    if uid <= 0:
+        return None
+    try:
+        row = last_signal_row(user_id=uid)
+    except Exception:
+        row = None
+    if not row:
+        return None
+    kind = (row.get("kind") or "").strip()
+    title = ""
+    try:
+        conn = get_db()
+        if kind in ("tv", "movie") and row.get("tmdb_id") is not None:
+            mt = "tv" if kind == "tv" else "movie"
+            r = conn.execute(
+                "SELECT title FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+                (uid, row.get("tmdb_id"), mt),
+            ).fetchone()
+            title = (r["title"] if r else "") or ""
+        elif kind == "anime" and row.get("anilist_id") is not None:
+            r = conn.execute(
+                "SELECT title FROM anime WHERE user_id=? AND anilist_id=?",
+                (uid, row.get("anilist_id")),
+            ).fetchone()
+            title = (r["title"] if r else "") or ""
+        conn.close()
+    except Exception:
+        title = ""
+    try:
+        season = row.get("season")
+        season = int(season) if season is not None else None
+    except (TypeError, ValueError):
+        season = None
+    try:
+        episode = row.get("episode")
+        episode = int(episode) if episode is not None else None
+    except (TypeError, ValueError):
+        episode = None
+    return {"kind": kind, "title": title, "season": season, "episode": episode}
+
+
 @stremio_bp.route("/stremio/install-info.json")
 def stremio_install_info():
     """Landing sayfasi icin guncel kurulum bilgileri (UUID yenilense de dogru)."""
@@ -188,6 +301,10 @@ def stremio_manifest(uuid_param):
     print(f"[stremio] manifest uuid={str(uuid_param)[:8]} ok={ok}", flush=True)
     if not ok:
         return jsonify({"error": "not found"}), 404
+    try:
+        _stamp_manifest_ts(_find_owner_by_uuid(uuid_param))
+    except Exception:
+        pass
     payload = {
         "id": "nextep-tracker",
         "name": "NextEp Watch Sync",
@@ -499,6 +616,7 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
         if anime_db_id:
             conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (anime_db_id,))
             conn.commit()
+            _stamp_verified_ts(uid)
         bump()
         return
     # mutlak bolum: S1 bolum aynen; S2+ esleme yoksa atla (tamponsuz — dogru uygulanamaz)
@@ -525,6 +643,7 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
         (anime_db_id, episode),
     )
     conn.commit()
+    _stamp_verified_ts(uid)
     bump()
     print(f"[stremio] WROTE anime anilist={anilist_id} ep={episode}", flush=True)
 
@@ -559,23 +678,28 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0):
         (follow_id, season, episode),
     )
     conn.commit()
+    _stamp_verified_ts(uid)
     bump()
     print(f"[stremio] WROTE tv tmdb={tmdb_id} S{season}E{episode}", flush=True)
 
 
 def _movie_branch(conn, tmdb_id, owner_id=0):
     uid = int(owner_id or 0)
-    record_signal("movie", tmdb_id, None, None, None, user_id=uid)
+    # Faz 32b: once cozumleme — cozulemeyen ID tampona yazilmaz, "Bagli" sisirmez.
     follow = conn.execute(
         "SELECT id, in_watched FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='movie'", (uid, tmdb_id,)
     ).fetchone()
     if follow and follow["in_watched"] == 1:
-        return  # izlenmiste: no-op
+        record_signal("movie", tmdb_id, None, None, None, user_id=uid)
+        return  # izlenmiste: no-op (tampona kaydedildi)
     movie_id = _ensure_tmdb_follow(conn, "movie", tmdb_id, owner_id=uid)
     if not movie_id:
+        print(f"[stremio] movie tmdb={tmdb_id} cozulemedi, tampona yazilmadi", flush=True)
         return
+    record_signal("movie", tmdb_id, None, None, None, user_id=uid)
     conn.execute("UPDATE followed SET watched=1, in_watched=1 WHERE id=?", (movie_id,))
     conn.commit()
+    _stamp_verified_ts(uid)
     bump()
     print(f"[stremio] WROTE movie tmdb={tmdb_id}", flush=True)
 
@@ -722,25 +846,67 @@ def thirdparty_status():
     return jsonify({"apps": apps})
 
 
+_CONNECTED_WINDOW = 24 * 3600  # "Bagli" rozeti icin sinyal tazelik penceresi
+
+
 def _app_status(app):
+    import time as _t
     aid = app["id"]
     base = {
         "id": aid,
         "name": app.get("name") or aid,
         "connected": False,
+        "status": "not-connected",
+        "note": "not-installed",
+        "tunnelOk": True,
+        "installed": False,
         "lastSignal": None,
+        "lastWatch": None,
         "installUrl": None,
     }
     uid = _me_uid() or 1
     u = _get_uuid(aid, user_id=uid)
-    if u:
-        base["installUrl"] = _install_url(aid, u)
-        if aid == "stremio":
-            base["lastSignal"] = last_signal_ts(user_id=uid)
-            # "Bagli" = en az bir sinyal alindi (ilk sinyalle onaylanir)
-            base["connected"] = base["lastSignal"] is not None
-        else:
-            base["connected"] = True
+    if not u:
+        return base
+    base["installed"] = True
+    base["installUrl"] = _install_url(aid, u)
+    if aid != "stremio":
+        base["connected"] = True
+        base["status"] = "connected"
+        base["note"] = "connected"
+        return base
+    tunnel = _tunnel_ok()
+    base["tunnelOk"] = tunnel
+    try:
+        from db import get_user_setting as _gus
+        mts = _gus(uid, "tp_stremio_manifest_ts")
+        base["manifestTs"] = int(float(mts)) if mts else None
+    except Exception:
+        base["manifestTs"] = None
+    try:
+        from db import get_user_setting as _gus2
+        vts = _gus2(uid, "tp_stremio_verified_ts")
+        base["verifiedTs"] = int(float(vts)) if vts else None
+    except Exception:
+        base["verifiedTs"] = None
+    ls = last_signal_ts(user_id=uid)
+    base["lastSignal"] = ls
+    if ls:
+        base["lastWatch"] = _last_watch_detail(uid)
+    if not tunnel:
+        base["status"] = "not-connected"
+        base["note"] = "tunnel"
+        base["connected"] = False
+        return base
+    now = int(_t.time())
+    if ls and (now - int(ls)) <= _CONNECTED_WINDOW:
+        base["status"] = "connected"
+        base["note"] = "connected"
+        base["connected"] = True
+    else:
+        base["status"] = "ready"
+        base["note"] = "ready_age" if ls else "ready_none"
+        base["connected"] = False
     return base
 
 
@@ -749,6 +915,13 @@ def thirdparty_stremio_refresh_uuid():
     uid = _me_uid() or 1
     u = uuid.uuid4().hex
     set_user_setting(uid, _uuid_setting_key("stremio"), u)
+    # Yeni link = temiz sayfa: eski kurulum/dogrulama damgalari tasinmaz.
+    try:
+        set_user_setting(uid, "tp_stremio_manifest_ts", "")
+        set_user_setting(uid, "tp_stremio_verified_ts", "")
+    except Exception:
+        pass
+    clear_all_signals(user_id=uid)
     return jsonify({"ok": True, "installUrl": _install_url("stremio", u)})
 
 
