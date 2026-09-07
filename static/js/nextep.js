@@ -1,13 +1,14 @@
 ﻿// Faz 4: tracker.js — giriş noktası. Tüm mantık modüllere bölündü; bu dosya
 // modülleri bağlar, başlangıç yüklemelerini yapar ve genel (global) olayları kurar.
+window.__NX_BUILD = "438";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang } from "./i18n.js";
+import { checkTmdbKey, applyLang } from "./i18n.js?v=438";
 import { switchView, loadFollowed, loadUnwatched, views } from "./views.js";
 import { closeResultsModal } from "./search.js";
 import "./settings.js";
 import "./notification.js";
 import "./tv.js";
-import { bootAuth } from "./auth.js";
+import { bootAuth } from "./auth.js?v=438";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
 // Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama

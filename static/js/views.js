@@ -1,6 +1,6 @@
 ﻿// Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js";
+import { t } from "./i18n.js?v=438";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,

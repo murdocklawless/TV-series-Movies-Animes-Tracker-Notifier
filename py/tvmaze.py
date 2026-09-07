@@ -2,6 +2,8 @@ import time
 import datetime
 import requests
 
+from rate_track import record
+
 _TVMAZE_TTL = 6 * 3600  # 6 saat
 _tvmaze_cache = {}
 
@@ -17,6 +19,7 @@ def _tvmaze_episode_times(title):
     cached = _tvmaze_cache.get(title)
     if cached and now - cached[0] < _TVMAZE_TTL:
         return cached[1]
+    record("tvmaze")  # kova yok; yalniz onbellek iskasi sayilir
     try:
         r = requests.get(
             "https://api.tvmaze.com/singlesearch/shows",

@@ -621,3 +621,13 @@ def auth_delete():
     except Exception:
         pass
     return jsonify({"ok": True})
+
+
+@auth_bp.route("/api/admin/rate", methods=["GET"])
+@admin_required
+def admin_rate():
+    """API hiz gostergesi: TMDB/AniList/TVMaze canli doluluk + son 1 saat piki.
+    Dis istek yapmaz, maliyeti sifir."""
+    from rate_track import snapshot
+
+    return jsonify(snapshot())

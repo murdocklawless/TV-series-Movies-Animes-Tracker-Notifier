@@ -3,6 +3,7 @@ import os
 from config import app
 from db import init_db, get_setting
 from ramcache import list_cache, end_startup
+from rate_track import set_startup_grace
 from scheduler import backfill_votes, start_scheduler
 
 from routes.search import search_bp
@@ -55,6 +56,7 @@ if ttl > 0:
 backfill_votes()                    # startup zarfi: bump'lar bastirilir
 start_scheduler()
 end_startup()                       # artik bump'lar gecerli
+set_startup_grace(False)            # acilis zarfi bitti: kayitlar bara isler
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 // Faz 30: kimlik — giris/kayit ekranı, oturum boot, admin modalı, rol kapıları.
-import { t } from "./i18n.js";
+import { t } from "./i18n.js?v=438";
+import { state } from "./state.js";
 import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js";
 import { showConfirm } from "./components.js";
 import { switchView } from "./views.js";
@@ -401,6 +402,10 @@ function adminEmpty() {
 
 export async function loadAdminLists() {
   if (!isAdmin()) return;
+  // İskelet hemen (kutu boş kalmaz); fetch+poll SONDA (modal display:flex
+  // showSettingsSubmodal'daki await'ten sonra bitiyor — başta çağrılırsa
+  // adminModalOpen() false görüp sessiz ölüyordu, rate hiç atılmıyordu).
+  paintRateSkeleton();
   const { res, data } = await apiJson("/api/auth/pending");
   const pl = document.getElementById("admin-pending-list");
   const rl = document.getElementById("admin-resets-list");
@@ -436,6 +441,10 @@ export async function loadAdminLists() {
   }
   refreshAdminBadge();
   armAdminRefresh();
+  // Modal bu noktada açık (pending+members await'leri display:flex'e zaman
+  // tanıdı) — rate fetch+poll burada başlar (eski çalışan sıra).
+  loadRateBars();
+  armRateRefresh();
 }
 
 // Faz 31d: admin modali acikken 30 sn'de bir sessiz yenileme (F5 yok).
@@ -469,6 +478,209 @@ function armAdminRefresh() {
     loadAdminLists();
   }, 30000);
 }
+
+// limit.md: API hiz gostergesi — etiket satiri + 3 bar + 1 sn poll (armAdminRefresh ikizi).
+// Teshis durumu: window.__NX_RATE ({polls, lastOk, lastErr, rows}).
+let rateTimer = null;
+let rateFails = 0;
+const RATE_SERVICES = ["tmdb", "anilist", "tvmaze"];
+function rateLabel(s) {
+  return s === "tmdb" ? "TMDB" : s === "anilist" ? "AniList" : "TVMaze";
+}
+function ratePct(n) {
+  // tr öne ekler (%75), diğer diller sona ekler (75%).
+  try {
+    if (state.currentLang === "tr") return "%" + n;
+  } catch (_) {}
+  return n + "%";
+}
+function rateSep() {
+  const sp = document.createElement("span");
+  sp.className = "rate-sep";
+  sp.textContent = "·";
+  return sp;
+}
+function rateScale() {
+  // Bar alti cetvel: 0 25 50 75 100 (0.5rem, sonuk; % olcegiyle hizali).
+  const sc = document.createElement("div");
+  sc.className = "rate-scale";
+  [0, 25, 50, 75, 100].forEach((v) => {
+    const s = document.createElement("span");
+    s.textContent = String(v);
+    if (v === 0) s.className = "tick-0";
+    else if (v === 100) s.className = "tick-100";
+    else s.style.left = v + "%";
+    sc.appendChild(s);
+  });
+  return sc;
+}
+function fmtTotal(n) {
+  // Gunluk toplam: dile gore binlik grup (tr 1.250, en 1,250).
+  const v = Math.max(0, Math.floor(n || 0));
+  try {
+    const lang = (state && state.currentLang) || "tr";
+    return new Intl.NumberFormat(lang === "tr" ? "tr-TR" : lang).format(v);
+  } catch (_) {
+    const s = String(v);
+    const sep = ((state && state.currentLang) || "tr") === "tr" ? "." : ",";
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
+  }
+}
+function paintRateSkeleton() {
+  // Fetch beklenmeden iskelet satirlar: kutu asla bos kalmaz.
+  try {
+    const box = document.getElementById("admin-rate-bars");
+    if (!box || box.dataset.skel) return;
+    box.dataset.skel = "1";
+    box.innerHTML = "";
+    RATE_SERVICES.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "rate-row";
+      const lab = document.createElement("span");
+      lab.className = "rate-label";
+      lab.textContent = rateLabel(s);
+      row.appendChild(lab);
+      const track = document.createElement("div");
+      track.className = "rate-track";
+      row.appendChild(track);
+      row.appendChild(rateScale());
+      box.appendChild(row);
+    });
+  } catch (_) {}
+}
+function paintRateError() {
+  try {
+    const box = document.getElementById("admin-rate-bars");
+    if (!box || box.querySelector(".rate-err")) return;
+    const d = document.createElement("div");
+    d.className = "rate-err";
+    d.textContent = t("rate_failed");
+    box.appendChild(d);
+  } catch (_) {}
+}
+async function loadRateBars() {
+  window.__NX_RATE = window.__NX_RATE || { polls: 0, lastOk: 0, lastErr: "", rows: 0 };
+  window.__NX_RATE.polls += 1;
+  if (!isAdmin() || !adminModalOpen()) {
+    window.__NX_RATE.lastErr = "guard-closed";
+    return;
+  }
+  const box = document.getElementById("admin-rate-bars");
+  if (!box) {
+    window.__NX_RATE.lastErr = "nobox";
+    return;
+  }
+  let data = null;
+  try {
+    const { res, data: d } = await apiJson("/api/admin/rate");
+    if (!res.ok) {
+      window.__NX_RATE.lastErr = "http" + res.status;
+      throw new Error("rate http " + res.status);
+    }
+    data = d;
+  } catch (e) {
+    window.__NX_RATE.lastErr = String((e && e.message) || e);
+    console.warn("[rate] fetch failed:", window.__NX_RATE.lastErr);
+    rateFails += 1;
+    if (rateFails >= 3) paintRateError();
+    return;
+  }
+  if (!adminModalOpen()) return;
+  rateFails = 0;
+  window.__NX_RATE.lastOk = Date.now();
+  window.__NX_RATE.lastErr = "";
+  try {
+    delete box.dataset.skel;
+  } catch (_) {}
+  const errEl = box.querySelector(".rate-err");
+  if (errEl) errEl.remove();
+  box.innerHTML = "";
+  RATE_SERVICES.forEach((s) => {
+    const st = (data && data[s]) || { pct: 0, peak: 0, total: 0 };
+    const pct = Math.max(0, Math.min(100, st.pct || 0));
+    const peak = Math.max(0, Math.min(100, st.peak || 0));
+    const row = document.createElement("div");
+    row.className = "rate-row";
+    const lab = document.createElement("span");
+    lab.className = "rate-label";
+    lab.textContent = rateLabel(s);
+    row.appendChild(lab);
+    row.appendChild(rateSep());
+    const nowEl = document.createElement("span");
+    nowEl.className = "rate-now";
+    nowEl.textContent = t("rate_now") + " " + ratePct(pct);
+    row.appendChild(nowEl);
+    row.appendChild(rateSep());
+    const peakEl = document.createElement("span");
+    peakEl.className = "rate-peak-t";
+    peakEl.textContent = t("rate_peak") + " " + ratePct(peak);
+    peakEl.setAttribute("data-i18n-title", "rate_peak_tip");
+    peakEl.setAttribute("data-tip", t("rate_peak_tip"));
+    row.appendChild(peakEl);
+    row.appendChild(rateSep());
+    const totEl = document.createElement("span");
+    totEl.className = "rate-total";
+    totEl.textContent = t("rate_total") + " " + fmtTotal(st.total);
+    totEl.setAttribute("data-i18n-title", "rate_peak_tip");
+    totEl.setAttribute("data-tip", t("rate_peak_tip"));
+    row.appendChild(totEl);
+    const track = document.createElement("div");
+    track.className = "rate-track";
+    const fill = document.createElement("div");
+    fill.className = "rate-fill";
+    fill.style.width = pct + "%";
+    track.appendChild(fill);
+    if (peak > 0) {
+      const pk = document.createElement("div");
+      pk.className = "rate-peak";
+      pk.style.left = "calc(" + peak + "% - 1px)";
+      track.appendChild(pk);
+    }
+    row.appendChild(track);
+    row.appendChild(rateScale());
+    box.appendChild(row);
+  });
+  window.__NX_RATE.rows = box.childElementCount;
+}
+function armRateRefresh() {
+  if (rateTimer) clearInterval(rateTimer);
+  rateTimer = null;
+  if (!isAdmin()) return;
+  if (!adminModalOpen()) {
+    // Modal henüz açılmadıysa (showSettingsSubmodal await yarışı) pes etme:
+    // kısa gecikmeyle birkaç kez tekrar dene, sonra tick içinde guard'lı poll kur.
+    window.__NX_RATE = window.__NX_RATE || { polls: 0, lastOk: 0, lastErr: "", rows: 0 };
+    window.__NX_RATE.lastErr = "guard-closed-retry";
+    let tries = 0;
+    const retry = setInterval(() => {
+      tries += 1;
+      if (adminModalOpen() && isAdmin()) {
+        clearInterval(retry);
+        loadRateBars();
+        armRateRefresh();
+      } else if (tries >= 10) {
+        clearInterval(retry);
+      }
+    }, 300);
+    return;
+  }
+  rateTimer = setInterval(() => {
+    if (!adminModalOpen() || !isAdmin()) {
+      clearInterval(rateTimer);
+      rateTimer = null;
+      return;
+    }
+    loadRateBars();
+  }, 1000);
+}
+// Konsoldan elle tetikleme + modal-sonrası kick: __NX_kickRate()
+try {
+  window.__NX_kickRate = () => {
+    paintRateSkeleton();
+    loadRateBars();
+    armRateRefresh();
+  };
+} catch (_) {}
 
 function roleIcon(inner, tipKey, colorCls, fn, dead, isSvg) {
   const b = document.createElement("button");

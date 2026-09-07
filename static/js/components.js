@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=438";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,

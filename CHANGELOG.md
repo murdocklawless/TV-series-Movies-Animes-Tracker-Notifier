@@ -1,6 +1,42 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.55 - 07/09/2026-19:20
+### TR
+- Bar satırlarına günlük toplam eklendi (`Toplam 1.250`); 00:00'da sıfırlanır, sayı dile göre gruplanır.
+### EN
+- Bar rows now show a daily total (`Total 1,250`); resets at 00:00, grouped per locale.
+
+## 1.54 - 07/09/2026-18:55
+### TR
+- Açılıştaki iç senkron patlamaları (tür/puan) hız barlarına işlenmiyor; restart sonrası bar ve pik sıfır başlıyor.
+### EN
+- Boot-time internal sync bursts (genres/votes) no longer feed the rate bars; bars and peaks start at zero after restart.
+
+## 1.53 - 07/09/2026-18:40
+### TR
+- Pik çizgisi titremesi bitti: pik artık her saniye yeniden sayılmıyor, istek anında mandallanıyor; trafik yokken çizgi sabit duruyor.
+### EN
+- Peak line flicker fixed: peak is now latched at request time instead of rescanned every second; the line stays put with no traffic.
+
+## 1.52 - 07/09/2026-18:05
+### TR
+- Hız barları liste akışından bağımsız açılır, veri gelmeden iskelet görünür; hata üst üste binerse not düşer.
+- Admin modalında küçük sürüm etiketi; giriş sayfası önbelleğe alınmaz (bayat ekran kalmaz).
+### EN
+- Rate bars open independently of list loading, skeleton shows before data; persistent failures leave a note.
+- Small build tag in the admin modal; landing page is never cached (no stale screens).
+
+## 1.51 - 07/09/2026-15:22
+### TR
+- Admin modalında TMDB / AniList / TVMaze canlı doluluk barları + gün-içi pik çizgisi eklendi.
+- Dış istekler jeton kovasıyla sınırlanıyor (TMDB 30/10 sn, AniList 70/dk); 429'da bir kez tekrar deneniyor.
+- Bar satırları `TMDB · Anlık %75 · Pik %90` diziliminde; pik gün-içi tavan, gece yarısı sıfırlanır, 1 sn güncellenir.
+### EN
+- Admin modal now shows live TMDB / AniList / TVMaze usage bars with an intraday peak line.
+- Outbound requests are token-bucket throttled (TMDB 30/10s, AniList 70/min); a 429 is retried once.
+- Bar rows read `TMDB · Now 75% · Peak 90%`; peak is the intraday max, resets at midnight, refreshes every second.
+
 ## 1.50 - 07/09/2026-03:41
 ### TR
 - Üye simgeleri küçüldü, satırda iki üye görünüyor; uygulamayı kullanan üye yeşil görünüyor.

@@ -1,6 +1,6 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=438";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
 import { sortMenu, activateUtilityTab, closeSortMenu } from "./views.js";
 import { showConfirm } from "./components.js";
@@ -879,7 +879,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js");
+      const { errText: _err } = await import("./i18n.js?v=438");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -925,7 +925,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js");
+        const { t: _t } = await import("./i18n.js?v=438");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");

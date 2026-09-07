@@ -1,6 +1,6 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js";
+import { t } from "./i18n.js?v=438";
 import { escAttr } from "./utils.js";
 import { showConfirm } from "./components.js";
 import { closeSortMenu } from "./views.js";

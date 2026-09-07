@@ -25,6 +25,7 @@ from flask import Blueprint, jsonify, request
 from db import get_db, get_setting, set_setting, get_user_setting, set_user_setting
 from auth import get_current_user
 from tmdb import tmdb_request, get_tmdb_info, get_tmdb_cast, save_details
+from rate_track import acquire, record, handle_429
 from poster_store import download_tmdb_poster_with_sizes, download_anime_poster_with_sizes
 from scheduler import sync_episodes
 from anilist import (
@@ -515,6 +516,7 @@ def _tmdb_find(external_id, source):
     api_key = get_setting("tmdb_api_key")
     if not api_key:
         return None
+    acquire("tmdb")
     try:
         r = requests.get(
             "https://api.themoviedb.org/3/find/" + str(external_id),
@@ -523,6 +525,19 @@ def _tmdb_find(external_id, source):
         )
     except requests.RequestException:
         return None
+    record("tmdb")
+    if r.status_code == 429:
+        handle_429("tmdb", r)
+        acquire("tmdb")
+        try:
+            r = requests.get(
+                "https://api.themoviedb.org/3/find/" + str(external_id),
+                params={"api_key": api_key, "external_source": source, "language": "en-US"},
+                timeout=15,
+            )
+        except requests.RequestException:
+            return None
+        record("tmdb")
     if r.status_code != 200:
         return None
     return r.json()

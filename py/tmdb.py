@@ -3,6 +3,7 @@ import json
 import requests
 
 from db import get_setting, _safe_json_list
+from rate_track import acquire, record, handle_429
 
 
 def tmdb_request(path, params=None, lang=None):
@@ -23,10 +24,20 @@ def tmdb_request(path, params=None, lang=None):
         p = {"api_key": api_key, "language": l}
         if params:
             p.update(params)
+        acquire("tmdb")
         try:
             r = requests.get(url, params=p, timeout=15)
         except requests.RequestException:
             continue
+        record("tmdb")
+        if r.status_code == 429:
+            handle_429("tmdb", r)
+            acquire("tmdb")
+            try:
+                r = requests.get(url, params=p, timeout=15)
+            except requests.RequestException:
+                continue
+            record("tmdb")
         if r.status_code != 200:
             return None
         data = r.json()

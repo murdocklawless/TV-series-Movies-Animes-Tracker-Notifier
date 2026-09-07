@@ -4097,5 +4097,21 @@ body.logged-out main { padding: 0; }
 /* Faz 31 rol bildirimi: baslik tipe gore renkli */
 .notif-item[data-ntype="role_admin"] .notif-title { color: #f87171; }
 .notif-item[data-ntype="role_member"] .notif-title { color: #4ade80; }
+/* limit.md: admin modal API hiz gostergesi — etiket satiri + 3 canli bar + kirmizi pik cizgisi */
+#admin-rate-bars { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+#admin-rate-bars .rate-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; width: 100%; }
+#admin-rate-bars .rate-label { font-size: 0.7rem; color: #aab; }
+#admin-rate-bars .rate-sep { font-size: 0.7rem; color: #aab; }
+#admin-rate-bars .rate-now { font-size: 0.7rem; color: #22c55e; }
+#admin-rate-bars .rate-peak-t { font-size: 0.7rem; color: #ef4444; }
+#admin-rate-bars .rate-total { font-size: 0.7rem; color: #aab; }
+#admin-rate-bars .rate-track { position: relative; height: 14px; width: 100%; flex: 1 1 100%; background: #171a23; border: 1px solid #262a36; border-radius: 7px; overflow: hidden; }
+#admin-rate-bars .rate-fill { height: 100%; width: 0; background: repeating-linear-gradient(90deg, #22c55e 0 1px, transparent 1px 2px); transition: width 0.5s ease; }
+#admin-rate-bars .rate-peak { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; }
+#admin-rate-bars .rate-scale { position: relative; height: 10px; width: 100%; flex: 1 1 100%; }
+#admin-rate-bars .rate-scale span { position: absolute; top: 0; font-size: 0.5rem; color: #555; transform: translateX(-50%); }
+#admin-rate-bars .rate-scale .tick-0 { left: 0; transform: none; }
+#admin-rate-bars .rate-scale .tick-100 { right: 0; transform: none; }
+#admin-rate-bars .rate-err { font-size: 0.7rem; color: #f87171; text-align: center; }
 /* Faz 31c: onay modali iki satirli metin (silme onayi soru + aciklama) */
 #confirm-text { white-space: pre-line; }

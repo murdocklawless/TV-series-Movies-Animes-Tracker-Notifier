@@ -5,12 +5,14 @@ import time
 import requests
 
 from db import get_db, _safe_json_list
+from rate_track import acquire, record, handle_429
 
 ANILIST_URL = "https://graphql.anilist.co"
 
 
 def anilist_query(query, variables=None):
     """AniList GraphQL isteği yapar."""
+    acquire("anilist")
     try:
         r = requests.post(
             ANILIST_URL,
@@ -19,6 +21,19 @@ def anilist_query(query, variables=None):
         )
     except requests.RequestException:
         return None
+    record("anilist")
+    if r.status_code == 429:
+        handle_429("anilist", r)
+        acquire("anilist")
+        try:
+            r = requests.post(
+                ANILIST_URL,
+                json={"query": query, "variables": variables or {}},
+                timeout=15,
+            )
+        except requests.RequestException:
+            return None
+        record("anilist")
     if r.status_code != 200:
         return None
     data = r.json()

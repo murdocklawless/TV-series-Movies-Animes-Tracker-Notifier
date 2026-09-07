@@ -43,9 +43,13 @@ def _poster_cache_headers(resp):
         if request.path.startswith("/static/images/posters/"):
             resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
             # ETag zaten Flask tarafindan eklenir
-        elif request.path.startswith(("/static/js/", "/static/css/")) or request.path == "/":
-            # JS/CSS/index.html: her kullanimda ETag dogrulamasi (304) - deploy aninda tum cihazlarda guncellenir
-            # ("/" haric tutulursa index.html 1 saat bayat kalir, eski v= referanslariyla bayat JS/CSS yuklenir)
+        elif request.path == "/":
+            # Giris HTML'i asla saklanmaz: bfcache/session-restore dahil her acilis
+            # taze giris demektir; ?v= zinciri ic modulleri gunceller. no-cache
+            # burada yetmez (bfcache no-cache'i atlayip eski sayfayi diriltebilir).
+            resp.headers["Cache-Control"] = "no-store"
+        elif request.path.startswith(("/static/js/", "/static/css/")):
+            # JS/CSS: her kullanimda ETag dogrulamasi (304) - deploy aninda tum cihazlarda guncellenir
             resp.headers["Cache-Control"] = "no-cache"
     except Exception:
         pass
