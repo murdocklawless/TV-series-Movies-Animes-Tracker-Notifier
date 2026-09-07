@@ -52,6 +52,9 @@ from stremio_buffer import (
 
 stremio_bp = Blueprint("stremio", __name__)
 
+# Eklenti listesi logosu (postimg, herkese acik; marka logosu oldugundan tum kullanicilarda ayni).
+ADDON_LOGO_URL = "https://i.postimg.cc/76NX03dZ/stremio-nextep-plugin.png"
+
 # Genisletilebilir uygulama defteri: ileride Nuvio vb. buraya satir eklenir.
 THIRDPARTY_APPS = [
     {"id": "stremio", "name": "Stremio", "protocol": "stremio"},
@@ -310,6 +313,7 @@ def stremio_manifest(uuid_param):
         "name": "NextEp Watch Sync",
         "version": "1.0.0",
         "description": "Syncs what you play in Stremio to NextEp as watched",
+        "logo": ADDON_LOGO_URL,
         "resources": ["subtitles"],
         "types": ["movie", "series"],
         "idPrefixes": ["tt", "tmdb:", "tvdb:", "trakt:", "kitsu:"],
