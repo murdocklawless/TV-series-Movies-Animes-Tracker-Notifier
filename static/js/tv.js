@@ -713,9 +713,25 @@ function loginChain(){
 }
 function handleLoginViewNav(e, dir){
   if (!isLoginViewActive()) return false;
+  const ae = document.activeElement;
+  try {
+    // Sifre-2'den yukari: once kendi gozu, sonra sifre-1 (istek).
+    if (ae && ae.id === 'login-pass2' && (dir === 'up' || dir === 'left')){
+      const eye = document.querySelector('.pw-eye[data-for="login-pass2"]');
+      if (eye && isVisible(eye) && !eye.disabled){ e.preventDefault(); focusEl(eye); return true; }
+    }
+    if (ae && ae.classList && ae.classList.contains('pw-eye') && ae.dataset.for === 'login-pass2'){
+      if (dir === 'up' || dir === 'left'){
+        const p1 = searchVisible('#login-pass');
+        if (p1){ e.preventDefault(); focusEl(p1); return true; }
+      } else {
+        const p2 = searchVisible('#login-pass2');
+        if (p2){ e.preventDefault(); focusEl(p2); return true; }
+      }
+    }
+  } catch {}
   const chain = loginChain();
   if (!chain.length) return false;
-  const ae = document.activeElement;
   let i = chain.indexOf(ae);
   if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
   const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
