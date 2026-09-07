@@ -1,6 +1,46 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.50 - 07/09/2026-03:41
+### TR
+- Üye simgeleri küçüldü, satırda iki üye görünüyor; uygulamayı kullanan üye yeşil görünüyor.
+- Her üyenin takip listesi ayrıldı; yeni üyeler boş başlar.
+- Her üye kendi Stremio bağlantısını alır.
+- Stremio kartında Durum ve Son Sinyal ayrı çerçevede; Hazır rozeti eklendi, son izlenen yapım tek satırda yazıyor.
+- Tüm bildirimler kişisel Bildirim Saati'nde tam dakikasında geliyor; Yayın ve Anime saati satırları kalktı.
+### EN
+- Member icons shrunk, two members per row; members using the app show in green.
+- Each member now has a separate watchlist; new members start empty.
+- Each member gets their own Stremio link.
+- Stremio card split Status and Last Signal into separate frames; Ready badge added, last watched title on a single line.
+- All notifications arrive at the personal notification hour, on the exact minute; Release and Anime hour rows removed.
+## 1.43 - 06/09/2026-23:24
+### TR
+- Üye simgeleri artık her cihazda doğru görünüyor.
+- Onay pencerelerinde doğru başlık yazıyor; silme onayı iki satır.
+### EN
+- Member icons now render correctly on every device.
+- Confirmation dialogs show the right title; delete confirmation is two lines.
+## 1.42 - 06/09/2026-22:58
+### TR
+- Admin çipinde eksik olan admin simgesi eklendi.
+- Üye simgeleri sadeleşti ve büyüdü; hover renkleri açıldı.
+- Üyeler en sağdaki X simgesiyle onaylı şekilde tamamen silinir.
+### EN
+- Missing admin icon added to the admin chip.
+- Member icons simplified and enlarged; hover colors lightened.
+- Members are fully removed with the rightmost X icon after confirmation.
+## 1.41 - 06/09/2026-22:36
+### TR
+- Ayarlardaki Admin bölümünde üyeler etiket görünümüne geçti.
+- Üyeler simgelerle yönetiliyor: onay, red, aktifleştirme, pasifleştirme ve admin/üye değişimi.
+- Son admin indirilemez; adminliği bırakma karşılıklı değişimle olur.
+- Rol değişince bildirim merkezine bildirim düşer.
+### EN
+- Members in the Admin section now appear as chips.
+- Members are managed with icons: approve, reject, activate, deactivate and admin/member switch.
+- The last admin can't be demoted; handover happens by mutual switch.
+- Role changes drop a notification in the notification center.
 ## 1.40 - 06/09/2026-20:20
 ### TR
 - Çoklu kullanıcı geldi: giriş ekranıyla kullanıcı adı ve şifreyle giriş yapılır.
