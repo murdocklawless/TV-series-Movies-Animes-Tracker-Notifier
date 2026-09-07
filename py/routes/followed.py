@@ -5,6 +5,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from db import get_db, today_str
+from auth import get_current_user
 from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request
 from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
@@ -13,6 +14,15 @@ from ramcache import list_cache, bump, gen, cached_response
 from recommendations import remove_rec_item
 
 followed_bp = Blueprint("followed", __name__)
+
+
+def _uid():
+    """Oturumdaki kullanici id'si (Faz 32 izolasyon). Yoksa 0."""
+    try:
+        u = get_current_user()
+        return int(u["id"]) if u else 0
+    except Exception:
+        return 0
 
 
 @followed_bp.route("/api/follow", methods=["POST"])
@@ -34,18 +44,19 @@ def follow():
     networks = (info or {}).get("networks") or []
 
     conn = get_db()
+    uid = _uid()
     existing = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?",
-        (tmdb_id, media_type),
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
     ).fetchone()
     if existing:
         conn.close()
         return jsonify({"error": "Zaten takipte"}), 400
 
     conn.execute(
-        "INSERT INTO followed (tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
+        "INSERT INTO followed (user_id, tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (uid, tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
     )
     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
@@ -95,12 +106,13 @@ def follow():
 
 @followed_bp.route("/api/followed")
 def followed():
-    key = ("followed", gen(), today_str())
+    uid = _uid()
+    key = ("followed", uid, gen(), today_str())
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    rows = conn.execute("SELECT * FROM followed ORDER BY id DESC").fetchall()
+    rows = conn.execute("SELECT * FROM followed WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
     today = today_str()
     items = []
     for r in rows:
@@ -144,7 +156,8 @@ def followed():
 @followed_bp.route("/api/unwatched")
 def unwatched():
     """Yayına girmiş ve izlenmemiş bölümleri olan dizi ve animeleri döndürür."""
-    key = ("unwatched", gen(), today_str())
+    uid = _uid()
+    key = ("unwatched", uid, gen(), today_str())
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
@@ -153,7 +166,7 @@ def unwatched():
     now = int(datetime.datetime.now().timestamp())
 
     shows = []
-    for r in conn.execute("SELECT * FROM followed WHERE media_type='tv'").fetchall():
+    for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv'", (uid,)).fetchall():
         rows = conn.execute(
             "SELECT season, episode, air_date, name FROM episodes "
             "WHERE follow_id=? AND air_date IS NOT NULL AND air_date<=? AND watched=0 "
@@ -188,7 +201,8 @@ def unwatched():
 
     movies = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE media_type='movie' AND watched=0 ORDER BY release_date IS NULL, release_date ASC"
+        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND watched=0 ORDER BY release_date IS NULL, release_date ASC",
+        (uid,),
     ).fetchall():
         movies.append(
             {
@@ -206,7 +220,7 @@ def unwatched():
         )
 
     anime_list = []
-    for r in conn.execute("SELECT * FROM anime").fetchall():
+    for r in conn.execute("SELECT * FROM anime WHERE user_id=?", (uid,)).fetchall():
         rows = conn.execute(
             "SELECT episode, air_at FROM anime_episodes "
             "WHERE anime_id=? AND air_at IS NOT NULL AND air_at<=? AND watched=0 "
@@ -238,8 +252,9 @@ def unwatched():
 
 @followed_bp.route("/api/unfollow/<int:follow_id>", methods=["DELETE"])
 def unfollow(follow_id):
+    uid = _uid()
     conn = get_db()
-    row = conn.execute("SELECT poster_local, poster_local_w185, tmdb_id, media_type FROM followed WHERE id=?", (follow_id,)).fetchone()
+    row = conn.execute("SELECT poster_local, poster_local_w185, tmdb_id, media_type FROM followed WHERE id=? AND user_id=?", (follow_id, uid)).fetchone()
     if not row:
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 404
@@ -270,7 +285,8 @@ def unfollow(follow_id):
 def watched():
     """Kullanıcının onayladığı (in_watched=1) tamamen izlenmiş yapımları döndürür.
     Yeni bölüm yayınlananlar otomatik izlenmişten çıkarılır."""
-    key = ("watched", gen(), today_str())
+    uid = _uid()
+    key = ("watched", uid, gen(), today_str())
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
@@ -278,7 +294,8 @@ def watched():
 
     shows = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE media_type='tv' AND in_watched=1"
+        "SELECT * FROM followed WHERE user_id=? AND media_type='tv' AND in_watched=1",
+        (uid,),
     ).fetchall():
         total = conn.execute(
             "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)
@@ -321,7 +338,8 @@ def watched():
 
     movies = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE media_type='movie' AND in_watched=1 ORDER BY release_date IS NULL, release_date ASC"
+        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND in_watched=1 ORDER BY release_date IS NULL, release_date ASC",
+        (uid,),
     ).fetchall():
         if not (r["watched"] == 1):
             conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
@@ -343,7 +361,7 @@ def watched():
         )
 
     anime_list = []
-    for r in conn.execute("SELECT * FROM anime WHERE in_watched=1").fetchall():
+    for r in conn.execute("SELECT * FROM anime WHERE user_id=? AND in_watched=1", (uid,)).fetchall():
         total = conn.execute(
             "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)
         ).fetchone()["c"]
@@ -388,10 +406,11 @@ def followed_move_watched():
     watched = 1 if body.get("watched") else 0
     if not tmdb_id or media_type not in ("movie", "tv"):
         return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
-        (tmdb_id, media_type),
+        "SELECT * FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
     ).fetchone()
     if not follow:
         conn.close()
@@ -426,10 +445,11 @@ def releases():
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
-        (tmdb_id, media_type),
+        "SELECT * FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
     ).fetchone()
 
     if media_type == "movie":
@@ -499,10 +519,11 @@ def episode_watch():
     if not tmdb_id or season is None or episode is None:
         return jsonify({"error": "Eksik bilgi"}), 400
 
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
-        (tmdb_id,),
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+        (uid, tmdb_id,),
     ).fetchone()
     if not follow:
         conn.close()
@@ -530,10 +551,11 @@ def season_watch():
     if not tmdb_id or season is None:
         return jsonify({"error": "Eksik bilgi"}), 400
 
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
-        (tmdb_id,),
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+        (uid, tmdb_id,),
     ).fetchone()
     if not follow:
         conn.close()
@@ -612,10 +634,11 @@ def movie_watch():
     watched = 1 if body.get("watched") else 0
     if not tmdb_id:
         return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='movie'",
-        (tmdb_id,),
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
+        (uid, tmdb_id,),
     ).fetchone()
     if not follow:
         conn.close()
@@ -732,10 +755,11 @@ def details():
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
+    uid = _uid()
     conn = get_db()
     follow = conn.execute(
-        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
-        (tmdb_id, media_type),
+        "SELECT * FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
     ).fetchone()
     localized = _load_localized(follow["localized"] if follow else None)
     pl = _poster_local_for(media_type, tmdb_id)

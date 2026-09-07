@@ -601,6 +601,64 @@ async function loadSettings() {
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
   if (window.updateBackupButtonsState) window.updateBackupButtonsState();
+  try { applyReadonlyGlobals(s); } catch (e) {}
+}
+
+
+function applyReadonlyGlobals(s) {
+  // Faz 32: uye global anahtarlari salt-okunur gorur (admin yonetir).
+  // notification_hour kisisel oldugundan haric — uye duzenleyebilir.
+  const keyToIds = {
+    tmdb_api_key: ["s-tmdb"],
+    telegram_bot_token: ["s-token"],
+    notify_hour: ["s-hour"],
+    sync_hour: ["s-sync-hour"],
+    genre_hour: ["s-genre-hour"],
+    data_hour: ["s-data-hour"],
+    anime_notification_hour: ["s-anime-hour"],
+    rec_hour: ["s-rec-hour"],
+    backup_hour: ["s-backup-hour"],
+    app_update_hour: ["s-appupdate-hour"],
+    backup_mode: ["s-backup-db", "s-backup-full"],
+    backup_rsync_host: ["s-backup-rsync-host"],
+    backup_rsync_port: ["s-backup-rsync-port"],
+    backup_rsync_path: ["s-backup-rsync-path"],
+    backup_rsync_user: ["s-backup-rsync-user"],
+    backup_rsync_pass: ["s-backup-rsync-pass"],
+    backup_rsync_key: ["s-backup-rsync-key-text"],
+    backup_samba_host: ["s-backup-samba-host"],
+    backup_samba_port: ["s-backup-samba-port"],
+    backup_samba_share: ["s-backup-samba-share"],
+    backup_samba_user: ["s-backup-samba-user"],
+    backup_samba_pass: ["s-backup-samba-pass"],
+    app_auto_update: ["s-appupdate-auto"],
+    cache_ttl: ["s-cache-ttl"],
+    brevo_api_key: ["s-brevo-key"],
+    email_from: ["s-email-from"],
+    email_provider: ["s-email-provider"],
+    smtp_preset: ["s-smtp-preset"],
+    smtp_host: ["s-smtp-host"],
+    smtp_port: ["s-smtp-port"],
+    smtp_user: ["s-smtp-user"],
+    smtp_pass: ["s-smtp-pass"],
+  };
+  const ro = new Set(s && s.readonly_global ? s.readonly_global : []);
+  Object.entries(keyToIds).forEach(([key, ids]) => {
+    if (!ro.has(key)) {
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = false; el.title = ""; }
+      });
+      return;
+    }
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.disabled = true;
+        el.title = "Admin yönetir";
+      }
+    });
+  });
 }
 
 function showMsg(text, ok) {

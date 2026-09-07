@@ -3,6 +3,7 @@ import json
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from auth import get_current_user
 from ramcache import cached_response, bump
 from recommendations import (
     generate_recommendations,
@@ -41,6 +42,17 @@ _HIDDEN_MEDIA = {
 }
 
 
+def _uid():
+    try:
+        from flask import has_request_context
+        if has_request_context():
+            u = get_current_user()
+            return int(u["id"]) if u else 0
+    except Exception:
+        pass
+    return 0
+
+
 @recommendations_bp.route("/api/recommendations")
 def recommendations():
     media = request.args.get("media", "all")
@@ -51,6 +63,7 @@ def recommendations():
 
     # Doldurma modu: kart kaldirilinca eksik slotu doldurur ve kalici payload'i guncel tutar.
     limit_raw = request.args.get("limit", "")
+    uid = _uid()
     if limit_raw:
         try:
             limit = min(int(limit_raw), 18)
@@ -61,8 +74,8 @@ def recommendations():
         try:
             payload = {}
             for kind in kinds:
-                items = generate_fill(conn, kind, exclude, limit)
-                append_to_rec_section(kind, items, section_fingerprint(conn, kind))
+                items = generate_fill(conn, kind, exclude, limit, user_id=uid)
+                append_to_rec_section(kind, items, section_fingerprint(conn, kind, user_id=uid), user_id=uid)
                 payload[kind] = items
         finally:
             conn.close()
@@ -74,12 +87,12 @@ def recommendations():
     try:
         payload = {}
         for kind in kinds:
-            items = None if refresh else load_rec_section(conn, kind)
+            items = None if refresh else load_rec_section(conn, kind, user_id=uid)
             if items is not None:
                 payload[kind] = items
                 continue
-            items = generate_recommendations(conn, kind)
-            save_rec_section(kind, items, section_fingerprint(conn, kind))
+            items = generate_recommendations(conn, kind, user_id=uid)
+            save_rec_section(kind, items, section_fingerprint(conn, kind, user_id=uid), user_id=uid)
             payload[kind] = items
             any_miss = True
     finally:
@@ -101,9 +114,9 @@ def rec_hide():
             return jsonify({"error": "Eksik bilgi"}), 400
         kind = "shows" if media_type == "tv" else "movies"
         ident = tmdb_id
-    if not hide_rec_item(kind, ident, body.get("title") or "", body.get("poster_path")):
+    if not hide_rec_item(kind, ident, body.get("title") or "", body.get("poster_path"), user_id=_uid()):
         return jsonify({"error": "Geçersiz bilgi"}), 400
-    remove_rec_item(kind, ident)
+    remove_rec_item(kind, ident, user_id=_uid())
     return jsonify({"ok": True})
 
 
@@ -113,7 +126,7 @@ def rec_hidden():
     kind = _HIDDEN_MEDIA.get(request.args.get("media", ""))
     if not kind:
         return jsonify({"error": "Geçersiz media parametresi"}), 400
-    return jsonify({"items": list_rec_hidden(kind)})
+    return jsonify({"items": list_rec_hidden(kind, user_id=_uid())})
 
 
 @recommendations_bp.route("/api/recommendations/unhide", methods=["POST"])
@@ -124,7 +137,7 @@ def rec_unhide():
     kind = _HIDDEN_MEDIA.get(body.get("kind") or body.get("media_type") or "")
     if not kind or ident is None:
         return jsonify({"error": "Eksik bilgi"}), 400
-    if not unhide_rec_item(kind, ident):
+    if not unhide_rec_item(kind, ident, user_id=_uid()):
         return jsonify({"error": "Kayıt bulunamadı"}), 404
     return jsonify({"ok": True})
 
@@ -134,6 +147,7 @@ def rec_move_watched():
     """Öneri kartindaki 'İzlenmişlere taşı': yapimi takip eder (yoksa) ve tüm
     bilinen bolumlerini izlenmis isaretleyip in_watched=1 yapar."""
     body = request.get_json(silent=True) or {}
+    uid = _uid()
     conn = get_db()
     try:
         if body.get("anilist_id"):
@@ -149,15 +163,15 @@ def rec_move_watched():
             studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
             studio = studios[0] if studios else None
             conn.execute(
-                "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score, studios) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(anilist_id) DO UPDATE SET "
+                "INSERT INTO anime (user_id, anilist_id, title, cover_url, episodes, status, score, studios) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(user_id, anilist_id) DO UPDATE SET "
                 "title=excluded.title, cover_url=excluded.cover_url, episodes=excluded.episodes, "
                 "status=excluded.status, score=excluded.score, studios=excluded.studios",
-                (anilist_id, title, cover, episodes, status, score, studio),
+                (uid, anilist_id, title, cover, episodes, status, score, studio),
             )
             conn.commit()
-            row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+            row = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
             anime_db_id = row["id"]
             save_anime_details(conn, anime_db_id, detail)
             schedule = anilist_schedule(anilist_id)
@@ -184,14 +198,14 @@ def rec_move_watched():
                 vote_average = (info or {}).get("vote_average") or 0
             networks = (info or {}).get("networks") or []
             existing = conn.execute(
-                "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?", (tmdb_id, media_type)
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?", (uid, tmdb_id, media_type)
             ).fetchone()
             follow_id = existing["id"] if existing else None
             if follow_id is None:
                 conn.execute(
-                    "INSERT INTO followed (tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
+                    "INSERT INTO followed (user_id, tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (uid, tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
                 )
                 follow_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 if info:
@@ -232,7 +246,7 @@ def rec_move_watched():
         conn.close()
     try:
         if ident:
-            remove_rec_item(rec_kind, int(ident))
+            remove_rec_item(rec_kind, int(ident), user_id=uid)
     except Exception:
         pass
     bump()

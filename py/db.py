@@ -287,6 +287,91 @@ def init_db():
     cols_s = [r["name"] for r in conn.execute("PRAGMA table_info(sessions)").fetchall()]
     if "last_seen" not in cols_s:
         conn.execute("ALTER TABLE sessions ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0")
+    # Faz 32: coklu uyelik veri izolasyonu — her kartin sahibi (user_id).
+    # Mevcut satirlar ilk admin'e (id=1) yazilir; yeni uyeler bos baslar.
+    cols_f = [r["name"] for r in conn.execute("PRAGMA table_info(followed)").fetchall()]
+    if "user_id" not in cols_f:
+        conn.execute("ALTER TABLE followed ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+    cols_a = [r["name"] for r in conn.execute("PRAGMA table_info(anime)").fetchall()]
+    if "user_id" not in cols_a:
+        conn.execute("ALTER TABLE anime ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+    # anime.anilist_id tabloda UNIQUE idi — farkli kullanicilar ayni animeyi
+    # takip edebilsin diye (user_id, anilist_id) ikilisine cevrilir (tablo rebuild).
+    try:
+        sql = (conn.execute("SELECT sql FROM sqlite_master WHERE name='anime'").fetchone() or {})["sql"] or ""
+        if "anilist_id INTEGER UNIQUE" in sql or "anilist_id UNIQUE" in sql:
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS anime_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL DEFAULT 1,
+                    anilist_id INTEGER NOT NULL,
+                    title TEXT,
+                    cover_url TEXT,
+                    episodes INTEGER DEFAULT 0,
+                    status TEXT,
+                    score REAL,
+                    notified INTEGER DEFAULT 0,
+                    studios TEXT,
+                    banner TEXT,
+                    description TEXT,
+                    format TEXT,
+                    duration INTEGER,
+                    genres TEXT,
+                    start_date TEXT,
+                    in_watched INTEGER DEFAULT 0,
+                    poster_local TEXT,
+                    poster_local_w185 TEXT,
+                    UNIQUE(user_id, anilist_id)
+                )"""
+            )
+            conn.execute(
+                """INSERT OR IGNORE INTO anime_new
+                    (id, user_id, anilist_id, title, cover_url, episodes, status, score,
+                     notified, studios, banner, description, format, duration, genres,
+                     start_date, in_watched, poster_local, poster_local_w185)
+                    SELECT id, COALESCE(user_id, 1), anilist_id, title, cover_url, episodes,
+                     status, score, notified, studios, banner, description, format, duration,
+                     genres, start_date, in_watched, poster_local, poster_local_w185
+                    FROM anime"""
+            )
+            conn.execute("DROP TABLE anime")
+            conn.execute("ALTER TABLE anime_new RENAME TO anime")
+    except Exception:
+        pass
+    try:
+        conn.execute("DROP INDEX IF EXISTS idx_followed_tmdb")
+    except Exception:
+        pass
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_followed_user_tmdb ON followed(user_id, tmdb_id, media_type)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_followed_user ON followed(user_id)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_anime_user ON anime(user_id)"
+    )
+    # Faz 32: kisisel ayarlar (global settings tablosundan ayri).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT,
+            PRIMARY KEY(user_id, key)
+        )"""
+    )
+    # Faz 32: stremio sinyal tamponu per-user (uuid per-user'a bagli).
+    cols_sig = [r["name"] for r in conn.execute("PRAGMA table_info(stremio_signals)").fetchall()]
+    if "user_id" not in cols_sig:
+        conn.execute("ALTER TABLE stremio_signals ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+    # Faz 32: oneri payload'i per-user (restart sonrasi da yasar).
+    cols_rc = [r["name"] for r in conn.execute("PRAGMA table_info(rec_cache)").fetchall()]
+    if "user_id" not in cols_rc:
+        conn.execute("ALTER TABLE rec_cache ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+    try:
+        conn.execute("DROP INDEX IF EXISTS idx_rec_cache_media")
+    except Exception:
+        pass
     # Faz 31: kisisel bildirimler (rol degisimi) icin hedef kullanici; 0 = herkese acik.
     cols_n = [r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()]
     if "user_id" not in cols_n:
@@ -309,8 +394,45 @@ def init_db():
             locked_until INTEGER NOT NULL DEFAULT 0
         )"""
     )
+    # Faz 32: rec_cache PK media -> PK(user_id, media) rebuild.
+    try:
+        rcsql = (conn.execute("SELECT sql FROM sqlite_master WHERE name='rec_cache'").fetchone() or {})["sql"] or ""
+        if "PRIMARY KEY(user_id" not in rcsql and "PRIMARY KEY (user_id" not in rcsql:
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS rec_cache_new (
+                    user_id INTEGER NOT NULL DEFAULT 1,
+                    media TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    ts REAL NOT NULL,
+                    fp TEXT,
+                    PRIMARY KEY(user_id, media)
+                )"""
+            )
+            try:
+                conn.execute(
+                    """INSERT OR IGNORE INTO rec_cache_new (user_id, media, payload, ts, fp)
+                        SELECT COALESCE(user_id, 1), media, payload, ts, fp FROM rec_cache"""
+                )
+            except Exception:
+                pass
+            conn.execute("DROP TABLE rec_cache")
+            conn.execute("ALTER TABLE rec_cache_new RENAME TO rec_cache")
+    except Exception:
+        pass
+    try:
+        conn.execute("UPDATE followed SET user_id=1 WHERE user_id IS NULL OR user_id=0")
+    except Exception:
+        pass
+    try:
+        conn.execute("UPDATE anime SET user_id=1 WHERE user_id IS NULL OR user_id=0")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
+    try:
+        ensure_user_settings_migrated()
+    except Exception:
+        pass
 
 
 ENV_KEYS = {
@@ -371,6 +493,143 @@ def set_setting(key, value):
     )
     conn.commit()
     conn.close()
+
+
+# Faz 32: kisisel (per-user) ayar anahtarlari. Bunlar user_settings tablosunda
+# saklanir; global settings tablosundaki ayni isimli deger yalnizca ilk kurulum
+# / geriye donuk uyumluluk icin varsayilan olarak okunur.
+PERSONAL_KEYS = {
+    "language",
+    "timezone",
+    "fav_actors",
+    "fav_anime_chars",
+    "fav_genres",
+    "fav_anime_genres",
+    "notification_hour",
+    "notif_center_enabled",
+    "notif_center_time",
+    "notif_center_poster",
+    "notif_center_hide_read",
+    "notif_center_limit",
+    "telegram_enabled",
+    "telegram_chat_id",
+    "ntfy_enabled",
+    "ntfy_topic",
+    "discord_enabled",
+    "discord_webhook_url",
+    "email_enabled",
+    "email_to",
+    "tp_stremio_uuid",
+    "tp_base_url",
+    "rec_seen",
+    "rec_hidden",
+    "rec_profile_fp",
+}
+
+# Faz 32: yalniz admin yazabilir (uye POST'unda 403). GET'te uyeye salt-okunur gosterilir.
+GLOBAL_ADMIN_ONLY_KEYS = {
+    "tmdb_api_key",
+    "telegram_bot_token",
+    "brevo_api_key",
+    "email_from",
+    "email_provider",
+    "smtp_preset",
+    "smtp_host",
+    "smtp_port",
+    "smtp_user",
+    "smtp_pass",
+    "backup_rsync_pass",
+    "backup_samba_pass",
+    "backup_rsync_key",
+}
+
+
+def get_user_setting(user_id, key):
+    """Kisisel ayar: once user_settings, yoksa global settings (migration varsayilani)."""
+    try:
+        uid = int(user_id or 0)
+    except (TypeError, ValueError):
+        return None
+    if uid <= 0:
+        return None
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM user_settings WHERE user_id=? AND key=?", (uid, key)
+        ).fetchone()
+        if row is not None:
+            return row["value"]
+    finally:
+        conn.close()
+    # Geriye donuk uyumluluk: henuz kisisellestirilmemis anahtar globalden gelir.
+    return get_setting(key)
+
+
+def set_user_setting(user_id, key, value):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?) "
+            "ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value",
+            (int(user_id), key, value),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def ensure_user_settings_migrated():
+    """Mevcut global degerleri ilk admin + mevcut uyelere kisisel varsayilan olarak kopyalar.
+    user_settings bos olan (user_id, key) ikililerine global degeri yazar; uzerine yazmaz.
+    tp_stremio_uuid: admin globali korur, diger uyelere fresh uuid uretir (paylasim yok)."""
+    import uuid as _uuid
+
+    conn = get_db()
+    try:
+        users = [dict(r) for r in conn.execute("SELECT id FROM users").fetchall()]
+        if not users:
+            return
+        for u in users:
+            uid = u["id"]
+            for key in PERSONAL_KEYS:
+                try:
+                    has = conn.execute(
+                        "SELECT 1 FROM user_settings WHERE user_id=? AND key=?", (uid, key)
+                    ).fetchone()
+                except Exception:
+                    has = True
+                if has:
+                    continue
+                if key == "tp_stremio_uuid":
+                    if uid == 1:
+                        grow = conn.execute(
+                            "SELECT value FROM settings WHERE key='tp_stremio_uuid'"
+                        ).fetchone()
+                        val = (grow["value"] if grow else "") or _uuid.uuid4().hex
+                    else:
+                        val = _uuid.uuid4().hex
+                elif key == "discord_webhook_url":
+                    grow = conn.execute(
+                        "SELECT value FROM settings WHERE key='discord_webhook_url'"
+                    ).fetchone()
+                    val = (grow["value"] if grow else "") or ""
+                else:
+                    grow = conn.execute(
+                        "SELECT value FROM settings WHERE key=?", (key,)
+                    ).fetchone()
+                    if grow is None:
+                        continue
+                    val = grow["value"]
+                try:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)",
+                        (uid, key, val),
+                    )
+                except Exception:
+                    pass
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def db_version_get():

@@ -5,7 +5,8 @@ import zoneinfo
 
 from flask import Blueprint, jsonify, request
 
-from db import get_setting, set_setting, today_str
+from db import get_setting, set_setting, today_str, get_user_setting, set_user_setting, PERSONAL_KEYS, GLOBAL_ADMIN_ONLY_KEYS
+from auth import get_current_user
 from crypto_util import encrypt_secret, decrypt_secret
 from notifications import ntfy_topic_clean, _send_generic_smtp, _email_card_html
 from messages_i18n import t
@@ -19,6 +20,36 @@ MAX_BACKUPS_DB = 30
 MAX_BACKUPS_FULL = 30
 MAX_RESTORES_DB = 30
 MAX_RESTORES_FULL = 30
+
+
+def _uid():
+    try:
+        u = get_current_user()
+        return int(u["id"]) if u else 0
+    except Exception:
+        return 0
+
+
+def _is_admin():
+    try:
+        u = get_current_user()
+        return bool(u and u.get("role") == "admin" and u.get("status") == "active")
+    except Exception:
+        return False
+
+
+def _pget(key):
+    """Faz 32: kisisel anahtarlar oturum sahibinden, globaller settings'ten."""
+    try:
+        if key in PERSONAL_KEYS:
+            uid = _uid()
+            if uid > 0:
+                v = get_user_setting(uid, key)
+                if v is not None:
+                    return v
+    except Exception:
+        pass
+    return get_setting(key)
 
 
 def _prune_remote_rsync(host, port, path, user, key_plain, mode):
@@ -230,8 +261,11 @@ def _prune_local_restores():
 
 @settings_bp.route("/api/fav_actors", methods=["GET", "POST"])
 def fav_actors():
+    uid = _uid()
     if request.method == "GET":
-        raw = get_setting("fav_actors")
+        raw = get_user_setting(uid, "fav_actors") if uid else get_setting("fav_actors")
+        if raw is None:
+            raw = get_setting("fav_actors")
         actors = json.loads(raw) if raw else []
         return jsonify({"actors": actors})
     body = request.get_json(silent=True) or {}
@@ -239,7 +273,9 @@ def fav_actors():
     name = (body.get("name") or "").strip()
     if not person_id:
         return jsonify({"error": "Oyuncu id gerekli"}), 400
-    raw = get_setting("fav_actors")
+    raw = get_user_setting(uid, "fav_actors") if uid else get_setting("fav_actors")
+    if raw is None:
+        raw = get_setting("fav_actors")
     actors = json.loads(raw) if raw else []
     if any(a.get("person_id") == person_id for a in actors):
         actors = [a for a in actors if a.get("person_id") != person_id]
@@ -247,7 +283,10 @@ def fav_actors():
     else:
         actors.append({"person_id": person_id, "name": name})
         added = True
-    set_setting("fav_actors", json.dumps(actors, ensure_ascii=False))
+    if uid:
+        set_user_setting(uid, "fav_actors", json.dumps(actors, ensure_ascii=False))
+    else:
+        set_setting("fav_actors", json.dumps(actors, ensure_ascii=False))
     try:
         from fav_listings import invalidate_fav_listing
         invalidate_fav_listing("actor", str(person_id))
@@ -258,8 +297,11 @@ def fav_actors():
 
 @settings_bp.route("/api/fav_anime_chars", methods=["GET", "POST"])
 def fav_anime_chars():
+    uid = _uid()
     if request.method == "GET":
-        raw = get_setting("fav_anime_chars")
+        raw = get_user_setting(uid, "fav_anime_chars") if uid else get_setting("fav_anime_chars")
+        if raw is None:
+            raw = get_setting("fav_anime_chars")
         chars = json.loads(raw) if raw else []
         return jsonify({"characters": chars})
     body = request.get_json(silent=True) or {}
@@ -268,7 +310,9 @@ def fav_anime_chars():
     anime_title = (body.get("anime_title") or "").strip()
     if not character_id:
         return jsonify({"error": "Karakter id gerekli"}), 400
-    raw = get_setting("fav_anime_chars")
+    raw = get_user_setting(uid, "fav_anime_chars") if uid else get_setting("fav_anime_chars")
+    if raw is None:
+        raw = get_setting("fav_anime_chars")
     chars = json.loads(raw) if raw else []
     if any(a.get("character_id") == character_id for a in chars):
         chars = [a for a in chars if a.get("character_id") != character_id]
@@ -276,7 +320,10 @@ def fav_anime_chars():
     else:
         chars.append({"character_id": character_id, "name": name, "anime_title": anime_title})
         added = True
-    set_setting("fav_anime_chars", json.dumps(chars, ensure_ascii=False))
+    if uid:
+        set_user_setting(uid, "fav_anime_chars", json.dumps(chars, ensure_ascii=False))
+    else:
+        set_setting("fav_anime_chars", json.dumps(chars, ensure_ascii=False))
     return jsonify({"ok": True, "added": added, "characters": chars})
 
 
@@ -352,13 +399,28 @@ def _country_languages():
 
 @settings_bp.route("/api/settings", methods=["GET"])
 def get_settings():
+    uid = _uid()
+    admin = _is_admin()
+    # Faz 32: kisisel anahtarlar oturum sahibinden, global anahtarlar settings'ten.
+    # Uye global kanal secret'larini salt-okunur gorur (readonly_global listesiyle).
+    readonly_global = set()
+    if not admin:
+        readonly_global = set(GLOBAL_ADMIN_ONLY_KEYS) | {
+            "tmdb_api_key", "notify_hour", "sync_hour", "genre_hour", "data_hour",
+            "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour",
+            "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
+            "backup_rsync_user", "backup_samba_host", "backup_samba_port",
+            "backup_samba_share", "backup_samba_user", "app_auto_update",
+            "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
+            "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
+        }
     return jsonify(
         {
             "tmdb_api_key": get_setting("tmdb_api_key") or "",
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
-            "telegram_chat_id": get_setting("telegram_chat_id") or "",
+            "telegram_chat_id": _pget("telegram_chat_id") or "",
             "notify_hour": get_setting("notify_hour") or "09:00",
-            "notification_hour": get_setting("notification_hour") or "09:05",
+            "notification_hour": _pget("notification_hour") or "09:05",
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
@@ -380,22 +442,22 @@ def get_settings():
             "app_auto_update": get_setting("app_auto_update") or "0",
             "app_update_hour": get_setting("app_update_hour") or "04:00",
             "app_remote_version": get_setting("app_remote_version") or "",
-            "timezone": get_setting("timezone") or "Europe/Istanbul",
-            "language": get_setting("language") or "tr-TR",
-            "ntfy_topic": get_setting("ntfy_topic") or "",
-            "telegram_enabled": get_setting("telegram_enabled") or "1",
-            "ntfy_enabled": get_setting("ntfy_enabled") or "1",
-            "notif_center_enabled": get_setting("notif_center_enabled") or "1",
-            "notif_center_time": get_setting("notif_center_time") or "relative",
-            "notif_center_poster": get_setting("notif_center_poster") or "1",
-            "notif_center_hide_read": get_setting("notif_center_hide_read") or "0",
-            "notif_center_limit": get_setting("notif_center_limit") or "50",
-            "discord_enabled": get_setting("discord_enabled") or "1",
-            "discord_webhook_url": get_setting("discord_webhook_url") or "",
-            "email_enabled": get_setting("email_enabled") or "1",
+            "timezone": _pget("timezone") or "Europe/Istanbul",
+            "language": _pget("language") or "tr-TR",
+            "ntfy_topic": _pget("ntfy_topic") or "",
+            "telegram_enabled": _pget("telegram_enabled") or "1",
+            "ntfy_enabled": _pget("ntfy_enabled") or "1",
+            "notif_center_enabled": _pget("notif_center_enabled") or "1",
+            "notif_center_time": _pget("notif_center_time") or "relative",
+            "notif_center_poster": _pget("notif_center_poster") or "1",
+            "notif_center_hide_read": _pget("notif_center_hide_read") or "0",
+            "notif_center_limit": _pget("notif_center_limit") or "50",
+            "discord_enabled": _pget("discord_enabled") or "1",
+            "discord_webhook_url": _pget("discord_webhook_url") or "",
+            "email_enabled": _pget("email_enabled") or "1",
             "brevo_api_key": get_setting("brevo_api_key") or "",
             "email_from": get_setting("email_from") or "",
-            "email_to": get_setting("email_to") or "",
+            "email_to": _pget("email_to") or "",
             "email_provider": get_setting("email_provider") or "brevo",
             "smtp_preset": get_setting("smtp_preset") or "",
             "smtp_host": get_setting("smtp_host") or "",
@@ -403,9 +465,11 @@ def get_settings():
             "smtp_user": get_setting("smtp_user") or "",
             "has_smtp_pass": bool(get_setting("smtp_pass")),
             "cache_ttl": get_setting("cache_ttl") or "3600",
-            "tp_base_url": get_setting("tp_base_url") or "",
+            "tp_base_url": _pget("tp_base_url") or "",
             "server_today": today_str(),
-            **{f"notif_{k}": get_setting(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
+            "readonly_global": sorted(readonly_global),
+            "is_admin": admin,
+            **{f"notif_{k}": _pget(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
     )
 
@@ -413,6 +477,24 @@ def get_settings():
 @settings_bp.route("/api/settings", methods=["POST"])
 def save_settings():
     body = request.get_json()
+    uid = _uid()
+    admin = _is_admin()
+    # Faz 32: uye global anahtarlari yazamaz (403). Kisisel anahtarlar user_settings'e.
+    if not admin:
+        blocked = [
+            k for k in body
+            if k in GLOBAL_ADMIN_ONLY_KEYS
+            or k in ("tmdb_api_key", "notify_hour", "sync_hour", "genre_hour", "data_hour",
+                     "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour",
+                     "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
+                     "backup_rsync_user", "backup_samba_host", "backup_samba_port",
+                     "backup_samba_share", "backup_samba_user", "app_auto_update",
+                     "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
+                     "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
+                     "smtp_pass", "backup_rsync_pass", "backup_samba_pass", "backup_rsync_key")
+        ]
+        if blocked:
+            return jsonify({"error": "auth_admin", "blocked": blocked}), 403
     # gecersiz timezone DB'ye yazilip scheduler'i bozmasin
     if "timezone" in body:
         tz_val = str(body.get("timezone") or "").strip()
@@ -476,7 +558,11 @@ def save_settings():
         *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:
-            set_setting(key, str(body[key] or ""))
+            # Faz 32: kisisel anahtarlar oturum sahibine, globaller settings'e.
+            if key in PERSONAL_KEYS and uid > 0:
+                set_user_setting(uid, key, str(body[key] or ""))
+            else:
+                set_setting(key, str(body[key] or ""))
     if "smtp_pass" in body:
         val = (body.get("smtp_pass") or "").strip()
         # bos deger -> mevcut sifre korunur; sadece yeni girilen deger sifrelenir
@@ -496,7 +582,8 @@ def save_settings():
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    if any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
+    # Faz 32: uye bildirim saatini degistirince global cron'u bozma; per-user ticker okur.
+    if admin and any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 
@@ -1143,15 +1230,20 @@ def test_settings():
 
 @settings_bp.route("/api/fav_genres", methods=["GET", "POST"])
 def fav_genres():
+    uid = _uid()
     if request.method == "GET":
-        raw = get_setting("fav_genres")
+        raw = get_user_setting(uid, "fav_genres") if uid else None
+        if raw is None:
+            raw = get_setting("fav_genres")
         genres = json.loads(raw) if raw else []
         return jsonify({"genres": genres})
     body = request.get_json(silent=True) or {}
     genre = (body.get("genre") or "").strip()
     if not genre:
         return jsonify({"error": "Tür adı gerekli"}), 400
-    raw = get_setting("fav_genres")
+    raw = get_user_setting(uid, "fav_genres") if uid else None
+    if raw is None:
+        raw = get_setting("fav_genres")
     genres = json.loads(raw) if raw else []
     if genre in genres:
         genres.remove(genre)
@@ -1159,7 +1251,10 @@ def fav_genres():
     else:
         genres.append(genre)
         added = True
-    set_setting("fav_genres", json.dumps(genres, ensure_ascii=False))
+    if uid:
+        set_user_setting(uid, "fav_genres", json.dumps(genres, ensure_ascii=False))
+    else:
+        set_setting("fav_genres", json.dumps(genres, ensure_ascii=False))
     bump()
     try:
         from fav_listings import invalidate_fav_listing
@@ -1173,15 +1268,20 @@ def fav_genres():
 
 @settings_bp.route("/api/fav_anime_genres", methods=["GET", "POST"])
 def fav_anime_genres():
+    uid = _uid()
     if request.method == "GET":
-        raw = get_setting("fav_anime_genres")
+        raw = get_user_setting(uid, "fav_anime_genres") if uid else None
+        if raw is None:
+            raw = get_setting("fav_anime_genres")
         genres = json.loads(raw) if raw else []
         return jsonify({"genres": genres})
     body = request.get_json(silent=True) or {}
     genre = (body.get("genre") or "").strip()
     if not genre:
         return jsonify({"error": "Tür adı gerekli"}), 400
-    raw = get_setting("fav_anime_genres")
+    raw = get_user_setting(uid, "fav_anime_genres") if uid else None
+    if raw is None:
+        raw = get_setting("fav_anime_genres")
     genres = json.loads(raw) if raw else []
     if genre in genres:
         genres.remove(genre)
@@ -1189,7 +1289,10 @@ def fav_anime_genres():
     else:
         genres.append(genre)
         added = True
-    set_setting("fav_anime_genres", json.dumps(genres, ensure_ascii=False))
+    if uid:
+        set_user_setting(uid, "fav_anime_genres", json.dumps(genres, ensure_ascii=False))
+    else:
+        set_setting("fav_anime_genres", json.dumps(genres, ensure_ascii=False))
     bump()
     return jsonify({"ok": True, "added": added, "genres": genres})
 

@@ -23,27 +23,34 @@ def _now_ts():
     return int(time.time())
 
 
-def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_id=None, anilist_id=None, notified_date=None):
+def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_id=None, anilist_id=None, notified_date=None, user_id=None):
     """Aynı tip+başlık(+sezon/bölüm/id) + notified_date kombinasyonu daha once
-    uretilmis ise True doner. Dis push kapilarinin da kullanmasi icin ayrik."""
+    uretilmis ise True doner. Dis push kapilarinin da kullanmasi icin ayrik.
+    Faz 32: user_id verilirse yalniz o kullanicinin satirlari karsilastirilir."""
+    try:
+        uid = int(user_id or 0)
+    except (TypeError, ValueError):
+        uid = 0
     conn = get_db()
     try:
+        uscope = "AND user_id=? " if uid else ""
+        up = (uid,) if uid else ()
         # birikme tiplerinde tmdb_id/anilist_id ile dedupe (aynı isimli farklı dizi çakışmasın)
         if type_name in ("unwatched_bulk", "anime_unwatched_bulk"):
             if tmdb_id is not None:
                 rows = conn.execute(
-                    "SELECT notified_date FROM notifications WHERE type=? AND tmdb_id=?",
-                    (type_name, tmdb_id),
+                    f"SELECT notified_date FROM notifications WHERE type=? AND tmdb_id=? {uscope}",
+                    (type_name, tmdb_id, *up),
                 ).fetchall()
             elif anilist_id is not None:
                 rows = conn.execute(
-                    "SELECT notified_date FROM notifications WHERE type=? AND anilist_id=?",
-                    (type_name, anilist_id),
+                    f"SELECT notified_date FROM notifications WHERE type=? AND anilist_id=? {uscope}",
+                    (type_name, anilist_id, *up),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT notified_date FROM notifications WHERE type=? AND title=?",
-                    (type_name, title),
+                    f"SELECT notified_date FROM notifications WHERE type=? AND title=? {uscope}",
+                    (type_name, title, *up),
                 ).fetchall()
             for r in rows:
                 if r["notified_date"] == notified_date:
@@ -51,16 +58,16 @@ def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_
             return False
         if season is not None or episode is not None:
             rows = conn.execute(
-                "SELECT id, season, episode, tmdb_id, anilist_id, notified_date FROM notifications WHERE type=? AND title=?",
-                (type_name, title),
+                f"SELECT id, season, episode, tmdb_id, anilist_id, notified_date, user_id FROM notifications WHERE type=? AND title=? {uscope}",
+                (type_name, title, *up),
             ).fetchall()
             for r in rows:
                 if (r["season"] == season and r["episode"] == episode and r["tmdb_id"] == tmdb_id and r["anilist_id"] == anilist_id and r["notified_date"] == notified_date):
                     return True
         else:
             rows = conn.execute(
-                "SELECT notified_date FROM notifications WHERE type=? AND title=?",
-                (type_name, title),
+                f"SELECT notified_date FROM notifications WHERE type=? AND title=? {uscope}",
+                (type_name, title, *up),
             ).fetchall()
             for r in rows:
                 if r["notified_date"] == notified_date:
@@ -80,7 +87,7 @@ def create_notification(title, message, type_name, media_type=None, tmdb_id=None
     Returns new id or None if duplicate."""
     conn = get_db()
     try:
-        if is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date):
+        if is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date, user_id=user_id):
             conn.close()
             return None
     except Exception:

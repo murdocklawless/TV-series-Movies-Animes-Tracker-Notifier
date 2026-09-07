@@ -22,7 +22,8 @@ import requests
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db, get_setting, set_setting
+from db import get_db, get_setting, set_setting, get_user_setting, set_user_setting
+from auth import get_current_user
 from tmdb import tmdb_request, get_tmdb_info, get_tmdb_cast, save_details
 from poster_store import download_tmdb_poster_with_sizes, download_anime_poster_with_sizes
 from scheduler import sync_episodes
@@ -66,20 +67,64 @@ def _uuid_setting_key(app_id):
     return f"tp_{app_id}_uuid"
 
 
-def _get_uuid(app_id="stremio"):
-    """UUID'i dondurur; yoksa uretir (kurulum URL'si her zaman hazir olur)."""
+def _me_uid():
+    try:
+        u = get_current_user()
+        return int(u["id"]) if u else 0
+    except Exception:
+        return 0
+
+
+def _get_uuid(app_id="stremio", user_id=None):
+    """UUID'i dondurur; yoksa uretir (kurulum URL'si her zaman hazir olur). Faz 32: per-user."""
     key = _uuid_setting_key(app_id)
-    u = get_setting(key)
+    uid = int(user_id or _me_uid() or 1)
+    try:
+        u = get_user_setting(uid, key)
+    except Exception:
+        u = None
     if not u:
         u = uuid.uuid4().hex
-        set_setting(key, u)
+        try:
+            set_user_setting(uid, key, u)
+        except Exception:
+            set_setting(key, u)
     return u
+
+
+def _find_owner_by_uuid(uuid_param, app_id="stremio"):
+    """Public kanca (manifest/subtitles) icin uuid -> owner user_id. Bulunamazsa 0."""
+    if not uuid_param:
+        return 0
+    key = _uuid_setting_key(app_id)
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT user_id FROM user_settings WHERE key=? AND value=?", (key, uuid_param)
+            ).fetchone()
+        except Exception:
+            row = None
+        conn.close()
+        if row:
+            return int(row["user_id"])
+    except Exception:
+        pass
+    # Geriye donuk uyumluluk: global settings'teki admin uuid'si.
+    try:
+        if uuid_param == get_setting(key):
+            return 1
+    except Exception:
+        pass
+    return 0
 
 
 def _check_uuid(uuid_param, app_id="stremio"):
     if not uuid_param:
         return False
-    return uuid_param == get_setting(_uuid_setting_key(app_id))
+    if _find_owner_by_uuid(uuid_param, app_id):
+        return True
+    return False
 
 
 def _lan_base_url():
@@ -162,7 +207,8 @@ def stremio_manifest(uuid_param):
 @stremio_bp.route("/stremio/<uuid_param>/subtitles/<stype>/<media_id>/<extra>.json")
 def stremio_subtitles(uuid_param, stype, media_id, extra=None):
     tag = str(uuid_param)[:8]
-    if not _check_uuid(uuid_param):
+    owner_id = _find_owner_by_uuid(uuid_param)
+    if not owner_id:
         print(f"[stremio] subtitles uuid={tag} 404 type={stype} id={str(media_id)[:60]}", flush=True)
         return jsonify({"error": "not found"}), 404
     parsed = parse_stremio_id(media_id)
@@ -171,8 +217,8 @@ def stremio_subtitles(uuid_param, stype, media_id, extra=None):
         if route_norm != parsed["route_norm"]:
             print(f"[stremio] subtitles uuid={tag} SKIP type-mismatch route={stype} id={media_id}", flush=True)
         else:
-            print(f"[stremio] subtitles uuid={tag} QUEUED type={stype} id={media_id}", flush=True)
-            threading.Thread(target=process_signal, args=(parsed,), daemon=True).start()
+            print(f"[stremio] subtitles uuid={tag} QUEUED uid={owner_id} type={stype} id={media_id}", flush=True)
+            threading.Thread(target=process_signal, args=(parsed, owner_id,), daemon=True).start()
     else:
         print(f"[stremio] subtitles uuid={tag} SKIP parse-fail type={stype} id={str(media_id)[:60]}", flush=True)
     resp = jsonify({"subtitles": []})
@@ -242,9 +288,12 @@ def parse_stremio_id(media_id):
 # Hibrit selale (D1): anime/dizi ayrimi + cozumleme + yazim
 # ---------------------------------------------------------------------------
 
-def process_signal(parsed):
+def process_signal(parsed, owner_id=0):
     conn = None
     try:
+        uid = int(owner_id or 0)
+        if uid <= 0:
+            return
         route_norm = parsed["route_norm"]
         provider = parsed["provider"]
         ident = parsed["ident"]
@@ -258,14 +307,14 @@ def process_signal(parsed):
             if not anilist_id:
                 print(f"[stremio] kitsu {ident} -> anilist cozulemedi, atlandi", flush=True)
                 return
-            _anime_branch(conn, anilist_id, season, episode)
+            _anime_branch(conn, anilist_id, season, episode, owner_id=uid)
             return
 
         # trakt: anime disinda cozum yok -> anime denenir, yoksa atla
         if provider == "trakt":
             anilist_id = _resolve_anime(conn, "trakt", ident)
             if anilist_id:
-                _anime_branch(conn, anilist_id, season, episode)
+                _anime_branch(conn, anilist_id, season, episode, owner_id=uid)
             else:
                 print(f"[stremio] trakt {ident} -> esleme yok, atlandi", flush=True)
             return
@@ -279,23 +328,23 @@ def process_signal(parsed):
         # 2) anime tablosu / harici esleme var mi?
         anilist_id = load_anime_map(conn, provider, ident)
         if anilist_id:
-            _anime_branch(conn, anilist_id, season, episode, tmdb_id=tmdb_id)
+            _anime_branch(conn, anilist_id, season, episode, tmdb_id=tmdb_id, owner_id=uid)
             return
 
         # 3) TMDB sezgisi (Animation + JP) -> anime
         if _is_anime_like(tmdb_type, tmdb_id):
             resolved = _resolve_anime(conn, "tmdb", tmdb_id)
             if resolved:
-                _anime_branch(conn, resolved, season, episode, tmdb_id=tmdb_id)
+                _anime_branch(conn, resolved, season, episode, tmdb_id=tmdb_id, owner_id=uid)
             else:
                 print(f"[stremio] anime aday tmdb={tmdb_id} -> anilist eslemesi yok, atlandi", flush=True)
             return
 
         # 4) varsayilan dizi/film
         if tmdb_type == "tv":
-            _tv_branch(conn, tmdb_id, season, episode)
+            _tv_branch(conn, tmdb_id, season, episode, owner_id=uid)
         else:
-            _movie_branch(conn, tmdb_id)
+            _movie_branch(conn, tmdb_id, owner_id=uid)
     except Exception as e:
         print(f"[stremio] process_signal hata: {e}", flush=True)
     finally:
@@ -437,15 +486,16 @@ def _prev_watched_anime(conn, anime_db_id, episode):
         return True
 
 
-def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None):
-    arow = conn.execute("SELECT id, in_watched FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
+    uid = int(owner_id or 0)
+    arow = conn.execute("SELECT id, in_watched FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     if arow and (arow["in_watched"] == 1):
-        record_signal("anime", tmdb_id, anilist_id, season, episode)
+        record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
         return  # izlenmiste: no-op (tampona kaydedildi)
     if episode is None:
         # anime filmi (E9): follow + dogrudan Izlenmis
-        record_signal("anime", tmdb_id, anilist_id, season, episode)
-        anime_db_id = _ensure_anime_follow(conn, anilist_id)
+        record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
+        anime_db_id = _ensure_anime_follow(conn, anilist_id, owner_id=uid)
         if anime_db_id:
             conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (anime_db_id,))
             conn.commit()
@@ -455,7 +505,7 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None):
     if season is not None and season != 1:
         print(f"[stremio] anime S{season} -> mutlak bolum eslemesi yok, atlandi (anilist {anilist_id})", flush=True)
         return
-    anime_db_id = _ensure_anime_follow(conn, anilist_id)
+    anime_db_id = _ensure_anime_follow(conn, anilist_id, owner_id=uid)
     if not anime_db_id:
         return
     cur = conn.execute(
@@ -463,12 +513,12 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None):
         (anime_db_id, episode),
     ).fetchone()
     if cur and cur["watched"] == 1:
-        record_signal("anime", tmdb_id, anilist_id, season, episode)
+        record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
         return  # zaten izli: tamponu tazele
     if not _prev_watched_anime(conn, anime_db_id, episode):
         print(f"[stremio] kilit-disi sinyal atlandi (tamponsuz): anilist={anilist_id} ep={episode}", flush=True)
         return  # yazma yok, tampon yok
-    record_signal("anime", tmdb_id, anilist_id, season, episode)
+    record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
     conn.execute(
         "INSERT INTO anime_episodes (anime_id, episode, watched) VALUES (?,?,1) "
         "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1",
@@ -479,16 +529,17 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None):
     print(f"[stremio] WROTE anime anilist={anilist_id} ep={episode}", flush=True)
 
 
-def _tv_branch(conn, tmdb_id, season, episode):
+def _tv_branch(conn, tmdb_id, season, episode, owner_id=0):
+    uid = int(owner_id or 0)
     if season is None or episode is None:
         return  # dizi sinyali S/E'siz gelmemeli (tamponsuz)
     follow = conn.execute(
-        "SELECT id, in_watched FROM followed WHERE tmdb_id=? AND media_type='tv'", (tmdb_id,)
+        "SELECT id, in_watched FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'", (uid, tmdb_id,)
     ).fetchone()
     if follow and follow["in_watched"] == 1:
-        record_signal("tv", tmdb_id, None, season, episode)
+        record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
         return  # izlenmiste: no-op (tampona kaydedildi)
-    follow_id = _ensure_tmdb_follow(conn, "tv", tmdb_id)
+    follow_id = _ensure_tmdb_follow(conn, "tv", tmdb_id, owner_id=uid)
     if not follow_id:
         return
     cur = conn.execute(
@@ -496,12 +547,12 @@ def _tv_branch(conn, tmdb_id, season, episode):
         (follow_id, season, episode),
     ).fetchone()
     if cur and cur["watched"] == 1:
-        record_signal("tv", tmdb_id, None, season, episode)
+        record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
         return  # zaten izli: tamponu tazele
     if not _prev_watched_tv(conn, follow_id, season, episode):
         print(f"[stremio] kilit-disi sinyal atlandi (tamponsuz): tmdb={tmdb_id} S{season}E{episode}", flush=True)
         return  # yazma yok, tampon yok
-    record_signal("tv", tmdb_id, None, season, episode)
+    record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
     conn.execute(
         "INSERT INTO episodes (follow_id, season, episode, watched) VALUES (?,?,?,1) "
         "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1",
@@ -512,14 +563,15 @@ def _tv_branch(conn, tmdb_id, season, episode):
     print(f"[stremio] WROTE tv tmdb={tmdb_id} S{season}E{episode}", flush=True)
 
 
-def _movie_branch(conn, tmdb_id):
-    record_signal("movie", tmdb_id, None, None, None)
+def _movie_branch(conn, tmdb_id, owner_id=0):
+    uid = int(owner_id or 0)
+    record_signal("movie", tmdb_id, None, None, None, user_id=uid)
     follow = conn.execute(
-        "SELECT id, in_watched FROM followed WHERE tmdb_id=? AND media_type='movie'", (tmdb_id,)
+        "SELECT id, in_watched FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='movie'", (uid, tmdb_id,)
     ).fetchone()
     if follow and follow["in_watched"] == 1:
         return  # izlenmiste: no-op
-    movie_id = _ensure_tmdb_follow(conn, "movie", tmdb_id)
+    movie_id = _ensure_tmdb_follow(conn, "movie", tmdb_id, owner_id=uid)
     if not movie_id:
         return
     conn.execute("UPDATE followed SET watched=1, in_watched=1 WHERE id=?", (movie_id,))
@@ -528,11 +580,12 @@ def _movie_branch(conn, tmdb_id):
     print(f"[stremio] WROTE movie tmdb={tmdb_id}", flush=True)
 
 
-def _ensure_tmdb_follow(conn, media_type, tmdb_id):
+def _ensure_tmdb_follow(conn, media_type, tmdb_id, owner_id=0):
     """Takip yoksa follow + (tv icin) sync_episodes. follow_id dondurur.
-    Eszamanli sinyallere karsi yaris-guvenli (UNIQUE + ON CONFLICT)."""
+    Eszamanli sinyallere karsi yaris-guvenli (UNIQUE + ON CONFLICT). Faz 32: per-user."""
+    uid = int(owner_id or 0)
     row = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?", (tmdb_id, media_type)
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?", (uid, tmdb_id, media_type)
     ).fetchone()
     if row:
         return row["id"]
@@ -546,14 +599,14 @@ def _ensure_tmdb_follow(conn, media_type, tmdb_id):
     vote_average = (info or {}).get("vote_average") or 0
     networks = (info or {}).get("networks") or []
     conn.execute(
-        "INSERT INTO followed (tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT(tmdb_id, media_type) DO NOTHING",
-        (tmdb_id, media_type, title, poster, release_date, vote_average, json.dumps(networks)),
+        "INSERT INTO followed (user_id, tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(user_id, tmdb_id, media_type) DO NOTHING",
+        (uid, tmdb_id, media_type, title, poster, release_date, vote_average, json.dumps(networks)),
     )
     conn.commit()
     row = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?", (tmdb_id, media_type)
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?", (uid, tmdb_id, media_type)
     ).fetchone()
     if not row:
         return None
@@ -576,15 +629,16 @@ def _ensure_tmdb_follow(conn, media_type, tmdb_id):
         new_follow = conn.execute("SELECT * FROM followed WHERE id=?", (new_id,)).fetchone()
         sync_episodes(conn, new_follow)
     try:
-        remove_rec_item("shows" if media_type == "tv" else "movies", int(tmdb_id))
+        remove_rec_item("shows" if media_type == "tv" else "movies", int(tmdb_id), user_id=uid)
     except Exception:
         pass
     return new_id
 
 
-def _ensure_anime_follow(conn, anilist_id):
-    """Takip yoksa anime-follow. anime DB id dondurur; harici linkleri esler."""
-    arow = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+def _ensure_anime_follow(conn, anilist_id, owner_id=0):
+    """Takip yoksa anime-follow. anime DB id dondurur; harici linkleri esler. Faz 32: per-user."""
+    uid = int(owner_id or 0)
+    arow = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     if arow:
         return arow["id"]
     detail = anilist_detail(anilist_id)
@@ -598,15 +652,15 @@ def _ensure_anime_follow(conn, anilist_id):
     studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
     studio = studios[0] if studios else None
     conn.execute(
-        "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score, studios) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT(anilist_id) DO UPDATE SET "
+        "INSERT INTO anime (user_id, anilist_id, title, cover_url, episodes, status, score, studios) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(user_id, anilist_id) DO UPDATE SET "
         "title=excluded.title, cover_url=excluded.cover_url, "
         "episodes=excluded.episodes, status=excluded.status, score=excluded.score, studios=excluded.studios",
-        (anilist_id, title, cover, episodes, status, score, studio),
+        (uid, anilist_id, title, cover, episodes, status, score, studio),
     )
     conn.commit()
-    row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    row = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     anime_db_id = row["id"]
     save_anime_details(conn, anime_db_id, detail)
     conn.commit()
@@ -677,11 +731,12 @@ def _app_status(app):
         "lastSignal": None,
         "installUrl": None,
     }
-    u = _get_uuid(aid)
+    uid = _me_uid() or 1
+    u = _get_uuid(aid, user_id=uid)
     if u:
         base["installUrl"] = _install_url(aid, u)
         if aid == "stremio":
-            base["lastSignal"] = last_signal_ts()
+            base["lastSignal"] = last_signal_ts(user_id=uid)
             # "Bagli" = en az bir sinyal alindi (ilk sinyalle onaylanir)
             base["connected"] = base["lastSignal"] is not None
         else:
@@ -691,15 +746,17 @@ def _app_status(app):
 
 @stremio_bp.route("/api/thirdparty/stremio/refresh-uuid", methods=["POST"])
 def thirdparty_stremio_refresh_uuid():
+    uid = _me_uid() or 1
     u = uuid.uuid4().hex
-    set_setting(_uuid_setting_key("stremio"), u)
+    set_user_setting(uid, _uuid_setting_key("stremio"), u)
     return jsonify({"ok": True, "installUrl": _install_url("stremio", u)})
 
 
 @stremio_bp.route("/api/thirdparty/stremio/disconnect", methods=["POST"])
 def thirdparty_stremio_disconnect():
-    set_setting(_uuid_setting_key("stremio"), "")
-    clear_all_signals()
+    uid = _me_uid() or 1
+    set_user_setting(uid, _uuid_setting_key("stremio"), "")
+    clear_all_signals(user_id=uid)
     return jsonify({"ok": True})
 
 
@@ -712,12 +769,13 @@ def seasons_clear_apply():
     body = request.get_json(silent=True) or {}
     anilist_id = body.get("anilist_id")
     tmdb_id = body.get("tmdb_id")
+    uid = _me_uid() or 1
     conn = get_db()
     try:
         if anilist_id:
-            return _clear_apply_anime(conn, anilist_id)
+            return _clear_apply_anime(conn, anilist_id, owner_id=uid)
         if tmdb_id:
-            return _clear_apply_tv(conn, tmdb_id)
+            return _clear_apply_tv(conn, tmdb_id, owner_id=uid)
         return jsonify({"error": "Eksik bilgi"}), 400
     except Exception as e:
         print(f"[stremio] clear-apply hata: {e}", flush=True)
@@ -726,16 +784,17 @@ def seasons_clear_apply():
         conn.close()
 
 
-def _clear_apply_tv(conn, tmdb_id):
+def _clear_apply_tv(conn, tmdb_id, owner_id=0):
+    uid = int(owner_id or 0)
     follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'", (tmdb_id,)
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'", (uid, tmdb_id,)
     ).fetchone()
     if not follow:
         return jsonify({"error": "Takip bulunamadı"}), 404
     conn.execute("UPDATE episodes SET watched=0 WHERE follow_id=?", (follow["id"],))
     conn.commit()
     signals = sorted(
-        signals_for_tv(tmdb_id),
+        signals_for_tv(tmdb_id, user_id=uid),
         key=lambda s: ((s.get("season") or 0), (s.get("episode") or 0)),
     )
     applied = []
@@ -758,13 +817,14 @@ def _clear_apply_tv(conn, tmdb_id):
     return jsonify({"ok": True, "cleared": True, "applied": applied})
 
 
-def _clear_apply_anime(conn, anilist_id):
-    arow = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+def _clear_apply_anime(conn, anilist_id, owner_id=0):
+    uid = int(owner_id or 0)
+    arow = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     if not arow:
         return jsonify({"error": "Takip bulunamadı"}), 404
     conn.execute("UPDATE anime_episodes SET watched=0 WHERE anime_id=?", (arow["id"],))
     conn.commit()
-    signals = sorted(signals_for_anime(anilist_id), key=lambda s: (s.get("episode") or 0))
+    signals = sorted(signals_for_anime(anilist_id, user_id=uid), key=lambda s: (s.get("episode") or 0))
     applied = []
     for s in signals:
         if s.get("episode") is None:
@@ -806,13 +866,16 @@ def purge_ungated_signals():
             for r in all_signals():
                 kind = r.get("kind")
                 keep = True
+                sig_uid = r.get("user_id")
                 if kind == "tv" and r.get("tmdb_id") is not None:
                     f = conn.execute(
-                        "SELECT id, in_watched FROM followed WHERE tmdb_id=? AND media_type='tv'",
+                        "SELECT id, in_watched, user_id FROM followed WHERE tmdb_id=? AND media_type='tv'",
                         (r["tmdb_id"],),
                     ).fetchone()
                     if f is None:
                         keep = False  # yetim: takip yok
+                    elif sig_uid is not None and f["user_id"] != sig_uid:
+                        keep = False  # baska kullanicinin satiri
                     elif f["in_watched"] != 1 and r.get("season") is not None and r.get("episode") is not None:
                         cur = conn.execute(
                             "SELECT watched FROM episodes WHERE follow_id=? AND season=? AND episode=?",
@@ -822,10 +885,12 @@ def purge_ungated_signals():
                             keep = _prev_watched_tv(conn, f["id"], r["season"], r["episode"])
                 elif kind == "anime" and r.get("anilist_id") is not None:
                     a = conn.execute(
-                        "SELECT id, in_watched FROM anime WHERE anilist_id=?", (r["anilist_id"],)
+                        "SELECT id, in_watched, user_id FROM anime WHERE anilist_id=?", (r["anilist_id"],)
                     ).fetchone()
                     if a is None:
                         keep = False  # yetim: takip yok
+                    elif sig_uid is not None and a["user_id"] != sig_uid:
+                        keep = False
                     elif a["in_watched"] != 1 and r.get("episode") is not None:
                         cur = conn.execute(
                             "SELECT watched FROM anime_episodes WHERE anime_id=? AND episode=?",

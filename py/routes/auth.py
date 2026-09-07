@@ -509,7 +509,7 @@ def auth_demote():
 
 
 # Faz 32'de user_id kolonu gelen tablolar buraya eklenir (sifir kirinti).
-_USER_TABLES = ["sessions", "password_resets", "notifications"]
+_USER_TABLES = ["sessions", "password_resets", "notifications", "user_settings"]
 
 
 def _delete_user_everything(user_id):
@@ -521,6 +521,50 @@ def _delete_user_everything(user_id):
                 conn.execute(f"DELETE FROM {tbl} WHERE {col}=?", (user_id,))
             except Exception:
                 pass
+        # Faz 32: karta bagli cocuk satirlar once (episodes/anime_episodes), sonra parent.
+        try:
+            frows = conn.execute("SELECT id FROM followed WHERE user_id=?", (user_id,)).fetchall()
+            for fr in frows:
+                try:
+                    conn.execute("DELETE FROM episodes WHERE follow_id=?", (fr["id"],))
+                except Exception:
+                    pass
+                try:
+                    conn.execute("DELETE FROM cast WHERE follow_id=?", (fr["id"],))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            arows = conn.execute("SELECT id FROM anime WHERE user_id=?", (user_id,)).fetchall()
+            for ar in arows:
+                try:
+                    conn.execute("DELETE FROM anime_episodes WHERE anime_id=?", (ar["id"],))
+                except Exception:
+                    pass
+                try:
+                    conn.execute("DELETE FROM anime_cast WHERE anime_id=?", (ar["id"],))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            conn.execute("DELETE FROM followed WHERE user_id=?", (user_id,))
+        except Exception:
+            pass
+        try:
+            conn.execute("DELETE FROM anime WHERE user_id=?", (user_id,))
+        except Exception:
+            pass
+        try:
+            conn.execute("DELETE FROM stremio_signals WHERE user_id=?", (user_id,))
+        except Exception:
+            # kolon yoksa (eski DB) tumu degil hicbiri silinmesin
+            pass
+        try:
+            conn.execute("DELETE FROM rec_cache WHERE user_id=?", (user_id,))
+        except Exception:
+            pass
         conn.execute("DELETE FROM users WHERE id=?", (user_id,))
         conn.commit()
     finally:

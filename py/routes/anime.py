@@ -4,6 +4,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from auth import get_current_user
 from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from anilist import (
     anilist_search,
@@ -20,6 +21,14 @@ from ramcache import list_cache, bump, gen, cached_response
 from recommendations import remove_rec_item
 
 anime_bp = Blueprint("anime", __name__)
+
+
+def _uid():
+    try:
+        u = get_current_user()
+        return int(u["id"]) if u else 0
+    except Exception:
+        return 0
 
 
 def _with_poster_local(d, arow):
@@ -92,8 +101,9 @@ def anime_details():
     refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
     if not anilist_id:
         return jsonify({"error": "anilist_id gereklidir"}), 400
+    uid = _uid()
     conn = get_db()
-    arow = conn.execute("SELECT id, poster_local, cover_url FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    arow = conn.execute("SELECT id, poster_local, cover_url FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     if arow and not refresh:
         d = load_anime_details(conn, arow["id"])
         if d and d.get("description"):
@@ -108,7 +118,7 @@ def anime_details():
         save_anime_details(conn, arow["id"], detail)
         conn.commit()
         d = load_anime_details(conn, arow["id"])
-        arow = conn.execute("SELECT id, poster_local FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+        arow = conn.execute("SELECT id, poster_local FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
         conn.close()
         return jsonify(_with_poster_local(d, arow))
     conn.close()
@@ -141,12 +151,13 @@ def anime_details():
 
 @anime_bp.route("/api/anime/followed")
 def anime_followed():
-    key = ("anime_followed", gen(), datetime.datetime.now().strftime("%Y%m%d%H"))
+    uid = _uid()
+    key = ("anime_followed", uid, gen(), datetime.datetime.now().strftime("%Y%m%d%H"))
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    rows = conn.execute("SELECT * FROM anime ORDER BY id DESC").fetchall()
+    rows = conn.execute("SELECT * FROM anime WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
     result = []
     for r in rows:
         score = r["score"]
@@ -222,17 +233,18 @@ def anime_follow():
     score = detail.get("averageScore")
     studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
     studio = studios[0] if studios else None
+    uid = _uid()
     conn = get_db()
     conn.execute(
-        "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score, studios) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?) "
-        "ON CONFLICT(anilist_id) DO UPDATE SET "
+        "INSERT INTO anime (user_id, anilist_id, title, cover_url, episodes, status, score, studios) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(user_id, anilist_id) DO UPDATE SET "
         "title=excluded.title, cover_url=excluded.cover_url, "
         "episodes=excluded.episodes, status=excluded.status, score=excluded.score, studios=excluded.studios",
-        (anilist_id, title, cover, episodes, status, score, studio),
+        (uid, anilist_id, title, cover, episodes, status, score, studio),
     )
     conn.commit()
-    row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    row = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     anime_db_id = row["id"]
 
     save_anime_details(conn, anime_db_id, detail)
@@ -269,8 +281,12 @@ def anime_follow():
 
 @anime_bp.route("/api/anime/unfollow/<int:anime_id>", methods=["DELETE"])
 def anime_unfollow(anime_id):
+    uid = _uid()
     conn = get_db()
-    row = conn.execute("SELECT poster_local, poster_local_w185, anilist_id FROM anime WHERE id=?", (anime_id,)).fetchone()
+    row = conn.execute("SELECT poster_local, poster_local_w185, anilist_id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Anime bulunamadı"}), 404
     anilist_id = row["anilist_id"] if row else None
     conn.execute("DELETE FROM anime_cast WHERE anime_id=?", (anime_id,))
     conn.execute("DELETE FROM anime_episodes WHERE anime_id=?", (anime_id,))
@@ -294,8 +310,9 @@ def anime_schedule():
     anime_id = request.args.get("anime_id")
     if not anime_id:
         return jsonify({"error": "anime_id gereklidir"}), 400
+    uid = _uid()
     conn = get_db()
-    arow = conn.execute("SELECT * FROM anime WHERE id=?", (anime_id,)).fetchone()
+    arow = conn.execute("SELECT * FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
     if not arow:
         return jsonify({"error": "Anime bulunamadı"}), 404
     rows = conn.execute(
@@ -330,7 +347,12 @@ def anime_episode_watch():
     if not anime_id or episode is None:
         return jsonify({"error": "Eksik bilgi"}), 400
 
+    uid = _uid()
     conn = get_db()
+    owner = conn.execute("SELECT id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
+    if not owner:
+        conn.close()
+        return jsonify({"error": "Anime bulunamadı"}), 404
     conn.execute(
         "INSERT INTO anime_episodes (anime_id, episode, watched) "
         "VALUES (?, ?, ?) "
@@ -350,8 +372,9 @@ def anime_move_watched():
     watched = 1 if body.get("watched") else 0
     if not anime_id:
         return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
     conn = get_db()
-    row = conn.execute("SELECT id FROM anime WHERE id=?", (anime_id,)).fetchone()
+    row = conn.execute("SELECT id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
     if not row:
         conn.close()
         return jsonify({"error": "Anime bulunamadı"}), 400

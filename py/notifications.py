@@ -1,14 +1,30 @@
 import requests
 
-from db import get_setting
+from db import get_setting, get_user_setting
 from messages_i18n import t, get_lang
 
 
-def send_telegram(text, poster_url=None):
-    if get_setting("telegram_enabled") == "0":
+def _uget(user_id, key):
+    """Faz 32: kisisel anahtar once user_settings, yoksa global (admin varsayilani)."""
+    try:
+        uid = int(user_id or 0)
+    except (TypeError, ValueError):
+        uid = 0
+    if uid > 0:
+        try:
+            v = get_user_setting(uid, key)
+            if v is not None:
+                return v
+        except Exception:
+            pass
+    return get_setting(key)
+
+
+def send_telegram(text, poster_url=None, user_id=None):
+    if _uget(user_id, "telegram_enabled") == "0":
         return False
     token = get_setting("telegram_bot_token")
-    chat_id = get_setting("telegram_chat_id")
+    chat_id = _uget(user_id, "telegram_chat_id")
     if not token or not chat_id:
         return False
     try:
@@ -34,11 +50,12 @@ def send_telegram(text, poster_url=None):
         return False
 
 
-def send_discord(text, poster_url=None, card=None):
-    """Discord webhook'a bildirim gonderir; kart varsa zengin embed (kart gorunumu) kullanir."""
-    if get_setting("discord_enabled") == "0":
+def send_discord(text, poster_url=None, card=None, user_id=None):
+    """Discord webhook'a bildirim gonderir; kart varsa zengin embed (kart gorunumu) kullanir.
+    Faz 32: webhook per-user (admin varsayilan, uye kendi kanalina cevirebilir)."""
+    if _uget(user_id, "discord_enabled") == "0":
         return False
-    url = (get_setting("discord_webhook_url") or "").strip()
+    url = (_uget(user_id, "discord_webhook_url") or "").strip()
     if not url.startswith("https://discord.com/api/webhooks/"):
         return False
     try:
@@ -95,10 +112,10 @@ def ntfy_topic_clean(topic):
     return topic.strip("/").strip()
 
 
-def send_ntfy(text, poster_url=None):
-    if get_setting("ntfy_enabled") == "0":
+def send_ntfy(text, poster_url=None, user_id=None):
+    if _uget(user_id, "ntfy_enabled") == "0":
         return False
-    topic = ntfy_topic_clean(get_setting("ntfy_topic"))
+    topic = ntfy_topic_clean(_uget(user_id, "ntfy_topic"))
     if not topic:
         return False
     try:
@@ -371,15 +388,15 @@ def _email_digest_html(cards):
     return "".join(parts)
 
 
-def send_digest_email(cards):
-    """Gunluk bildirim ozeti: tum kartlar tek mailde (#0f1117 zemin uzerinde)."""
-    if get_setting("email_enabled") == "0":
+def send_digest_email(cards, user_id=None):
+    """Gunluk bildirim ozeti: tum kartlar tek mailde (#0f1117 zemin uzerinde). Faz 32: per-user."""
+    if _uget(user_id, "email_enabled") == "0":
         return False
     if not cards:
         return False
     provider = (get_setting("email_provider") or "brevo").strip() or "brevo"
     email_from = (get_setting("email_from") or "").strip()
-    email_to = (get_setting("email_to") or "").strip()
+    email_to = (_uget(user_id, "email_to") or "").strip()
     if not email_from or not email_to:
         return False
     subject = t("email_subject_digest", count=len(cards))
@@ -478,14 +495,15 @@ def _send_generic_smtp(text, poster_url=None, host=None, port_raw=None, user=Non
     return sent
 
 
-def send_email(text, poster_url=None, overrides=None, card=None):
-    """E-posta bildirimi. overrides: test endpoint'inin kaydedilmemis degerleri icin."""
-    if get_setting("email_enabled") == "0":
+def send_email(text, poster_url=None, overrides=None, card=None, user_id=None):
+    """E-posta bildirimi. overrides: test endpoint'inin kaydedilmemis degerleri icin.
+    Faz 32: email_to + email_enabled per-user (digerleri global admin)."""
+    if _uget(user_id, "email_enabled") == "0":
         return False
     ov = overrides or {}
     provider = (ov.get("email_provider") or get_setting("email_provider") or "brevo").strip() or "brevo"
     email_from = (ov.get("email_from") or get_setting("email_from") or "").strip()
-    email_to = (ov.get("email_to") or get_setting("email_to") or "").strip()
+    email_to = (ov.get("email_to") or _uget(user_id, "email_to") or "").strip()
     if not email_from or not email_to:
         return False
     if provider == "brevo":
@@ -512,17 +530,17 @@ def send_email(text, poster_url=None, overrides=None, card=None):
     )
 
 
-def notify_all(text, poster_url=None, card=None, hold_email=False):
+def notify_all(text, poster_url=None, card=None, hold_email=False, user_id=None):
     ok = False
-    if send_telegram(text, poster_url):
+    if send_telegram(text, poster_url, user_id=user_id):
         ok = True
-    if send_ntfy(text, poster_url):
+    if send_ntfy(text, poster_url, user_id=user_id):
         ok = True
-    if send_discord(text, poster_url, card=card):
+    if send_discord(text, poster_url, card=card, user_id=user_id):
         ok = True
     if hold_email:
         buffer_email_notification(card, text)
         ok = True
-    elif send_email(text, poster_url, card=card):
+    elif send_email(text, poster_url, card=card, user_id=user_id):
         ok = True
     return ok
