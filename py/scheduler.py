@@ -44,8 +44,8 @@ NOTIF_TYPES = [
     ("anime_unwatched_bulk", "anime"),
 ]
 
-# Dış kanala (Telegram/ntfy) check_releases'ten giden tipler; burada tekrar push edilmez
-NOTIF_PUSH_EXCLUDED = {"episode_today", "movie_today"}
+# Faz 32c: NOTIF_PUSH_EXCLUDED kaldirildi — tum tipler tek kisisel akistan
+# (merkez + dis push birlikte) gecer; ayri "bugun" push yolu yok.
 
 
 def _notif_enabled(type_name, user_id=None):
@@ -97,6 +97,123 @@ def _sset(uid, key, value):
         _ss(key, value)
 
 
+def _user_tz(uid):
+    """Kullanicinin saat dilimi (gecersizse global, o da bozuksa Istanbul)."""
+    try:
+        from db import get_user_setting
+        v = get_user_setting(int(uid), "timezone")
+        if v:
+            return ZoneInfo(v)
+    except Exception:
+        pass
+    try:
+        return ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
+    except Exception:
+        return ZoneInfo("Europe/Istanbul")
+
+
+def _user_today(uid):
+    """Kullanicinin kendi diliminde bugunun tarihi (YYYY-MM-DD)."""
+    try:
+        import datetime as _dt
+        return _dt.datetime.now(_user_tz(uid)).strftime("%Y-%m-%d")
+    except Exception:
+        return today_str()
+
+
+def _user_hour(uid):
+    """Kullanicinin Bildirim Saati (yoksa global miras, o da yoksa 09:05)."""
+    try:
+        v = _sget(uid, "notification_hour")
+        if v:
+            return v
+    except Exception:
+        pass
+    try:
+        v = get_setting("notification_hour")
+        if v:
+            return v
+    except Exception:
+        pass
+    return "09:05"
+
+
+def _run_user_notifications(uid):
+    """Tek kullaniinin tum bildirim kontrolleri (tv + anime). Fail-soft."""
+    try:
+        uid = int(uid)
+    except (TypeError, ValueError):
+        return
+    try:
+        check_notifications(user_id=uid)
+    except Exception as e:
+        print(f"user_notif tv uid={uid} failed: {e}", flush=True)
+    try:
+        check_anime_notifications(user_id=uid)
+    except Exception as e:
+        print(f"user_notif anime uid={uid} failed: {e}", flush=True)
+
+
+def _user_job_id(uid):
+    return f"user_notif_{int(uid)}"
+
+
+def build_user_jobs(uid):
+    """Kullanicinin bildirim job'unu kurar (yoksa acar, varsa dakikaya yazar).
+    Pasif/silinmis kullaniciya job kurulmaz (varsa kaldirilir). Tam-dakika cron."""
+    try:
+        uid = int(uid)
+    except (TypeError, ValueError):
+        return False
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT status FROM users WHERE id=?", (uid,)).fetchone()
+        conn.close()
+        active = bool(row and row["status"] == "active")
+    except Exception:
+        active = False
+    jid = _user_job_id(uid)
+    try:
+        if SCHEDULER.get_job(jid):
+            SCHEDULER.remove_job(jid)
+    except Exception:
+        pass
+    if not active:
+        return False
+    try:
+        h, m = parse_notify_hour(_user_hour(uid))
+        tz = _user_tz(uid)
+        SCHEDULER.add_job(
+            _run_user_notifications,
+            "cron",
+            hour=h,
+            minute=m,
+            timezone=tz,
+            args=[uid],
+            id=jid,
+            misfire_grace_time=3600,
+        )
+        return True
+    except Exception as e:
+        print(f"user job build uid={uid} failed: {e}", flush=True)
+        return False
+
+
+def remove_user_jobs(uid):
+    """Kullanicinin bildirim job'unu kaldirir (yoksa no-op). Fail-soft."""
+    try:
+        jid = _user_job_id(uid)
+        if SCHEDULER.get_job(jid):
+            SCHEDULER.remove_job(jid)
+    except Exception:
+        pass
+
+
+def reschedule_user_jobs(uid):
+    """Saat/timezone degisiminde job'u taze degerlerle yeniden yazar."""
+    return build_user_jobs(uid)
+
+
 def _extract_platform_networks(raw):
     try:
         vals = json.loads(raw) if isinstance(raw, str) else raw
@@ -111,7 +228,7 @@ def _extract_platform_networks(raw):
     return ""
 
 
-def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_path=None, cover_url=None, remote_url=None, score=None, platform=None, status_line=None, status_color=None):
+def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_path=None, cover_url=None, remote_url=None, score=None, platform=None, status_line=None, status_color=None, user_id=None):
     """E-posta karti icin dict kurar — web UI kartlariyla ayni yapi (ad/etiket/puan/platform/status)."""
     mt = (media_type or ("anime" if anilist_id else "tv")).lower()
     if mt not in ("tv", "movie", "anime"):
@@ -123,21 +240,31 @@ def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_pa
             poster = TMDB_IMAGE_BASE + poster_path
         elif cover_url:
             poster = cover_url
-    # score/platform DB'den dene eger verilmemisse
+    # score/platform DB'den dene eger verilmemisse (Faz 32c: sinyal sahibinin satiri)
     sc = score
     pf = platform
     if sc is None or pf is None:
         try:
+            uid = int(user_id or 0)
+        except (TypeError, ValueError):
+            uid = 0
+        try:
             conn = get_db()
             if mt in ("tv", "movie") and tmdb_id:
-                row = conn.execute("SELECT vote_average, networks, release_date FROM followed WHERE tmdb_id=?", (tmdb_id,)).fetchone()
+                if uid > 0:
+                    row = conn.execute("SELECT vote_average, networks, release_date FROM followed WHERE user_id=? AND tmdb_id=?", (uid, tmdb_id,)).fetchone()
+                else:
+                    row = conn.execute("SELECT vote_average, networks, release_date FROM followed WHERE tmdb_id=?", (tmdb_id,)).fetchone()
                 if row:
                     if sc is None:
                         sc = row["vote_average"]
                     if pf is None:
                         pf = _extract_platform_networks(row["networks"])
             elif mt == "anime" and anilist_id:
-                row = conn.execute("SELECT score, studios FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+                if uid > 0:
+                    row = conn.execute("SELECT score, studios FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
+                else:
+                    row = conn.execute("SELECT score, studios FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
                 if row:
                     if sc is None:
                         sc = row["score"]
@@ -251,61 +378,6 @@ def sync_releases():
     bump()
 
 
-def check_releases():
-    today = today_str()
-    conn = get_db()
-
-    rows = conn.execute(
-        "SELECT e.*, f.title, f.media_type, f.poster_path, f.vote_average, f.networks, f.user_id FROM episodes e "
-        "JOIN followed f ON f.id = e.follow_id "
-        "WHERE e.notified=0 AND e.air_date=?",
-        (today,),
-    ).fetchall()
-    for row in rows:
-        try:
-            uid = int((row["user_id"] if "user_id" in row.keys() else 0) or 0)
-        except (TypeError, ValueError):
-            uid = 0
-        enabled = _notif_enabled("episode_today", user_id=uid)
-        msg, poster = build_episode_message(
-            row["title"], row["media_type"], row["season"], row["episode"], row["air_date"], row["poster_path"]
-        )
-        # kartli e-posta (web UI #0f1117/#171a23) icin card kur
-        from messages_i18n import t as _t
-        try:
-            sl = _t("sl_episode_today", season=row["season"], episode=row["episode"])
-        except Exception:
-            sl = f"S{row['season']:02d}E{row['episode']:02d} · Bugün Yayınlanacak"
-        card = _build_card(row["title"], media_type=row["media_type"], tmdb_id=row["tmdb_id"] if "tmdb_id" in row.keys() else None, poster_path=row["poster_path"], remote_url=poster, score=row["vote_average"] if "vote_average" in row.keys() else None, platform=_extract_platform_networks(row["networks"]) if "networks" in row.keys() else None, status_line=sl, status_color="#f97316")
-        if not enabled or notify_all(msg, poster, card=card, user_id=uid):
-            conn.execute("UPDATE episodes SET notified=1 WHERE id=?", (row["id"],))
-            conn.commit()
-
-    movies = conn.execute(
-        "SELECT * FROM followed WHERE media_type='movie' AND notified=0 AND release_date=?",
-        (today,),
-    ).fetchall()
-    for movie in movies:
-        try:
-            muid = int((movie["user_id"] if "user_id" in movie.keys() else 0) or 0)
-        except (TypeError, ValueError):
-            muid = 0
-        enabled = _notif_enabled("movie_today", user_id=muid)
-        msg, poster = build_movie_message(movie["title"], movie["release_date"], movie["poster_path"])
-        from messages_i18n import t as _t2
-        try:
-            slm = _t2("sl_movie_today")
-        except Exception:
-            slm = "Bugün Vizyonda"
-        card_m = _build_card(movie["title"], media_type="movie", tmdb_id=movie["tmdb_id"], poster_path=movie["poster_path"], remote_url=poster, score=movie["vote_average"] if "vote_average" in movie.keys() else None, platform=_extract_platform_networks(movie["networks"]) if "networks" in movie.keys() else None, status_line=slm, status_color="#22c55e")
-        if not enabled or notify_all(msg, poster, card=card_m, user_id=muid):
-            conn.execute("UPDATE followed SET notified=1 WHERE id=?", (movie["id"],))
-            conn.commit()
-
-    conn.close()
-    bump()
-
-
 def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None, card=None, score=None, platform=None, status_line=None, status_color=None, user_id=None):
     try:
         uid = int(user_id or 0)
@@ -381,14 +453,13 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
                     eff_sl = message[len(title):].strip(" -:–—\n")
                 eff_sl = (eff_sl or message or "").strip()[:120]
             try:
-                card = _build_card(title, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, poster_path=poster_path, cover_url=cover_url, remote_url=remote_url, score=score, platform=platform, status_line=eff_sl, status_color=eff_color)
+                card = _build_card(title, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, poster_path=poster_path, cover_url=cover_url, remote_url=remote_url, score=score, platform=platform, status_line=eff_sl, status_color=eff_color, user_id=uid)
             except Exception:
                 card = None
-        # dış kanal push'u — tek noktadan tüm kanallar (telegram+ntfy+discord+e-posta);
-        # episode_today/movie_today check_releases'ten gider, çift göndermeyi önle
-        if type_name not in NOTIF_PUSH_EXCLUDED:
-            from notifications import notify_all
-            notify_all(message, remote_url, card=card, user_id=uid)
+        # dış kanal push'u — tek noktadan tüm kanallar (telegram+ntfy+discord+e-posta).
+        # Faz 32c: tum tipler ayni kisisel akistan gecer; ayri push yolu yok.
+        from notifications import notify_all
+        notify_all(message, remote_url, card=card, user_id=uid)
     except Exception as e:
         print(f"notif create failed {type_name} {title}: {e}")
 
@@ -404,16 +475,16 @@ def check_notifications(user_id=None):
                 print(f"check_notifications uid={uid} failed: {e}")
         return
     uid = int(user_id or 0)
-    today = today_str()
+    today = _user_today(uid)
     now_ts = int(datetime.datetime.now().timestamp())
     conn = get_db()
     # 1-2: TV episode today + season start today
     for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv'", (uid,)).fetchall():
-        # 1 episode_today
+        # 1 episode_today (merkez + dis push tek geciste; makbuz notified_date=today dedupe'u)
         rows = conn.execute("SELECT season, episode, air_date FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], today)).fetchall()
         for ep in rows:
             msg = f"{r['title']} S{ep['season']:02d}E{ep['episode']:02d} Bugün Yayınlanacak"
-            _notif_create(r["title"], msg, "episode_today", media_type="tv", tmdb_id=r["tmdb_id"], season=ep["season"], episode=ep["episode"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, remote_url=TMDB_IMAGE_BASE + r["poster_path"] if r["poster_path"] else None)
+            _notif_create(r["title"], msg, "episode_today", media_type="tv", tmdb_id=r["tmdb_id"], season=ep["season"], episode=ep["episode"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, remote_url=TMDB_IMAGE_BASE + r["poster_path"] if r["poster_path"] else None, user_id=uid)
         # 2 season_start today via season_list
         try:
             sl = json.loads(r["season_list"] or "[]")
@@ -562,7 +633,7 @@ def check_anime_notifications(user_id=None):
                 print(f"check_anime uid={uid} failed: {e}")
         return
     uid = int(user_id or 0)
-    today = today_str()
+    today = _user_today(uid)
     conn = get_db()
     for a in conn.execute("SELECT * FROM anime WHERE user_id=?", (uid,)).fetchall():
         # 17 episode today
@@ -611,7 +682,7 @@ def check_anime_notifications(user_id=None):
             prev = snap.get(key)
             cur = a["episodes"]
             if prev and prev != cur:
-                _notif_create(a["title"], f"{a['title']} bölüm sayısı {prev} → {cur}", "anime_episodes", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=str(cur, user_id=uid))
+                _notif_create(a["title"], f"{a['title']} bölüm sayısı {prev} → {cur}", "anime_episodes", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=str(cur), user_id=uid)
             snap[key] = cur
             from db import set_setting
             _sset(uid, "notif_anime_ep", json.dumps(snap))
@@ -760,40 +831,6 @@ def refresh_recommendations_job():
         print("rec refresh tamam", flush=True)
     except Exception as e:
         print("rec refresh failed:", e, flush=True)
-
-
-def notification_ticker():
-    """Faz 32: her 15 dk'da bir, saati gelen kullanicilarin bildirimlerini uretir.
-    Her kullanicinin notification_hour'u (kisisel, yoksa global) o anki saate
-    denk geliyorsa yalniz o kullanici icin check calisir."""
-    try:
-        try:
-            tz = ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
-        except Exception:
-            tz = ZoneInfo("Europe/Istanbul")
-        now = datetime.datetime.now(tz)
-        for uid in _active_uids():
-            try:
-                raw = _sget(uid, "notification_hour") or get_setting("notification_hour") or "09:05"
-            except Exception:
-                raw = "09:05"
-            h, m = parse_notify_hour(raw)
-            if h != now.hour:
-                continue
-            # 15 dk penceresi: planlanan dakika ile su anki dakika arasi 0-14 dk.
-            delta = (now.minute - m) % 60
-            if delta < 0 or delta >= 15:
-                continue
-            try:
-                check_notifications(user_id=uid)
-            except Exception as e:
-                print(f"ticker notif uid={uid} failed: {e}", flush=True)
-            try:
-                check_anime_notifications(user_id=uid)
-            except Exception as e:
-                print(f"ticker anime uid={uid} failed: {e}", flush=True)
-    except Exception as e:
-        print("notification_ticker failed:", e, flush=True)
 
 
 def refresh_fav_listings_job():
@@ -992,55 +1029,21 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
-    hour, minute = parse_notify_hour(get_setting("notify_hour"))
-    if SCHEDULER.get_job("release_check"):
-        SCHEDULER.remove_job("release_check")
-    SCHEDULER.add_job(
-        check_releases,
-        "cron",
-        hour=hour,
-        minute=minute,
-        timezone=tz,
-        id="release_check",
-        misfire_grace_time=3600,
-    )
-
-    notif_h, notif_m = parse_notify_hour(get_setting("notification_hour") or "09:05")
-    if SCHEDULER.get_job("notification_check"):
-        SCHEDULER.remove_job("notification_check")
-    SCHEDULER.add_job(
-        check_notifications,
-        "cron",
-        hour=notif_h,
-        minute=notif_m,
-        timezone=tz,
-        id="notification_check",
-        misfire_grace_time=3600,
-    )
-    # Faz 32: kisisel bildirim saatleri icin 15 dk ticker (global cron mirasi korunur).
-    if SCHEDULER.get_job("notification_ticker"):
-        SCHEDULER.remove_job("notification_ticker")
-    SCHEDULER.add_job(
-        notification_ticker,
-        "cron",
-        minute="*/15",
-        timezone=tz,
-        id="notification_ticker",
-        misfire_grace_time=3600,
-    )
-
-    anime_h, anime_m = parse_notify_hour(get_setting("anime_notification_hour") or "09:05")
-    if SCHEDULER.get_job("anime_check"):
-        SCHEDULER.remove_job("anime_check")
-    SCHEDULER.add_job(
-        check_anime_notifications,
-        "cron",
-        hour=anime_h,
-        minute=anime_m,
-        timezone=tz,
-        id="anime_check",
-        misfire_grace_time=3600,
-    )
+    # Faz 32c: kisisel Bildirim Saati — uye basina tek cron, tam dakikasinda.
+    # Eski global job'lar (release_check/notification_check/anime_check/ticker) emekli.
+    for _gone in ("release_check", "notification_check", "anime_check", "notification_ticker"):
+        try:
+            if SCHEDULER.get_job(_gone):
+                SCHEDULER.remove_job(_gone)
+        except Exception:
+            pass
+    _built = 0
+    for _uid in _active_uids():
+        try:
+            if build_user_jobs(_uid):
+                _built += 1
+        except Exception as e:
+            print(f"user job build uid={_uid} failed: {e}", flush=True)
 
     backup_h, backup_m = parse_notify_hour(get_setting("backup_hour") or "03:00")
     if SCHEDULER.get_job("backup_job"):
@@ -1084,13 +1087,9 @@ def schedule_releases():
     if not SCHEDULER.running:
         SCHEDULER.start()
     print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time, flush=True)
-    print("next release check:", SCHEDULER.get_job("release_check").next_run_time, flush=True)
     try:
-        print("next notification check:", SCHEDULER.get_job("notification_check").next_run_time, flush=True)
-    except Exception:
-        pass
-    try:
-        print("next anime check:", SCHEDULER.get_job("anime_check").next_run_time, flush=True)
+        _ujobs = sorted(j.id for j in SCHEDULER.get_jobs() if (j.id or "").startswith("user_notif_"))
+        print(f"user notif jobs ({len(_ujobs)}):", _ujobs, flush=True)
     except Exception:
         pass
     try:

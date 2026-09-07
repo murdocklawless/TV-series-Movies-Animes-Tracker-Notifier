@@ -406,8 +406,8 @@ def get_settings():
     readonly_global = set()
     if not admin:
         readonly_global = set(GLOBAL_ADMIN_ONLY_KEYS) | {
-            "tmdb_api_key", "notify_hour", "sync_hour", "genre_hour", "data_hour",
-            "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour",
+            "tmdb_api_key", "sync_hour", "genre_hour", "data_hour",
+            "rec_hour", "backup_hour", "app_update_hour",
             "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
             "backup_rsync_user", "backup_samba_host", "backup_samba_port",
             "backup_samba_share", "backup_samba_user", "app_auto_update",
@@ -419,12 +419,10 @@ def get_settings():
             "tmdb_api_key": get_setting("tmdb_api_key") or "",
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
             "telegram_chat_id": _pget("telegram_chat_id") or "",
-            "notify_hour": get_setting("notify_hour") or "09:00",
             "notification_hour": _pget("notification_hour") or "09:05",
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
-            "anime_notification_hour": get_setting("anime_notification_hour") or "09:05",
             "rec_hour": get_setting("rec_hour") or "05:25",
             "backup_hour": get_setting("backup_hour") or "03:00",
             "backup_mode": get_setting("backup_mode") or "",
@@ -480,12 +478,13 @@ def save_settings():
     uid = _uid()
     admin = _is_admin()
     # Faz 32: uye global anahtarlari yazamaz (403). Kisisel anahtarlar user_settings'e.
+    # Faz 32c: notify_hour/anime_notification_hour emekli — gelse bile yoksayilir.
     if not admin:
         blocked = [
             k for k in body
             if k in GLOBAL_ADMIN_ONLY_KEYS
-            or k in ("tmdb_api_key", "notify_hour", "sync_hour", "genre_hour", "data_hour",
-                     "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour",
+            or k in ("tmdb_api_key", "sync_hour", "genre_hour", "data_hour",
+                     "rec_hour", "backup_hour", "app_update_hour",
                      "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
                      "backup_rsync_user", "backup_samba_host", "backup_samba_port",
                      "backup_samba_share", "backup_samba_user", "app_auto_update",
@@ -513,12 +512,10 @@ def save_settings():
         "tmdb_api_key",
         "telegram_bot_token",
         "telegram_chat_id",
-        "notify_hour",
         "notification_hour",
         "sync_hour",
         "genre_hour",
         "data_hour",
-        "anime_notification_hour",
         "rec_hour",
         "backup_hour",
         "backup_mode",
@@ -582,8 +579,14 @@ def save_settings():
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
-    # Faz 32: uye bildirim saatini degistirince global cron'u bozma; per-user ticker okur.
-    if admin and any(k in body for k in ("notify_hour", "notification_hour", "sync_hour", "genre_hour", "data_hour", "anime_notification_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
+    # Faz 32c: Bildirim Saati/timezone kisiye ozel job'u tetikler; global saatler tum cron'lari.
+    if ("notification_hour" in body or "timezone" in body) and uid > 0:
+        try:
+            from scheduler import reschedule_user_jobs
+            reschedule_user_jobs(uid)
+        except Exception:
+            pass
+    if admin and any(k in body for k in ("sync_hour", "genre_hour", "data_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 

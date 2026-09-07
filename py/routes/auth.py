@@ -326,6 +326,12 @@ def auth_approve():
         conn.commit()
     finally:
         conn.close()
+    # Faz 32c: aktif uyeye bildirim job'u ac (fail-soft).
+    try:
+        from scheduler import build_user_jobs
+        build_user_jobs(user_id)
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 
@@ -350,6 +356,12 @@ def auth_reject():
         conn.close()
     if not gone:
         return jsonify({"error": "auth_nouser"}), 404
+    # Faz 32c: bekleyen uye silindi (job'u zaten yoktu; no-op guvencesi).
+    try:
+        from scheduler import remove_user_jobs
+        remove_user_jobs(user_id)
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 
@@ -384,6 +396,15 @@ def _set_status(request, status):
         conn.close()
     if not changed:
         return jsonify({"error": "auth_nouser"}), 404
+    # Faz 32c: statuye gore job ac/kaldir (fail-soft, restartsiz).
+    try:
+        from scheduler import build_user_jobs, remove_user_jobs
+        if status == "active":
+            build_user_jobs(user_id)
+        else:
+            remove_user_jobs(user_id)
+    except Exception:
+        pass
     return jsonify({"ok": True})
 
 
@@ -593,4 +614,10 @@ def auth_delete():
     finally:
         conn.close()
     _delete_user_everything(user_id)
+    # Faz 32c: silinen uyenin cron'u da otomatik kalkar (restartsiz).
+    try:
+        from scheduler import remove_user_jobs
+        remove_user_jobs(user_id)
+    except Exception:
+        pass
     return jsonify({"ok": True})

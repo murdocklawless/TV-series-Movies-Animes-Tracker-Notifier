@@ -507,11 +507,9 @@ async function loadSettings() {
   document.getElementById("s-token").value = s.telegram_bot_token || "";
   document.getElementById("s-chat").value = s.telegram_chat_id || "";
   document.getElementById("s-notification-hour").value = s.notification_hour || "09:05";
-  document.getElementById("s-hour").value = s.notify_hour || "09:00";
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
-  document.getElementById("s-anime-hour").value = s.anime_notification_hour || "09:05";
   document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
   document.getElementById("s-backup-hour").value = s.backup_hour || "03:00";
   document.getElementById("s-appupdate-hour").value = s.app_update_hour || "04:00";
@@ -564,11 +562,9 @@ async function loadSettings() {
   initPulldownCombobox("s-cache-ttl", "s-cache-ttl-list");
   initPulldownCombobox("s-notif-limit", "s-notif-limit-list");
   initTimePicker("s-notification-hour");
-  initTimePicker("s-hour");
   initTimePicker("s-sync-hour");
   initTimePicker("s-genre-hour");
   initTimePicker("s-data-hour");
-  initTimePicker("s-anime-hour");
   initTimePicker("s-rec-hour");
   initTimePicker("s-backup-hour");
   initTimePicker("s-appupdate-hour");
@@ -611,11 +607,9 @@ function applyReadonlyGlobals(s) {
   const keyToIds = {
     tmdb_api_key: ["s-tmdb"],
     telegram_bot_token: ["s-token"],
-    notify_hour: ["s-hour"],
     sync_hour: ["s-sync-hour"],
     genre_hour: ["s-genre-hour"],
     data_hour: ["s-data-hour"],
-    anime_notification_hour: ["s-anime-hour"],
     rec_hour: ["s-rec-hour"],
     backup_hour: ["s-backup-hour"],
     app_update_hour: ["s-appupdate-hour"],
@@ -1695,12 +1689,6 @@ document.getElementById("s-notification-hour").addEventListener("change", () => 
   saveSettingsPartial({ notification_hour: el.value }, hint);
 });
 
-document.getElementById("s-hour").addEventListener("change", () => {
-  const el = document.getElementById("s-hour");
-  const hint = el.closest("label").querySelector(".saved-hint");
-  saveSettingsPartial({ notify_hour: el.value }, hint);
-});
-
 document.getElementById("s-sync-hour").addEventListener("change", () => {
   const el = document.getElementById("s-sync-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
@@ -1715,11 +1703,6 @@ document.getElementById("s-data-hour").addEventListener("change", () => {
   const el = document.getElementById("s-data-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ data_hour: el.value }, hint);
-});
-document.getElementById("s-anime-hour").addEventListener("change", () => {
-  const el = document.getElementById("s-anime-hour");
-  const hint = el.closest("label").querySelector(".saved-hint");
-  saveSettingsPartial({ anime_notification_hour: el.value }, hint);
 });
 document.getElementById("s-rec-hour").addEventListener("change", () => {
   const el = document.getElementById("s-rec-hour");
