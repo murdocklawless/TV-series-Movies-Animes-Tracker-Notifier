@@ -6,6 +6,7 @@ yakalar, izlenen dizi/film/animeyi Nextep'e watched=1 olarak isler. Tek yonlu
 
 Uclar:
   GET  /stremio/<uuid>/manifest.json                 -> manifest (static)
+  GET  /stremio/logo.png                              -> eklenti logosu (manifestle ayni kaynak)
   GET  /stremio/<uuid>/subtitles/<type>/<id>.json    -> sinyal kancasi (aninda {subtitles:[]})
   GET  /api/thirdparty/status                        -> uygulama durum listesi (genisletilebilir)
   POST /api/thirdparty/stremio/refresh-uuid          -> yeni UUID (eski kurulum olur)
@@ -53,8 +54,9 @@ from stremio_buffer import (
 
 stremio_bp = Blueprint("stremio", __name__)
 
-# Eklenti listesi logosu (postimg, herkese acik; marka logosu oldugundan tum kullanicilarda ayni).
-ADDON_LOGO_URL = "https://i.postimg.cc/76NX03dZ/stremio-nextep-plugin.png"
+# Eklenti logosu ayni-kaynaktan servis edilir (/stremio/logo.png — manifestle
+# ayni host/politika; ucuncu parti host kirilganligi yok). Dosya:
+# static/images/stremio_nextep_plugin.png
 
 # Genisletilebilir uygulama defteri: ileride Nuvio vb. buraya satir eklenir.
 THIRDPARTY_APPS = [
@@ -314,13 +316,24 @@ def stremio_manifest(uuid_param):
         "name": "NextEp Watch Sync",
         "version": "1.0.0",
         "description": "Syncs what you play in Stremio to NextEp as watched",
-        "logo": ADDON_LOGO_URL,
+        "logo": f"{_base_url()}/stremio/logo.png",
         "resources": ["subtitles"],
         "types": ["movie", "series"],
         "idPrefixes": ["tt", "tmdb:", "tvdb:", "trakt:", "kitsu:"],
         "catalogs": [],
     }
     resp = jsonify(payload)
+    resp.headers["Cache-Control"] = "no-store"
+    return _cors(resp)
+
+
+@stremio_bp.route("/stremio/logo.png")
+def stremio_logo():
+    """Eklenti logosu (manifestle ayni kaynak; Caddy /stremio/*'i geçirir)."""
+    from flask import send_file
+    import os
+    from config import STATIC_DIR
+    resp = send_file(os.path.join(STATIC_DIR, "images", "stremio_nextep_plugin.png"), mimetype="image/png")
     resp.headers["Cache-Control"] = "no-store"
     return _cors(resp)
 

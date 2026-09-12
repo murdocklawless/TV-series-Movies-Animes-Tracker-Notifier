@@ -16,8 +16,8 @@ from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names
 settings_bp = Blueprint("settings", __name__)
 
 # Yedek/Restore sinirlari — per-mode 30 (db 30 + full 30 = hedef basina 60)
-MAX_BACKUPS_DB = 30
-MAX_BACKUPS_FULL = 30
+# Uzak budama limitleri backup_core'dan tek kaynak (backup_run + backup_job ortak)
+from backup_core import MAX_BACKUPS_DB, MAX_BACKUPS_FULL
 MAX_RESTORES_DB = 30
 MAX_RESTORES_FULL = 30
 
@@ -52,153 +52,7 @@ def _pget(key):
     return get_setting(key)
 
 
-def _prune_remote_rsync(host, port, path, user, key_plain, mode):
-    """Rsync hedefte per-mode 30 siniri: en eskileri sil (fail-soft)."""
-    try:
-        import tempfile
-        import subprocess
-
-        if not path.endswith("/"):
-            path += "/"
-        # liste al
-        key_file = None
-        try:
-            cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10", "-p", str(port or "22")]
-            if key_plain and "PRIVATE KEY" in key_plain:
-                kfd, key_file = tempfile.mkstemp(prefix="bk_prune_key_")
-                os.close(kfd)
-                with open(key_file, "w") as kf:
-                    kf.write(key_plain)
-                try:
-                    os.chmod(key_file, 0o600)
-                except Exception:
-                    pass
-                cmd.extend(["-i", key_file])
-            cmd.extend([f"{user}@{host}", f"ls -1 {path} 2>/dev/null"])
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
-            if proc.returncode != 0:
-                return
-            files = [os.path.basename(l.strip()) for l in (proc.stdout or "").splitlines() if l.strip()]
-            # per-mode filtre
-            if mode == "db":
-                cand = [f for f in files if f.startswith("nextep-") and f.endswith(".db") and not f.startswith("nextep-full-")]
-                limit = MAX_BACKUPS_DB
-            else:
-                cand = [f for f in files if f.startswith("nextep-full-") and f.endswith(".tar.gz")]
-                limit = MAX_BACKUPS_FULL
-            cand.sort()  # isimde YYYYMMDD-HHMMSS oldugundan kronolojik
-            if len(cand) <= limit:
-                return
-            to_del = cand[: len(cand) - limit]  # en eskiler
-            try:
-                print(f"rsync prune: mode={mode} cand={len(cand)} limit={limit} deleting {len(to_del)}: {to_del[:3]}", flush=True)
-            except Exception:
-                pass
-            for name in to_del:
-                try:
-                    rm_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10", "-p", str(port or "22")]
-                    if key_file:
-                        rm_cmd.extend(["-i", key_file])
-                    rm_cmd.extend([f"{user}@{host}", f"rm -f {path}{name}"])
-                    subprocess.run(rm_cmd, capture_output=True, text=True, timeout=15)
-                except Exception as e:
-                    try:
-                        print(f"rsync delete failed {name}: {e}", flush=True)
-                    except Exception:
-                        pass
-                    continue
-        finally:
-            if key_file and os.path.exists(key_file):
-                try:
-                    os.unlink(key_file)
-                except Exception:
-                    pass
-    except Exception as e:
-        try:
-            print(f"rsync prune failed: {e}", flush=True)
-        except Exception:
-            pass
-
-
-def _prune_remote_samba(host, port, share, user, password, mode):
-    """Samba hedefte per-mode 30 siniri: en eskileri sil (fail-soft)."""
-    try:
-        import uuid
-
-        from smbprotocol.connection import Connection
-        from smbprotocol.session import Session
-        from smbprotocol.tree import TreeConnect
-        from smbprotocol.open import Open, CreateDisposition, FileAttributes, ShareAccess, ImpersonationLevel, CreateOptions, DirectoryAccessMask, FilePipePrinterAccessMask
-        from smbprotocol.file_info import FileInformationClass
-
-        conn = Connection(uuid.uuid4(), host, int(port or 445))
-        conn.connect(timeout=10)
-        try:
-            sess = Session(conn, username=user, password=password)
-            sess.connect()
-            tree = TreeConnect(sess, f"\\\\{host}\\{share}")
-            tree.connect()
-            fd_dir = Open(tree, "")
-            fd_dir.create(ImpersonationLevel.Impersonation, DirectoryAccessMask.FILE_LIST_DIRECTORY, FileAttributes.FILE_ATTRIBUTE_DIRECTORY, ShareAccess.FILE_SHARE_READ, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DIRECTORY_FILE)
-            try:
-                files_raw = fd_dir.query_directory("*", FileInformationClass.FILE_DIRECTORY_INFORMATION)
-            finally:
-                fd_dir.close()
-            names = []
-            for f in files_raw:
-                try:
-                    name = f["file_name"].get_value().decode("utf-16-le").rstrip("\x00")
-                except Exception:
-                    continue
-                names.append(name)
-            if mode == "db":
-                cand = [n for n in names if n.startswith("nextep-") and n.endswith(".db") and not n.startswith("nextep-full-")]
-                limit = MAX_BACKUPS_DB
-            else:
-                cand = [n for n in names if n.startswith("nextep-full-") and n.endswith(".tar.gz")]
-                limit = MAX_BACKUPS_FULL
-            cand.sort()
-            if len(cand) <= limit:
-                tree.disconnect()
-                sess.disconnect()
-                conn.disconnect()
-                return
-            to_del = cand[: len(cand) - limit]
-            try:
-                print(f"samba prune: mode={mode} cand={len(cand)} limit={limit} deleting {len(to_del)}: {to_del[:3]}", flush=True)
-            except Exception:
-                pass
-            for name in to_del:
-                try:
-                    fd = Open(tree, name)
-                    fd.create(ImpersonationLevel.Impersonation, FilePipePrinterAccessMask.DELETE, FileAttributes.FILE_ATTRIBUTE_NORMAL, ShareAccess.FILE_SHARE_READ | ShareAccess.FILE_SHARE_WRITE | ShareAccess.FILE_SHARE_DELETE, CreateDisposition.FILE_OPEN, CreateOptions.FILE_DELETE_ON_CLOSE | CreateOptions.FILE_NON_DIRECTORY_FILE)
-                    try:
-                        fd.close()
-                    except Exception:
-                        pass
-                except Exception as e:
-                    try:
-                        print(f"samba delete failed {name}: {e}", flush=True)
-                    except Exception:
-                        pass
-                    continue
-            tree.disconnect()
-            sess.disconnect()
-            conn.disconnect()
-        except Exception as e:
-            try:
-                print(f"samba prune failed: {e}", flush=True)
-            except Exception:
-                pass
-            try:
-                conn.disconnect()
-            except Exception:
-                pass
-    except Exception as e:
-        try:
-            print(f"samba prune import/connect failed: {e}", flush=True)
-        except Exception:
-            pass
+# Uzak budama yardımcıları backup_core.py'da yaşar (tek kaynak) — buradan taşındı.
 
 
 def _prune_local_restores():
@@ -439,6 +293,7 @@ def get_settings():
             "has_backup_samba_pass": bool(get_setting("backup_samba_pass")),
             "app_auto_update": get_setting("app_auto_update") or "0",
             "app_update_hour": get_setting("app_update_hour") or "04:00",
+            "maint_hour": get_setting("maint_hour") or "05:45",
             "app_remote_version": get_setting("app_remote_version") or "",
             "timezone": _pget("timezone") or "Europe/Istanbul",
             "language": _pget("language") or "tr-TR",
@@ -465,6 +320,10 @@ def get_settings():
             "cache_ttl": get_setting("cache_ttl") or "3600",
             "tp_base_url": _pget("tp_base_url") or "",
             "server_today": today_str(),
+            "geo_country": get_setting("geo_country") or "",
+            "geo_country_name": get_setting("geo_country_name") or "",
+            "geo_tz": get_setting("geo_tz") or "",
+            "geo_moved_at": get_setting("geo_moved_at") or "0",
             "readonly_global": sorted(readonly_global),
             "is_admin": admin,
             **{f"notif_{k}": _pget(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
@@ -484,7 +343,7 @@ def save_settings():
             k for k in body
             if k in GLOBAL_ADMIN_ONLY_KEYS
             or k in ("tmdb_api_key", "sync_hour", "genre_hour", "data_hour",
-                     "rec_hour", "backup_hour", "app_update_hour",
+            "rec_hour", "backup_hour", "app_update_hour", "maint_hour",
                      "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
                      "backup_rsync_user", "backup_samba_host", "backup_samba_port",
                      "backup_samba_share", "backup_samba_user", "app_auto_update",
@@ -529,6 +388,7 @@ def save_settings():
         "backup_samba_user",
         "app_auto_update",
         "app_update_hour",
+        "maint_hour",
         "timezone",
         "language",
         "ntfy_topic",
@@ -586,7 +446,7 @@ def save_settings():
             reschedule_user_jobs(uid)
         except Exception:
             pass
-    if admin and any(k in body for k in ("sync_hour", "genre_hour", "data_hour", "rec_hour", "backup_hour", "app_update_hour", "timezone")):
+    if admin and any(k in body for k in ("sync_hour", "genre_hour", "data_hour", "rec_hour", "backup_hour", "app_update_hour", "maint_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 
@@ -637,186 +497,24 @@ def backup_run():
         print(f"backup_run start mode={mode} target={target} host={host if target=='rsync' else host}", flush=True)
     except Exception:
         pass
-    # Kaynak dosyayı hazırla (anında)
-    import tempfile, tarfile, shutil, subprocess, datetime, stat
-    from config import DB_PATH, BASE_DIR
+    # Kaynak dosyayı hazırla (backup_core: manuel + cron tek kaynak)
+    from backup_core import build_artifact, send_rsync, send_samba
     import os
-    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tmp_path = None
     try:
-        if mode == "db":
-            if not os.path.exists(DB_PATH):
-                return jsonify({"error": "DB dosyası bulunamadı"}), 400
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix=f"nextep-{ts}-")
-            os.close(tmp_fd)
-            shutil.copy2(DB_PATH, tmp_path)
-            remote_name = f"nextep-{ts}.db"
-        else:
-            # full -> tar.gz
-            tmp_fd, tmp_path = tempfile.mkstemp(suffix=".tar.gz", prefix=f"nextep-full-{ts}-")
-            os.close(tmp_fd)
-            # klasörleri topla, venv/__pycache__/.git/bak/backup/md hariç
-            exclude_dirs = {"venv", "__pycache__", ".git", "bak", "backup", "tmp_push", ".opencode", "md"}
-            exclude_files = {".smtp_secret"}
-            with tarfile.open(tmp_path, "w:gz") as tf:
-                for root, dirs, files in os.walk(BASE_DIR):
-                    # exclude dirs in-place
-                    dirs[:] = [d for d in dirs if d not in exclude_dirs and not d.startswith(".")]
-                    for fn in files:
-                        if fn in exclude_files:
-                            continue
-                        if fn.endswith(".bak"):
-                            continue
-                        full = os.path.join(root, fn)
-                        arc = os.path.relpath(full, BASE_DIR)
-                        try:
-                            tf.add(full, arcname=arc)
-                        except Exception:
-                            continue
-            remote_name = f"nextep-full-{ts}.tar.gz"
-        # Hedefe yolla
+        try:
+            tmp_path, remote_name = build_artifact(mode)
+        except ValueError as ve:
+            return jsonify({"error": str(ve)}), 400
+        # Hedefe yolla (backup_core tek kaynak; cron ile ayni kod)
         if target == "rsync":
-            host = (get_setting("backup_rsync_host") or "").strip()
-            port = (get_setting("backup_rsync_port") or "22").strip() or "22"
-            path = (get_setting("backup_rsync_path") or "/tmp/").strip() or "/tmp/"
-            user = (get_setting("backup_rsync_user") or "root").strip() or "root"
-            # key veya pass çöz
-            key_enc = get_setting("backup_rsync_key") or ""
-            key_plain = ""
-            if key_enc:
-                try:
-                    key_plain = decrypt_secret(key_enc) or ""
-                except Exception:
-                    key_plain = ""
-            pass_enc = get_setting("backup_rsync_pass") or ""
-            pass_plain = ""
-            if pass_enc:
-                try:
-                    pass_plain = decrypt_secret(pass_enc) or ""
-                except Exception:
-                    pass_plain = ""
-            # remote tam yol
-            if not path.endswith("/"):
-                path = path + "/"
-            remote = f"{user}@{host}:{path}{remote_name}"
-            # scp komutunu kur
-            # key varsa temp key dosyası
-            key_file = None
-            try:
-                cmd = ["scp", "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null", "-P", str(port)]
-                if key_plain and "PRIVATE KEY" in key_plain:
-                    kfd, key_file = tempfile.mkstemp(prefix="bk_key_")
-                    os.close(kfd)
-                    with open(key_file, "w") as kf:
-                        kf.write(key_plain)
-                    os.chmod(key_file, 0o600)
-                    cmd.extend(["-i", key_file])
-                cmd.extend([tmp_path, remote])
-                # pass varsa sshpass kullan (yoksa key'e güvenir)
-                if pass_plain and not key_file:
-                    # sshpass yoksa hata döndürme, scp parola sorar ve takılır — engelle
-                    # bu durumda hata ver
-                    return jsonify({"error": "SSH key gerekli (parola ile yedek için key kullanın)"}), 400
-                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                if proc.returncode != 0:
-                    err = (proc.stderr or proc.stdout or "scp hatası").strip()[:500]
-                    try:
-                        print(f"backup_run rsync fail {err}", flush=True)
-                    except Exception:
-                        pass
-                    return jsonify({"error": f"Rsync yedek hatası: {err}"}), 500
-                try:
-                    sz = os.path.getsize(tmp_path) if tmp_path and os.path.exists(tmp_path) else 0
-                    print(f"backup_run rsync ok {remote_name} size={sz} -> {host}:{path}", flush=True)
-                except Exception:
-                    pass
-                # per-mode 30 budama (yeni yedek basarili -> en eskileri sil)
-                try:
-                    _prune_remote_rsync(host, port, path, user, key_plain, mode)
-                except Exception:
-                    pass
-            finally:
-                if key_file and os.path.exists(key_file):
-                    try:
-                        os.unlink(key_file)
-                    except Exception:
-                        pass
+            ok, msg = send_rsync(tmp_path, remote_name, mode)
         else:
-            # samba -> smbclient
-            host = (get_setting("backup_samba_host") or "").strip()
-            share = (get_setting("backup_samba_share") or "").strip()
-            port = (get_setting("backup_samba_port") or "445").strip() or "445"
-            user = (get_setting("backup_samba_user") or "").strip()
-            pass_enc = get_setting("backup_samba_pass") or ""
-            pass_plain = ""
-            if pass_enc:
-                try:
-                    pass_plain = decrypt_secret(pass_enc) or ""
-                except Exception:
-                    pass_plain = ""
-            # in-app Samba (SMB2/3) via smbprotocol only (B) — smbclient kullanılmaz
-            smb_ok = False
-            last_err = ""
-            try:
-                from smbprotocol.connection import Connection
-                from smbprotocol.session import Session
-                from smbprotocol.tree import TreeConnect
-                from smbprotocol.open import Open, CreateDisposition, FileAttributes, ShareAccess, ImpersonationLevel, CreateOptions, FilePipePrinterAccessMask
-                import uuid
-                conn = Connection(uuid.uuid4(), host, int(port))
-                conn.connect(timeout=10)
-                try:
-                    sess = Session(conn, username=user, password=pass_plain)
-                    sess.connect()
-                    tree = TreeConnect(sess, f"\\\\{host}\\{share}")
-                    tree.connect()
-                    # dosya olustur / uzerine yaz (READ|WRITE — tek WRITE bazi sunucularda ACCESS_DENIED verir)
-                    fd = Open(tree, remote_name)
-                    fd.create(ImpersonationLevel.Impersonation, FilePipePrinterAccessMask.GENERIC_READ | FilePipePrinterAccessMask.GENERIC_WRITE, FileAttributes.FILE_ATTRIBUTE_NORMAL, ShareAccess.FILE_SHARE_WRITE, CreateDisposition.FILE_OVERWRITE_IF, CreateOptions.FILE_NON_DIRECTORY_FILE)
-                    try:
-                        # max_write_size pazarlik sonrasi belli olur (genelde 1MiB), asarsak SMBException
-                        max_sz = getattr(conn, "max_write_size", 0) or (1024 * 1024)
-                        chunk_sz = min(1024 * 1024, max_sz)
-                        with open(tmp_path, "rb") as lfd:
-                            offset = 0
-                            while True:
-                                data = lfd.read(chunk_sz)
-                                if not data:
-                                    break
-                                fd.write(data, offset)
-                                offset += len(data)
-                    finally:
-                        fd.close()
-                    tree.disconnect()
-                    sess.disconnect()
-                    conn.disconnect()
-                    smb_ok = True
-                except Exception as e2:
-                    last_err = str(e2).strip()[:800]
-                    try:
-                        conn.disconnect()
-                    except Exception:
-                        pass
-                    raise
-            except Exception as e:
-                if not last_err:
-                    last_err = str(e).strip()[:800]
-            if not smb_ok:
-                try:
-                    print(f"backup_run samba fail {last_err or 'bilinmeyen'}", flush=True)
-                except Exception:
-                    pass
-                return jsonify({"error": f"Samba yedek hatası: {last_err or 'bilinmeyen'}"}), 500
-            try:
-                sz2 = os.path.getsize(tmp_path) if tmp_path and os.path.exists(tmp_path) else 0
-                print(f"backup_run samba ok {remote_name} size={sz2} -> \\\\{host}\\{share}", flush=True)
-            except Exception:
-                pass
-            # per-mode 30 budama (yeni yedek basarili -> en eskileri sil)
-            try:
-                _prune_remote_samba(host, port, share, user, pass_plain, mode)
-            except Exception:
-                pass
+            ok, msg = send_samba(tmp_path, remote_name, mode)
+        if not ok:
+            if msg == "SSH key gerekli (parola ile yedek için key kullanın)":
+                return jsonify({"error": msg}), 400
+            return jsonify({"error": msg}), 500
         if mode == "db":
             msg = f"Database {target.capitalize()} ile Yedeklendi"
         else:
@@ -826,12 +524,6 @@ def backup_run():
         except Exception:
             pass
         return jsonify({"ok": True, "msg": msg, "target": target})
-    except subprocess.TimeoutExpired:
-        try:
-            print("backup_run fail timeout", flush=True)
-        except Exception:
-            pass
-        return jsonify({"error": "Yedek zaman aşımı"}), 500
     except Exception as e:
         try:
             print(f"backup_run fail {e}", flush=True)

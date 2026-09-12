@@ -479,6 +479,71 @@ TEMPLATES = {
         "pl": "Wiadomość testowa NextEp", "ja": "NextEpテストメッセージ",
         "ko": "NextEp 테스트 메시지", "zh": "NextEp 测试消息",
     },
+    # --- uyelik olaylari (adminin kendi dilinde yazilir) ---
+    "member_pending": {
+        "tr": "{username} hesabının onaylanmasını bekliyor",
+        "en": "{username} is waiting for account approval",
+        "de": "{username} wartet auf Kontofreigabe",
+        "fr": "{username} attend l'approbation de son compte",
+        "es": "{username} está esperando la aprobación de su cuenta",
+        "it": "{username} è in attesa dell'approvazione dell'account",
+        "ru": "{username} ожидает подтверждения учётной записи",
+        "ar": "{username} بانتظار الموافقة على الحساب",
+        "pt": "{username} está a aguardar aprovação da conta",
+        "nl": "{username} wacht op accountgoedkeuring",
+        "pl": "{username} oczekuje na zatwierdzenie konta",
+        "ja": "{username}はアカウントの承認待ちです",
+        "ko": "{username}님이 계정 승인을 기다리고 있습니다",
+        "zh": "{username}正在等待帐户批准",
+    },
+    "password_reset": {
+        "tr": "{username} şifre sıfırlama isteği gönderdi",
+        "en": "{username} sent a password reset request",
+        "de": "{username} hat eine Passwortzurücksetzung angefordert",
+        "fr": "{username} a envoyé une demande de réinitialisation de mot de passe",
+        "es": "{username} envió una solicitud de restablecimiento de contraseña",
+        "it": "{username} ha inviato una richiesta di reimpostazione password",
+        "ru": "{username} запросил сброс пароля",
+        "ar": "{username} أرسل طلب إعادة تعيين كلمة المرور",
+        "pt": "{username} enviou um pedido de reposição de palavra-passe",
+        "nl": "{username} heeft een wachtwoordreset aangevraagd",
+        "pl": "{username} wysłał prośbę o zresetowanie hasła",
+        "ja": "{username}がパスワードリセットをリクエストしました",
+        "ko": "{username}님이 비밀번호 재설정을 요청했습니다",
+        "zh": "{username}发送了密码重置请求",
+    },
+    "reset_user_notice": {
+        "tr": "Admin ({admin}) şifrenizi kaldırdı. Giriş ekranında kullanıcı adınızı yazarak şifre değiştirme kısmı aktif olacaktır",
+        "en": "Admin ({admin}) has removed your password. Type your username on the login screen to activate the password change section",
+        "de": "Admin ({admin}) hat Ihr Passwort entfernt. Geben Sie Ihren Benutzernamen auf dem Anmeldebildschirm ein, um den Bereich zur Passwortänderung zu aktivieren",
+        "fr": "L'admin ({admin}) a supprimé votre mot de passe. Saisissez votre nom d'utilisateur sur l'écran de connexion pour activer la section de changement de mot de passe",
+        "es": "El admin ({admin}) ha eliminado tu contraseña. Escribe tu usuario en la pantalla de acceso para activar la sección de cambio de contraseña",
+        "it": "L'admin ({admin}) ha rimosso la tua password. Digita il tuo nome utente nella schermata di accesso per attivare la sezione di cambio password",
+        "ru": "Админ ({admin}) удалил ваш пароль. Введите имя пользователя на экране входа, чтобы открыть раздел смены пароля",
+        "ar": "أزال المدير ({admin}) كلمة مرورك. اكتب اسم المستخدم في شاشة الدخول لتفعيل قسم تغيير كلمة المرور",
+        "pt": "O admin ({admin}) removeu a sua palavra-passe. Escreva o seu utilizador no ecrã de acesso para ativar a secção de alteração de palavra-passe",
+        "nl": "Admin ({admin}) heeft je wachtwoord verwijderd. Typ je gebruikersnaam op het inlogscherm om het wachtwoordwijzigingsgedeelte te activeren",
+        "pl": "Admin ({admin}) usunął Twoje hasło. Wpisz nazwę użytkownika na ekranie logowania, aby aktywować sekcję zmiany hasła",
+        "ja": "管理者（{admin}）がパスワードを削除しました。ログイン画面でユーザー名を入力するとパスワード変更セクションが有効になります",
+        "ko": "관리자({admin})가 비밀번호를 삭제했습니다. 로그인 화면에서 사용자 이름을 입력하면 비밀번호 변경 섹션이 활성화됩니다",
+        "zh": "管理员（{admin}）已删除您的密码。在登录屏幕输入用户名即可激活密码更改部分",
+    },
+    "maint_backup_failed": {
+        "tr": "Database Bakım yedeği alınamadı ({err}); bakım durduruldu",
+        "en": "Database Maintenance backup failed ({err}); maintenance aborted",
+        "de": "Datenbankwartungs-Backup fehlgeschlagen ({err}); Wartung abgebrochen",
+        "fr": "Échec de la sauvegarde de maintenance ({err}) ; maintenance interrompue",
+        "es": "Falló la copia de mantenimiento ({err}); mantenimiento detenido",
+        "it": "Backup di manutenzione fallito ({err}); manutenzione interrotta",
+        "ru": "Не удалось создать резервную копию ({err}); обслуживание остановлено",
+        "ar": "فشل النسخ الاحتياطي للصيانة ({err})؛ توقفت الصيانة",
+        "pt": "Falha na cópia de manutenção ({err}); manutenção interrompida",
+        "nl": "Onderhoudsback-up mislukt ({err}); onderhoud afgebroken",
+        "pl": "Kopia konserwacyjna nie powiodła się ({err}); konserwacja przerwana",
+        "ja": "メンテナンスバックアップに失敗しました（{err}）；メンテナンスを中止しました",
+        "ko": "유지 관리 백업 실패({err}); 유지 관리가 중단되었습니다",
+        "zh": "维护备份失败（{err}）；维护已中止",
+    },
 }
 
 _FALLBACK_LANG = "tr"
@@ -497,6 +562,21 @@ def t(key, **kw):
     if not entry:
         return key
     tpl = entry.get(get_lang()) or entry.get(_FALLBACK_LANG) or ""
+    if kw:
+        try:
+            return tpl.format(**kw)
+        except (KeyError, IndexError, ValueError):
+            return tpl
+    return tpl
+
+
+def render(key, lang, **kw):
+    """Belirli bir dilde sablon yaz (per-user bildirimler icin; t() global dile bakar)."""
+    entry = TEMPLATES.get(key)
+    if not entry:
+        return key
+    lang = (lang or "").split("-")[0].strip().lower()
+    tpl = entry.get(lang) or entry.get(_FALLBACK_LANG) or ""
     if kw:
         try:
             return tpl.format(**kw)

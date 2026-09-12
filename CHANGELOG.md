@@ -1,6 +1,28 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.60 - 12/09/2026-18:06
+### TR
+- Otomatik yedekleme düzeltildi: sabah cron'u artık gerçekten yedek alıp dolu olan tüm hedeflere (rsync + Samba) gönderiyor.
+- Sabah TMDB sorguları azaldı: dizi bölüm taraması günde bir kez yapılıyor; aynı diziyi izleyen üyeler için tek sorgu yeterli.
+- Güncelleme modalındaki "Database Bakım" başlık satırı kalktı.
+- TV'de bildirim satırları odakta turuncu zeminle aydınlanıyor (çerçeve çizgisi yok); masaüstünde hover zemini belirginleşti.
+- TV'de geri tuşu utils penceresini kapatıp açılan butonda kalıyor (Dizi'ye sıçrama yok).
+- Üyelik bildirimlerinde (admin/üye/şifre sıfırlama/onay bekleyen) boş kutu yerine NextEp logosu görünüyor.
+- Oturum kapalıyken açılışta konsolu kirleten hata giderildi.
+- Stremio eklenti logosu artık uygulamadan geliyor; MiBox'ta da görünüyor ve odaklanınca net kalıyor.
+- Android TV simgesi turuncu zemin + siyah logo oldu (APK 2.9).
+### EN
+- Automatic backup fixed: the morning cron now really takes the backup and sends it to all filled targets (rsync + Samba).
+- Fewer morning TMDB requests: episode scanning runs once a day; one request covers members watching the same show.
+- Removed the "Database Maintenance" header row from the update modal.
+- On TV, focused notification rows glow with an orange background (no frame lines); desktop hover is more visible.
+- On TV, Back closes a utils popup and stays on the button that opened it (no jump to Shows).
+- Membership notifications (admin/member/password reset/pending approval) show the NextEp logo instead of an empty box.
+- Fixed a console error on launch while logged out.
+- The Stremio addon logo is now served by the app; it shows on MiBox too and stays sharp when focused.
+- Android TV icon is now black logo on orange (APK 2.9).
+
 ## 1.55 - 07/09/2026-19:20
 ### TR
 - Bar satırlarına günlük toplam eklendi (`Toplam 1.250`); 00:00'da sıfırlanır, sayı dile göre gruplanır.

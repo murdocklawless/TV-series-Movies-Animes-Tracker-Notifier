@@ -271,6 +271,9 @@ _PUBLIC_AUTH = {
     "/api/auth/login",
     "/api/auth/exists",
     "/api/auth/forgot",
+    "/api/auth/geo",
+    "/api/auth/reset-status",
+    "/api/auth/reset-change",
 }
 
 # Yalniz admin.

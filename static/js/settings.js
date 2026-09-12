@@ -1,9 +1,9 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=438";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=448";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
 import { sortMenu, activateUtilityTab, closeSortMenu } from "./views.js";
-import { showConfirm } from "./components.js";
+import { openStremioDisconnectConfirm } from "./components.js";
 
 // ---- Search ----
 // ---- Settings ----
@@ -16,10 +16,11 @@ const NOTIF_TYPES = [
   ["unwatched_bulk", "tv"], ["vote_threshold", "tv"],
   ["movie_today", "movie"], ["movie_rescheduled", "movie"], ["networks_changed", "movie"],
   ["anime_episode_today", "anime"], ["anime_hiatus", "anime"], ["anime_cancelled", "anime"],
-  ["anime_finished", "anime"], ["anime_releasing", "anime"], ["anime_episodes", "anime"],
+  ["anime_finished", "anime"], ["anime_releasing", "anime"],   ["anime_episodes", "anime"],
   ["anime_unwatched_bulk", "anime"],
+  ["member_pending", "member"], ["password_reset", "member"],
 ];
-const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"]];
+const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"], ["member", "notif_group_member"]];
 
 function setNotifTypeVisible(group, on) {
   const box = document.getElementById(`notif-type-box-${group}`);
@@ -513,6 +514,7 @@ async function loadSettings() {
   document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
   document.getElementById("s-backup-hour").value = s.backup_hour || "03:00";
   document.getElementById("s-appupdate-hour").value = s.app_update_hour || "04:00";
+  document.getElementById("s-maint-hour").value = s.maint_hour || "05:45";
   const appAuto = document.getElementById("s-appupdate-auto");
   if (appAuto) appAuto.checked = (s.app_auto_update || "0") === "1";
   // yedekleme: mod (db/full) ve rsync/samba alanlari
@@ -568,6 +570,7 @@ async function loadSettings() {
   initTimePicker("s-rec-hour");
   initTimePicker("s-backup-hour");
   initTimePicker("s-appupdate-hour");
+  initTimePicker("s-maint-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   state.serverToday = s.server_today || null;
   document.getElementById("s-tz").value = state.currentTz;
@@ -613,6 +616,8 @@ function applyReadonlyGlobals(s) {
     rec_hour: ["s-rec-hour"],
     backup_hour: ["s-backup-hour"],
     app_update_hour: ["s-appupdate-hour"],
+    maint_hour: ["s-maint-hour"],
+    maint_hour: ["s-maint-hour"],
     backup_mode: ["s-backup-db", "s-backup-full"],
     backup_rsync_host: ["s-backup-rsync-host"],
     backup_rsync_port: ["s-backup-rsync-port"],
@@ -649,7 +654,7 @@ function applyReadonlyGlobals(s) {
       const el = document.getElementById(id);
       if (el) {
         el.disabled = true;
-        el.title = "Admin yönetir";
+        el.title = t("admin_managed");
       }
     });
   });
@@ -879,7 +884,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=438");
+      const { errText: _err } = await import("./i18n.js?v=448");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -925,7 +930,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=438");
+        const { t: _t } = await import("./i18n.js?v=448");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1722,6 +1727,12 @@ document.getElementById("s-appupdate-hour").addEventListener("change", () => {
   saveSettingsPartial({ app_update_hour: el.value }, hint);
 });
 
+document.getElementById("s-maint-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-maint-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ maint_hour: el.value }, hint);
+});
+
 document.getElementById("s-appupdate-auto").addEventListener("change", (e) => {
   saveSettingsPartial({ app_auto_update: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
@@ -2169,7 +2180,7 @@ function bindThirdPartyEvents() {
   const disconnectBtn = document.getElementById("tp-stremio-disconnect");
   if (disconnectBtn) {
     disconnectBtn.addEventListener("click", () => {
-      showConfirm(t("tp_confirm_disconnect"), async () => {
+      openStremioDisconnectConfirm(t("tp_confirm_disconnect"), async () => {
         try {
           const r = await fetch("/api/thirdparty/stremio/disconnect", {
             method: "POST",

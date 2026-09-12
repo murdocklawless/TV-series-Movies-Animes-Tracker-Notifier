@@ -16,16 +16,17 @@ from auth import (
     hash_password,
     is_locked,
     login_required,
-    make_temp_password,
     record_fail,
     reset_attempts,
     validate_password,
     validate_username,
     verify_password,
 )
-from db import get_db
+from db import get_db, set_user_setting
 
 from notification import create_notification
+
+from geo import LOGIN_LANGS, normalize_lang, resolve_for_request
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -79,6 +80,16 @@ def auth_register():
         user_id = cur.lastrowid
     finally:
         conn.close()
+    # Kayitta secilen dil hesaba yazilir (onay bekleyende de saklanir).
+    try:
+        lang = normalize_lang((body.get("language") or "").strip())
+        if lang:
+            set_user_setting(user_id, "language", lang)
+    except Exception:
+        pass
+    if status == "pending":
+        # Bekleyen kayit -> yalniz adminlere bildirim (merkez + push).
+        _notify_admins("member_pending", username, "member_pending", f"pending_{user_id}")
     if status == "active":
         token, _exp = create_session(user_id, (request.headers.get("User-Agent") or ""))
         resp = jsonify({"ok": True, "role": role, "status": status, "username": username})
@@ -172,15 +183,80 @@ def auth_forgot():
                     (row["id"],),
                 ).fetchone()
                 if not open_req:
-                    conn.execute(
+                    cur = conn.execute(
                         "INSERT INTO password_resets (user_id, status, created_at)"
                         " VALUES (?, 'open', ?)",
                         (row["id"], _utcnow()),
                     )
                     conn.commit()
+                    try:
+                        _notify_admins("password_reset", username, "password_reset", f"reset_{cur.lastrowid}")
+                    except Exception:
+                        pass
         finally:
             conn.close()
     return jsonify({"ok": True})
+
+
+def _admin_uids():
+    """Bildirim alacak aktif adminler."""
+    try:
+        conn = get_db()
+        try:
+            rows = conn.execute(
+                "SELECT id FROM users WHERE role='admin' AND status='active' ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+        return [int(r["id"]) for r in rows]
+    except Exception:
+        return []
+
+
+def _notify_admins(type_name, username, subject_key, notified_date):
+    """Uyelik olayini adminlerin kendi dilinde bildir (merkez + push).
+    Tip kapaliysa _notif_create sessiz gecer; ayni konu dedupe ile tek kalir."""
+    try:
+        from scheduler import _notif_create
+        from db import get_user_setting
+        from messages_i18n import render as _render
+    except Exception:
+        return
+    for uid in _admin_uids():
+        try:
+            lang = (get_user_setting(uid, "language") or "tr-TR").split("-")[0]
+            msg = _render(subject_key, lang, username=username)
+        except Exception:
+            msg = username
+        try:
+            _notif_create(username, msg, type_name, notified_date=notified_date, user_id=uid)
+        except Exception:
+            continue
+
+
+def _client_ip():
+    """Caddy ters-tunel arkasinda gercek istemci IP'si (X-Forwarded-For ilk)."""
+    try:
+        fwd = (request.headers.get("X-Forwarded-For") or "").strip()
+        if fwd:
+            return fwd.split(",")[0].strip()
+    except Exception:
+        pass
+    try:
+        return (request.remote_addr or "").strip()
+    except Exception:
+        return ""
+
+
+@auth_bp.route("/api/auth/geo", methods=["GET"])
+def auth_geo():
+    try:
+        info = resolve_for_request(_client_ip())
+    except Exception:
+        info = {"country_code": "", "country": "", "city": "", "timezone": "", "lang": "en"}
+    if not info.get("lang"):
+        info["lang"] = "en"
+    return jsonify(info)
 
 
 @auth_bp.route("/api/auth/change-password", methods=["POST"])
@@ -411,6 +487,8 @@ def _set_status(request, status):
 @auth_bp.route("/api/auth/reset-password", methods=["POST"])
 @admin_required
 def auth_reset_password():
+    """Sifre sifirlama istegi ETKINLESTIRME (temp uretmez): open -> active.
+    Kullanici login'de adini yazinca Sifre Degistirme bolumu acilir."""
     body = request.get_json(silent=True) or {}
     try:
         user_id = int(body.get("id") or 0)
@@ -418,25 +496,138 @@ def auth_reset_password():
         return jsonify({"error": "auth_nouser"}), 404
     if user_id == 1:
         return jsonify({"error": "auth_admin"}), 403
-    temp = make_temp_password()
     conn = get_db()
     try:
+        row = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "auth_nouser"}), 404
         cur = conn.execute(
-            "UPDATE users SET password_hash=?, force_pw_change=1 WHERE id=?",
-            (hash_password(temp), user_id),
-        )
-        conn.execute(
-            "UPDATE password_resets SET status='done' WHERE user_id=? AND status='open'",
+            "UPDATE password_resets SET status='active' WHERE user_id=? AND status='open'",
             (user_id,),
         )
-        conn.execute("DELETE FROM sessions WHERE user_id=?", (user_id,))
         conn.commit()
         changed = cur.rowcount
     finally:
         conn.close()
     if not changed:
         return jsonify({"error": "auth_nouser"}), 404
-    return jsonify({"ok": True, "temp": temp})
+    # Istek sahibine push (telegram + ntfy, kendi dilinde; atesle-gec).
+    try:
+        _push_reset_activated(user_id, row["username"])
+    except Exception:
+        pass
+    return jsonify({"ok": True})
+
+
+def _push_reset_activated(user_id, username):
+    try:
+        from db import get_user_setting
+        from messages_i18n import render as _render
+        from notifications import send_ntfy, send_telegram
+        admin = get_current_user()
+        admin_name = (admin.get("username") if admin else "admin") or "admin"
+        lang = (get_user_setting(user_id, "language") or "tr-TR").split("-")[0]
+        msg = _render("reset_user_notice", lang, admin=admin_name)
+        try:
+            send_telegram(msg, user_id=user_id)
+        except Exception:
+            pass
+        try:
+            send_ntfy(msg, user_id=user_id)
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
+RESET_ACTIVE_DAYS = 3
+
+
+def _reset_fresh(ts):
+    """Active istek 3 gun icinde mi (created_at UTC 'YYYY-MM-DD HH:MM')."""
+    try:
+        dt = datetime.datetime.strptime((ts or "").strip(), "%Y-%m-%d %H:%M").replace(
+            tzinfo=datetime.timezone.utc
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return (now - dt).total_seconds() < RESET_ACTIVE_DAYS * 86400
+    except Exception:
+        return False
+
+
+@auth_bp.route("/api/auth/reset-status", methods=["GET"])
+def auth_reset_status():
+    username = (request.args.get("u") or "").strip()
+    if validate_username(username):
+        return jsonify({"active": False, "pending": False})
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+        if not row:
+            return jsonify({"active": False, "pending": False})
+        req = conn.execute(
+            "SELECT created_at FROM password_resets WHERE user_id=? AND status='active'"
+            " ORDER BY id DESC LIMIT 1",
+            (row["id"],),
+        ).fetchone()
+        open_req = conn.execute(
+            "SELECT 1 FROM password_resets WHERE user_id=? AND status='open' LIMIT 1",
+            (row["id"],),
+        ).fetchone()
+    finally:
+        conn.close()
+    return jsonify({
+        "active": bool(req and _reset_fresh(req["created_at"])),
+        "pending": bool(open_req),
+    })
+
+
+@auth_bp.route("/api/auth/reset-change", methods=["POST"])
+def auth_reset_change():
+    """Kullanicinin kendisi sifre belirler (active istek sart; sonunda done).
+    Basariliysa active hesapta oturum acilir (oto-giris), bekleyende login ekrani."""
+    key = _attempt_key()
+    if is_locked(key):
+        return jsonify({"error": "auth_locked"}), 429
+    body = request.get_json(silent=True) or {}
+    username = (body.get("username") or "").strip()
+    new = body.get("new") or ""
+    new2 = body.get("new2")
+    err = validate_username(username) or validate_password(new)
+    if err:
+        return jsonify({"error": err}), 400
+    if new2 is not None and new2 != new:
+        return jsonify({"error": "auth_pw_mismatch"}), 400
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        if not row:
+            locked = record_fail(key)
+            return jsonify({"error": "auth_locked" if locked else "auth_nouser"}), 429 if locked else 404
+        req = conn.execute(
+            "SELECT * FROM password_resets WHERE user_id=? AND status='active'"
+            " ORDER BY id DESC LIMIT 1",
+            (row["id"],),
+        ).fetchone()
+        if not req or not _reset_fresh(req["created_at"]):
+            locked = record_fail(key)
+            return jsonify({"error": "auth_locked" if locked else "auth_nouser"}), 429 if locked else 403
+        conn.execute(
+            "UPDATE users SET password_hash=?, force_pw_change=0 WHERE id=?",
+            (hash_password(new), row["id"]),
+        )
+        conn.execute("UPDATE password_resets SET status='done' WHERE id=?", (req["id"],))
+        conn.execute("DELETE FROM sessions WHERE user_id=?", (row["id"],))
+        conn.commit()
+        status = row["status"]
+    finally:
+        conn.close()
+    reset_attempts(key)
+    if status == "active":
+        token, _exp = create_session(row["id"], (request.headers.get("User-Agent") or ""))
+        resp = jsonify({"ok": True, "role": row["role"], "status": status, "username": username})
+        return _set_cookie(resp, token)
+    return jsonify({"ok": True, "role": row["role"], "status": status, "username": username})
 
 
 @auth_bp.route("/api/auth/kick", methods=["POST"])

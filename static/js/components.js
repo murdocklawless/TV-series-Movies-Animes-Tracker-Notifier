@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=438";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=448";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
@@ -286,28 +286,83 @@ function closeDetails() {
 function closeModals() {
   closeReleases();
   closeDetails();
-  closeConfirm();
+  closeTvUnfollow();
+  closeAnimeUnfollow();
+  closeRejectConfirm();
+  closeMemberDelete();
+  closeMemberDeactivate();
+  closeLogoutConfirm();
+  closeNotifClear();
+  closeStremioDisconnect();
 }
 
-function closeConfirm() {
-  document.getElementById("confirm-modal").style.display = "none";
-}
-
-function showConfirm(text, onYes, opts = {}) {
-  if (opts.title) document.getElementById("confirm-title").textContent = opts.title;
-  document.getElementById("confirm-text").textContent = text;
-  const yesBtn = document.getElementById("confirm-yes");
-  yesBtn.textContent = opts.yes || t("confirm_yes");
-  yesBtn.classList.toggle("confirm-danger", opts.danger !== false);
-  document.getElementById("confirm-modal").style.display = "flex";
-  yesBtn.onclick = () => {
-    closeConfirm();
+// Adanmis onay modallari: her biri yalniz kendi blogunu acar/kapatir.
+// Ortak confirm-modal YASAKTIR (KRITIK KURAL) — yeni onay akisi yeni blok ister.
+function wireDedicatedConfirm(id, text, onYes) {
+  const ov = document.getElementById(id);
+  const body = ov.querySelector(".confirm-text");
+  if (body) body.textContent = text;
+  const yes = ov.querySelector(".confirm-actions .btn");
+  const close = () => {
+    ov.style.display = "none";
+  };
+  ov.querySelector(".modal-close").onclick = close;
+  ov.onclick = (e) => {
+    if (e.target === e.currentTarget) close();
+  };
+  yes.onclick = () => {
+    close();
     onYes();
   };
-  document.getElementById("confirm-close").onclick = closeConfirm;
-  document.getElementById("confirm-modal").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) closeConfirm();
-  });
+  ov.style.display = "flex";
+}
+function closeTvUnfollow() {
+  document.getElementById("tv-unfollow-modal").style.display = "none";
+}
+function openTvUnfollowConfirm(text, onYes) {
+  wireDedicatedConfirm("tv-unfollow-modal", text, onYes);
+}
+function closeAnimeUnfollow() {
+  document.getElementById("anime-unfollow-modal").style.display = "none";
+}
+function openAnimeUnfollowConfirm(text, onYes) {
+  wireDedicatedConfirm("anime-unfollow-modal", text, onYes);
+}
+function closeRejectConfirm() {
+  document.getElementById("reject-confirm-modal").style.display = "none";
+}
+function openRejectConfirm(text, onYes) {
+  wireDedicatedConfirm("reject-confirm-modal", text, onYes);
+}
+function closeMemberDelete() {
+  document.getElementById("member-delete-modal").style.display = "none";
+}
+function openMemberDeleteConfirm(text, onYes) {
+  wireDedicatedConfirm("member-delete-modal", text, onYes);
+}
+function closeMemberDeactivate() {
+  document.getElementById("member-deactivate-modal").style.display = "none";
+}
+function openMemberDeactivateConfirm(text, onYes) {
+  wireDedicatedConfirm("member-deactivate-modal", text, onYes);
+}
+function closeLogoutConfirm() {
+  document.getElementById("logout-confirm-modal").style.display = "none";
+}
+function openLogoutConfirm(text, onYes) {
+  wireDedicatedConfirm("logout-confirm-modal", text, onYes);
+}
+function closeNotifClear() {
+  document.getElementById("notif-clear-modal").style.display = "none";
+}
+function openNotifClearConfirm(text, onYes) {
+  wireDedicatedConfirm("notif-clear-modal", text, onYes);
+}
+function closeStremioDisconnect() {
+  document.getElementById("stremio-disconnect-modal").style.display = "none";
+}
+function openStremioDisconnectConfirm(text, onYes) {
+  wireDedicatedConfirm("stremio-disconnect-modal", text, onYes);
 }
 
 document.getElementById("releases-close").onclick = closeReleases;
@@ -1032,6 +1087,9 @@ if (detailsRefreshBtn) {
   };
 }
 
-export { openReleases, closeReleases, closeDetails, closeModals, closeConfirm, showConfirm,
+export { openReleases, closeReleases, closeDetails, closeModals,
+         openTvUnfollowConfirm, openAnimeUnfollowConfirm, openRejectConfirm,
+         openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
+         openNotifClearConfirm, openStremioDisconnectConfirm,
          openDetails, toggleFavActor, toggleFavAnimeChar, openAnimeChar, openPerson,
          openUnwatchedModal, openAnimeDetails, openAnimeSchedule };

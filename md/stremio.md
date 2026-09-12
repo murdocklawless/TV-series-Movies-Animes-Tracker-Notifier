@@ -217,11 +217,11 @@ aynı kapıdan girer — AIOMetadata/Cinemeta'nın kurulu olması gerekmez. Egzo
 - 9.3 Pi canlı: dizi + film + anime açılışı → watched=1 · modal anlık güncellenme ·
   md5 MATCH · servis active · `/api/followed` 200.
 - 9.4 Boş Stremio hesabında kur-kaldır provası → asıl hesaba kurulum.
-- 9.5 Yedek: pi `/etc/nextep/bak/<ts>/` + AGENTS.md faz notu.
+- 9.5 Yedek: pi `/etc/nextep/bak/<ts>/` + `md/faz.md` faz notu.
 
 ## 10. Build sırası
 
 1. DB tablo + tampon yardımcısı (py) 2. stremio.py (manifest + kanca + çözümleme +
    yazım; D1 kararı dahil) 3. clear-apply ucu (dizi + anime kolu) 4. takvim
    butonları + i18n 5. settings-stremio-modal 6. testler (9.1–9.2) 7. pi dağıtım +
-   prova hesabı (9.3–9.5) 8. asıl kurulum + AGENTS.md notu.
+   prova hesabı (9.3–9.5) 8. asıl kurulum + `md/faz.md` notu.

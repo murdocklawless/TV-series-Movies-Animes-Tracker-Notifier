@@ -1,14 +1,14 @@
 ﻿// Faz 4: tracker.js — giriş noktası. Tüm mantık modüllere bölündü; bu dosya
 // modülleri bağlar, başlangıç yüklemelerini yapar ve genel (global) olayları kurar.
-window.__NX_BUILD = "438";
+window.__NX_BUILD = "471";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang } from "./i18n.js?v=438";
-import { switchView, loadFollowed, loadUnwatched, views } from "./views.js";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=448";
+import { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js";
 import { closeResultsModal } from "./search.js";
 import "./settings.js";
 import "./notification.js";
-import "./tv.js";
-import { bootAuth } from "./auth.js?v=438";
+import "./tv.js?v=450";
+import { bootAuth } from "./auth.js?v=462";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
 // Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama
@@ -30,9 +30,16 @@ bootAuth();
 
 // Dil değişince aktif görünümü yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
+  // Oturumsuzken veri çekilmez (401 + çökme üretmemek için).
+  try {
+    if (document.body.classList.contains("logged-out")) return;
+  } catch (_) {}
   if (views.dizi.classList.contains("active")) loadFollowed("dizi");
   if (views.film.classList.contains("active")) loadFollowed("film");
+  if (views.anime.classList.contains("active")) loadAnime();
   if (views.unwatched.classList.contains("active")) loadUnwatched();
+  if (views.watched.classList.contains("active")) loadWatched();
+  if (views.recommend.classList.contains("active")) loadRecommendations();
 });
 
 // ---- İlk veri yüklemeleri (yalnız giriş sonrası) ----
@@ -48,6 +55,7 @@ function loadInitialData() {
       applyLang(s.language.split("-")[0]);
     }
     checkTmdbKey(state.tmdbKeySet);
+    maybeShowGeoBanner(s);
   } catch (e) {
     /* varsayılan dil */
   }
@@ -128,6 +136,28 @@ if (tmdbClose) {
     const b = document.getElementById("tmdb-key-banner");
     if (b) b.style.display = "none";
   });
+}
+const geoClose = document.getElementById("geo-banner-close");
+if (geoClose) {
+  geoClose.addEventListener("click", () => {
+    const b = document.getElementById("geo-banner");
+    if (b) b.style.display = "none";
+    try { sessionStorage.setItem("nx-geo-hide", "1"); } catch (_) {}
+  });
+}
+function maybeShowGeoBanner(s) {
+  try {
+    if (sessionStorage.getItem("nx-geo-hide") === "1") return;
+    const moved = Number(s.geo_moved_at || 0);
+    if (!moved || Date.now() / 1000 - moved > 7 * 86400) return;
+    const gtz = s.geo_tz || "";
+    if (!gtz || (s.timezone || "") === gtz) return;
+    const b = document.getElementById("geo-banner");
+    const m = document.getElementById("geo-banner-msg");
+    if (!b || !m) return;
+    try { m.textContent = t("geo_moved_warn", { country: s.geo_country || gtz }); } catch (_) {}
+    b.style.display = "";
+  } catch (_) {}
 }
 
 document.addEventListener("click", (e) => {

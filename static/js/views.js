@@ -1,12 +1,12 @@
 ﻿// Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=438";
+import { t } from "./i18n.js?v=448";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   isToday, dateState, utcDayStr, utcTodayStr, isReleaseToday, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, toast, tzLocale,
 } from "./utils.js";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, showConfirm, openUnwatchedModal } from "./components.js";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js";
 import { renderChips, closeResultsModal, setMedia } from "./search.js";
 import { closeSettingsMenu } from "./settings.js";
 function isTvUIActive() {
@@ -255,6 +255,8 @@ function tvStatusText(item) {
 async function loadFollowed(view) {
   const res = await fetch("/api/followed");
   let items = await res.json();
+  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
+  if (!Array.isArray(items)) return;
   const isTv = view === "dizi";
   items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && !(i.in_watched == 1));
   items = applySort(items);
@@ -305,14 +307,13 @@ async function loadFollowed(view) {
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
-      showConfirm(
+      openTvUnfollowConfirm(
         t("unfollow_confirm", { title: item.title }),
         async () => {
           await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
           loadFollowed(view);
           toast(t("unfollowed", { name: item.title }));
-        },
-        { title: t("confirm_unfollow") }
+        }
       );
     };
     div.querySelector(".calendar-btn").onclick = (e) => {
@@ -385,6 +386,8 @@ function animeStatusLabel(status) {
 async function loadAnime() {
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
+  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
+  if (!Array.isArray(items)) return;
   items = items.filter((i) => !(i.in_watched == 1));
   items = applySort(items);
   const grid = document.getElementById("anime-grid");
@@ -415,14 +418,13 @@ async function loadAnime() {
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
-      showConfirm(
+      openAnimeUnfollowConfirm(
         t("unfollow_confirm", { title: item.title }),
         async () => {
           await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
           loadAnime();
           toast(t("unfollowed", { name: item.title }));
-        },
-        { title: t("confirm_unfollow") }
+        }
       );
     };
     div.querySelector(".calendar-btn").onclick = (e) => {
@@ -1305,4 +1307,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab, closeSortMenu };
+export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab, closeSortMenu };

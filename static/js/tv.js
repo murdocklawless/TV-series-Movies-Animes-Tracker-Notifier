@@ -105,7 +105,7 @@ window._tvModalStack = modalStack;
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","details-modal","confirm-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","stremio-disconnect-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -131,9 +131,37 @@ document.addEventListener("keydown", (e) => {
   const code = e.keyCode || e.which;
   const isBack = key === "Escape" || key === "GoBack" || key === "BrowserBack" || code === 4 || code === 461 || key === "Back";
   if (!isBack) return;
+  // Login gorunumunde Geri no-op (cikis yalniz login-exit butonundan).
+  // Acik dil listesi varsa once o kapanir (tuzaktan cikis).
+  try {
+    const LL = window.__NX_langList;
+    if (typeof isLoginViewActive === "function" && isLoginViewActive() && LL && LL.isOpen && LL.isOpen()){
+      e.preventDefault(); e.stopPropagation(); LL.close(); return;
+    }
+  } catch {}
+  // Kapali liste + odak dil butonunda: Geri, gelinen yere dondurur.
+  try {
+    const LL2 = window.__NX_langList;
+    const ae2 = document.activeElement;
+    const lb2 = document.getElementById('login-lang-btn');
+    if (typeof isLoginViewActive === "function" && isLoginViewActive() && ae2 && lb2 && ae2 === lb2 && LL2 && LL2.exitToOrigin){
+      e.preventDefault(); e.stopPropagation(); LL2.exitToOrigin(); return;
+    }
+  } catch {}
   if (openMenuItems().length) {
     e.preventDefault(); e.stopPropagation();
+    // Hangi pencere açıksa kapatınca onun butonunda kal (bildirim/sıralama/ayarlar).
+    const backTarget =
+      (isMenuOpen('#notif-menu') && '#tab-notif') ||
+      (isMenuOpen('#sort-menu') && '#tab-sort') ||
+      (isMenuOpen('#settings-menu') && '#tab-settings') || null;
     closeOpenMenus();
+    if (backTarget) {
+      try {
+        const b = document.querySelector(backTarget);
+        if (b && !b.disabled && isVisible(b)) focusEl(b);
+      } catch {}
+    }
     return;
   }
   const top = topModal();
@@ -193,7 +221,15 @@ document.addEventListener("keydown", (e) => {
     const sv = document.getElementById('view-search');
     if (sv && sv.classList.contains('active')) {
       const c = document.getElementById('search-close');
-      if (c) { e.preventDefault(); e.stopPropagation(); c.click(); return; }
+      if (c) {
+        e.preventDefault(); e.stopPropagation(); c.click();
+        // Arama kapanınca açan butonda kal (#tab-search), dizi'ye düşme.
+        try {
+          const t = document.getElementById('tab-search');
+          if (t && !t.disabled && isVisible(t)) focusEl(t);
+        } catch {}
+        return;
+      }
     }
   } catch(_){}
 });
@@ -317,8 +353,29 @@ function locate(el, rows){
 }
 
 function focusEl(el){
+  if (!el) return;
   try{ focusNoScroll(el); }catch(_){}
   try{
+    // Bildirim/sort/settings dropdown: yalniz liste kabini kaydir, sayfayi oynatma
+    const dd = el.closest && el.closest('#notif-menu, #sort-menu, #settings-menu');
+    if (dd){
+      const list = (dd.querySelector('#notif-list') && dd.querySelector('#notif-list').contains(el))
+        ? dd.querySelector('#notif-list')
+        : (el.closest && el.closest('.notif-list, .fav-list, .sort-menu, .settings-menu'));
+      const box = (list && list.contains(el)) ? list : dd;
+      try{
+        const br = box.getBoundingClientRect();
+        const r = el.getBoundingClientRect();
+        if (box !== dd || box === dd){
+          // scroll edilebilir kapta en yakin konum
+          if (r.top < br.top) box.scrollTop -= (br.top - r.top + 6);
+          else if (r.bottom > br.bottom) box.scrollTop += (r.bottom - br.bottom + 6);
+        }
+      }catch(_){
+        try{ el.scrollIntoView({block:"nearest", inline:"nearest"}); }catch(_){}
+      }
+      return;
+    }
     if (el.closest && el.closest('.modal-overlay')){
       // odak zaten kaydırmasız verildi; tek minimal kaydırma
       el.scrollIntoView({block:"nearest", inline:"nearest"});
@@ -508,6 +565,82 @@ function openMenuItems(){
   return out;
 }
 
+// Bildirim menüsü özel turu: açılışta aşağı ilk mesaj; mesajlar kendi içinde
+// döngü (son aşağı → ilk); ilk mesajdan yukarı header (önce mark-all).
+// Header içi yatay: mark-all <-> clear; header'dan aşağı msg1, yukarı msgN.
+function notifMenuOpen(){
+  try{
+    const m = document.querySelector('#notif-menu');
+    return !!(m && m.classList.contains('open') && isVisible(m));
+  }catch{ return false; }
+}
+function notifChainParts(){
+  let mark = null, clear = null, items = [];
+  try{
+    mark = document.querySelector('#notif-mark-all');
+    if (mark && (!isVisible(mark) || mark.disabled)) mark = null;
+    clear = document.querySelector('#notif-clear');
+    if (clear && (!isVisible(clear) || clear.disabled)) clear = null;
+    const list = document.querySelector('#notif-list');
+    if (list) items = Array.from(list.querySelectorAll('.notif-item')).filter(el=>isVisible(el)&&!el.disabled);
+    items.forEach((el)=>{ try{ el.tabIndex = 0; }catch(_){} });
+  }catch{}
+  return { mark, clear, items };
+}
+function handleNotifMenuNav(e, dir){
+  if (!notifMenuOpen()) return false;
+  // sort/settings aynı anda açıksa jenerik akışa bırak
+  try{
+    const s = document.querySelector('#sort-menu');
+    const g = document.querySelector('#settings-menu');
+    if ((s && s.classList.contains('open') && isVisible(s)) || (g && g.classList.contains('open') && isVisible(g))) return false;
+  }catch{}
+  const { mark, clear, items } = notifChainParts();
+  const headers = [mark, clear].filter(Boolean);
+  if (!items.length){
+    // boş liste: yalnız header lineer tur
+    if (!headers.length) return false;
+    const ae0 = document.activeElement;
+    let i0 = headers.indexOf(ae0);
+    if (i0 === -1){ e.preventDefault(); focusEl(headers[0]); return true; }
+    const n0 = (dir==='right'||dir==='down') ? (i0+1)%headers.length : (i0-1+headers.length)%headers.length;
+    e.preventDefault(); focusEl(headers[n0]); return true;
+  }
+  const ae = document.activeElement;
+  const isMark = ae === mark, isClear = ae === clear;
+  const idx = items.indexOf(ae);
+  const first = items[0], last = items[items.length-1];
+  const go = (el)=>{ e.preventDefault(); focusEl(el); return true; };
+  if (isMark || isClear){
+    if (dir === 'left' || dir === 'right'){
+      if (headers.length > 1) return go(isMark ? clear : mark);
+      return go(ae);
+    }
+    if (dir === 'down') return go(first);
+    // header'dan yukarı: son mesaj (dairesellik)
+    return go(last);
+  }
+  if (idx !== -1){
+    if (dir === 'right' || dir === 'down'){
+      // son mesajdan aşağı ilk mesaja (header'a değil)
+      if (idx === items.length-1) return go(first);
+      return go(items[idx+1]);
+    }
+    // yukarı/sol: ilk mesajdan yukarı mark-all (yoksa clear / son)
+    if (idx === 0) return go(mark || clear || last);
+    return go(items[idx-1]);
+  }
+  // Zincir dışı odaktan (örn. #tab-notif): aşağı/sağ ilk mesaj, yukarı/sol son mesaj
+  if (dir === 'down' || dir === 'right') return go(first);
+  return go(last);
+}
+
+function isMenuOpen(sel){
+  try{
+    const m = document.querySelector(sel);
+    return !!(m && m.classList.contains('open') && isVisible(m));
+  }catch{ return false; }
+}
 function closeOpenMenus(){
   const pairs = [['#sort-menu','#tab-sort'],['#settings-menu','#tab-settings'],['#notif-menu','#tab-notif']];
   for (const [sel, tabSel] of pairs){
@@ -601,6 +734,7 @@ document.addEventListener("keydown", (e)=>{
   }
   if (!dir) return;
   e.preventDefault();
+  if (handleNotifMenuNav(e, dir)) return;
   const menuItems = openMenuItems();
   if (menuItems.length){
     let i = menuItems.indexOf(document.activeElement);
@@ -701,9 +835,10 @@ function isLoginViewActive(){
   try { const v = document.getElementById('view-login'); return !!(v && v.classList.contains('active')); } catch { return false; }
 }
 function loginChain(){
-  const ids = ['#login-user','#login-pass','#login-pass2','#login-go','#login-register','#login-new','#login-save','#login-forgot'];
+  // Dil secici en basta; gözler satır-içi: inputtan hemen sonra (pass→göz→pass2→göz2→...).
+  const seq = ['#login-lang-btn','#login-user','#login-pass','.pw-eye[data-for="login-pass"]','#login-pass2','.pw-eye[data-for="login-pass2"]','#login-go','#login-register','#login-exit','#login-reset-go','#login-new','.pw-eye[data-for="login-new"]','#login-save','#login-forgot','#login-reset-back'];
   const out = [];
-  for (const sel of ids){
+  for (const sel of seq){
     try {
       const el = document.querySelector(sel);
       if (el && isVisible(el) && !el.disabled) out.push(el);
@@ -714,6 +849,14 @@ function loginChain(){
 function handleLoginViewNav(e, dir){
   if (!isLoginViewActive()) return false;
   const ae = document.activeElement;
+  // Dil listesi aciksa YALNIZ yukari/asagi satirda gezer (sol/sag yutulur).
+  try {
+    const LL = window.__NX_langList;
+    if (LL && LL.isOpen && LL.isOpen()){
+      if (dir === 'up' || dir === 'down'){ e.preventDefault(); e.stopPropagation(); LL.move(dir); return true; }
+      if (dir === 'left' || dir === 'right'){ e.preventDefault(); e.stopPropagation(); return true; }
+    }
+  } catch {}
   try {
     // Sifre-2'den yukari: once kendi gozu, sonra sifre-1 (istek).
     if (ae && ae.id === 'login-pass2' && (dir === 'up' || dir === 'left')){
@@ -729,9 +872,70 @@ function handleLoginViewNav(e, dir){
         if (p2){ e.preventDefault(); focusEl(p2); return true; }
       }
     }
+    // Zorunlu-şifre ekranı: yeni-şifre gözü aynı desen (kendi gözü → üst satır).
+    if (ae && ae.id === 'login-new' && (dir === 'up' || dir === 'left')){
+      const eye = document.querySelector('.pw-eye[data-for="login-new"]');
+      if (eye && isVisible(eye) && !eye.disabled){ e.preventDefault(); focusEl(eye); return true; }
+    }
+    if (ae && ae.classList && ae.classList.contains('pw-eye') && ae.dataset.for === 'login-new'){
+      if (dir === 'up' || dir === 'left'){
+        const p0 = searchVisible('#login-pass');
+        if (p0){ e.preventDefault(); focusEl(p0); return true; }
+      } else {
+        const pn = searchVisible('#login-new');
+        if (pn){ e.preventDefault(); focusEl(pn); return true; }
+      }
+    }
+    // Ana şifre gözü: gözden yukarı/sola kutuya, kutudan sonra zincir zaten göze gider.
+    if (ae && ae.classList && ae.classList.contains('pw-eye') && ae.dataset.for === 'login-pass'){
+      if (dir === 'up' || dir === 'left'){
+        const p = searchVisible('#login-pass');
+        if (p){ e.preventDefault(); focusEl(p); return true; }
+      }
+    }
   } catch {}
   const chain = loginChain();
   if (!chain.length) return false;
+  // Dil secici: asagi/sag → kullanici, yukari/sol → forgot (alttan sarma).
+  try {
+    const lb = document.getElementById('login-lang-btn');
+    if (ae && lb && ae === lb && chain.includes(lb)){
+      const go = (el) => { e.preventDefault(); focusEl(el); return true; };
+      const user = document.getElementById('login-user');
+      const forgot0 = document.getElementById('login-forgot');
+      if (dir === 'down' || dir === 'right') return go((user && chain.includes(user)) ? user : chain[0]);
+      if (forgot0 && chain.includes(forgot0)) return go(forgot0);
+      return go(chain[chain.length - 1]);
+    }
+  } catch {}
+  // Buton satırı satır-duyarlı: yatay satır içinde, dikey satırlar arası.
+  try {
+    const btnIds = ['login-go', 'login-register', 'login-exit'];
+    const btns = btnIds.map((id) => document.getElementById(id)).filter((el) => el && chain.includes(el));
+    const forgot = document.getElementById('login-forgot');
+    const forgotOn = !!(forgot && chain.includes(forgot));
+    if (ae && btns.includes(ae)){
+      const go = (el) => { e.preventDefault(); focusEl(el); return true; };
+      if (dir === 'left' || dir === 'right'){
+        const step = dir === 'right' ? 1 : -1;
+        return go(btns[(btns.indexOf(ae) + step + btns.length) % btns.length]);
+      }
+      if (dir === 'up'){
+        // Satır üstü: zincirde ilk butondan önceki görünür öğe.
+        const firstIdx = chain.indexOf(btns[0]);
+        for (let k = firstIdx - 1; k >= 0; k--){ return go(chain[k]); }
+        return go(chain[chain.length - 1]);
+      }
+      // down: forgot açıksa ona, yoksa başa sar.
+      if (forgotOn) return go(forgot);
+      return go(chain[0]);
+    }
+    if (ae === forgot && forgotOn){
+      const go = (el) => { e.preventDefault(); focusEl(el); return true; };
+      if (dir === 'up' || dir === 'left') return go(btns.length ? btns[0] : chain[0]);
+      return go(chain[0]);
+    }
+  } catch {}
   let i = chain.indexOf(ae);
   if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
   const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
@@ -778,6 +982,24 @@ document.addEventListener("keydown", (e)=>{
     if (ae && menuItems.includes(ae)){ e.preventDefault(); e.stopPropagation(); ae.click(); }
     return;
   }
+  // Login görünümü: göz ve butonlarda OK doğrudan çalışır (DPAD_CENTER native click üretmez).
+  try{
+    if (isLoginViewActive()){
+      const la = document.activeElement;
+      try {
+        const LL = window.__NX_langList;
+        if (LL && LL.isOpen && LL.isOpen()){
+          if (la && la.classList && la.classList.contains('provider-cell')){ e.preventDefault(); e.stopPropagation(); la.click(); return; }
+          if (la && la.id === 'login-lang-btn'){ e.preventDefault(); e.stopPropagation(); la.click(); return; }
+          e.preventDefault(); e.stopPropagation(); LL.pick(); return;
+        }
+      } catch {}
+      if (la && la.id === 'login-lang-btn'){ e.preventDefault(); e.stopPropagation(); la.click(); return; }
+      if (la && la.classList && la.classList.contains('pw-eye')){ e.preventDefault(); e.stopPropagation(); la.click(); return; }
+      if (la && la.tagName === 'BUTTON' && la.id && (la.id === 'login-go' || la.id === 'login-register' || la.id === 'login-exit' || la.id === 'login-reset-go' || la.id === 'login-reset-back' || la.id === 'login-save' || la.id === 'login-forgot')){ e.preventDefault(); e.stopPropagation(); la.click(); return; }
+      return;
+    }
+  }catch{}
   const ae = document.activeElement;
   if (ae && ae.closest && ae.closest('.unwatched-section-title')){
     e.preventDefault(); e.stopPropagation(); ae.click(); return;

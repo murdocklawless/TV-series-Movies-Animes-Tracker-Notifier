@@ -310,3 +310,105 @@ html.is-tv .hidden-header-btn:focus-visible, html.tv-mode .hidden-header-btn:foc
   outline-offset: 2px;
 }
 
+/* TV login: unutma butonu metin genisliginde + kayit odagi yesil (desktop hover deseni) +
+   login varken navbar gizli (grid !important ezer) + modal dikey ortali */
+html.is-tv #login-forgot, html.tv-mode #login-forgot {
+  align-self: center;
+}
+html.is-tv #login-forgot:focus, html.tv-mode #login-forgot:focus,
+html.is-tv #login-forgot:focus-visible, html.tv-mode #login-forgot:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  color: #fff !important;
+  border-radius: 4px;
+}
+html.is-tv #login-register:focus, html.tv-mode #login-register:focus,
+html.is-tv #login-register:focus-visible, html.tv-mode #login-register:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+  background: rgba(34,197,94,0.3) !important;
+  border-color: #22c55e !important;
+  color: #fff !important;
+}
+html.is-tv #login-reset-go:focus, html.tv-mode #login-reset-go:focus,
+html.is-tv #login-reset-go:focus-visible, html.tv-mode #login-reset-go:focus-visible {
+  outline: 2px solid #006fe6;
+  outline-offset: 2px;
+  background: rgba(0,111,230,0.3) !important;
+  border-color: #006fe6 !important;
+  color: #fff !important;
+}
+html.is-tv body.logged-out nav, html.tv-mode body.logged-out nav {
+  display: none !important;
+}
+html.is-tv #view-login.active, html.tv-mode #view-login.active {
+  min-height: 100vh;
+}
+/* vh WebView'da bozuk cozulebildiginden gercek ortalama position:fixed ile
+   (inset viewport-olculudur, vh birimi kullanmaz); dar ekranda ic kaydirma */
+html.is-tv #view-login.active, html.tv-mode #view-login.active {
+  position: fixed;
+  inset: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Bildirim odağı = desktop hover deseni, daha belirgin zemin (%30) */
+html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,
+html.is-tv .notif-item:focus-visible, html.tv-mode .notif-item:focus-visible {
+  outline: none;
+  background: rgba(249,115,22,0.3);
+}
+
+/* Login gözleri TV odağında turuncu halka (tabindex=-1 olsa da programatik odakta görünsün) */
+html.is-tv .pw-eye:focus, html.tv-mode .pw-eye:focus,
+html.is-tv .pw-eye:focus-visible, html.tv-mode .pw-eye:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  color: #fff !important;
+  border-radius: 6px;
+}
+
+/* TV login Çıkış butonu: yalnız TV'de görünür (desktop/mobilde display:none aynen),
+   3 buton .login-btns .tab flex:1 ile eşit genişlikte; normalde base gri,
+   yalnız odakta kırmızı çerçeve+zemin */
+html.is-tv #login-exit, html.tv-mode #login-exit {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+/* Reset modunda satırda yalnız Dön + Değiştir (Çıkış gizli). */
+html.is-tv .login-frame.reset-mode #login-exit, html.tv-mode .login-frame.reset-mode #login-exit {
+  display: none !important;
+}
+html.is-tv #login-exit:focus, html.tv-mode #login-exit:focus,
+html.is-tv #login-exit:focus-visible, html.tv-mode #login-exit:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.3) !important;
+  color: #fff !important;
+}
+
+/* Göz SVG'si her zeminde görünür: blok + currentColor mirası */
+html.is-tv .pw-eye svg, html.tv-mode .pw-eye svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Login dil secici TV odagi: turuncu halka (buton + liste satirlari) */
+html.is-tv #login-lang-btn:focus, html.tv-mode #login-lang-btn:focus,
+html.is-tv #login-lang-btn:focus-visible, html.tv-mode #login-lang-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+  color: #fff !important;
+}
+html.is-tv #login-lang-list .provider-cell:focus, html.tv-mode #login-lang-list .provider-cell:focus,
+html.is-tv #login-lang-list .provider-cell:focus-visible, html.tv-mode #login-lang-list .provider-cell:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
+  background: #262a36 !important;
+  color: #fff !important;
+}
+

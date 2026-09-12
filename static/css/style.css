@@ -1357,7 +1357,7 @@ input:-webkit-autofill:focus {
 }
 
 .notif-item:hover {
-  background: rgba(249, 115, 22, 0.12);
+  background: rgba(249, 115, 22, 0.3);
 }
 
 .notif-thumb {
@@ -1379,6 +1379,12 @@ input:-webkit-autofill:focus {
   color: #555a66;
   border-radius: 4px;
   flex-shrink: 0;
+}
+
+.notif-thumb-logo {
+  object-fit: contain;
+  background: #0f1117;
+  padding: 6px;
 }
 
 .notif-content {
@@ -4035,9 +4041,13 @@ select#s-email-provider.email-lit {
 /* TV: kart + iç elemanlar %30 küçültme — exact *0.7, yuvarlamasız (hizalama korunur) *//* Faz 30 login ekrani: ortalanmis tek cerceve, alt alta kutular + .tab butonlar */
 body.logged-out nav { display: none; }
 body.logged-out main { padding: 0; }
-#view-login.active { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 40px); }
-.login-frame { background: #171a23; border: 1px solid #F97316; border-radius: 12px; max-width: 480px; width: min(480px, 92vw); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 10px; }
+#view-login.active { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.login-frame { background: #171a23; border: 1px solid #F97316; border-radius: 12px; max-width: 480px; width: min(480px, 92vw); padding: 28px 32px 24px; display: flex; flex-direction: column; gap: 10px; position: relative; }
 .login-frame.register-mode { border-color: #166534; }
+.login-frame.reset-mode { border-color: #006fe6; }
+.login-frame.reset-mode h2 { color: #006fe6; }
+.login-frame.reset-mode input:focus { border-color: #006fe6; }
+.login-frame.reset-mode #login-reset-go:hover { background: rgba(0, 111, 230, 0.3); border-color: #006fe6; color: #fff; }
 .login-frame h2 { color: #f97316; margin: 0 0 8px; text-align: center; }
 .login-frame.register-mode h2 { color: #22c55e; }
 .login-frame input { background: #171a23; border: 1px solid #2a2f3d; border-radius: 8px; color: #fff; padding: 12px; font-size: 1rem; width: 100%; box-sizing: border-box; }
@@ -4046,6 +4056,7 @@ body.logged-out main { padding: 0; }
 .pw-wrap { position: relative; }
 .pw-wrap input { padding-right: 42px; }
 .pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #aab; cursor: pointer; padding: 8px; font-size: 0.9rem; }
+.pw-eye svg { display: block; }
 .pw-eye:hover { color: #fff; }
 .login-hint { color: #4ade80; font-size: 0.7rem; margin: -4px 0 4px; }
 .login-note { color: #fbbf24; }
@@ -4057,6 +4068,18 @@ body.logged-out main { padding: 0; }
 .login-frame.register-mode #login-register { border-color: #22c55e; color: #fff; }
 .login-link { background: none; border: none; color: #aab; cursor: pointer; font-size: 0.8rem; margin-top: 4px; }
 .login-link:hover { color: #fff; }
+.login-link:disabled { opacity: 0.45; cursor: not-allowed; }
+.login-link:disabled:hover { color: #aab; }
+/* Login sag-ust dil secici: Dil ve Zaman pulldown deseni (liste/satir renkleri birebir,
+   yalniz secenek fontu .7rem) */
+#login-lang-wrap { position: absolute; top: 10px; right: 10px; z-index: 5; }
+#login-lang-btn { background: none; border: none; color: #aab; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+#login-lang-btn svg { display: block; }
+#login-lang-btn:hover { color: #fff; }
+#login-lang-list { left: auto; right: 0; min-width: 150px; max-height: 260px; }
+#login-lang-list .provider-cell { font-size: 0.7rem; padding: 6px 10px; }
+#login-lang-list .provider-cell.selected { border-radius: 4px; }
+#login-lang-list .provider-cell.hl { border-radius: 4px; }
 /* Faz 30 admin modal satirlari + rozet */
 .admin-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid #2a2f3d; }
 .admin-row:last-child { border-bottom: none; }
@@ -4066,9 +4089,10 @@ body.logged-out main { padding: 0; }
 .admin-actions .tab { padding: 5px 10px; font-size: 0.75rem; }
 .admin-temp { background: #171a23; border: 1px dashed #22c55e; border-radius: 8px; padding: 10px; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .admin-empty { color: #aab; font-size: 0.85rem; padding: 4px 0 10px; }
-#menu-admin-item .notif-badge { margin-left: auto; }
 /* Faz 30 admin modal: 3 cerceve aralıklı dizilir (yalnız bu modal) */
 #settings-admin-modal .modal-body { display: flex; flex-direction: column; gap: 12px; }
+/* Bekleyen blogu: iki kare arasi da ayni 12px (duz div gap tasimaz) */
+#admin-pending-wrap { display: flex; flex-direction: column; gap: 12px; }
 /* Faz 31d: .channel-frame > div kuralı column dayatır — uye çipleri row olmaya zorlanır */
 #settings-admin-modal .member-chips { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; justify-content: center; }
 /* Faz 30 admin modal: satir icerikleri cerceveye ortali */
@@ -4081,7 +4105,7 @@ body.logged-out main { padding: 0; }
 .member-name { font-size: 0.85rem; color: #e5e9f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-sub { font-size: 0.7rem; color: #aab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-name.online, .member-sub.online { color: #4ade80; }
-.member-icons { margin-left: auto; display: flex; gap: 4px; flex-shrink: 0; }
+.member-icons { margin-left: auto; display: flex; gap: 5px; flex-shrink: 0; }
 .role-icon { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: transparent; border: 1px solid; border-radius: 50%; cursor: pointer; font-size: 0.65rem; transition: color 0.15s ease, border-color 0.15s ease; }
 .role-icon.c-green-dk { color: #166534; border-color: #166534; }
 .role-icon.c-green-dk:hover { color: #4ade80; border-color: #4ade80; }
@@ -4093,6 +4117,8 @@ body.logged-out main { padding: 0; }
 .role-icon.c-orange:hover { color: #fdba74; border-color: #fdba74; }
 .role-icon.c-gray { color: #6b7280; border-color: #6b7280; }
 .role-icon.c-gray:hover { color: #d1d5db; border-color: #d1d5db; }
+.role-icon.c-white { color: #fff; border-color: #fff; }
+.role-icon.c-white:hover { color: #fff; border-color: #fff; background: rgba(255,255,255,0.12); }
 .role-icon.dead { cursor: not-allowed; }
 /* Faz 31 rol bildirimi: baslik tipe gore renkli */
 .notif-item[data-ntype="role_admin"] .notif-title { color: #f87171; }
@@ -4101,6 +4127,8 @@ body.logged-out main { padding: 0; }
 #admin-rate-bars { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 #admin-rate-bars .rate-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; width: 100%; }
 #admin-rate-bars .rate-label { font-size: 0.7rem; color: #aab; }
+#admin-rate-bars .rate-topline { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; width: 100%; flex: 1 1 100%; }
+#admin-rate-bars .rate-stats-inline { display: flex; align-items: baseline; gap: 6px; margin-left: auto; white-space: nowrap; }
 #admin-rate-bars .rate-sep { font-size: 0.7rem; color: #aab; }
 #admin-rate-bars .rate-now { font-size: 0.7rem; color: #22c55e; }
 #admin-rate-bars .rate-peak-t { font-size: 0.7rem; color: #ef4444; }

@@ -11,7 +11,7 @@ export const state = {
   anilistGenresCache: null,
 
   tmdbKeySet: false,
-  currentLang: "tr",
+  currentLang: "en",
   currentTz: "Europe/Istanbul",
   serverToday: null,
   allTimezones: [],

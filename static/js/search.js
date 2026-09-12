@@ -1,6 +1,6 @@
 ﻿// Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel } from "./i18n.js?v=438";
+import { t, animeGenreLabel } from "./i18n.js?v=448";
 import {
   posterHTML, scoreTag, typeLabel, formatDate, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint,

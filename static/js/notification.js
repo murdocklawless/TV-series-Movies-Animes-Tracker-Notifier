@@ -1,10 +1,11 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=438";
+import { t } from "./i18n.js?v=448";
 import { escAttr } from "./utils.js";
-import { showConfirm } from "./components.js";
+import { openNotifClearConfirm } from "./components.js";
 import { closeSortMenu } from "./views.js";
-import { closeSettingsMenu } from "./settings.js";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js";
+import { isAdmin, loadAdminLists } from "./auth.js?v=462";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -103,7 +104,13 @@ async function fetchList() {
       let thumbHtml = "";
       if (state.notifCenterPoster) {
         const thumb = n.thumbnail_local || n.poster_local || "";
-        thumbHtml = thumb ? `<img class="notif-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'" />` : `<div class="notif-thumb-fallback"><i class="fa-solid fa-image"></i></div>`;
+        if (thumb) {
+          thumbHtml = `<img class="notif-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.style.display='none'" />`;
+        } else if (n.type === "role_admin" || n.type === "role_member" || n.type === "password_reset" || n.type === "member_pending") {
+          thumbHtml = `<img class="notif-thumb notif-thumb-logo" src="/static/images/nextep_web_ui_logo.png" alt="" loading="lazy" onerror="this.style.display='none'" />`;
+        } else {
+          thumbHtml = `<div class="notif-thumb-fallback"><i class="fa-solid fa-image"></i></div>`;
+        }
       }
       div.innerHTML = `
         ${thumbHtml}
@@ -120,6 +127,22 @@ async function fetchList() {
           div.classList.remove("unread");
           fetchCount();
         }
+        // Uyelik bildirimi + admin: dogrudan onay bloguna (modal en alta kayar).
+        try {
+          if ((n.type === "member_pending" || n.type === "password_reset") && isAdmin()) {
+            closeMenu();
+            try { closeSortMenu(); } catch (_) {}
+            try { closeSettingsMenu(); } catch (_) {}
+            await showSettingsSubmodal("settings-admin-modal");
+            setTimeout(() => { try { loadAdminLists(); } catch (_) {} }, 30);
+            setTimeout(() => {
+              try {
+                const w = document.getElementById("admin-pending-wrap");
+                if (w) w.scrollIntoView({ block: "nearest" });
+              } catch (_) {}
+            }, 120);
+          }
+        } catch (_) {}
       };
       list.appendChild(div);
     });
@@ -179,11 +202,11 @@ function init() {
   if (clearBtn) {
     clearBtn.onclick = (e) => {
       e.stopPropagation();
-      showConfirm(t("notif_clear_confirm") || "Tüm bildirimler silinsin mi?", async () => {
+      openNotifClearConfirm(t("notif_clear_confirm") || "Tüm bildirimler silinsin mi?", async () => {
         await fetch("/api/notifications", { method: "DELETE" });
         fetchList();
         fetchCount();
-      }, { title: t("notif_clear_title") });
+      });
     };
   }
   // capture fazında: stopPropagation'lı butonlarda (tab-sort, tab-settings vb.) bile dış tık paneli kapatır

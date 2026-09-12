@@ -42,6 +42,8 @@ NOTIF_TYPES = [
     ("anime_releasing", "anime"),
     ("anime_episodes", "anime"),
     ("anime_unwatched_bulk", "anime"),
+    ("member_pending", "member"),
+    ("password_reset", "member"),
 ]
 
 # Faz 32c: NOTIF_PUSH_EXCLUDED kaldirildi — tum tipler tek kisisel akistan
@@ -285,26 +287,38 @@ def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_pa
     return card
 
 
-def sync_episodes(conn, follow):
-    """Takip edilen dizinin tüm sezon/bölüm tarihlerini episodes tablosuna işler."""
-    if follow["media_type"] != "tv":
-        return
-    data = tmdb_request(f"/tv/{follow['tmdb_id']}")
+def _fetch_show_bundle(tmdb_id, extra_titles=()):
+    """/tv + sezon verisini bir kez çeker.
+    Dönüş: {"seasons": {no: season_data}, "tvmaze_times": ...} ya da None.
+    extra_titles: TVmaze saat eşleşmesi için denenecek ek başlıklar."""
+    data = tmdb_request(f"/tv/{tmdb_id}")
     if not data:
-        return
+        return None
     tvmaze_times = None
-    for t in (data.get("original_name"), data.get("name"), follow["title"]):
+    titles = [data.get("original_name"), data.get("name")]
+    titles.extend(extra_titles or ())
+    for t in titles:
         if t:
             tvmaze_times = _tvmaze_episode_times(t)
             if tvmaze_times is not None:
                 break
+    seasons = {}
     for season in data.get("seasons", []):
         season_number = season.get("season_number")
         if season_number is None or season_number == 0:
             continue
-        season_data = tmdb_request(f"/tv/{follow['tmdb_id']}/season/{season_number}")
-        if not season_data:
-            continue
+        season_data = tmdb_request(f"/tv/{tmdb_id}/season/{season_number}")
+        if season_data:
+            seasons[season_number] = season_data
+    return {"seasons": seasons, "tvmaze_times": tvmaze_times}
+
+
+def _write_episodes(conn, follow_id, bundle):
+    """Bölüm satırlarını tek follow_id'ye yazar. Upsert yalnız tarih/saat/ad
+    yazar — watched/notified dahil kullanıcı verilerine DOKUNULMAZ."""
+    seasons = bundle.get("seasons") or {}
+    tvmaze_times = bundle.get("tvmaze_times")
+    for season_number, season_data in seasons.items():
         for ep in season_data.get("episodes", []):
             ep_num = ep.get("episode_number")
             air_date = ep.get("air_date")
@@ -326,8 +340,46 @@ def sync_episodes(conn, follow):
                 "VALUES (?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(follow_id, season, episode) "
                 "DO UPDATE SET air_date=excluded.air_date, air_time=excluded.air_time, name=excluded.name",
-                (follow["id"], season_number, ep_num, air_date, air_time, ep_name),
+                (follow_id, season_number, ep_num, air_date, air_time, ep_name),
             )
+
+
+def sync_episodes(conn, follow):
+    """Takip edilen dizinin tüm sezon/bölüm tarihlerini episodes tablosuna işler."""
+    if follow["media_type"] != "tv":
+        return
+    try:
+        bundle = _fetch_show_bundle(follow["tmdb_id"], (follow["title"],))
+    except Exception:
+        return
+    if not bundle:
+        return
+    _write_episodes(conn, follow["id"], bundle)
+    conn.commit()
+
+
+def sync_episodes_multi(conn, follows):
+    """Aynı diziyi takip eden TÜM satırlar için tek fetch + satır-bazlı yazım
+    (aile ölçeği tekillemesi). Fetch paylaşılır, yazımlar follow_id bazlıdır;
+    watched dahil kullanıcı verilerine dokunulmaz. Satır hatası diğerlerini
+    durdurmaz (fail-soft)."""
+    groups = {}
+    for follow in follows:
+        if follow["media_type"] != "tv":
+            continue
+        groups.setdefault((follow["media_type"], follow["tmdb_id"]), []).append(follow)
+    for (_mt, tmdb_id), rows in groups.items():
+        try:
+            bundle = _fetch_show_bundle(tmdb_id, [r["title"] for r in rows])
+        except Exception:
+            continue
+        if not bundle:
+            continue
+        for r in rows:
+            try:
+                _write_episodes(conn, r["id"], bundle)
+            except Exception:
+                continue
     conn.commit()
 
 
@@ -354,9 +406,11 @@ def sync_releases():
     """Takip edilen dizi/film verilerini TMDB/TVMaze'den güncelleyip DB'ye işler (dizi bölümleri + film detayları, anime hariç)."""
     conn = get_db()
     follows = conn.execute("SELECT * FROM followed").fetchall()
+    # Dizi sezon taraması grup başına tek fetch (aile tekillemesi)
+    sync_episodes_multi(conn, follows)
     for follow in follows:
         if follow["media_type"] == "tv":
-            sync_episodes(conn, follow)
+            continue
         elif follow["media_type"] == "movie":
             try:
                 info = get_tmdb_info("movie", follow["tmdb_id"])
@@ -729,21 +783,36 @@ def check_anime_notifications(user_id=None):
 def backfill_votes():
     """Takip edilen dizi/film ve anime verilerini TMDB/AniList'ten güncel çekip DB'yi yeniler."""
     conn = get_db()
+    # Sezon taraması sync_releases'in işidir (05:10); burada tekrarlanmaz (A).
+    # info/cast grup başına tek fetch (aile tekillemesi), yazım satır-bazlıdır.
+    groups = {}
     for row in conn.execute("SELECT * FROM followed").fetchall():
-        info = get_tmdb_info(row["media_type"], row["tmdb_id"])
-        if info:
-            conn.execute(
-                "UPDATE followed SET vote_average=?, networks=?, release_date=? WHERE id=?",
-                (
-                    info.get("vote_average") or 0,
-                    json.dumps(info.get("networks") or []),
-                    info.get("release_date") or row["release_date"],
-                    row["id"],
-                ),
-            )
-            save_details(conn, row["id"], info, get_tmdb_cast(row["media_type"], row["tmdb_id"]))
-        if row["media_type"] == "tv":
-            sync_episodes(conn, row)
+        groups.setdefault((row["media_type"], row["tmdb_id"]), []).append(row)
+    for (_mt, _tid), rows in groups.items():
+        try:
+            info = get_tmdb_info(_mt, _tid)
+        except Exception:
+            continue
+        if not info:
+            continue
+        try:
+            cast = get_tmdb_cast(_mt, _tid)
+        except Exception:
+            cast = []
+        for row in rows:
+            try:
+                conn.execute(
+                    "UPDATE followed SET vote_average=?, networks=?, release_date=? WHERE id=?",
+                    (
+                        info.get("vote_average") or 0,
+                        json.dumps(info.get("networks") or []),
+                        info.get("release_date") or row["release_date"],
+                        row["id"],
+                    ),
+                )
+                save_details(conn, row["id"], info, cast)
+            except Exception:
+                continue
     for row in conn.execute("SELECT * FROM anime").fetchall():
         detail = anilist_detail(row["anilist_id"])
         if detail:
@@ -852,6 +921,160 @@ def stremio_prune_job():
         print("stremio prune failed:", e, flush=True)
 
 
+def geo_refresh_job():
+    """Pi konumunu tazele (gunde 1, fail-soft): DB bayatsa cozer, ulke
+    degismisse takipci tz'leri gecerir + geo_moved_at damgalar."""
+    try:
+        from geo import refresh_pi_geo
+        refresh_pi_geo()
+    except Exception as e:
+        print("geo refresh failed:", e, flush=True)
+
+
+def pwdreset_prune_job():
+    """3 gunu dolan active sifre isteklerini done isaretle (gecelik, fail-soft)."""
+    try:
+        import datetime as _dt
+        cutoff = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=3)).strftime("%Y-%m-%d %H:%M")
+        conn = get_db()
+        try:
+            conn.execute(
+                "UPDATE password_resets SET status='done' WHERE status='active' AND created_at < ?",
+                (cutoff,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print("pwdreset prune failed:", e, flush=True)
+
+
+MAINT_BACKUP_KEEP = 30
+
+
+def _maint_backup():
+    """Yerel DB anlik goruntusu (VACUUM INTO, kilitsiz) + 30 rotasyon.
+    Donus: yedek yolu. Patlarsa exception (job durur + admin uyarilir)."""
+    import datetime as _dt
+    from config import BASE_DIR, DB_PATH
+    d = os.path.join(BASE_DIR, "backup", "db")
+    os.makedirs(d, exist_ok=True)
+    ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    path = os.path.join(d, "nextep-%s.db" % ts)
+    conn = get_db()
+    try:
+        safe = path.replace("'", "''")
+        conn.execute("VACUUM INTO '%s'" % safe)
+    finally:
+        conn.close()
+    files = sorted(f for f in os.listdir(d) if f.startswith("nextep-") and f.endswith(".db"))
+    while len(files) > MAINT_BACKUP_KEEP:
+        try:
+            os.remove(os.path.join(d, files.pop(0)))
+        except Exception:
+            break
+    return path
+
+
+def _maint_orphan_scan():
+    """Yetim sayimi (salt-okunur): [(tablo, adet)]. Silme YOK."""
+    out = []
+    conn = get_db()
+    try:
+        for tbl in ("user_settings", "sessions", "password_resets", "followed",
+                    "anime", "stremio_signals", "rec_cache", "notifications"):
+            try:
+                n = conn.execute(
+                    "SELECT COUNT(*) c FROM %s WHERE user_id <> 0 AND user_id NOT IN (SELECT id FROM users)" % tbl
+                ).fetchone()["c"]
+            except Exception:
+                n = 0
+            out.append((tbl, int(n or 0)))
+        for tbl, col, parent in (("episodes", "follow_id", "followed"),
+                                ("cast", "follow_id", "followed"),
+                                ("anime_episodes", "anime_id", "anime"),
+                                ("anime_cast", "anime_id", "anime")):
+            try:
+                n = conn.execute(
+                    "SELECT COUNT(*) c FROM %s WHERE %s NOT IN (SELECT id FROM %s)" % (tbl, col, parent)
+                ).fetchone()["c"]
+            except Exception:
+                n = 0
+            out.append((tbl, int(n or 0)))
+        try:
+            titles = conn.execute(
+                "SELECT DISTINCT title FROM notifications WHERE type IN ('member_pending','password_reset')"
+            ).fetchall()
+            dead = 0
+            for r in titles:
+                t = (r["title"] or "").strip()
+                if not t:
+                    continue
+                if not conn.execute("SELECT 1 FROM users WHERE username=? LIMIT 1", (t,)).fetchone():
+                    dead += conn.execute(
+                        "SELECT COUNT(*) c FROM notifications WHERE title=? AND type IN ('member_pending','password_reset')",
+                        (t,),
+                    ).fetchone()["c"]
+            out.append(("member_notif_dead", int(dead)))
+        except Exception:
+            out.append(("member_notif_dead", 0))
+    finally:
+        conn.close()
+    return out
+
+
+def _maint_alert(err):
+    """Yedek patlarsa adminlere push (dolu kanallar; mail haric, merkez yok)."""
+    try:
+        from db import get_user_setting
+        from messages_i18n import render as _render
+        from notifications import send_discord, send_ntfy, send_telegram
+        conn = get_db()
+        try:
+            admins = [int(r["id"]) for r in conn.execute(
+                "SELECT id FROM users WHERE role='admin' AND status='active' ORDER BY id").fetchall()]
+        finally:
+            conn.close()
+        for uid in admins:
+            try:
+                lang = (get_user_setting(uid, "language") or "tr-TR").split("-")[0]
+                msg = _render("maint_backup_failed", lang, err=str(err)[:200])
+                for fn in (send_telegram, send_ntfy, send_discord):
+                    try:
+                        fn(msg, user_id=uid)
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+
+def db_maint_job():
+    """Haftalik bakim (fail-soft): once yerel yedek (+30 rotasyon), sonra
+    yetim taramasi (journal-only). Yedek patlarsa tarama KOSMAZ."""
+    try:
+        try:
+            path = _maint_backup()
+            print("db maint backup:", path, flush=True)
+        except Exception as e:
+            print("db maint backup failed:", e, flush=True)
+            _maint_alert(e)
+            return
+        try:
+            findings = _maint_orphan_scan()
+        except Exception as e:
+            print("db maint scan failed:", e, flush=True)
+            return
+        total = sum(v for _, v in findings)
+        if total:
+            print("db maint orphans: " + ", ".join("%s=%d" % (k, v) for k, v in findings if v), flush=True)
+        else:
+            print("db maint clean", flush=True)
+    except Exception as e:
+        print("db maint failed:", e, flush=True)
+
+
 def app_update_job():
     """Uygulama güncelleme cron'u (fail-soft): yeni sürüm + oto-açık ise günceller."""
     try:
@@ -896,30 +1119,25 @@ def app_update_job():
 
 
 def backup_job():
-    """Yedekleme cron'u (fail-soft): Database veya Herşeyi yedekle moduna göre rsync/samba hedefe."""
+    """Yedekleme cron'u (fail-soft): dolu olan TÜM hedeflere (rsync+samba) yollar."""
     try:
         mode = (get_setting("backup_mode") or "").strip()
         if not mode:
             return
-        # hedef çıkarımı: tek dolu ise o, ikisi dolu ise son seçilen (backup_last_target), yoksa rsync'e fallback
-        rsync_host = (get_setting("backup_rsync_host") or "").strip()
-        samba_host = (get_setting("backup_samba_host") or "").strip()
-        samba_share = (get_setting("backup_samba_share") or "").strip()
-        rsync_dolu = bool(rsync_host)
-        samba_dolu = bool(samba_host and samba_share)
-        target = None
-        if rsync_dolu and not samba_dolu:
-            target = "rsync"
-        elif samba_dolu and not rsync_dolu:
-            target = "samba"
-        elif rsync_dolu and samba_dolu:
-            last = (get_setting("backup_last_target") or "").strip().lower()
-            target = last if last in ("rsync", "samba") else "rsync"
-        if not target:
+        from backup_core import resolve_targets, do_backup
+
+        targets = resolve_targets()
+        if not targets:
             # Hedef yok (rsync/samba girilmemis): bos yere calisma, sessiz gec
             return
-        # şimdilik stub: logla, gerçek rsync/samba implementasyonu Faz sonrası eklenecek
-        print(f"backup_job mode={mode} target={target or 'none'} hour={get_setting('backup_hour') or '03:00'}", flush=True)
+        try:
+            results, remote_name = do_backup(mode, targets)
+        except Exception as e:
+            print("backup job failed:", e, flush=True)
+            return
+        for target in targets:
+            ok, msg = results.get(target, (False, "bilinmeyen"))
+            print("backup_job %s mode=%s %s %s" % ("ok" if ok else "fail", mode, target, ("%s %s" % (remote_name, msg or "")).strip()), flush=True)
     except Exception as e:
         print("backup job failed:", e, flush=True)
 
@@ -1071,6 +1289,47 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
+    # Pi konumu: gunluk sessiz tazeleme (ulke degisimi + takipci tz gecisi)
+    if SCHEDULER.get_job("geo_refresh"):
+        SCHEDULER.remove_job("geo_refresh")
+    SCHEDULER.add_job(
+        geo_refresh_job,
+        "cron",
+        hour=4,
+        minute=20,
+        timezone=tz,
+        id="geo_refresh",
+        misfire_grace_time=3600,
+    )
+
+    # Sifre istekleri: 3 gunu dolan active satirlari done isaretle
+    if SCHEDULER.get_job("pwdreset_prune"):
+        SCHEDULER.remove_job("pwdreset_prune")
+    SCHEDULER.add_job(
+        pwdreset_prune_job,
+        "cron",
+        hour=4,
+        minute=40,
+        timezone=tz,
+        id="pwdreset_prune",
+        misfire_grace_time=3600,
+    )
+
+    # Database Bakim: pazartesi (yedek + yetim taramasi, journal-only)
+    maint_h, maint_m = parse_notify_hour(get_setting("maint_hour") or "05:45")
+    if SCHEDULER.get_job("db_maint"):
+        SCHEDULER.remove_job("db_maint")
+    SCHEDULER.add_job(
+        db_maint_job,
+        "cron",
+        day_of_week="mon",
+        hour=maint_h,
+        minute=maint_m,
+        timezone=tz,
+        id="db_maint",
+        misfire_grace_time=3600,
+    )
+
     app_h, app_m = parse_notify_hour(get_setting("app_update_hour") or "04:00")
     if SCHEDULER.get_job("app_update_job"):
         SCHEDULER.remove_job("app_update_job")
@@ -1112,4 +1371,8 @@ def schedule_releases():
 
 def start_scheduler():
     sync_genres()
+    try:
+        geo_refresh_job()
+    except Exception:
+        pass
     schedule_releases()

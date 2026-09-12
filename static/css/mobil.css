@@ -360,3 +360,28 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) .card .info-btn { width:26px; height:26px; left:6px; bottom:6px; }
   html:not(.is-tv):not(.tv-mode) .card .info-btn svg { width:14px; height:14px; }
 }
+
+/* Admin modal uye cipleri: dar ekranda satirda 1, alt alta; büzülme yok
+   (2'li satir metni ezip butonlari ismin ustune yigiyordu). Liste tasarsa
+   modal govdesi kayar (min-height:0 güvencesi). */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal .member-chips {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal .member-chip {
+    width: 100%;
+    flex-shrink: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal .modal-body {
+    min-height: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-label,
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-sep,
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-now,
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-peak-t,
+  html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-total {
+    font-size: 0.6rem;
+  }
+}
