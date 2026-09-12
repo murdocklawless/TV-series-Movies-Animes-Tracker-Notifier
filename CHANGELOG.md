@@ -12,6 +12,7 @@
 - Oturum kapalıyken açılışta konsolu kirleten hata giderildi.
 - Stremio eklenti logosu artık uygulamadan geliyor; MiBox'ta da görünüyor ve odaklanınca net kalıyor.
 - Android TV simgesi turuncu zemin + siyah logo oldu (APK 2.9).
+- Güncelleme kontrolü artık eski sürümü "yeni" diye sunmuyor; daha düşük sürüme düşürme kilitlendi.
 ### EN
 - Automatic backup fixed: the morning cron now really takes the backup and sends it to all filled targets (rsync + Samba).
 - Fewer morning TMDB requests: episode scanning runs once a day; one request covers members watching the same show.
@@ -22,6 +23,7 @@
 - Fixed a console error on launch while logged out.
 - The Stremio addon logo is now served by the app; it shows on MiBox too and stays sharp when focused.
 - Android TV icon is now black logo on orange (APK 2.9).
+- Update check no longer offers an older version as "new"; downgrading is locked.
 
 ## 1.55 - 07/09/2026-19:20
 ### TR

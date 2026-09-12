@@ -2,7 +2,7 @@ import threading
 
 from flask import Blueprint, jsonify, request
 
-from app_update import check_update, apply_update, fetch_remote_changelog, changelog_between
+from app_update import check_update, apply_update, fetch_remote_changelog, changelog_between, _ver_tuple
 
 app_update_bp = Blueprint("app_update", __name__)
 
@@ -18,6 +18,11 @@ def app_update_run():
     body = request.get_json(silent=True) or {}
     local, remote, available, _known = check_update()
     if not available and not body.get("force"):
+        return jsonify({"ok": True, "updated": False, "local": local, "remote": remote})
+    # Downgrade kilidi: bayat available ne derse desin, uzak <= yerelse
+    # dusurme yapilmaz (2026-09-12: 1.60'a "1.55'e guncelle" onerildi).
+    # Bilincli manuel gecis (force) calismaya devam eder.
+    if not body.get("force") and not (remote and _ver_tuple(remote) > _ver_tuple(local)):
         return jsonify({"ok": True, "updated": False, "local": local, "remote": remote})
     try:
         # apply_update: senkron + pip + 3 sn sonra restart zamanlar; yanıt istemciye ulaşır

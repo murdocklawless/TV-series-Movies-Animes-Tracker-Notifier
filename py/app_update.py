@@ -83,10 +83,11 @@ def check_update():
     except Exception:
         published = set()
     known = True if not published else ((not local) or local in published)
-    if known:
-        available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
-    else:
-        available = bool(remote)
+    # available HER DURUMDA sayisal kiyaslanir: uzak <= yerel ise "yeni surum"
+    # YOKTUR (2026-09-12: known=False dali remote'u kiyaslamadan True verip
+    # 1.60'a "Yeni versiyon 1.55" onerdi). known yalniz bilgi bayragidir.
+    # Bilinmeyen yerel zaten en eski sayilir: _ver_tuple("") == ().
+    available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
     return local, remote, available, known
 
 
@@ -134,11 +135,17 @@ def fetch_published_versions():
     """Yayınlanmış sürüm kümesi: uzak CHANGELOG başlıkları + git VERSION geçmişi + uzak VERSION.
 
     Sonuç günlük önbelleğe alınır (settings.app_known_versions); tamamen ulaşılamazsa
-    boş küme döner (çağıran fail-open davranır)."""
+    boş küme döner (çağıran fail-open davranır). Yerel sürüm değişmişse önbellek
+    kullanılmaz (her release sonrası taze liste çekilir)."""
+    try:
+        local_now = db_version_get() or local_version()
+    except Exception:
+        local_now = ""
     try:
         raw = get_setting("app_known_versions")
         ts = float(get_setting("app_known_versions_ts") or 0)
-        if raw and (time.time() - ts) < KNOWN_VERSIONS_TTL:
+        cached_for = get_setting("app_known_versions_for") or ""
+        if raw and (time.time() - ts) < KNOWN_VERSIONS_TTL and cached_for == (local_now or ""):
             cached = json.loads(raw)
             if isinstance(cached, list):
                 return set(cached)
@@ -162,6 +169,7 @@ def fetch_published_versions():
         try:
             set_setting("app_known_versions", json.dumps(sorted(versions)))
             set_setting("app_known_versions_ts", str(time.time()))
+            set_setting("app_known_versions_for", local_now or "")
         except Exception:
             pass
     return versions
