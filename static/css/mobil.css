@@ -136,6 +136,25 @@
 }
 
 @media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .media-toggle {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-toggle button {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: auto;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  html:not(.is-tv):not(.tv-mode) .media-toggle button span {
+    display: inline;
+  }
+
   html:not(.is-tv):not(.tv-mode) .filter-add-row {
     flex-wrap: nowrap;
     overflow-x: auto;

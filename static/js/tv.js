@@ -56,11 +56,21 @@ export function popModal(el) {
     top = modalStack.pop();
   }
   try {
+    const usable = (el) => {
+      try {
+        if (!el || !document.contains(el) || el.disabled) return false;
+        const cs = getComputedStyle(el);
+        if (cs.display === "none" || cs.visibility === "hidden") return false;
+        const r = el.getBoundingClientRect();
+        if (!r.width && !r.height) return false;
+        return true;
+      } catch { return false; }
+    };
     const live = top && top._prevEl ? resolveLiveButton(top._prevEl) : null;
-    if (live) focusNoScroll(live);
+    if (live && usable(live)) focusNoScroll(live);
     else if (top && top.dataset.prevFocus) {
       const p = document.getElementById(top.dataset.prevFocus);
-      if (p && document.contains(p)) focusNoScroll(p);
+      if (usable(p)) focusNoScroll(p);
     }
   } catch {}
   return top;
@@ -112,7 +122,7 @@ function hookModals() {
     const obs = new MutationObserver(() => {
       const vis = el.style.display !== "none" && getComputedStyle(el).display !== "none";
       if (vis) { if (!modalStack.includes(el)) pushModal(el); }
-      else { const idx = modalStack.indexOf(el); if (idx !== -1) modalStack.splice(idx, 1); }
+      else if (modalStack.includes(el)) popModal(el);
       // tv-info-btn visibility handled separately
     });
     obs.observe(el, { attributes: true, attributeFilter: ["style","class"] });
@@ -245,7 +255,7 @@ function rectOf(el){ try{ return el.getBoundingClientRect(); }catch{ return {lef
 function rectC(el){ const r=rectOf(el); return r.left + r.width/2; }
 function rectT(el){ return rectOf(el).top; }
 
-const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-notif,#tab-search,#tab-sort,#tab-settings,#tab-exit,#search-close';
+const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-notif,#tab-search,#tab-sort,#tab-settings,#tab-exit,#search-close';
 const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn';
 const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
@@ -764,8 +774,8 @@ document.addEventListener("keydown", (e)=>{
 });
 
 // ---- view-search D-pad (TV): dikey cycle + yatay gruplar ----
-const SEARCH_MEDIA_IDS = ['#media-dizi','#media-film','#media-anime'];
-const SEARCH_FILTER_IDS = ['#filter-media-movie','#filter-media-tv','#filter-actor','#filter-genre','#filter-year','#filter-score'];
+const SEARCH_MEDIA_IDS = ['#media-dizi','#media-film','#media-belgesel','#media-anime'];
+const SEARCH_FILTER_IDS = ['#filter-media-movie','#filter-media-tv','#filter-media-doc','#filter-actor','#filter-genre','#filter-year','#filter-score'];
 function isSearchViewActive(){
   try { const v = document.getElementById('view-search'); return !!(v && v.classList.contains('active')); } catch { return false; }
 }
@@ -790,9 +800,13 @@ function searchVerticalChain(){
   const sbtn = searchVisible('#search-btn'); if (sbtn) chain.push(sbtn);
   return chain;
 }
+let lastSearchFocus = null;
 function handleSearchViewNav(e, dir){
   if (!isSearchViewActive()) return false;
   const ae = document.activeElement;
+  try {
+    if (ae && ae.id && document.getElementById("view-search").contains(ae)) lastSearchFocus = ae;
+  } catch (_) {}
   if (dir === 'left' || dir === 'right'){
     const media = SEARCH_MEDIA_IDS.map(searchVisible).filter(Boolean);
     if (ae && media.includes(ae) && media.length){
@@ -824,7 +838,17 @@ function handleSearchViewNav(e, dir){
         if (ae && xs.includes(ae)) i = chain.findIndex(el=>el && el.classList && el.classList.contains('chip-x'));
       }
     }
-    if (i === -1){ e.preventDefault(); focusEl(chain[0]); return true; }
+    if (i === -1){
+      // Yetim odakta zincir başına (search-close→dizi hattına) düşme;
+      // arama içinde son bilinen butonda kal.
+      try {
+        const lf = lastSearchFocus;
+        if (lf && document.contains(lf) && !lf.disabled && isVisible(lf)) {
+          e.preventDefault(); focusEl(lf); return true;
+        }
+      } catch (_) {}
+      e.preventDefault(); focusEl(chain[0]); return true;
+    }
   }
   const n = (dir === 'down' || dir === 'right') ? (i+1)%chain.length : (i-1+chain.length)%chain.length;
   e.preventDefault(); focusEl(chain[n]); return true;

@@ -26,6 +26,18 @@ def search():
         if not data:
             return jsonify({"error": "TMDB API anahtarı geçersiz veya ayarlanmamış"}), 400
         return jsonify([_build_search_item(item, media_type) for item in data.get("results", [])])
+    if media_type == "doc":
+        data = tmdb_request("/search/multi", {"query": q, "include_adult": "false"})
+        if not data:
+            return jsonify({"error": "TMDB API anahtarı geçersiz veya ayarlanmamış"}), 400
+        results = []
+        for item in data.get("results", []):
+            if item.get("media_type") not in ("movie", "tv"):
+                continue
+            if 99 not in (item.get("genre_ids") or []):
+                continue
+            results.append(_build_search_item(item, item.get("media_type")))
+        return jsonify(results)
     data = tmdb_request("/search/multi", {"query": q, "include_adult": "false"})
     if not data:
         return jsonify({"error": "TMDB API anahtarı geçersiz veya ayarlanmamış"}), 400
@@ -158,15 +170,16 @@ def combo_search():
     score = request.args.get("score", "").strip()
     q = request.args.get("q", "").strip()
 
-    if kind not in ("", "movie", "tv"):
+    if kind not in ("", "movie", "tv", "doc"):
         kind = ""
     media_types = None
     if kind == "movie":
         media_types = ("movie",)
     elif kind == "tv":
         media_types = ("tv",)
+    doc_only = (kind == "doc")
 
-    if not (actors or genres or year or score or q):
+    if not (actors or genres or year or score or q or doc_only):
         return jsonify({"error": "En az bir kriter gerekli"}), 400
 
     year_i = None
@@ -239,6 +252,15 @@ def combo_search():
             params_tv["with_genres"] = ",".join(
                 "|".join(str(g) for g in grp) for grp in tv_groups if grp
             )
+    if doc_only:
+        # Belgesel: TMDB tur id 99 ile AND (kullanici turleriyle birlesir).
+        # discover yolu TMDB tarafinda filtrelenir; with_people yolu icin
+        # doc_only bayragi _tmdb_adv_results'a tasinir (istemci tarafta 99 sarti).
+        for _p in (params_movie, params_tv):
+            _wg = (_p.get("with_genres") or "").strip()
+            _p["with_genres"] = (_wg + ",99" if _wg else "99")
+        if actors and genre_filter is None:
+            genre_filter = {"movie": {99}, "tv": {99}}
     if year_i:
         params_movie["primary_release_year"] = year_i
         params_tv["first_air_date_year"] = year_i
@@ -248,7 +270,7 @@ def combo_search():
     if q:
         params_movie["query"] = q
         params_tv["query"] = q
-    return jsonify(_tmdb_adv_results(params_movie, params_tv, genre_filter, media_types))
+    return jsonify(_tmdb_adv_results(params_movie, params_tv, genre_filter, media_types, doc_only))
 
 
 @search_bp.route("/api/person/<int:person_id>")

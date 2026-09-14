@@ -1,18 +1,18 @@
-ï»¿// Faz 4: tracker.js â€” giriÅŸ noktasÄ±. TÃ¼m mantÄ±k modÃ¼llere bÃ¶lÃ¼ndÃ¼; bu dosya
-// modÃ¼lleri baÄŸlar, baÅŸlangÄ±Ã§ yÃ¼klemelerini yapar ve genel (global) olaylarÄ± kurar.
+// Faz 4: tracker.js — giriþ noktasý. Tüm mantýk modüllere bölündü; bu dosya
+// modülleri baðlar, baþlangýç yüklemelerini yapar ve genel (global) olaylarý kurar.
 window.__NX_BUILD = "471";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang, t } from "./i18n.js?v=448";
-import { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=449";
+import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js";
 import { closeResultsModal } from "./search.js";
 import "./settings.js";
 import "./notification.js";
-import "./tv.js?v=450";
+import "./tv.js?v=451";
 import { bootAuth } from "./auth.js?v=462";
 
-// ---- BaÅŸlangÄ±Ã§ gÃ¶rÃ¼nÃ¼mÃ¼ (son seÃ§ilen sekmeyi geri yÃ¼kle) ----
-// Faz 30: oturum yoksa auth.js giriÅŸ ekranÄ±nÄ± gÃ¶sterir; uygulama
-// verileri yalnÄ±z giriÅŸ sonrasÄ± (auth:ready) yÃ¼klenir.
+// ---- Baþlangýç görünümü (son seçilen sekmeyi geri yükle) ----
+// Faz 30: oturum yoksa auth.js giriþ ekranýný gösterir; uygulama
+// verileri yalnýz giriþ sonrasý (auth:ready) yüklenir.
 let _appStarted = false;
 function startApp() {
   if (_appStarted) return;
@@ -28,21 +28,22 @@ function startApp() {
 document.addEventListener("auth:ready", startApp);
 bootAuth();
 
-// Dil deÄŸiÅŸince aktif gÃ¶rÃ¼nÃ¼mÃ¼ yenile (applyLang, i18n.js'ten olay yayar)
+// Dil deðiþince aktif görünümü yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
-  // Oturumsuzken veri Ã§ekilmez (401 + Ã§Ã¶kme Ã¼retmemek iÃ§in).
+  // Oturumsuzken veri çekilmez (401 + çökme üretmemek için).
   try {
     if (document.body.classList.contains("logged-out")) return;
   } catch (_) {}
   if (views.dizi.classList.contains("active")) loadFollowed("dizi");
   if (views.film.classList.contains("active")) loadFollowed("film");
+  if (views.belgesel.classList.contains("active")) loadBelgesel();
   if (views.anime.classList.contains("active")) loadAnime();
   if (views.unwatched.classList.contains("active")) loadUnwatched();
   if (views.watched.classList.contains("active")) loadWatched();
   if (views.recommend.classList.contains("active")) loadRecommendations();
 });
 
-// ---- Ä°lk veri yÃ¼klemeleri (yalnÄ±z giriÅŸ sonrasÄ±) ----
+// ---- Ýlk veri yüklemeleri (yalnýz giriþ sonrasý) ----
 function loadInitialData() {
   (async () => {
   try {
@@ -57,7 +58,7 @@ function loadInitialData() {
     checkTmdbKey(state.tmdbKeySet);
     maybeShowGeoBanner(s);
   } catch (e) {
-    /* varsayÄ±lan dil */
+    /* varsayýlan dil */
   }
 })();
 
@@ -102,7 +103,7 @@ function loadInitialData() {
 })();
 } // loadInitialData
 
-// ---- Ã–zel tooltip ----
+// ---- Özel tooltip ----
 let tipEl = null;
 function showTip(text, x, y) {
   if (!tipEl) {
@@ -207,7 +208,7 @@ document.addEventListener("mousemove", (e) => {
 
 document.addEventListener("mouseout", (e) => {
   if (!e.target.closest("[data-tip]")) return;
-  // iÃ§ iÃ§e i -> button geÃ§iÅŸlerinde relatedTarget aynÄ± data-tip iÃ§indeyse gizleme
+  // iç içe i -> button geçiþlerinde relatedTarget ayný data-tip içindeyse gizleme
   if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest("[data-tip]")) return;
   hideTip();
 });

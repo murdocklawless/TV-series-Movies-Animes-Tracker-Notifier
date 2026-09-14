@@ -1,9 +1,9 @@
-﻿// Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
+// Faz 4: search � arama mant��� (normal/�oklu arama, filtre �ipleri, sonu�lar, se�ici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel } from "./i18n.js?v=448";
+import { t, animeGenreLabel } from "./i18n.js?v=449";
 import {
   posterHTML, scoreTag, typeLabel, formatDate, CALENDAR_SVG, escAttr, INFO_SVG,
-  toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint,
+  toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem,
 } from "./utils.js";
 import { switchView } from "./views.js";
 function isTvUIActive() {
@@ -27,8 +27,10 @@ function setMedia(media) {
   state.searchMedia = media;
   document.getElementById("media-dizi").classList.toggle("active", media === "dizi");
   document.getElementById("media-film").classList.toggle("active", media === "film");
+  const belBtn = document.getElementById("media-belgesel");
+  if (belBtn) belBtn.classList.toggle("active", media === "belgesel");
   document.getElementById("media-anime").classList.toggle("active", media === "anime");
-  const ph = media === "anime" ? "anime_placeholder" : "search_placeholder";
+  const ph = media === "anime" ? "anime_placeholder" : media === "belgesel" ? "belgesel_placeholder" : media === "film" ? "film_placeholder" : media === "dizi" ? "dizi_placeholder" : "search_placeholder";
   const comboInput = document.getElementById("search-input");
   const normalInput = document.getElementById("normal-search-input");
   if (comboInput) {
@@ -48,13 +50,16 @@ function setMedia(media) {
   renderChips();
   const movieBtn = document.getElementById("filter-media-movie");
   const tvBtn = document.getElementById("filter-media-tv");
+  const docBtn = document.getElementById("filter-media-doc");
   if (movieBtn) movieBtn.style.display = media === "anime" ? "none" : "";
   if (tvBtn) tvBtn.style.display = media === "anime" ? "none" : "";
+  if (docBtn) docBtn.style.display = media === "anime" ? "none" : "";
   updateMediaButtons();
 }
 
 document.getElementById("media-dizi").onclick = () => setMedia("dizi");
 document.getElementById("media-film").onclick = () => setMedia("film");
+document.getElementById("media-belgesel").onclick = () => setMedia("belgesel");
 document.getElementById("media-anime").onclick = () => setMedia("anime");
 
 function toggleMediaChip(value, label) {
@@ -73,8 +78,10 @@ function updateMediaButtons() {
   const active = state.chips.filter((c) => c.type === "media").map((c) => c.value);
   const movieBtn = document.getElementById("filter-media-movie");
   const tvBtn = document.getElementById("filter-media-tv");
+  const docBtn = document.getElementById("filter-media-doc");
   if (movieBtn) movieBtn.classList.toggle("active", active.includes("movie"));
   if (tvBtn) tvBtn.classList.toggle("active", active.includes("tv"));
+  if (docBtn) docBtn.classList.toggle("active", active.includes("doc"));
 }
 
 function updateFilterButtons() {
@@ -91,8 +98,8 @@ function updateFilterButtons() {
 
 const CHIP_ORDER = { media: 0, actor: 1, char: 1, genre: 2, year: 3, score: 4 };
 
-// Tür listesi farkı (M4): önceki liste localStorage'da tutulur, picker açılışında
-// taze çekilip fark bulunur; yeni tür varsa toast + (TV) ilk yeni türe odak.
+// T�r listesi fark� (M4): �nceki liste localStorage'da tutulur, picker a��l���nda
+// taze �ekilip fark bulunur; yeni t�r varsa toast + (TV) ilk yeni t�re odak.
 function prevGenreKey(source) { return `prevGenres_${source}`; }
 function readPrevGenres(source) {
   try {
@@ -111,8 +118,8 @@ async function freshGenreList(source) {
   return list.filter((g) => !prev.includes(g));
 }
 
-// TV: chip silinince odak komşuda kalır (sol → yoksa sağ); chip kalmadıysa
-// .filter-add-row'daki ilk görünür butona (en soldaki) gider. Desktop'ta dokunulmaz.
+// TV: chip silinince odak kom�uda kal�r (sol � yoksa sa�); chip kalmad�ysa
+// .filter-add-row'daki ilk g�r�n�r butona (en soldaki) gider. Desktop'ta dokunulmaz.
 function focusChipAfterRemove(removedPos) {
   try {
     if (!isTvUIActive()) return;
@@ -120,12 +127,12 @@ function focusChipAfterRemove(removedPos) {
     if (!box) return;
     const xs = Array.from(box.querySelectorAll(".chip-x"));
     if (xs.length) {
-      // silinenin solu varsa sol komşu, yoksa sağ komşu (yeni listedeki konuma göre)
+      // silinenin solu varsa sol kom�u, yoksa sa� kom�u (yeni listedeki konuma g�re)
       const target = removedPos > 0 ? (xs[removedPos - 1] || xs[xs.length - 1]) : xs[0];
       if (target) { try { target.focus(); } catch(_){} }
       return;
     }
-    const ids = ["filter-media-movie", "filter-media-tv", "filter-actor", "filter-genre", "filter-year", "filter-score"];
+    const ids = ["filter-media-movie", "filter-media-tv", "filter-media-doc", "filter-actor", "filter-genre", "filter-year", "filter-score"];
     for (const id of ids) {
       const b = document.getElementById(id);
       if (!b || b.disabled) continue;
@@ -148,7 +155,7 @@ function renderChips() {
   );
   box.innerHTML = sorted
     .map(
-      (c) => `<span class="chip chip-${c.type === "media" ? `media-${c.value}` : c.type}">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${state.chips.indexOf(c)}">✕</button></span>`
+      (c) => `<span class="chip chip-${c.type === "media" ? `media-${c.value}` : c.type}">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${state.chips.indexOf(c)}">&times;</button></span>`
     )
     .join("");
   box.querySelectorAll(".chip-x").forEach((btn) => {
@@ -187,8 +194,8 @@ function openValueModal(kind) {
   input.focus();
 }
 
-// Merkezi kapatıcılar: gizle + (TV) açan filtre butonuna odak iadesi.
-// opener: picker'da pickerMode'dan, value'da dataset.opener'dan çözülür.
+// Merkezi kapat�c�lar: gizle + (TV) a�an filtre butonuna odak iadesi.
+// opener: picker'da pickerMode'dan, value'da dataset.opener'dan ��z�l�r.
 function openerButtonFor(modal) {
   try {
     if (!modal) return null;
@@ -293,7 +300,7 @@ function runNormalSearch() {
 }
 
 async function doTitleSearch(q, media, signal) {
-  const mediaType = media === "film" ? "movie" : "tv";
+  const mediaType = media === "film" ? "movie" : media === "belgesel" ? "doc" : "tv";
   const res = await fetch("/api/search?q=" + encodeURIComponent(q) + "&media_type=" + mediaType, { signal });
   const data = await res.json();
   const grid = document.getElementById("search-results");
@@ -311,16 +318,20 @@ async function doTitleSearch(q, media, signal) {
     grid.innerHTML = `<div class="empty">${t("no_results")}</div>`;
     return;
   }
+  const docMode = media === "belgesel";
   data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
     setTvSearchCardAttrs(div, item);
+    const searchBadge = docMode
+      ? `<span class="badge badge-belgesel">${t("type_doc")}</span>`
+      : `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`;
     div.innerHTML = `
       ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
-          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${searchBadge}
           ${scoreTag(item.vote_average)}
           ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
@@ -343,7 +354,7 @@ async function doTitleSearch(q, media, signal) {
       });
       const j = await r.json();
       toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
-      if (r.ok) switchView(item.media_type === "tv" ? "dizi" : "film");
+      if (r.ok) switchView(media === "belgesel" ? "belgesel" : item.media_type === "tv" ? "dizi" : "film");
     };
     const calBtn = div.querySelector(".calendar-btn");
     if (calBtn) {
@@ -431,6 +442,7 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
 
 document.getElementById("filter-media-movie").onclick = () => toggleMediaChip("movie", t("type_movie"));
 document.getElementById("filter-media-tv").onclick = () => toggleMediaChip("tv", t("type_tv"));
+document.getElementById("filter-media-doc").onclick = () => toggleMediaChip("doc", t("type_doc"));
 document.getElementById("filter-actor").onclick = () => openPicker(currentMedia() === "anime" ? "fav_anime_char" : "fav_actor");
 document.getElementById("filter-genre").onclick = () => openPicker(currentMedia() === "anime" ? "anime_genre" : "fav_genre");
 document.getElementById("filter-year").onclick = () => openValueModal("year");
@@ -468,7 +480,7 @@ document.getElementById("value-go").onclick = () => {
   }
   state.chips.push({ type: kind, label: val, value: val });
   renderChips();
-  // TV: chip eklenince kendi butonuna dön (yıl→yıl, puan→puan)
+  // TV: chip eklenince kendi butonuna d�n (y�l�y�l, puan�puan)
   closeValueModal();
 };
 
@@ -478,10 +490,16 @@ function setResultsTitle(text) {
 }
 
 function openResultsModal() {
-  document.getElementById("search-results-modal").style.display = "flex";
+  const modal = document.getElementById("search-results-modal");
+  try {
+    const ae = document.activeElement;
+    if (ae && ae.id) modal.dataset.opener = ae.id;
+    else delete modal.dataset.opener;
+  } catch (_) {}
+  modal.style.display = "flex";
 }
 
-// TV: sonuç modalı açılınca ilk sonuç kartına odak (X atlanır); kart yoksa X'te kalır.
+// TV: sonu� modal� a��l�nca ilk sonu� kart�na odak (X atlan�r); kart yoksa X'te kal�r.
 function focusFirstResultCard() {
   try {
     if (!isTvUIActive()) return;
@@ -498,7 +516,21 @@ function focusFirstResultCard() {
 }
 
 function closeResultsModal() {
-  document.getElementById("search-results-modal").style.display = "none";
+  const modal = document.getElementById("search-results-modal");
+  try { modal.style.display = "none"; } catch (_) {}
+  // TV: X/overlay ile kapatınca odak yetim kalmasın; açan butona dön.
+  try {
+    if (isTvUIActive()) {
+      const oid = modal && modal.dataset ? modal.dataset.opener : "";
+      const ob = oid ? document.getElementById(oid) : null;
+      if (ob && !ob.disabled) {
+        const cs = getComputedStyle(ob);
+        if (cs.display !== "none" && cs.visibility !== "hidden") { ob.focus(); return; }
+      }
+      const fb = document.getElementById("search-btn") || document.getElementById("normal-search-btn");
+      if (fb && !fb.disabled) fb.focus();
+    }
+  } catch (_) {}
 }
 
 function comboTitle(chipsArr) {
@@ -515,7 +547,7 @@ function comboTitle(chipsArr) {
       else if (c.type === "year") parts.push(`${c.label}`);
       else if (c.type === "score") parts.push(`${c.label}`);
     });
-  return parts.join(" • ");
+  return parts.join(" � ");
 }
 
 async function doComboSearch(q, chipsArr, media, signal) {
@@ -525,7 +557,7 @@ async function doComboSearch(q, chipsArr, media, signal) {
   const actors = chipsArr.filter((c) => c.type === "actor" || c.type === "char").map((c) => c.value).join(",");
   const genres = chipsArr.filter((c) => c.type === "genre").map((c) => c.value).join(",");
   const kindChip = chipsArr.filter((c) => c.type === "media").map((c) => c.value).join(",");
-  const kind = kindChip || (media === "film" ? "movie" : media === "dizi" ? "tv" : "");
+  const kind = kindChip || (media === "film" ? "movie" : media === "dizi" ? "tv" : media === "belgesel" ? "doc" : "");
   const year = chipsArr.filter((c) => c.type === "year").map((c) => c.value)[0] || "";
   const score = chipsArr.filter((c) => c.type === "score").map((c) => c.value)[0] || "";
   if (actors) params.set("actors", actors);
@@ -599,16 +631,20 @@ async function doComboSearch(q, chipsArr, media, signal) {
     return;
   }
   const hlActor = chipsArr.filter((c) => c.type === "actor").map((c) => c.value)[0];
+  const comboDoc = chipsArr.some((c) => c.type === "media" && c.value === "doc") || media === "belgesel";
   data.forEach((item) => {
     const div = document.createElement("div");
     div.className = "card";
     setTvSearchCardAttrs(div, item);
+    const comboBadge = comboDoc
+      ? `<span class="badge badge-belgesel">${t("type_doc")}</span>`
+      : `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`;
     div.innerHTML = `
       ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
-          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${comboBadge}
           ${scoreTag(item.vote_average)}
           ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
           ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
@@ -863,7 +899,7 @@ document.getElementById("picker-go").onclick = () => {
   }
   document.getElementById("picker-modal").style.display = "none";
   renderChips();
-  // TV: chip eklenince kendisini açan filtre butonuna dön (oyuncu→oyuncu, tür→tür)
+  // TV: chip eklenince kendisini a�an filtre butonuna d�n (oyuncu�oyuncu, t�r�t�r)
   closePickerModal();
 };
 

@@ -1,4 +1,4 @@
-ï»¿// Faz 4: components â€” modal bileÅŸenleri (yayÄ±n takvimi, detaylar, kiÅŸi, anime detay/takvim, izlenmemiÅŸ, onay).
+// Faz 4: components — modal bileþenleri (yayýn takvimi, detaylar, kiþi, anime detay/takvim, izlenmemiþ, onay).
 import { state } from "./state.js";
 function isTvUIActive() {
   try {
@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=448";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=449";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
@@ -83,7 +83,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const seasonCode = "S" + String(seasonKey).padStart(2, "0");
           const watchTipText = allWatched ? t("season_mark_unwatched", { code: seasonCode }) : t("season_mark_watched", { code: seasonCode });
           const watchIcon = allWatched ? EYE_OFF_SVG : EYE_SVG;
-          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} Â· %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}">${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
+          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}">${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
         } else {
           html += `<div class="season-box-title">${seasonLabel}</div>`;
         }
@@ -123,7 +123,7 @@ async function openReleases(mediaType, tmdbId, title) {
 
       body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
       bindReleasesEvents();
-      // TV: toggle sonrasÄ± aynÄ± butonda kal (senkron); ilk aÃ§Ä±lÄ±ÅŸta ilk izlenmemiÅŸ
+      // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
       try {
         if (focusKey && (focusKey.g !== undefined || focusKey.s !== undefined)) {
           let same = null;
@@ -297,7 +297,7 @@ function closeModals() {
 }
 
 // Adanmis onay modallari: her biri yalniz kendi blogunu acar/kapatir.
-// Ortak confirm-modal YASAKTIR (KRITIK KURAL) â€” yeni onay akisi yeni blok ister.
+// Ortak confirm-modal YASAKTIR (KRITIK KURAL) — yeni onay akisi yeni blok ister.
 function wireDedicatedConfirm(id, text, onYes) {
   const ov = document.getElementById(id);
   const body = ov.querySelector(".confirm-text");
@@ -676,7 +676,7 @@ document.getElementById("person-modal").onclick = (e) => {
 async function openUnwatchedModal(item, isAnime) {
   const modal = document.getElementById("unwatched-modal");
   const body = document.getElementById("unwatched-body");
-  document.getElementById("unwatched-title").textContent = `${item.title} Â· ${t("unwatched_title")}`;
+  document.getElementById("unwatched-title").textContent = `${item.title} · ${t("unwatched_title")}`;
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
 
@@ -734,7 +734,7 @@ async function openUnwatchedModal(item, isAnime) {
         }
       });
     });
-    // TV: toggle sonrasÄ± aynÄ± butonda kal (senkron); ilk aÃ§Ä±lÄ±ÅŸta ilk izlenmemiÅŸ
+    // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
     try {
       if (savedIdx !== undefined && savedIdx !== null) {
         const same = body.querySelector(`.uw-watch[data-i="${savedIdx}"]`);
@@ -841,11 +841,11 @@ async function openAnimeSchedule(id, title) {
       const truncA = rawTitleA.length > 30 ? rawTitleA.slice(0, 30) : rawTitleA;
       const watchTipTextA = allWatched ? t("season_mark_unwatched", { code: truncA }) : t("season_mark_watched", { code: truncA });
       const watchIconA = allWatched ? EYE_OFF_SVG : EYE_SVG;
-      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} Â· %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
+      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
-        let dateText = "â€”";
+        let dateText = "—";
         let cls = "";
         if (d && !isNaN(d.getTime())) {
           try {
@@ -946,7 +946,7 @@ async function openAnimeSchedule(id, title) {
           }
         });
       });
-      // TV: toggle sonrasÄ± aynÄ± butonda kal (senkron); ilk aÃ§Ä±lÄ±ÅŸta ilk izlenmemiÅŸ
+      // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
       try {
         if (savedEp !== undefined && savedEp !== null) {
           if (savedEp === 'all') {

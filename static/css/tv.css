@@ -23,11 +23,8 @@ html.is-tv .card:focus, html.is-tv .card:focus-visible, html.tv-mode .card:focus
 }
 
 html.is-tv .tab:focus, html.tv-mode .tab:focus, html.is-tv .tab:focus-visible, html.tv-mode .tab:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-  border-color: #f97316 !important;
-  background: rgba(249,115,22,0.3) !important;
-  color: #fff !important;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
 }
 
 html.is-tv .card .calendar-btn:focus { outline:2px solid #f97316; outline-offset:1px; }
@@ -74,9 +71,13 @@ html.is-tv #tab-exit, html.tv-mode #tab-exit {
 
 html.is-tv #tab-exit:hover, html.tv-mode #tab-exit:hover,
 html.is-tv #tab-exit:focus, html.tv-mode #tab-exit:focus {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.3);
   border-color: #ef4444;
   color: #fff;
+}
+html.is-tv #tab-exit:focus, html.tv-mode #tab-exit:focus,
+html.is-tv #tab-exit:focus-visible, html.tv-mode #tab-exit:focus-visible {
+  outline-color: #ef4444;
 }
 
 html.is-tv #tab-settings, html.tv-mode #tab-settings { display: none !important; }
@@ -155,9 +156,9 @@ html.is-tv .season-count-badge, html.tv-mode .season-count-badge, html.is-tv .ep
 
 html.is-tv .no-poster, html.tv-mode .no-poster { font-size: 1.4rem; }
 
-html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 2px solid #f97316; outline-offset: 2px; color: #FFF !important; border-color: #f97316 !important; background: rgba(249,115,22,0.15) !important; }
+html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 1px solid #f97316; outline-offset: 1px; }
 
-html.is-tv .section-refresh:focus-visible, html.tv-mode .section-refresh:focus-visible, html.is-tv .section-hide:focus-visible, html.tv-mode .section-hide:focus-visible, html.is-tv .section-move-up:focus-visible, html.tv-mode .section-move-up:focus-visible, html.is-tv .section-move-down:focus-visible, html.tv-mode .section-move-down:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
+html.is-tv .section-refresh:focus-visible, html.tv-mode .section-refresh:focus-visible, html.is-tv .section-hide:focus-visible, html.tv-mode .section-hide:focus-visible, html.is-tv .section-move-up:focus-visible, html.tv-mode .section-move-up:focus-visible, html.is-tv .section-move-down:focus-visible, html.tv-mode .section-move-down:focus-visible { outline: 1px solid #f97316; outline-offset: 1px; }
 
 /* Fix: TV nav should stay desktop 3-col even when tablet max-width 1366 applies */
 html.is-tv nav, html.tv-mode nav {
@@ -227,31 +228,61 @@ html.is-tv #normal-search-btn:focus, html.tv-mode #normal-search-btn:focus,
 html.is-tv #normal-search-btn:focus-visible, html.tv-mode #normal-search-btn:focus-visible,
 html.is-tv #search-btn:focus, html.tv-mode #search-btn:focus,
 html.is-tv #search-btn:focus-visible, html.tv-mode #search-btn:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-  background: rgba(249, 115, 22, 0.3) !important;
-  border-color: #f97316 !important;
-  color: #fff !important;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
 }
 
 /* Arama seçici D-pad odağı: sistem turuncusu (beyaz varsayılan halka yerine) */
 html.is-tv .media-toggle button:focus, html.tv-mode .media-toggle button:focus,
 html.is-tv .media-toggle button:focus-visible, html.tv-mode .media-toggle button:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-  background: rgba(249, 115, 22, 0.3) !important;
-  border-color: #f97316 !important;
-  color: #fff !important;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
 }
-/* Filtre tag'leri kimlik renklerini korur, turuncu işaret outline'dan gelir */
+/* Filtre tag'leri kimlik renklerini korur, 1px işaret outline'dan gelir (border kimlik renginde) */
 html.is-tv .filter-add-btn:focus, html.tv-mode .filter-add-btn:focus,
 html.is-tv .filter-add-btn:focus-visible, html.tv-mode .filter-add-btn:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+}
+html.is-tv .filter-add-btn.btn-movie:focus, html.tv-mode .filter-add-btn.btn-movie:focus,
+html.is-tv .filter-add-btn.btn-movie:focus-visible, html.tv-mode .filter-add-btn.btn-movie:focus-visible {
+  outline-color: #ef4444;
+}
+html.is-tv .filter-add-btn.btn-tv:focus, html.tv-mode .filter-add-btn.btn-tv:focus,
+html.is-tv .filter-add-btn.btn-tv:focus-visible, html.tv-mode .filter-add-btn.btn-tv:focus-visible {
+  outline-color: #3b82f6;
+}
+html.is-tv .filter-add-btn.btn-doc:focus, html.tv-mode .filter-add-btn.btn-doc:focus,
+html.is-tv .filter-add-btn.btn-doc:focus-visible, html.tv-mode .filter-add-btn.btn-doc:focus-visible {
+  outline-color: #ec4899;
+}
+html.is-tv .filter-add-btn.btn-actor:focus, html.tv-mode .filter-add-btn.btn-actor:focus,
+html.is-tv .filter-add-btn.btn-actor:focus-visible, html.tv-mode .filter-add-btn.btn-actor:focus-visible {
+  outline-color: #a855f7;
+}
+html.is-tv .filter-add-btn.btn-genre:focus, html.tv-mode .filter-add-btn.btn-genre:focus,
+html.is-tv .filter-add-btn.btn-genre:focus-visible, html.tv-mode .filter-add-btn.btn-genre:focus-visible {
+  outline-color: #22c55e;
+}
+html.is-tv .filter-add-btn.btn-year:focus, html.tv-mode .filter-add-btn.btn-year:focus,
+html.is-tv .filter-add-btn.btn-year:focus-visible, html.tv-mode .filter-add-btn.btn-year:focus-visible {
+  outline-color: #f59e0b;
+}
+html.is-tv .filter-add-btn.btn-score:focus, html.tv-mode .filter-add-btn.btn-score:focus,
+html.is-tv .filter-add-btn.btn-score:focus-visible, html.tv-mode .filter-add-btn.btn-score:focus-visible {
+  outline-color: #2dd4bf;
 }
 html.is-tv .chip-x:focus, html.tv-mode .chip-x:focus,
 html.is-tv .chip-x:focus-visible, html.tv-mode .chip-x:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* Sort menü satır odağı: 1px turuncu halka */
+html.is-tv .sort-item:focus, html.tv-mode .sort-item:focus,
+html.is-tv .sort-item:focus-visible, html.tv-mode .sort-item:focus-visible {
+  outline: 1px solid #f97316;
   outline-offset: 1px;
 }
 
@@ -259,6 +290,13 @@ html.is-tv .chip-x:focus-visible, html.tv-mode .chip-x:focus-visible {
    yuvarlak köşe (refresh butonuyla birebir, radius 4px) */
 html.is-tv .modal-close, html.tv-mode .modal-close {
   border-radius: 4px;
+}
+
+/* Modal X kapatma odağı: 1px turuncu halka (jenerik 2px listesinden ayrı) */
+html.is-tv .modal-close:focus, html.tv-mode .modal-close:focus,
+html.is-tv .modal-close:focus-visible, html.tv-mode .modal-close:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 2px;
 }
 
 /* Bölüm başlık butonları + gizlenenler ara/X: aynı dikdörtgen-yuvarlak çerçeve */
@@ -272,8 +310,6 @@ html.is-tv .hidden-header-btn, html.tv-mode .hidden-header-btn {
 
 /* Jenerik TV odak halkası: beyaz varsayılan halka yerine sistem turuncusu.
    Kimlik renkleri/zeminler korunur, yalnız outline gelir. */
-html.is-tv .modal-close:focus, html.tv-mode .modal-close:focus,
-html.is-tv .modal-close:focus-visible, html.tv-mode .modal-close:focus-visible,
 html.is-tv .watch-btn:focus, html.tv-mode .watch-btn:focus,
 html.is-tv .watch-btn:focus-visible, html.tv-mode .watch-btn:focus-visible,
 html.is-tv .uw-watch:focus, html.tv-mode .uw-watch:focus,
@@ -298,8 +334,6 @@ html.is-tv .btn:focus, html.tv-mode .btn:focus,
 html.is-tv .btn:focus-visible, html.tv-mode .btn:focus-visible,
 html.is-tv #details-calendar:focus, html.tv-mode #details-calendar:focus,
 html.is-tv #details-calendar:focus-visible, html.tv-mode #details-calendar:focus-visible,
-html.is-tv .sort-item:focus, html.tv-mode .sort-item:focus,
-html.is-tv .sort-item:focus-visible, html.tv-mode .sort-item:focus-visible,
 html.is-tv .settings-menu-item:focus, html.tv-mode .settings-menu-item:focus,
 html.is-tv .settings-menu-item:focus-visible, html.tv-mode .settings-menu-item:focus-visible,
 html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,

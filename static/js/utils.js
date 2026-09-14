@@ -348,6 +348,27 @@ function fmtScore(v) {
   return Number(v).toFixed(1);
 }
 
+const DOC_GENRES = ["documentary", "documentaries", "belgesel", "doku", "dokus", "documentaire", "documentaires", "documental", "documentales", "documentario", "documentari", "документальный", "доку", "وثائقي", "وثائقيات", "documentário", "documentários", "dokument", "dokumenty", "ドキュメンタリー", "다큐멘터리", "纪录片"];
+
+function parseGenres(g) {
+  if (!g) return [];
+  if (Array.isArray(g)) return g;
+  try {
+    const v = JSON.parse(g);
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function isDocItem(item) {
+  if (!item || item.isAnime) return false;
+  const gs = parseGenres(item.genres).map((g) => String(g || "").trim().toLowerCase());
+  if (gs.some((g) => DOC_GENRES.includes(g))) return true;
+  const gids = Array.isArray(item.genre_ids) ? item.genre_ids : [];
+  return gids.includes(99);
+}
+
 
 export {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, UNDO_SVG, EYE_SVG, EYE_OFF_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG,
@@ -356,5 +377,5 @@ export {
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,
   isMobile, daysUntil, daysHint, todayInTz, todayInTzStr, isReleaseToday, isToday, dateState,
-  fmtRuntime, fmtScore,
+  fmtRuntime, fmtScore, DOC_GENRES, parseGenres, isDocItem,
 };

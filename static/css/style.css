@@ -392,6 +392,12 @@ main {
   border-color: rgba(236, 72, 153, 0.4);
 }
 
+.card .info .meta .badge.badge-belgesel {
+  background: rgba(219, 39, 119, 0.15);
+  color: #f9a8d4;
+  border-color: rgba(219, 39, 119, 0.4);
+}
+
 .card .info .meta .badge.badge-anime-status {
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
@@ -876,6 +882,22 @@ input:-webkit-autofill:focus {
   color: #fff;
 }
 
+.filter-add-btn.btn-doc {
+  background: #4a1d35;
+  border-color: #db2777;
+  color: #fbcfe8;
+}
+.filter-add-btn.btn-doc:hover {
+  background: #6b2749;
+  border-color: #ec4899;
+  color: #fff;
+}
+.filter-add-btn.btn-doc.active {
+  background: #db2777;
+  border-color: #ec4899;
+  color: #fff;
+}
+
 .combo-search-row {
   display: flex;
   justify-content: center;
@@ -993,6 +1015,12 @@ input:-webkit-autofill:focus {
   background: #0f3a38;
   border-color: #14b8a6;
   color: #99f6e4;
+}
+
+.chip.chip-media-doc {
+  background: #4a1d35;
+  border-color: #db2777;
+  color: #fbcfe8;
 }
 
 .chip-x {

@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.65 - 14/09/2026-16:46
+### TR
+- Belgesel sekmesi eklendi (Film-Anime arası): tür-99 belgeselleri takip/izlenmemiş/izlenmiş/önerilerde ayrı bölümde toplanıyor; kartlar dizi/film kartlarıyla birebir.
+- Aramaya Belgesel butonu ve çoklu arada Belgesel etiketi/chiplet'i (koyu magenta) eklendi; tek-seçim mantığı film/dizi ile aynı.
+- Arama kutusu ipucu seçili butona göre değişiyor (Dizi/Film/Belgesel/Anime ara...).
+- Seçili dilde bilgi yoksa İngilizce'den dolduruluyor (14 dil, başlık ve tür dahil) ve her zaman önbelleğe yazılıyor.
+- Mobil arama butonları tek satır, metin genişliğinde ve aralıklı.
+- TV'de Geri/X/sort seçimi sonrası odak açılan butonda kalıyor (Dizi'ye sıçrama yok).
+- TV odak çerçeveleri 1px'e inceltildi; etiketlerde kimlik rengi, utils X'te kırmızı halka kullanılıyor.
+- TV arama/filtre D-pad zincirine Belgesel eklendi; APK derlemesi gerekmedi.
+### EN
+- Added a Documentaries tab (between Movies and Anime): genre-99 documentaries now have their own section in followed/unwatched/watched/recommendations; cards match show/movie cards.
+- Added a Documentary button to search and a Documentary tag/chiplet (dark magenta) to multi-search; single-select logic matches movie/show.
+- The search box hint now follows the selected button (Search shows/movies/documentaries/anime...).
+- Missing details in the selected language are filled from English (14 languages, title and genres included) and always cached.
+- Mobile search buttons are single-row, text-width and spaced.
+- On TV, Back/X/sort selection now keeps focus on the opening button (no jump to Shows).
+- TV focus frames slimmed to 1px; tag frames use identity colors, utils X uses a red ring.
+- Added Documentaries to the TV search/filter D-pad chain; no APK rebuild needed.
+
 ## 1.60 - 12/09/2026-18:06
 ### TR
 - Otomatik yedekleme düzeltildi: sabah cron'u artık gerçekten yedek alıp dolu olan tüm hedeflere (rsync + Samba) gönderiyor.

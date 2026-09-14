@@ -1,10 +1,11 @@
-﻿// Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
+// Faz 4: views � g�r�n�m (tab) y�netimi, s�ralama ve ana liste y�kleyicileri (takip edilenler / anime / izlenmemi�).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=448";
+import { t } from "./i18n.js?v=449";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   isToday, dateState, utcDayStr, utcTodayStr, isReleaseToday, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, toast, tzLocale,
+  parseGenres, isDocItem,
 } from "./utils.js";
 import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js";
 import { renderChips, closeResultsModal, setMedia } from "./search.js";
@@ -24,6 +25,7 @@ function setTvCardAttrs(div, item) {
 const views = {
   dizi: document.getElementById("view-dizi"),
   film: document.getElementById("view-film"),
+  belgesel: document.getElementById("view-belgesel"),
   anime: document.getElementById("view-anime"),
   unwatched: document.getElementById("view-unwatched"),
   watched: document.getElementById("view-watched"),
@@ -34,6 +36,7 @@ const views = {
 const tabs = {
   dizi: document.getElementById("tab-dizi"),
   film: document.getElementById("tab-film"),
+  belgesel: document.getElementById("tab-belgesel"),
   anime: document.getElementById("tab-anime"),
   unwatched: document.getElementById("tab-unwatched"),
   watched: document.getElementById("tab-watched"),
@@ -68,6 +71,7 @@ function switchView(name) {
   } catch (e) {}
   if (name === "dizi") loadFollowed("dizi");
   if (name === "film") loadFollowed("film");
+  if (name === "belgesel") loadBelgesel();
   if (name === "anime") loadAnime();
   if (name === "unwatched") loadUnwatched();
   if (name === "watched") loadWatched();
@@ -80,6 +84,7 @@ function switchView(name) {
 
 tabs.dizi.onclick = () => switchView("dizi");
 tabs.film.onclick = () => switchView("film");
+if (tabs.belgesel) tabs.belgesel.onclick = () => switchView("belgesel");
 tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.watched.onclick = () => switchView("watched");
@@ -94,12 +99,22 @@ tabs.search.onclick = () => {
     }
   } catch(_){}
 };
-document.getElementById("search-close").onclick = () => switchView(prevView);
+document.getElementById("search-close").onclick = () => {
+  switchView(prevView);
+  // TV: X ile kapatınca odak yetim kalmasın; Geri tuşuyla aynı: #tab-search'te kal.
+  try {
+    if (isTvUIActive()) {
+      const sb = document.getElementById("tab-search");
+      if (sb && !sb.disabled) sb.focus();
+    }
+  } catch (_) {}
+};
 
-const SORT_VIEWS = ["dizi", "film", "anime", "unwatched", "watched"];
+const SORT_VIEWS = ["dizi", "film", "belgesel", "anime", "unwatched", "watched"];
 
 function activeView() {
   if (views.film.classList.contains("active")) return "film";
+  if (views.belgesel.classList.contains("active")) return "belgesel";
   if (views.anime.classList.contains("active")) return "anime";
   if (views.unwatched.classList.contains("active")) return "unwatched";
   if (views.watched.classList.contains("active")) return "watched";
@@ -205,8 +220,13 @@ document.querySelectorAll(".sort-item").forEach((btn) => {
     const av = activeView();
     saveViewSort(av, state.sortKey);
     closeSortMenu();
+    // TV: menü gizlenince odak yetim kalmasın; Geri tuşuyla aynı: #tab-sort'ta kal.
+    try {
+      if (isTvUIActive() && tabs.sort && !tabs.sort.disabled) tabs.sort.focus();
+    } catch (_) {}
     if (views.dizi.classList.contains("active")) loadFollowed("dizi");
     if (views.film.classList.contains("active")) loadFollowed("film");
+    if (views.belgesel.classList.contains("active")) loadBelgesel();
     if (views.anime.classList.contains("active")) loadAnime();
     if (views.unwatched.classList.contains("active")) loadUnwatched();
     if (views.watched.classList.contains("active")) loadWatched();
@@ -255,7 +275,7 @@ function tvStatusText(item) {
 async function loadFollowed(view) {
   const res = await fetch("/api/followed");
   let items = await res.json();
-  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
+  // Oturumsuz 401 g�vdesi ({error}) sessizce yutulur � ��kme yok.
   if (!Array.isArray(items)) return;
   const isTv = view === "dizi";
   items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && !(i.in_watched == 1));
@@ -288,14 +308,14 @@ async function loadFollowed(view) {
               ? item.next_episode
                 ? isReleaseToday({ date: item.next_episode.air_date })
                   ? `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} ${t("today_airing")}</div>`
-                  : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} · ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)}${isMobile() ? "" : " · "}<span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`
+                  : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} � ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)}${isMobile() ? "" : " � "}<span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`
                 : tvStatusText(item)
               : item.release_date
                 ? dateState(item.release_date) === "date-past"
                   ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
                   : isReleaseToday({ date: item.release_date })
                     ? `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`
-                    : `<div class="next-ep">${formatDate(item.release_date).text} · <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`
+                    : `<div class="next-ep">${formatDate(item.release_date).text} � <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`
                 : `<div>${t("date_unknown")}</div>`
           }
           ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
@@ -352,6 +372,109 @@ async function loadFollowed(view) {
   });
 }
 
+function docBadge() {
+  return `<span class="badge badge-belgesel">${t("type_doc")}</span>`;
+}
+
+async function loadBelgesel() {
+  const res = await fetch("/api/followed");
+  let items = await res.json();
+  if (!Array.isArray(items)) return;
+  items = items.filter((i) => !i.isAnime && isDocItem(i) && !(i.in_watched == 1));
+  items = applySort(items);
+  const grid = document.getElementById("poster-grid-docs");
+  const empty = document.getElementById("empty-belgesel");
+  if (!grid || !empty) return;
+  grid.innerHTML = "";
+  empty.style.display = items.length ? "none" : "block";
+
+  items.forEach((item) => {
+    const div = document.createElement("div");
+    const todayNow =
+      (item.media_type === "tv" && item.next_episode && isReleaseToday({ date: item.next_episode.air_date })) ||
+      (item.media_type === "movie" && isReleaseToday({ date: item.release_date }));
+    div.className = todayNow ? "card today-release-card" : "card";
+    setTvCardAttrs(div, item);
+    const isMovieWatched = item.media_type === "movie" && item.watched == 1;
+    const isTvCompleted = item.media_type === "tv" && item.completed;
+    const showBadge = isMovieWatched || isTvCompleted;
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          ${docBadge()}
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${
+            item.media_type === "tv"
+              ? item.next_episode
+                ? isReleaseToday({ date: item.next_episode.air_date })
+                  ? `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} ${t("today_airing")}</div>`
+                  : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} � ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)}${isMobile() ? "" : " � "}<span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`
+                : tvStatusText(item)
+              : item.release_date
+                ? dateState(item.release_date) === "date-past"
+                  ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+                  : isReleaseToday({ date: item.release_date })
+                    ? `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`
+                    : `<div class="next-ep">${formatDate(item.release_date).text} � <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`
+                : `<div>${t("date_unknown")}</div>`
+          }
+          ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      ${showBadge ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+    `;
+    div.querySelector(".remove").onclick = (e) => {
+      e.stopPropagation();
+      openTvUnfollowConfirm(
+        t("unfollow_confirm", { title: item.title }),
+        async () => {
+          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+          loadBelgesel();
+          toast(t("unfollowed", { name: item.title }));
+        }
+      );
+    };
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openReleases(item.media_type, item.tmdb_id, item.title);
+    };
+    const infoBtn = div.querySelector(".info-btn");
+    if (infoBtn) infoBtn.onclick = (e) => { e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
+    const moveBtn = div.querySelector(".move-btn");
+    if (moveBtn) {
+      moveBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/followed/move-watched", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: item.media_type,
+            watched: 1,
+          }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          toast(t("moved_to_watched", { name: item.title }));
+          loadBelgesel();
+        } else {
+          toast(j.error || t("error"));
+        }
+      };
+    }
+    div.onclick = () => {
+      openDetails(item.media_type, item.tmdb_id, item.title);
+    };
+    grid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
 function animeNextText(next, status) {
   if (!next) {
     if (status === "FINISHED") return `<div class="next-ep muted">${t("anime_status_finished")}</div>`;
@@ -372,7 +495,7 @@ function animeNextText(next, status) {
   } catch (e) {
     txt = d.toLocaleDateString();
   }
-  return `<div class="next-ep anime-ep"><span>EP ${next.episode} · ${txt}</span><span class="next-ep-sep">·</span><span class="next-ep-days">${diffDays}</span></div>`;
+  return `<div class="next-ep anime-ep"><span>EP ${next.episode} � ${txt}</span><span class="next-ep-sep">�</span><span class="next-ep-days">${diffDays}</span></div>`;
 }
 
 function animeStatusLabel(status) {
@@ -386,7 +509,7 @@ function animeStatusLabel(status) {
 async function loadAnime() {
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
-  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
+  // Oturumsuz 401 g�vdesi ({error}) sessizce yutulur � ��kme yok.
   if (!Array.isArray(items)) return;
   items = items.filter((i) => !(i.in_watched == 1));
   items = applySort(items);
@@ -476,30 +599,35 @@ async function loadUnwatched() {
   const empty = document.getElementById("empty-unwatched");
   const showsGrid = document.getElementById("unwatched-shows");
   const moviesGrid = document.getElementById("unwatched-movies");
+  const docsGrid = document.getElementById("unwatched-docs");
   const animeGrid = document.getElementById("unwatched-anime");
   showsGrid.innerHTML = "";
   moviesGrid.innerHTML = "";
+  if (docsGrid) docsGrid.innerHTML = "";
   animeGrid.innerHTML = "";
 
-  const shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
-  const movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
+  let shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
+  let movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
   const animes = applySort((data.anime || []).map((a) => ({ ...a, isAnime: true })));
+  const docs = applySort([...shows.filter(isDocItem), ...movies.filter(isDocItem)]);
+  shows = shows.filter((s) => !isDocItem(s));
+  movies = movies.filter((m) => !isDocItem(m));
 
-  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
 
   document.getElementById("unwatched-shows-wrap").style.display = shows.length ? "" : "none";
   document.getElementById("unwatched-movies-wrap").style.display = movies.length ? "" : "none";
+  const docsWrap = document.getElementById("unwatched-docs-wrap");
+  if (docsWrap) docsWrap.style.display = docs.length ? "" : "none";
   const animeWrap = document.getElementById("unwatched-anime-wrap");
   animeWrap.style.display = animes.length ? "" : "none";
   animeWrap.classList.toggle("has-shows", shows.length > 0);
-  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+  empty.style.display = shows.length || movies.length || docs.length || animes.length ? "none" : "block";
 
-  // Kayıtlı bölüm sırasını uygula ve boş bölümleri çıkar
+  // Kay�tl� b�l�m s�ras�n� uygula ve bo� b�l�mleri ��kar
   const order = loadSectionOrder("unwatched").filter((s) => hasContent[s]);
-  // Dolu olup da sırada olmayanları sona ekle
-  ["shows", "movies", "anime"].forEach((s) => {
-    if (hasContent[s] && !order.includes(s)) order.push(s);
-  });
+  // Dolu olup da s�rada olmayanlar� sona ekle
+  insertMissingSections(order, hasContent);
   order.forEach((s) => {
     const wrap = document.getElementById(`unwatched-${s}-wrap`);
     if (wrap) unwatchedView.insertBefore(wrap, empty);
@@ -575,6 +703,42 @@ async function loadUnwatched() {
     applyTitleHint(div);
   });
 
+  docs.forEach((item) => {
+    const mt = item.media_type === "tv" ? "tv" : "movie";
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    try { setTvCardAttrs(div, item); } catch {}
+    const dateLine = (mt === "movie")
+      ? (item.release_date
+        ? dateState(item.release_date) === "date-past"
+          ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+          : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+        : `<div>${t("date_unknown")}</div>`)
+      : "";
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-belgesel">${t("type_doc")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${mt === "tv" ? "" : dateLine}
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      if (mt === "tv") openUnwatchedModal(item, false);
+      else openReleases("movie", item.tmdb_id, item.title);
+    };
+    const ibD = div.querySelector(".info-btn"); if (ibD) ibD.onclick = (e) => { e.stopPropagation(); openDetails(mt, item.tmdb_id, item.title); };
+    div.onclick = () => openDetails(mt, item.tmdb_id, item.title);
+    if (docsGrid) docsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
   animes.forEach((item) => {
     const div = document.createElement("div");
     const singleToday = item.unwatched === 1 && !!item.items[0] && isReleaseToday({ air_time: item.items[0].air_at });
@@ -613,7 +777,7 @@ async function loadUnwatched() {
   });
 }
 
-const DEFAULT_ORDER = ["shows", "movies", "anime"];
+const DEFAULT_ORDER = ["shows", "movies", "docs", "anime"];
 
 async function loadWatched() {
   let data = { shows: [], anime: [], movies: [] };
@@ -627,28 +791,33 @@ async function loadWatched() {
   const empty = document.getElementById("empty-watched");
   const showsGrid = document.getElementById("watched-shows");
   const moviesGrid = document.getElementById("watched-movies");
+  const docsGrid = document.getElementById("watched-docs");
   const animeGrid = document.getElementById("watched-anime");
   showsGrid.innerHTML = "";
   moviesGrid.innerHTML = "";
+  if (docsGrid) docsGrid.innerHTML = "";
   animeGrid.innerHTML = "";
 
-  const shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
-  const movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
+  let shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
+  let movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
   const animes = applySort((data.anime || []).map((a) => ({ ...a, isAnime: true })));
+  const docs = applySort([...shows.filter(isDocItem), ...movies.filter(isDocItem)]);
+  shows = shows.filter((s) => !isDocItem(s));
+  movies = movies.filter((m) => !isDocItem(m));
 
-  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
 
   document.getElementById("watched-shows-wrap").style.display = shows.length ? "" : "none";
   document.getElementById("watched-movies-wrap").style.display = movies.length ? "" : "none";
+  const docsWrapW = document.getElementById("watched-docs-wrap");
+  if (docsWrapW) docsWrapW.style.display = docs.length ? "" : "none";
   const animeWrap = document.getElementById("watched-anime-wrap");
   animeWrap.style.display = animes.length ? "" : "none";
   animeWrap.classList.toggle("has-shows", shows.length > 0);
-  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+  empty.style.display = shows.length || movies.length || docs.length || animes.length ? "none" : "block";
 
   const order = loadSectionOrder("watched").filter((s) => hasContent[s]);
-  ["shows", "movies", "anime"].forEach((s) => {
-    if (hasContent[s] && !order.includes(s)) order.push(s);
-  });
+  insertMissingSections(order, hasContent);
   order.forEach((s) => {
     const wrap = document.getElementById(`watched-${s}-wrap`);
     if (wrap) watchedView.insertBefore(wrap, empty);
@@ -720,6 +889,46 @@ async function loadWatched() {
     };
     div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
     moviesGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  docs.forEach((item) => {
+    const mt = item.media_type === "tv" ? "tv" : "movie";
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    try { setTvCardAttrs(div, item); } catch {}
+    const dateLine = (mt === "movie")
+      ? (item.release_date
+        ? dateState(item.release_date) === "date-past"
+          ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+          : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+        : `<div>${t("date_unknown")}</div>`)
+      : `<div class="next-ep unwatched-count">${t("watched_count", { n: item.watched })}</div>`;
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-belgesel">${t("type_doc")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${dateLine}
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_belgesel") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openReleases(mt, item.tmdb_id, item.title);
+    };
+    const ibDW = div.querySelector(".info-btn"); if (ibDW) ibDW.onclick = (e) => { e.stopPropagation(); openDetails(mt, item.tmdb_id, item.title); };
+    div.querySelector(".move-back-btn").onclick = async (e) => {
+      e.stopPropagation();
+      await moveBackFromWatched(item, "belgesel");
+    };
+    div.onclick = () => openDetails(mt, item.tmdb_id, item.title);
+    if (docsGrid) docsGrid.appendChild(div);
     applyTitleHint(div);
   });
 
@@ -808,27 +1017,30 @@ function renderRecommendations(data) {
   const empty = document.getElementById("empty-recommend");
   const showsGrid = document.getElementById("recommend-shows");
   const moviesGrid = document.getElementById("recommend-movies");
+  const docsGrid = document.getElementById("recommend-docs");
   const animeGrid = document.getElementById("recommend-anime");
   if (!showsGrid || !moviesGrid || !animeGrid) return;
   showsGrid.innerHTML = "";
   moviesGrid.innerHTML = "";
+  if (docsGrid) docsGrid.innerHTML = "";
   animeGrid.innerHTML = "";
 
-  const shows = data.shows || [];
-  const movies = data.movies || [];
+  let shows = data.shows || [];
+  let movies = data.movies || [];
   const animes = data.anime || [];
-  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+  const docs = [...shows.filter(isDocItem), ...movies.filter(isDocItem)];
+  shows = shows.filter((s) => !isDocItem(s));
+  movies = movies.filter((m) => !isDocItem(m));
+  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
 
-  ["recommend-shows-wrap", "recommend-movies-wrap", "recommend-anime-wrap"].forEach((id) => {
+  ["recommend-shows-wrap", "recommend-movies-wrap", "recommend-docs-wrap", "recommend-anime-wrap"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = hasContent[id.replace("recommend-", "").replace("-wrap", "")] ? "" : "none";
   });
-  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+  empty.style.display = shows.length || movies.length || docs.length || animes.length ? "none" : "block";
 
   const order = loadSectionOrder("recommend").filter((s) => hasContent[s]);
-  ["shows", "movies", "anime"].forEach((s) => {
-    if (hasContent[s] && !order.includes(s)) order.push(s);
-  });
+  insertMissingSections(order, hasContent);
   order.forEach((s) => {
     const wrap = document.getElementById(`recommend-${s}-wrap`);
     if (wrap) view.insertBefore(wrap, empty);
@@ -837,6 +1049,7 @@ function renderRecommendations(data) {
 
   renderRecCards(shows, showsGrid, false, "shows");
   renderRecCards(movies, moviesGrid, false, "movies");
+  if (docsGrid) renderRecCards(docs, docsGrid, false, "docs");
   renderRecCards(animes, animeGrid, true, "anime");
 }
 
@@ -856,7 +1069,7 @@ function addRecPlaceholder(grid) {
   ph.className = "rec-placeholder";
   ph.innerHTML = `<div class="ph-box"><span class="ph-spin"></span></div>`;
   grid.appendChild(ph);
-  // Çerçeveyi komşu kartın tam yüksekliğine eşitle -> spinner tüm kart çerçevesine ortalanır
+  // �er�eveyi kom�u kart�n tam y�ksekli�ine e�itle -> spinner t�m kart �er�evesine ortalan�r
   const ref = grid.querySelector(".card");
   if (ref && ref.offsetHeight > 0) {
     ph.classList.add("height-synced");
@@ -963,12 +1176,15 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
       }
       div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
     } else {
+      const recBadge = (section === "docs")
+        ? `<span class="badge badge-belgesel">${t("type_doc")}</span>`
+        : `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`;
       div.innerHTML = `
         ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
         <div class="info">
           <div class="title">${item.title}</div>
           <div class="meta">
-            <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+            ${recBadge}
             ${scoreTag(item.vote_average)}
             ${platformTag(item.networks)}
           </div>
@@ -1042,7 +1258,7 @@ const refillRunning = {};
 const refillQueued = {};
 
 async function fillOnce(section) {
-  const media = { shows: "dizi", movies: "film", anime: "anime" }[section] || "";
+  const media = { shows: "dizi", movies: "film", docs: "film", anime: "anime" }[section] || "";
   const grid = document.getElementById(section === "anime" ? "recommend-anime" : `recommend-${section}`);
   const shown = currentRecIds(section);
   const needed = 18 - shown.length;
@@ -1053,16 +1269,17 @@ async function fillOnce(section) {
       const res = await fetch(url);
       if (!res.ok) throw new Error("http " + res.status);
       const data = await res.json();
-      const items = data.shows || data.movies || data.anime || [];
-      // Duplo koruması: paralel isteklerde grid'de zaten olan kartları at
+      let items = data.shows || data.movies || data.anime || [];
+      if (section === "docs") items = items.filter(isDocItem);
+      // Duplo korumas�: paralel isteklerde grid'de zaten olan kartlar� at
       const have = new Set(currentRecIds(section).map(String));
       const fresh = items.filter((it) => !have.has(String(it.tmdb_id || it.anilist_id)));
       if (!fresh.length) {
         clearRecPlaceholders(grid);
         return;
       }
-      // Birebir değişim: gelen her kart bir placeholder'ı kaldırır;
-      // kalan placeholder'lar (bekleyen gizlemeler) animasyonla yerinde kalır.
+      // Birebir de�i�im: gelen her kart bir placeholder'� kald�r�r;
+      // kalan placeholder'lar (bekleyen gizlemeler) animasyonla yerinde kal�r.
       const phs = Array.from(grid.querySelectorAll(".rec-placeholder"));
       const removeCount = Math.min(fresh.length, phs.length);
       for (let i = 0; i < removeCount; i++) phs[i].remove();
@@ -1096,14 +1313,15 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest(".section-refresh");
   if (rb && !rb.classList.contains("loading")) {
     const section = rb.dataset.section;
-    const media = { shows: "dizi", movies: "film", anime: "anime" }[section] || "";
+    const media = { shows: "dizi", movies: "film", docs: "film", anime: "anime" }[section] || "";
     const grid = document.getElementById(section === "anime" ? "recommend-anime" : `recommend-${section}`);
-    const toastKey = { shows: "recommend_refreshed_shows", movies: "recommend_refreshed_movies", anime: "recommend_refreshed_anime" }[section] || "recommend_refreshed_shows";
+    const toastKey = { shows: "recommend_refreshed_shows", movies: "recommend_refreshed_movies", docs: "recommend_refreshed_docs", anime: "recommend_refreshed_anime" }[section] || "recommend_refreshed_shows";
     rb.classList.add("loading");
     fetch(`/api/recommendations?media=${media}&refresh=1`)
       .then((res) => res.json())
       .then((data) => {
-        const items = data.shows || data.movies || data.anime || [];
+        let items = data.shows || data.movies || data.anime || [];
+        if (section === "docs") items = items.filter(isDocItem);
         if (grid) {
           grid.innerHTML = "";
           renderRecCards(items, grid, section === "anime", section);
@@ -1243,6 +1461,22 @@ function saveSectionOrder(prefix, order) {
   } catch (e) {}
 }
 
+function insertMissingSections(order, hasContent) {
+  // Kayitli sirada olmayan dolu bolumleri DEFAULT_ORDER konumuna yerlestir
+  // (sona push degil; ornegin docs her zaman movies-anime arasina gelir).
+  ["shows", "movies", "docs", "anime"].forEach((s) => {
+    if (hasContent[s] && !order.includes(s)) {
+      const ref = DEFAULT_ORDER.indexOf(s);
+      let at = order.length;
+      for (let i = 0; i < order.length; i++) {
+        if (DEFAULT_ORDER.indexOf(order[i]) > ref) { at = i; break; }
+      }
+      order.splice(at, 0, s);
+    }
+  });
+  return order;
+}
+
 function updateMoveButtons(viewId) {
   const view = document.getElementById(viewId);
   if (!view) return;
@@ -1307,4 +1541,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab, closeSortMenu };
+export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab, closeSortMenu };

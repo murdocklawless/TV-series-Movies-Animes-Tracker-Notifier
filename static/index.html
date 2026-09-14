@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=456" />
-  <link rel="stylesheet" href="/static/css/tablet.css?v=406" />
-  <link rel="stylesheet" href="/static/css/mobil.css?v=410" />
-  <link rel="stylesheet" href="/static/css/tv.css?v=419" />
+  <link rel="stylesheet" href="/static/css/style.css?v=457" />
+  <link rel="stylesheet" href="/static/css/tablet.css?v=407" />
+  <link rel="stylesheet" href="/static/css/mobil.css?v=411" />
+  <link rel="stylesheet" href="/static/css/tv.css?v=421" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -22,6 +22,7 @@
     <div class="tabs-group media-tabs-group">
         <button id="tab-dizi" class="tab active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-tab-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
         <button id="tab-film" class="tab" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-tab-icon"></i><span data-i18n="tab_film">Film</span></button>
+        <button id="tab-belgesel" class="tab" data-i18n="tab_belgesel"><i class="fa-solid fa-photo-film media-tab-icon"></i><span data-i18n="tab_belgesel">Belgesel</span></button>
         <button id="tab-anime" class="tab" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-tab-icon"></i><span data-i18n="tab_anime">Anime</span></button>
         <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched"><i class="fa-solid fa-eye-slash media-tab-icon"></i><span data-i18n="tab_unwatched">İzlenmemiş</span></button>
         <button id="tab-watched" class="tab" data-i18n="tab_watched"><i class="fa-solid fa-eye media-tab-icon"></i><span data-i18n="tab_watched">İzlenmiş</span></button>
@@ -158,6 +159,15 @@
       </div>
     </section>
 
+    <!-- Belgesel view -->
+    <section id="view-belgesel" class="view">
+      <div id="poster-grid-docs" class="poster-grid"></div>
+      <div id="empty-belgesel" class="empty">
+        <p data-i18n="belgesel_empty_1">Henüz takip ettiğiniz belgesel yok.</p>
+        <p data-i18n="belgesel_empty_2">Ara &amp; Ekle sekmesinden Belgesel seçerek ekleyin.</p>
+      </div>
+    </section>
+
     <!-- Unwatched view -->
     <section id="view-unwatched" class="view">
       <div id="unwatched-shows-wrap">
@@ -167,6 +177,10 @@
       <div id="unwatched-movies-wrap">
         <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
         <div id="unwatched-movies" class="poster-grid"></div>
+      </div>
+      <div id="unwatched-docs-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_docs">İzlenmemiş Belgeseller</span></h2>
+        <div id="unwatched-docs" class="poster-grid"></div>
       </div>
       <div id="unwatched-anime-wrap">
         <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
@@ -187,6 +201,10 @@
         <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_movies">İzlenmiş Filmler</span></h2>
         <div id="watched-movies" class="poster-grid"></div>
       </div>
+      <div id="watched-docs-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_docs">İzlenmiş Belgeseller</span></h2>
+        <div id="watched-docs" class="poster-grid"></div>
+      </div>
       <div id="watched-anime-wrap">
         <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_anime">İzlenmiş Animeler</span></h2>
         <div id="watched-anime" class="poster-grid"></div>
@@ -205,6 +223,10 @@
       <div id="recommend-movies-wrap">
         <h2 class="unwatched-section-title"><button class="section-refresh" data-section="movies" data-i18n-title="recommend_refresh_movies"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="movies" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_movies">Önerilen Filmler</span></h2>
         <div id="recommend-movies" class="poster-grid"></div>
+      </div>
+      <div id="recommend-docs-wrap">
+        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="docs" data-i18n-title="recommend_refresh_docs"><i class="fa-solid fa-rotate"></i></button><button class="section-move-up" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_docs">Önerilen Belgeseller</span></h2>
+        <div id="recommend-docs" class="poster-grid"></div>
       </div>
       <div id="recommend-anime-wrap">
         <h2 class="unwatched-section-title"><button class="section-refresh" data-section="anime" data-i18n-title="recommend_refresh_anime"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="anime" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_anime">Önerilen Animeler</span></h2>
@@ -229,6 +251,7 @@
             <div class="media-toggle">
               <button id="media-dizi" class="active" data-i18n="tab_dizi"><span data-i18n="tab_dizi">Dizi</span></button>
               <button id="media-film" data-i18n="tab_film"><span data-i18n="tab_film">Film</span></button>
+              <button id="media-belgesel" data-i18n="tab_belgesel"><span data-i18n="tab_belgesel">Belgesel</span></button>
               <button id="media-anime" data-i18n="tab_anime"><span data-i18n="tab_anime">Anime</span></button>
             </div>
             <div class="search-bar">
@@ -243,6 +266,7 @@
             <div class="filter-add-row">
               <button id="filter-media-movie" class="filter-add-btn btn-movie" data-i18n="type_movie">Film</button>
               <button id="filter-media-tv" class="filter-add-btn btn-tv" data-i18n="type_tv">Dizi</button>
+              <button id="filter-media-doc" class="filter-add-btn btn-doc" data-i18n="type_doc">Belgesel</button>
               <button id="filter-actor" class="filter-add-btn btn-actor" data-i18n="filter_actor">Oyuncu</button>
               <button id="filter-genre" class="filter-add-btn btn-genre" data-i18n="filter_genre">Tür</button>
               <button id="filter-year" class="filter-add-btn btn-year" data-i18n="search_type_year">Yıl</button>
@@ -1076,6 +1100,6 @@
     </div>
   </div>
 
-<script type="module" src="/static/js/nextep.js?v=473"></script>
+<script type="module" src="/static/js/nextep.js?v=474"></script>
 </body>
 </html>

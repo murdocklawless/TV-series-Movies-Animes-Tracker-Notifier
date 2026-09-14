@@ -163,6 +163,91 @@ def get_tmdb_info(media_type, tmdb_id, lang=None):
     }
 
 
+def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
+    """Secili dilde bos metin alanlarini en-US ile doldurur (14 dil icin genel kural).
+
+    Kapsar: overview, tagline, genres. Title, cagiran tarafta
+    get_tmdb_title_fallback() ile birlestirilir (get_tmdb_info title dondurmez).
+    Donus: info dict + _fallback_lang (_en_ ya da None) + _fallback_fields listesi.
+    locale zaten en ise ikinci cagri yapilmaz.
+    """
+    eff_lang = lang
+    if not (eff_lang or "").strip():
+        try:
+            eff_lang = get_setting("language") or "tr-TR"
+        except Exception:
+            eff_lang = "tr-TR"
+    sel = get_tmdb_info(media_type, tmdb_id, lang=lang)
+    norm = (eff_lang or "").strip()
+    base = norm.lower().split("-")[0]
+    if base in ("", "en"):
+        if sel is None:
+            return None
+        out = dict(sel)
+        out["_fallback_lang"] = None
+        out["_fallback_fields"] = []
+        return out
+    if sel is None:
+        en = get_tmdb_info(media_type, tmdb_id, lang="en-US")
+        if not en:
+            return None
+        out = dict(en)
+        out["_fallback_lang"] = "en"
+        out["_fallback_fields"] = ["overview", "tagline", "genres", "title"]
+        return out
+    need = []
+    if not (sel.get("overview") or "").strip():
+        need.append("overview")
+    if not (sel.get("tagline") or "").strip():
+        need.append("tagline")
+    if not (sel.get("genres") or []):
+        need.append("genres")
+    if not need:
+        out = dict(sel)
+        out["_fallback_lang"] = None
+        out["_fallback_fields"] = []
+        return out
+    en = get_tmdb_info(media_type, tmdb_id, lang="en-US")
+    if not en:
+        out = dict(sel)
+        out["_fallback_lang"] = None
+        out["_fallback_fields"] = []
+        return out
+    merged = dict(sel)
+    fb = []
+    for f in ("overview", "tagline", "genres"):
+        if f in need and en.get(f):
+            merged[f] = en[f]
+            fb.append(f)
+    merged["_fallback_lang"] = "en" if fb else None
+    merged["_fallback_fields"] = fb
+    return merged
+
+
+def get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=None):
+    """Baslik icin secili dil -> en-US fallback. (title, fallback_yapildi_mi) doner."""
+    data = sel_data
+    if data is None:
+        data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang)
+    title = (data or {}).get("title") or (data or {}).get("name") or (data or {}).get("original_name") or ""
+    if (title or "").strip():
+        return title, False
+    eff = (lang or "").strip()
+    if not eff:
+        try:
+            eff = get_setting("language") or "tr-TR"
+        except Exception:
+            eff = "tr-TR"
+    norm = eff.strip().lower().split("-")[0]
+    if norm in ("", "en"):
+        return title, False
+    en_data = tmdb_request(f"/{media_type}/{tmdb_id}", lang="en-US")
+    en_title = (en_data or {}).get("title") or (en_data or {}).get("name") or (en_data or {}).get("original_name") or ""
+    if (en_title or "").strip():
+        return en_title, True
+    return title, False
+
+
 def get_tmdb_cast(media_type, tmdb_id):
     """TMDB'den oyuncu kadrosunu çeker (ilk 8)."""
     if media_type not in ("movie", "tv"):
@@ -266,7 +351,7 @@ def load_details(conn, follow_id):
     }
 
 
-def _tmdb_tv_by_people(params, genre_filter=None):
+def _tmdb_tv_by_people(params, genre_filter=None, doc_only=False):
     """TV'de with_people discover güvenilmez (filtreyi yok sayıyor); bunun yerine
     her oyuncunun tv_credits'inden şovları toplayıp tür/yıl/puan/başlık filtrelerini
     kendi tarafımızda uygular."""
@@ -289,6 +374,8 @@ def _tmdb_tv_by_people(params, genre_filter=None):
             continue
         genres = set((g or {}).get("id") for g in (det.get("genres") or []))
         if genre_filter and not (genres & genre_filter):
+            continue
+        if doc_only and 99 not in genres:
             continue
         first_air = det.get("first_air_date") or ""
         if year and not first_air.startswith(str(year)):
@@ -315,7 +402,7 @@ def _tmdb_tv_by_people(params, genre_filter=None):
     return out[:20]
 
 
-def _tmdb_movie_by_people(params, genre_filter=None):
+def _tmdb_movie_by_people(params, genre_filter=None, doc_only=False):
     """Movie'de with_people discover limitli (20) ve eksik; aktörün movie_credits
     uç noktasından tüm filmleri toplayıp tür/yıl/puan/başlık filtrelerini kendi
     tarafımızda uygular."""
@@ -338,6 +425,8 @@ def _tmdb_movie_by_people(params, genre_filter=None):
                 item_genres = set(item.get("genre_ids") or [])
                 if not (item_genres & genre_filter):
                     continue
+            if doc_only and 99 not in (item.get("genre_ids") or []):
+                continue
             release = item.get("release_date") or ""
             if year and not release.startswith(str(year)):
                 continue
@@ -363,13 +452,15 @@ def _tmdb_movie_by_people(params, genre_filter=None):
     return out
 
 
-def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=None):
+def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=None, doc_only=False):
     """Yıl/puan/oyuncu/tür filtreleriyle TMDB discover araması yapar (movie + tv).
 
     genre_filter: None veya {media_type: set} sözlüğü. Verilirse sonuçlar o türün
     ID'lerinden en az birini içermesi koşuluyla istemci tarafında filtrelenir
     (with_people + with_genres birlikte TMDB'de OR döndürdüğü için).
     media_types: (movie/tv) hangi ortamların aranacağı; None = ikisi de.
+    doc_only: True ise with_people yolunda da tur 99 (Belgesel) sarti aranir;
+    discover yolunda with_genres=99 cagiran tarafca eklenir.
     """
     if media_types is None:
         media_types = ("movie", "tv")
@@ -384,10 +475,10 @@ def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=No
         params = dict(params_movie if media_type == "movie" else params_tv)
         params["include_adult"] = "false"
         if media_type == "movie" and params.get("with_people"):
-            out.extend(_tmdb_movie_by_people(params, gf))
+            out.extend(_tmdb_movie_by_people(params, gf, doc_only))
             continue
         if media_type == "tv" and params.get("with_people"):
-            out.extend(_tmdb_tv_by_people(params, gf))
+            out.extend(_tmdb_tv_by_people(params, gf, doc_only))
             continue
         data = tmdb_request(base_path, params)
         if not data:

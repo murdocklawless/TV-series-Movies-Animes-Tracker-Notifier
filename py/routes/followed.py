@@ -4,9 +4,9 @@ import os
 
 from flask import Blueprint, jsonify, request
 
-from db import get_db, today_str
+from db import get_db, today_str, _safe_json_list
 from auth import get_current_user
-from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request
+from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request, get_tmdb_info_fallback, get_tmdb_title_fallback
 from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
 from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
@@ -188,12 +188,14 @@ def unwatched():
             {
                 "id": r["id"],
                 "tmdb_id": r["tmdb_id"],
+                "media_type": "tv",
                 "title": r["title"],
                 "poster_path": r["poster_path"],
                 "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "unwatched": len(items),
                 "items": items,
             }
@@ -208,12 +210,14 @@ def unwatched():
             {
                 "id": r["id"],
                 "tmdb_id": r["tmdb_id"],
+                "media_type": "movie",
                 "title": r["title"],
                 "poster_path": r["poster_path"],
                 "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "release_date": r["release_date"],
                 "watched": int(r["watched"] or 0),
             }
@@ -325,12 +329,14 @@ def watched():
             {
                 "id": r["id"],
                 "tmdb_id": r["tmdb_id"],
+                "media_type": "tv",
                 "title": r["title"],
                 "poster_path": r["poster_path"],
                 "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "watched": total,
                 "items": items,
             }
@@ -349,12 +355,14 @@ def watched():
             {
                 "id": r["id"],
                 "tmdb_id": r["tmdb_id"],
+                "media_type": "movie",
                 "title": r["title"],
                 "poster_path": r["poster_path"],
                 "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "release_date": r["release_date"],
                 "watched": 1,
             }
@@ -743,6 +751,9 @@ def _build_response(media_type, d):
         base["number_of_seasons"] = d.get("number_of_seasons")
         base["number_of_episodes"] = d.get("number_of_episodes")
         base["status"] = d.get("status")
+    if d.get("_fallback_lang"):
+        base["_fallback_lang"] = d.get("_fallback_lang")
+        base["_fallback_fields"] = d.get("_fallback_fields") or []
     return base
 
 
@@ -764,18 +775,19 @@ def details():
     localized = _load_localized(follow["localized"] if follow else None)
     pl = _poster_local_for(media_type, tmdb_id)
 
-    # -- lang VERİLMEDİYSE: legacy davranış (base cached overview, yoksa fetch). --
+    # -- lang VERİLMEDİYSE: legacy (slot varsa HIT; bos overview artik MISS degil, en fallback'li yazilir). --
     if not lang:
         if follow and not refresh:
             d = load_details(conn, follow["id"])
-            if d and d.get("overview"):
+            if d:
                 conn.close()
                 return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
         data = tmdb_request(f"/{media_type}/{tmdb_id}")
         if not data:
             conn.close()
             return jsonify({"error": "TMDB'den veri alınamadı"}), 400
-        info = get_tmdb_info(media_type, tmdb_id)
+        info = get_tmdb_info_fallback(media_type, tmdb_id, lang=None)
+        title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=data)
         cst = get_tmdb_cast(media_type, tmdb_id)
         if follow:
             save_details(conn, follow["id"], info, cst)
@@ -783,40 +795,53 @@ def details():
             conn.commit()
         conn.close()
         d = dict(info or {})
-        d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
+        d["title"] = title
+        if title_fb:
+            d["_fallback_lang"] = "en"
+            d["_fallback_fields"] = list((d.get("_fallback_fields") or [])) + ["title"]
         d["poster_path"] = data.get("poster_path")
         d["cast"] = cst
         return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
-    # -- lang VERİLDİYSE: dil başına önbellek. --
+    # -- lang VERİLDİYSE: dil başına önbellek (14 dil; boş alan en-US ile doldurulur). --
     locale = _lang_to_locale(lang)
     loc = localized.get(lang) if follow else None
 
-    # Cache hit: o dilde kayıt varsa fetch yapmadan dön (cast dil-bağımsız). refresh bypass.
-    if follow and loc and loc.get("overview") and not refresh:
+    # Cache hit: o dilde slot varsa fetch yapmadan dön (fallback'li kayit da HIT;
+    # bos overview artik MISS sayilmaz, bir kez yazilan slot her zaman cache'lenir).
+    if follow and loc and not refresh:
         d = load_details(conn, follow["id"]) or {}
         d = dict(d)
         d["title"] = loc.get("title") or d.get("title")
         d["overview"] = loc.get("overview") or d.get("overview")
         d["genres"] = loc.get("genres") or d.get("genres") or []
         d["tagline"] = loc.get("tagline") or d.get("tagline")
+        if loc.get("_fallback_lang"):
+            d["_fallback_lang"] = loc.get("_fallback_lang")
+            d["_fallback_fields"] = loc.get("_fallback_fields") or []
         conn.close()
         return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
-    # Cache miss: seçilen dilde her zaman canlı fetch, sonra önbelleğe yaz.
+    # Cache miss: secilen dil + bos alanlar icin en-US fallback, sonra o dile yaz.
     data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale)
     if not data:
         conn.close()
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
-    info = get_tmdb_info(media_type, tmdb_id, lang=locale)
+    info = get_tmdb_info_fallback(media_type, tmdb_id, lang=locale)
+    title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=locale, sel_data=data)
     cst = get_tmdb_cast(media_type, tmdb_id)
+    fb_fields = list((info or {}).get("_fallback_fields") or [])
+    if title_fb and "title" not in fb_fields:
+        fb_fields.append("title")
     if follow:
         _sync_tmdb_poster(conn, media_type, int(tmdb_id), data.get("poster_path"), follow)
         localized[lang] = {
-            "title": data.get("title") or data.get("name"),
-            "overview": info.get("overview") or "",
-            "genres": info.get("genres") or [],
-            "tagline": info.get("tagline") or "",
+            "title": title,
+            "overview": (info or {}).get("overview") or "",
+            "genres": (info or {}).get("genres") or [],
+            "tagline": (info or {}).get("tagline") or "",
+            "_fallback_lang": "en" if fb_fields else None,
+            "_fallback_fields": fb_fields,
         }
         conn.execute(
             "UPDATE followed SET localized=? WHERE id=?",
@@ -827,7 +852,10 @@ def details():
     conn.close()
 
     d = dict(info or {})
-    d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
+    d["title"] = title
+    if fb_fields:
+        d["_fallback_lang"] = "en"
+        d["_fallback_fields"] = fb_fields
     d["poster_path"] = data.get("poster_path")
     d["cast"] = cst
     return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
