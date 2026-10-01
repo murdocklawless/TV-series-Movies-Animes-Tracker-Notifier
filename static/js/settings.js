@@ -772,7 +772,7 @@ async function showSettingsSubmodal(id) {
   updateEmailFocusUI();
   setEmailFrameVisible(false);
   const tpOv = document.getElementById("settings-thirdparty-modal");
-  if (tpOv && tpOv.style.display !== "none" && id !== "settings-thirdparty-modal") flushTpBaseUrl();
+  if (tpOv && tpOv.style.display !== "none" && id !== "settings-thirdparty-modal") { flushTpBaseUrl(); flushVpsProfile(); }
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = el.id === id ? "flex" : "none";
   });
@@ -788,6 +788,7 @@ async function showSettingsSubmodal(id) {
 
 function closeSettingsModals() {
   flushTpBaseUrl();
+  flushVpsProfile();
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = "none";
   });
@@ -1457,13 +1458,14 @@ document.querySelectorAll(".settings-modal-close").forEach((btn) => {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     flushTpBaseUrl();
+    flushVpsProfile();
     const ov = btn.closest(".settings-modal-overlay");
     if (ov) ov.style.display = "none";
   });
 });
 document.querySelectorAll(".settings-modal-overlay").forEach((ov) => {
   ov.addEventListener("click", (e) => {
-    if (e.target === ov) { flushTpBaseUrl(); ov.style.display = "none"; }
+    if (e.target === ov) { flushTpBaseUrl(); flushVpsProfile(); ov.style.display = "none"; }
   });
 });
 
@@ -2442,32 +2444,21 @@ function renderVpsSection() {
       </div>
       <div class="tp-frame-note vps-last-test-row">${escAttr(t("vps_last_test"))}: <span id="vps-last-test">${escAttr(lastTs)}</span></div>
       <div class="tp-sub-box">
-        <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint"></span></span>
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved"></span></span>
           <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
         </label>
-      </div>
-      <div class="tp-sub-box">
-        <label><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint"></span></span>
+        <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint" id="vps-port-saved"></span></span>
           <div class="tp-url-box"><input id="vps-port" type="number" min="1" max="65535" value="${escAttr(String(p.port || 22))}" /></div>
         </label>
       </div>
       <div class="tp-sub-box">
-        <span class="settings-label-head"><span>${escAttr(t("vps_auth"))}</span></span>
+        <span class="settings-label-head"><span>${escAttr(t("vps_auth"))}</span><span class="saved-hint" id="vps-auth-saved"></span></span>
         <div class="test-row" style="display:flex; gap:12px; margin:6px 0; justify-content:center;">
           <button id="vps-auth-key" class="tab${showKey ? " active" : ""}">${escAttr(t("vps_auth_key"))}</button>
           <button id="vps-auth-pass" class="tab${showKey ? "" : " active"}">${escAttr(t("vps_auth_pass"))}</button>
         </div>
-      </div>
-      <div class="tp-sub-box" id="vps-user-row" style="display:${showKey ? "none" : "block"}">
-        <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span></span>
-          <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.username || "root")}" /></div>
-        </label>
-      </div>
-      <div class="tp-sub-box">
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}">
-          <label><span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved"></span></span>
-            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
-          </label>
+          <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
           <div class="backup-key-actions">
             <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
             <button id="vps-key-clear" class="tab">${escAttr(t("clear"))}</button>
@@ -2476,13 +2467,15 @@ function renderVpsSection() {
           <div class="tp-frame-note" id="vps-key-fmt">${escAttr(t("vps_key_fmt", { fmt: t("vps_fmt_unknown") }))}</div>
         </div>
         <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
-          <label><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved"></span></span>
+          <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved"></span></span>
+            <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.username || "root")}" /></div>
+          </label>
+          <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved"></span></span>
             <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${hasSecret && p.auth_type === "password" ? "••••••••" : ""}" /></div>
           </label>
         </div>
       </div>
       <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
-        <button id="vps-save" class="tab">${escAttr(t("vps_save"))}</button>
         <button id="vps-test" class="tab">${escAttr(t("vps_test"))}</button>
       </div>
       ${p.fingerprint ? `<div class="tp-frame-note" style="word-break:break-all">${escAttr(p.fingerprint)}</div>` : ""}
@@ -2514,31 +2507,46 @@ function updateVpsKeyFmt() {
   if (el) el.textContent = t("vps_key_fmt", { fmt: vpsKeyFmtLabel() });
 }
 
-async function saveVpsProfile() {
-  const host = (document.getElementById("vps-host")?.value || "").trim();
-  let port = 22;
-  try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
-  const username = (document.getElementById("vps-user")?.value || "root").trim() || "root";
-  const body = { host, port, username, auth_type: vpsAuth };
-  if (vpsAuth === "key") {
-    const k = document.getElementById("vps-key");
-    body.secret = k ? k.value.trim() : "";
-  } else {
-    const p = document.getElementById("vps-pass");
-    body.secret = p ? p.value : "";
-  }
+let vpsSaving = false;
+async function flushVpsProfile(hintId) {
+  const hostEl = document.getElementById("vps-host");
+  if (!hostEl) return;
+  if (vpsSaving) return;
+  vpsSaving = true;
   try {
+    const host = (hostEl.value || "").trim();
+    let port = 22;
+    try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
+    const username = (document.getElementById("vps-user")?.value || "root").trim() || "root";
+    const body = { host, port, username, auth_type: vpsAuth };
+    let secret = "";
+    if (vpsAuth === "key") {
+      const k = document.getElementById("vps-key");
+      secret = k ? k.value.trim() : "";
+    } else {
+      const p = document.getElementById("vps-pass");
+      secret = p ? p.value : "";
+    }
+    // Boş secret gönderilmez -> backend eskiyi korur; masked "••••••••" korunur.
+    if (secret !== "") body.secret = secret;
     const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "save");
-    toast(t("saved"));
-    renderThirdPartyApps();
+    vpsProfile = Object.assign({}, vpsProfile || {}, {
+      host: body.host, port: body.port, username: body.username,
+      auth_type: body.auth_type, configured: !!j.configured,
+    });
+    vpsGate = { configured: !!j.configured, connected: !!(vpsGate && vpsGate.connected && j.configured) };
+    if (hintId) showSavedHint(document.getElementById(hintId));
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
+  } finally {
+    vpsSaving = false;
   }
 }
 
 async function testVpsConnection() {
+  await flushVpsProfile();
   const btn = document.getElementById("vps-test");
   if (btn) btn.disabled = true;
   try {
@@ -2567,10 +2575,8 @@ function bindVpsAuthToggle() {
     vpsAuth = mode;
     const keyWrap = document.getElementById("vps-key-wrap");
     const passWrap = document.getElementById("vps-pass-wrap");
-    const userRow = document.getElementById("vps-user-row");
     if (keyWrap) keyWrap.style.display = mode === "key" ? "block" : "none";
     if (passWrap) passWrap.style.display = mode === "key" ? "none" : "block";
-    if (userRow) userRow.style.display = mode === "key" ? "none" : "block";
     if (kb) kb.classList.toggle("active", mode === "key");
     if (pb) pb.classList.toggle("active", mode !== "key");
   };
@@ -2784,15 +2790,24 @@ async function remotePeerDownload(num, file) {
 }
 
 function bindVpsRemoteEvents() {
-  const saveBtn = document.getElementById("vps-save");
-  if (saveBtn) saveBtn.addEventListener("click", saveVpsProfile);
   const testBtn = document.getElementById("vps-test");
   if (testBtn) testBtn.addEventListener("click", testVpsConnection);
   bindVpsAuthToggle();
   bindVpsKeyActions();
-  ["vps-host", "vps-port", "vps-user", "vps-pass"].forEach((id) => {
+  const flushMap = {
+    "vps-host": "vps-host-saved",
+    "vps-port": "vps-port-saved",
+    "vps-user": "vps-user-saved",
+    "vps-pass": "vps-pass-saved",
+    "vps-key": "vps-auth-saved",
+  };
+  Object.entries(flushMap).forEach(([id, hintId]) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveVpsProfile(); } });
+    if (!el) return;
+    el.addEventListener("blur", () => flushVpsProfile(hintId));
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && id !== "vps-key") { e.preventDefault(); el.blur(); }
+    });
   });
   const remoteInstall = document.getElementById("tp-remote-install");
   if (remoteInstall) remoteInstall.addEventListener("click", () => startRemoteJob("wg", {}));

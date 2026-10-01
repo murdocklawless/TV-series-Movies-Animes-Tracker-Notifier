@@ -4628,6 +4628,18 @@ select#s-email-provider.email-lit {
   flex-wrap: nowrap;
   margin-top: 12px;
 }
+#vps-key-wrap .backup-key-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-top: 10px;
+}
+#vps-key-wrap .backup-ssh-textarea {
+  max-width: 100%;
+}
 
 .telegram-box.telegram-open,
 .accordion-box.accordion-open {
