@@ -1,48 +1,60 @@
 /* mobil.css — telefonlar (max-width:600px / 480px / hover:none) */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) .badge-watched {
-    width: 26px;
-    height: 26px;
-    right: 6px;
-    bottom: 6px;
+    width: 21px;
+    height: 21px;
+    right: 4px;
+    bottom: 4px;
   }
   html:not(.is-tv):not(.tv-mode) .badge-watched svg {
-    width: 12px;
-    height: 12px;
+    width: 9px;
+    height: 9px;
   }
   html:not(.is-tv):not(.tv-mode) .card .remove,
   html:not(.is-tv):not(.tv-mode) .card .calendar-btn,
   html:not(.is-tv):not(.tv-mode) .card .move-btn,
   html:not(.is-tv):not(.tv-mode) .card .move-back-btn,
   html:not(.is-tv):not(.tv-mode) .card .hide-btn {
-    width: 26px;
-    height: 26px;
-    top: 6px;
+    width: 21px;
+    height: 21px;
+    top: 4px;
   }
   html:not(.is-tv):not(.tv-mode) .card .remove {
-    right: 6px;
+    right: 4px;
+    font-size: 0.89rem;
   }
   html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
-    left: 6px;
+    left: 4px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .calendar-btn svg {
+    width: 13px;
+    height: 13px;
   }
   html:not(.is-tv):not(.tv-mode) .card .hide-btn {
-    left: 6px;
+    left: 4px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .hide-btn i {
+    font-size: 0.63rem;
   }
   html:not(.is-tv):not(.tv-mode) .card .move-btn {
     left: 50%;
     transform: translateX(-50%);
-    top: 6px !important;
-    width: 26px !important;
-    height: 26px !important;
+    top: 4px !important;
+    width: 21px !important;
+    height: 21px !important;
     display: flex !important;
   }
   html:not(.is-tv):not(.tv-mode) .card .move-back-btn {
     left: 50%;
     transform: translateX(-50%);
-    top: 6px !important;
-    width: 26px !important;
-    height: 26px !important;
+    top: 4px !important;
+    width: 21px !important;
+    height: 21px !important;
     display: flex !important;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .move-btn i,
+  html:not(.is-tv):not(.tv-mode) .card .move-back-btn i {
+    font-size: 0.68rem;
   }
 }
 
@@ -85,6 +97,9 @@
   html:not(.is-tv):not(.tv-mode) .card .hide-btn {
     display: flex;
   }
+  html:not(.is-tv):not(.tv-mode) .card .poster-wrap .defer-btn {
+    display: flex;
+  }
 }
 
 @media (max-width: 480px) {
@@ -107,25 +122,25 @@
   html:not(.is-tv):not(.tv-mode) .card .remove,
   html:not(.is-tv):not(.tv-mode) .card .calendar-btn,
   html:not(.is-tv):not(.tv-mode) .card .hide-btn {
-    width: 26px;
-    height: 26px;
-    top: 6px;
+    width: 21px;
+    height: 21px;
+    top: 4px;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
-    left: 6px;
+    left: 4px;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .hide-btn {
-    left: 6px;
+    left: 4px;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .hide-btn i {
-    font-size: 0.78rem;
+    font-size: 0.63rem;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .remove {
-    right: 6px;
+    right: 4px;
   }
 
   html:not(.is-tv):not(.tv-mode) #view-search h2,
@@ -204,6 +219,7 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .picker-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .value-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal {
     max-width: 92%;
     max-height: none;
@@ -217,6 +233,7 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .person-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .picker-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
   html:not(.is-tv):not(.tv-mode) #releases-modal > .modal {
     max-height: 90vh;
@@ -290,21 +307,46 @@
     padding: 9px 8px;
   }
 
-  .releases-table th:first-child,
-  html:not(.is-tv):not(.tv-mode) .releases-table td:first-child {
-    width: 70%;
-  }
+  /* Takvim tablosu duzenlemeleri: yalnizca dokunmatik cihazlar (hover:none).
+     Fareli tarayicilar (dar pencere/zoom dahil) desktop stillerini korur. */
+  @media (hover: none) {
+    html:not(.is-tv):not(.tv-mode) .releases-table th:first-child,
+    html:not(.is-tv):not(.tv-mode) .releases-table td:first-child {
+      width: 52%;
+    }
 
-  .releases-table th:last-child,
-  html:not(.is-tv):not(.tv-mode) .releases-table td:last-child {
-    width: 30%;
-    font-size: 0.7rem;
-  }
+    html:not(.is-tv):not(.tv-mode) .releases-table th:last-child,
+    html:not(.is-tv):not(.tv-mode) .releases-table td:last-child {
+      width: 48%;
+      font-size: 0.7rem;
+      padding-right: 10px;
+    }
 
-  html:not(.is-tv):not(.tv-mode) .releases-table .watch-btn {
-    width: 18px;
-    height: 18px;
-    font-size: 0.7rem;
+    /* Tarih basligini tarih metnine ortala: sagda buton bolgesi (24+4+8) kor birakilir */
+    html:not(.is-tv):not(.tv-mode) .releases-table thead th:last-child {
+      text-align: center;
+      padding-right: 46px;
+    }
+
+    html:not(.is-tv):not(.tv-mode) .releases-table .watch-btn {
+      width: 18px;
+      height: 18px;
+      font-size: 0.7rem;
+    }
+
+    /* Takvim tarih hucresi: ozet butonu sag kenara yapismasin (desktop hissi) */
+    html:not(.is-tv):not(.tv-mode) .episode-info-btn {
+      margin-right: 4px;
+    }
+
+    /* Dar hucrede tarih metni butonu disari itmesin, kirpilsin */
+    html:not(.is-tv):not(.tv-mode) .episode-date-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   html:not(.is-tv):not(.tv-mode) .season-box-title {
@@ -373,11 +415,304 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep .next-ep-days {
     font-size: 0.6rem;
   }
+
+  /* Arama + çoklu arama modalı yığılmış kartları: tip+puan / platform / sezon /
+     bölüm / statü / tarih; tüm satır araları 3px, tüm rozetler 0.6rem.
+     Eksik satırda görünmez yer tutucu basılır (kartlar kaymaz, film hariç). */
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .info .meta .badge,
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-count-badge,
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line .episode-count {
+    font-size: 0.6rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .mrow-net {
+    flex-basis: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    margin-top: 0;
+    min-height: 0;
+  }
+  /* Mobil: sezon + bölüm alt alta kalsın (sığmama sorunu) */
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line.season-row {
+    flex-direction: column;
+  }
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line .episode-count {
+    margin-left: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line + .season-line {
+    margin-top: 3px;
+  }
+  /* Mobil: kişi/yönetmen filmografi kartlarında sezon üstte, bölüm altta */
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line.season-row,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line.season-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+    min-height: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line .episode-count,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line .episode-count {
+    margin-left: 0;
+  }
+  /* Kişi/yönetmen filmografi kartları: arama kartı rozetlerinin aynısı */
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .info .meta .badge,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .info .meta .badge,
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-count-badge,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-count-badge,
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line .episode-count,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line .episode-count {
+    font-size: 0.6rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .mrow-net,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .mrow-net {
+    flex-basis: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line.season-row,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line.season-row {
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 600px) {
-  html:not(.is-tv):not(.tv-mode) .card .info-btn { width:26px; height:26px; left:6px; bottom:6px; }
-  html:not(.is-tv):not(.tv-mode) .card .info-btn svg { width:14px; height:14px; }
+  html:not(.is-tv):not(.tv-mode) .card .info-btn { width:21px; height:21px; left:4px; bottom:4px; }
+  html:not(.is-tv):not(.tv-mode) .card .info-btn svg { width:11px; height:11px; }
+  html:not(.is-tv):not(.tv-mode) .card .poster-wrap .defer-btn { width:21px; height:21px; bottom:4px; }
+  html:not(.is-tv):not(.tv-mode) .card .poster-wrap .defer-btn svg { width:11px; height:11px; }
+  html:not(.is-tv):not(.tv-mode) .hidden-modal .hidden-restore { width:21px; height:21px; top:4px; left:4px; }
+  html:not(.is-tv):not(.tv-mode) .hidden-modal .hidden-restore i { font-size:0.63rem; }
+}
+
+/* Navbar: mobilde medya + utils tek parca olarak yatay kayar (.nav-tabs-scroll).
+   Eski ayri scroll (media/utils ayri overflow-x:auto + overflow-y:hidden) iki
+   parca kaydiriyor ve tasan kirmizi bildirim balonunu (top:-6px) ustten kesiyordu.
+   Tek kaydiricida ustten 8px tasma payi birakilir, ic gruplar overflow:visible. */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) nav {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "logo"
+      "tabs";
+  }
+  html:not(.is-tv):not(.tv-mode) .logo {
+    grid-area: logo;
+  }
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll {
+    grid-area: tabs;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: visible;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 2px 6px;
+    margin: 0 -2px;
+  }
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .media-tabs-group,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group {
+    overflow: visible;
+    flex: 0 0 auto;
+    min-width: max-content;
+    max-width: none;
+    margin: 0;
+    justify-self: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .media-tabs-group .tab,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .tab,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .notif-wrap,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .settings-wrap {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-wrap {
+    overflow: visible;
+    position: relative;
+  }
+  /* Kayar kapsayici absolute menuleri kirpar; SADECE nav icindeki
+     menuler (ayarlar/bildirim) viewport'a sabitlenir. Bolum filtre
+     menuleri h2 icinde absolute kalir, simgeye hizali acilir. */
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .settings-menu,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-menu {
+    position: fixed;
+    top: 122px;
+    right: 8px;
+    left: auto;
+    max-width: calc(100vw - 16px);
+    z-index: 30;
+  }
+}
+
+/* Öneri bölüm başlığı: mobilde de tek satır, başlık solda buton kümesi sağda (25px eşit aralık; ↑↓ arası hariç) */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title {
+    flex-wrap: nowrap;
+    padding-right: 146px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search {
+    right: 122px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap {
+    right: 97px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-refresh {
+    right: 72px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-hide {
+    right: 47px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title > span {
+    padding-right: 0;
+    text-align: left;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title {
+    flex-wrap: nowrap;
+    padding-right: 70px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .section-search {
+    right: 42px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .follow-sort-wrap {
+    right: 12px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title > span,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title > span,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title > span,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title > span {
+    padding-right: 0;
+    text-align: left;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title {
+    flex-wrap: nowrap;
+    padding-right: 112px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .section-search {
+    right: 82px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .follow-sort-wrap {
+    right: 52px;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title > span,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title > span {
+    padding-right: 0;
+    text-align: left;
+  }
+  /* Mobil bolum arama kutulari: ekrana yatay ortali (h2 tam genislikte
+     oldugu icin h2 icinde ortalamak ekranda ortalar), ust kenar turuncu
+     cizginin 1px alti. Genislik sabit 160px. */
+  html:not(.is-tv):not(.tv-mode) #view-dizi .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-film .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-anime .rec-search-input.open {
+    position: absolute;
+    left: 50%;
+    right: auto;
+    top: calc(100% + 1px);
+    transform: translateX(-50%);
+    width: 160px;
+    max-width: 45vw;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-watched .rec-search-input.open {
+    position: absolute;
+    left: 50%;
+    right: auto;
+    top: calc(100% + 1px);
+    transform: translateX(-50%);
+    width: 160px;
+    max-width: 45vw;
+  }
+  html:not(.is-tv):not(.tv-mode) .rec-search-input.open {
+    position: absolute;
+    left: 50%;
+    right: auto;
+    top: calc(100% + 1px);
+    transform: translateX(-50%);
+    width: 160px;
+    max-width: 45vw;
+  }
+  /* Mobil bolum filtre menuleri: sag kenar turuncu cizginin en sag
+     noktasina (h2 sag kenarina) dayali, ust kenar cizginin 1px alti.
+     Menu wrap'in cocugu oldugu icin right negatiflenir (wrap'in h2 sag
+     boslugu kadar): dizi grubu -12px, izlenmis/izlenmemis -52px. */
+  html:not(.is-tv):not(.tv-mode) #view-dizi .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-film .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-anime .follow-sort-menu.sort-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -12px;
+    left: auto;
+    transform: none;
+    max-width: calc(100vw - 16px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: -52px;
+    left: auto;
+    transform: none;
+    max-width: calc(100vw - 16px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .rec-sort-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: auto;
+    right: -97px;
+    transform: none;
+    max-width: calc(100vw - 16px);
+  }
+}
+
+/* Hidden-modal arama kutusu (mobil): basligin altina inip modala yatay
+   ortalanir, genislik 160px. Header cita olur (absolute kutunun dayanagi). */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .hidden-modal .modal-header {
+    position: relative;
+  }
+  html:not(.is-tv):not(.tv-mode) #hidden-search-input.open {
+    position: absolute;
+    top: calc(100% + 1px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 160px;
+    max-width: calc(100vw - 32px);
+    z-index: 30;
+  }
 }
 
 /* Admin modal uye cipleri: dar ekranda satirda 1, alt alta; büzülme yok
@@ -402,5 +737,16 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-peak-t,
   html:not(.is-tv):not(.tv-mode) #settings-admin-modal #admin-rate-bars .rate-total {
     font-size: 0.6rem;
+  }
+}
+@media (max-width: 600px) {
+  #tp-app-stremio .test-row,
+  #tp-app-remote .test-row {
+    flex-direction: column;
+  }
+  #tp-app-stremio .test-row .tab,
+  #tp-app-remote .test-row .tab {
+    width: 100%;
+    white-space: nowrap;
   }
 }
