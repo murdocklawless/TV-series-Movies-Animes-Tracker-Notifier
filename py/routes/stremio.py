@@ -903,7 +903,11 @@ def _remote_app_status(base):
         active = False
     try:
         hts = get_setting("remote_last_handshake") or ""
-        base["lastSignal"] = int(float(hts)) if hts else None
+        if hts:
+            base["lastSignal"] = int(float(hts))
+        else:
+            tts = get_setting("vps_last_test_ts") or ""
+            base["lastSignal"] = int(float(tts)) if tts else None
     except Exception:
         base["lastSignal"] = None
     base["installUrl"] = None
