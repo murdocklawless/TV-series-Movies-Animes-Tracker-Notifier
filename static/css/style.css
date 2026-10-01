@@ -1661,6 +1661,9 @@ input:-webkit-autofill:focus {
 #settings-thirdparty-modal .settings-modal {
   max-width: 560px;
 }
+#settings-thirdparty-modal .notif-type-box {
+  max-width: 100%;
+}
 
 .settings-submodal {
   display: flex;
