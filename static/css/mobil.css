@@ -743,10 +743,11 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   #tp-app-stremio .test-row,
   #tp-app-remote .test-row {
     flex-direction: column;
+    align-items: center;
   }
   #tp-app-stremio .test-row .tab,
   #tp-app-remote .test-row .tab {
-    width: 100%;
+    width: auto;
     white-space: nowrap;
   }
 }
