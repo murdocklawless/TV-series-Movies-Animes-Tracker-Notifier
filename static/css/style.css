@@ -23,7 +23,7 @@ nav {
   border-bottom: 1px solid #262a36;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 90;
 }
 
 .logo {
@@ -47,6 +47,13 @@ nav {
 
 .logo-title {
   font-weight: 400;
+}
+
+/* Mobil tek-parca kaydirici sarmalayicisi: desktop/tablet/TV'de kutu uretmez,
+   medya + utils gruplari nav'in grid ogeleri gibi yerlesir.
+   Mobilde (<=600px) mobil.css display:flex ile ezer, mobil kaydirma korunur. */
+nav > .nav-tabs-scroll {
+  display: contents;
 }
 
 .sort-wrap {
@@ -100,10 +107,29 @@ nav {
   color: #c8cdd8;
 }
 
+.sort-item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sort-item:disabled:hover {
+  background: none;
+  border-color: transparent;
+}
+
 .sort-item i {
   width: 16px;
   text-align: center;
   font-size: 0.85rem;
+}
+
+/* Öneri + kişi/yönetmen filtre menülerinde ok eklenince uzun etiket
+   ("Vizyon tarihine göre") alta kaymasın; menü içeriğe göre genişler.
+   Takip menüleri (dizi/film/belgesel/anime) kapsam dışıdır. */
+.rec-sort-menu .sort-item,
+#person-filter-menu .sort-item,
+#director-filter-menu .sort-item {
+  white-space: nowrap;
 }
 
 @media (min-width: 601px) {
@@ -201,12 +227,12 @@ nav {
   }
 
   /* İlk .tabs-group (media butonları) nav'ın ortasında */
-  nav > .tabs-group:first-of-type {
+  nav .media-tabs-group {
     justify-self: center;
   }
 
   /* İkinci .tabs-group (search/sort/settings) sağda kalsın */
-  nav > .tabs-group:last-of-type {
+  nav .utils-tabs-group {
     justify-self: end;
   }
 
@@ -222,7 +248,6 @@ nav {
     display: none;
   }
 
-  #tab-sort,
   #tab-settings {
     position: relative;
     top: -1px;
@@ -361,6 +386,8 @@ main {
 .card .info .meta {
   font-size: 0.8rem;
   color: #8b90a0;
+  /* 3 haneli gün rozeti (örn. 296) tek satıra sığsın: kart içinden 8px geri kazan */
+  margin: 0 -4px;
 }
 
 .results-modal .card .info .meta {
@@ -393,9 +420,9 @@ main {
 }
 
 .card .info .meta .badge.badge-belgesel {
-  background: rgba(219, 39, 119, 0.15);
-  color: #f9a8d4;
-  border-color: rgba(219, 39, 119, 0.4);
+  background: rgba(141, 219, 7, 0.15);
+  color: #d9f99d;
+  border-color: rgba(141, 219, 7, 0.4);
 }
 
 .card .info .meta .badge.badge-anime-status {
@@ -441,8 +468,8 @@ main {
   font-size: 0.68rem;
   border-radius: 999px;
   border: 1px solid rgba(34, 197, 94, 0.4);
-  padding: 1px 6px;
-  min-width: 16px;
+  padding: 1px 4px;
+  min-width: 19px;
   text-align: center;
   line-height: 1.4;
 }
@@ -485,6 +512,90 @@ main {
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
   border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+/* Arama + çoklu arama modalı yığılmış kartları (yalnız modal, film hariç):
+   tip+puan / platform / sezon / bölüm / statü / tarih; eksik satırda görünmez
+   yer tutucu basılır (kartlar kaymaz). Yer tutucu tüm viewportlarda çalışır. */
+#search-results-modal .slot-empty {
+  visibility: hidden;
+}
+/* Kişi/yönetmen filmografi kartları: arama kartlarındaki desenin aynısı
+   (search.js'e dokunulmaz; bu blok kişi modalına aittir). */
+#person-modal .slot-empty,
+#director-modal .slot-empty {
+  visibility: hidden;
+}
+/* Desktop dizilimi (601px+; mobil mobil.css'ten, TV tv.css'ten gelir):
+   tüm satır araları 3px, tüm rozetler 0.7rem. */
+@media (min-width: 601px) {
+  #search-results-modal .card.search-stacked .info .meta .badge,
+  #search-results-modal .card.search-stacked .season-count-badge,
+  #search-results-modal .card.search-stacked .season-line .episode-count {
+    font-size: 0.7rem;
+  }
+  #search-results-modal .card.search-stacked .info .meta .badge {
+    margin-bottom: 3px;
+  }
+  #search-results-modal .card.search-stacked .info .meta .badge.badge-platform {
+    margin-top: 0;
+  }
+  #search-results-modal .card.search-stacked .season-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    margin-top: 3px;
+    min-height: 0;
+  }
+  /* Desktop: sezon + bölüm rozetleri aynı satırda yan yana */
+  #search-results-modal .card.search-stacked .season-line.season-row {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+  }
+  #search-results-modal .card.search-stacked .season-line .episode-count {
+    margin-left: 0;
+  }
+  /* Kişi/yönetmen filmografi kartları: arama kartı rozet diziliminin aynısı */
+  #person-modal .card .info .meta .badge,
+  #director-modal .card .info .meta .badge,
+  #person-modal .card .season-count-badge,
+  #director-modal .card .season-count-badge,
+  #person-modal .card .season-line .episode-count,
+  #director-modal .card .season-line .episode-count {
+    font-size: 0.7rem;
+  }
+  #person-modal .card .info .meta .badge,
+  #director-modal .card .info .meta .badge {
+    margin-bottom: 3px;
+  }
+  #person-modal .card .info .meta .badge.badge-platform,
+  #director-modal .card .info .meta .badge.badge-platform {
+    margin-top: 0;
+  }
+  #person-modal .card .mrow-net,
+  #director-modal .card .mrow-net {
+    display: flex;
+    justify-content: center;
+  }
+}
+  /* Desktop: kişi/yönetmen filmografi kartlarında sezon + bölüm yan yana */
+  #person-modal .card .season-line.season-row,
+  #director-modal .card .season-line.season-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+    min-height: 0;
+  }
+  #person-modal .card .season-line .episode-count,
+  #director-modal .card .season-line .episode-count {
+    margin-left: 0;
+  }
 }
 
 .season-line {
@@ -618,6 +729,50 @@ main {
   color: #fca5a5;
 }
 
+/* Daha-sonra-izle: poster en-alt-orta (info sol-alt + tick sağ-alt ile aynı hiza).
+   Takvim ile aynı yuvarlak transparent koyu zemin; normalde kırmızı aşağı ok. */
+.card .poster-wrap .defer-btn {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #f87171;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.card .poster-wrap .defer-btn:hover {
+  color: #fca5a5;
+}
+
+.card .poster-wrap .defer-btn.active {
+  color: #22c55e;
+}
+
+.card .poster-wrap .defer-btn.active:hover {
+  color: #86efac;
+}
+
+/* Daha-sonra-izle: içerik soluk, yukarı ok (zemin+hover dahil) tam opak kalır */
+.card.is-deferred {
+  opacity: 1;
+  filter: none;
+}
+.card.is-deferred .poster-wrap img,
+.card.is-deferred .poster-wrap .no-poster,
+.card.is-deferred .info {
+  opacity: 0.35;
+  filter: saturate(0.5);
+}
+
 .card .calendar-btn:hover {
   color: #bae6fd;
 }
@@ -639,6 +794,10 @@ main {
 }
 
 .card:hover .hide-btn {
+  display: flex;
+}
+
+.card:hover .poster-wrap .defer-btn {
   display: flex;
 }
 
@@ -834,6 +993,22 @@ input:-webkit-autofill:focus {
   color: #fff;
 }
 
+.filter-add-btn.btn-director {
+  background: #4a1228;
+  border-color: #ec4899;
+  color: #fbcfe8;
+}
+.filter-add-btn.btn-director:hover {
+  background: #6b1a3a;
+  border-color: #f472b6;
+  color: #fff;
+}
+.filter-add-btn.btn-director.active {
+  background: #db2777;
+  border-color: #f472b6;
+  color: #fff;
+}
+
 .filter-add-btn.btn-genre {
   background: #14401f;
   border-color: #16a34a;
@@ -883,18 +1058,34 @@ input:-webkit-autofill:focus {
 }
 
 .filter-add-btn.btn-doc {
-  background: #4a1d35;
-  border-color: #db2777;
-  color: #fbcfe8;
+  background: #2c3a0b;
+  border-color: #8ddb07;
+  color: #e9f9c2;
 }
 .filter-add-btn.btn-doc:hover {
-  background: #6b2749;
-  border-color: #ec4899;
+  background: #3f5410;
+  border-color: #a3e635;
   color: #fff;
 }
 .filter-add-btn.btn-doc.active {
-  background: #db2777;
+  background: #8ddb07;
+  border-color: #a3e635;
+  color: #1a2005;
+}
+
+.filter-add-btn.btn-anime {
+  background: rgba(236, 72, 153, 0.15);
   border-color: #ec4899;
+  color: #fbcfe8;
+}
+.filter-add-btn.btn-anime:hover {
+  background: rgba(236, 72, 153, 0.3);
+  border-color: #f472b6;
+  color: #fff;
+}
+.filter-add-btn.btn-anime.active {
+  background: rgba(236, 72, 153, 0.45);
+  border-color: #f472b6;
   color: #fff;
 }
 
@@ -999,6 +1190,12 @@ input:-webkit-autofill:focus {
   color: #e9d5ff;
 }
 
+.chip.chip-director {
+  background: #4a1228;
+  border-color: #ec4899;
+  color: #fbcfe8;
+}
+
 .chip.chip-genre {
   background: #14401f;
   border-color: #16a34a;
@@ -1018,8 +1215,14 @@ input:-webkit-autofill:focus {
 }
 
 .chip.chip-media-doc {
-  background: #4a1d35;
-  border-color: #db2777;
+  background: #2c3a0b;
+  border-color: #8ddb07;
+  color: #e9f9c2;
+}
+
+.chip.chip-media-anime {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: #ec4899;
   color: #fbcfe8;
 }
 
@@ -1119,6 +1322,10 @@ input:-webkit-autofill:focus {
   width: 100%;
 }
 
+.results-modal .modal-header {
+  gap: 6px;
+}
+
 #view-search .search-bar {
   margin-bottom: 0;
 }
@@ -1208,8 +1415,12 @@ input:-webkit-autofill:focus {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 9px 10px 9px 6px;
+  /* width:100% pencereyi (max-content) yazidan dar hesaplatip tasiriyordu;
+     auto + min-width:100% donguyu yazi lehine cozer: buton en az pencere
+     kadar, yazi uzunsa yazi kadar buyur. */
+  width: auto;
+  min-width: 100%;
+  padding: 9px 6px 9px 6px;
   background: none;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -1865,6 +2076,7 @@ input:-webkit-autofill:focus {
 
 .settings-form select#s-lang,
 .settings-form select#s-cache-ttl,
+.settings-form select#s-early-watched-days,
 .settings-form select#s-email-provider,
 .settings-form select#s-notif-limit {
   padding: 12px 30px 12px 14px;
@@ -2512,6 +2724,28 @@ input:-webkit-autofill:focus {
   }
 }
 
+/* Desktop takvim: TARİH basligi tarih metnine ortalanir, tarihler solda sabit kalir.
+   Baslik, sagdaki buton bolgesi kadar sag ped ile sola kaydirilir.
+   Ozet butonu akistan cikarilip saga sabitlenir (tarihle cakismaz).
+   Yalnizca fareli cihazlar (dar pencere dahil); dokunmatik + TV haric. */
+@media (hover: hover) {
+  html:not(.is-tv):not(.tv-mode) .releases-table thead th:last-child {
+    text-align: center;
+    padding-right: 76px;
+  }
+  html:not(.is-tv):not(.tv-mode) .episode-date-wrap {
+    position: relative;
+    width: 100%;
+  }
+  html:not(.is-tv):not(.tv-mode) .episode-info-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+  }
+}
+
 
 .cast-item {
   display: flex;
@@ -2576,6 +2810,28 @@ input:-webkit-autofill:focus {
   color: #ef4444;
 }
 
+.details-section-title {
+  color: #f97316;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  width: 100%;
+  margin: 14px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dotted #f97316;
+}
+
+.cast-item-static {
+  cursor: default;
+}
+
+.cast-item-static:hover {
+  border-color: #2a2f3b;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .cast-fav.fav:hover {
   filter: drop-shadow(0 0 3px rgba(249, 115, 22, 0.9));
 }
@@ -2585,19 +2841,44 @@ input:-webkit-autofill:focus {
   max-width: min(800px, 95vw);
 }
 
+/* Kişi/yönetmen modalları: arama sonuç modalı ölçülerinin aynısı
+   (arama-modal kurallarına dokunulmaz; bu blok kişi modallarına aittir). */
+#person-modal .person-modal,
+#director-modal .person-modal {
+  width: 100%;
+  max-width: 1000px;
+}
+
+#person-modal .modal-header,
+#director-modal .modal-header {
+  gap: 6px;
+}
+
+/* Kişi/yönetmen başlığı: arama ↔ filtre bitişik (diğer aralıklar 6px kalır) */
+#person-modal #person-search-btn,
+#director-modal #director-search-btn {
+  margin-right: -6px;
+}
+
 .person-grid {
   max-height: 70vh;
   overflow-y: auto;
-  gap: 12px;
+  gap: 18px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  padding: 14px;
-  margin: -14px;
+  padding: 16px 20px;
+  margin: -16px -20px;
 }
 
 .person-grid .card {
-  width: 132px;
+  width: 170px;
+}
+
+#person-modal .card .info .meta,
+#director-modal .card .info .meta {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .picker-modal {
@@ -3093,6 +3374,85 @@ input:-webkit-autofill:focus {
   box-sizing: border-box;
 }
 
+.tp-joblog {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0 0;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* Uzak baglanti kullanici etiketleri */
+.peer-chip {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  text-align: center;
+}
+.peer-chip.peer-suspended {
+  opacity: 0.55;
+}
+.peer-file {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.peer-name {
+  display: block;
+  margin: 6px auto 0;
+  max-width: 220px;
+  text-align: center;
+}
+.peer-badge {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+  border-radius: 999px;
+  padding: 1px 10px;
+}
+.peer-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.peer-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+.peer-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.peer-btn.peer-delete {
+  color: #ef4444;
+}
+.peer-btn.peer-suspend {
+  color: #f59e0b;
+}
+.peer-btn.peer-dl {
+  color: #22c55e;
+}
+.vps-last-test-row {
+  color: #22c55e;
+  font-size: 0.7rem;
+}
+
 .tp-url-box {
   display: flex;
   gap: 8px;
@@ -3161,6 +3521,78 @@ input:-webkit-autofill:focus {
   width: calc(100% - 36px);
 }
 
+/* Takvim tarih hucresi: tarih solda, ozet butonu en sagda */
+.episode-date-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Bolum ozet butonu: seffaf, cercevesiz (normal + hover), beyaz ikon */
+.episode-info-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: #FFFFFF;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.episode-info-btn:hover,
+.episode-info-btn:active,
+.episode-info-btn:focus {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #FFFFFF;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.65));
+}
+.episode-info-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Bolum ozet modali */
+.episode-info-modal {
+  max-width: 520px;
+}
+.episode-info-overview {
+  margin: 0 0 14px;
+  line-height: 1.6;
+  color: #d6dae3;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+}
+.episode-info-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #262a36;
+  padding-top: 12px;
+}
+.episode-info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #FFFFFF;
+  font-size: 0.85rem;
+}
+.episode-info-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #FFFFFF;
+  flex: 0 0 auto;
+}
+.episode-info-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .episode-cell .episode-name,
 .episode-cell .episode-label {
   min-width: 0;
@@ -3223,7 +3655,8 @@ input:-webkit-autofill:focus {
   transition: color 0.15s ease, opacity 0.15s ease;
   line-height: 1;
   position: absolute;
-  left: 0;
+  left: auto;
+  right: 82px;
   transform: translateY(-50%);
   top: 40%;
 }
@@ -3256,13 +3689,221 @@ input:-webkit-autofill:focus {
   transition: color 0.15s ease;
   line-height: 1;
   position: absolute;
-  left: 22px;
+  left: auto;
+  right: 52px;
   transform: translateY(-50%);
   top: 40%;
 }
 
 .section-hide:hover {
   color: #FFFFFF;
+}
+
+/* Öneri bölüm başlığı: arama / filtre / refresh / gizlenen / taşı okları (sağ küme, 30px eşit aralık; ↑↓ arası hariç) */
+.section-search {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 1;
+  transition: color 0.15s ease;
+  line-height: 1;
+  position: absolute;
+  right: 142px;
+  transform: translateY(-50%);
+  top: 40%;
+}
+
+.section-search:hover,
+.section-search.active {
+  color: #FFFFFF;
+}
+
+.section-sort-wrap {
+  position: absolute;
+  right: 112px;
+  transform: translateY(-50%);
+  top: 40%;
+  display: inline-block;
+  line-height: 1;
+  z-index: 30;
+}
+
+#view-recommend .rec-sort-menu {
+  z-index: 60;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+/* Öneri başlığı hidden-modal deseni: başlık solda, buton kümesi sağda.
+   h2 sağ boşluğu akıştaki kutuyu absolute buton kümesinin (sağ 0-164px) solunda tutar.
+   sağ küme 30px eşit aralık (↑↓ arası hariç). */
+#view-recommend .unwatched-section-title {
+  justify-content: flex-start;
+  padding-right: 166px;
+}
+
+#view-recommend .unwatched-section-title > span {
+  order: -1;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+/* Takip görünümleri bölüm başlıkları: öneri deseni, iki buton (arama + filtre) sağda.
+   Filtre simgesi arama simgesinin sağında; menü sağ kenarı simge sağ kenarıyla
+   hizalı (.sort-menu bazı right:0, wrap simgeyi sarar). */
+#view-dizi .unwatched-section-title,
+#view-film .unwatched-section-title,
+#view-belgesel .unwatched-section-title,
+#view-anime .unwatched-section-title {
+  justify-content: flex-start;
+  padding-right: 74px;
+}
+
+#view-dizi .unwatched-section-title > span,
+#view-film .unwatched-section-title > span,
+#view-belgesel .unwatched-section-title > span,
+#view-anime .unwatched-section-title > span {
+  order: -1;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+#view-dizi .section-search,
+#view-film .section-search,
+#view-belgesel .section-search,
+#view-anime .section-search {
+  right: 42px;
+}
+
+#view-dizi .follow-sort-wrap,
+#view-film .follow-sort-wrap,
+#view-belgesel .follow-sort-wrap,
+#view-anime .follow-sort-wrap {
+  right: 12px;
+}
+
+#view-dizi .rec-search-input,
+#view-film .rec-search-input,
+#view-belgesel .rec-search-input,
+#view-anime .rec-search-input {
+  right: 74px;
+}
+
+#view-dizi > div,
+#view-film > div,
+#view-belgesel > div,
+#view-anime > div {
+  margin-bottom: 24px;
+}
+
+/* İzlenmiş / izlenmemiş bölüm başlıkları: sola yanaşık (diğer başlıklarla aynı desen).
+   Taşı butonları absolute (sağ 0/22px) olduğu için padding-right çakışmayı önler. */
+#view-unwatched .unwatched-section-title,
+#view-watched .unwatched-section-title {
+  justify-content: flex-start;
+  padding-right: 112px;
+}
+
+#view-unwatched .unwatched-section-title > span,
+#view-watched .unwatched-section-title > span {
+  order: -1;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+/* İzlenmiş/izlenmemiş: arama + filtre, taşı oklarının solunda (ok yerleri korunur) */
+#view-unwatched .section-search,
+#view-watched .section-search {
+  right: 82px;
+}
+
+#view-unwatched .follow-sort-wrap,
+#view-watched .follow-sort-wrap {
+  right: 52px;
+}
+
+#view-unwatched .rec-search-input,
+#view-watched .rec-search-input {
+  right: 112px;
+}
+
+#dizi-later-wrap .unwatched-section-title,
+#film-later-wrap .unwatched-section-title,
+#belgesel-later-wrap .unwatched-section-title,
+#anime-later-wrap .unwatched-section-title {
+  margin-top: 8px;
+}
+
+.section-filter {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 1;
+  transition: color 0.15s ease;
+  line-height: 1;
+}
+
+.section-filter:hover,
+.section-filter.active {
+  color: #FFFFFF;
+}
+
+/* İkiden az kartlı bölümde kilitli arama/filtre butonları */
+.section-search:disabled,
+.section-filter:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+html:not(.is-tv):not(.tv-mode) .rec-search-input {
+  display: none;
+  position: absolute;
+  right: 172px;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 230px;
+  z-index: 30;
+  background: #1b1f2a;
+  border: 1px solid #F97316;
+  border-radius: 8px;
+  color: #e8eaf0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.rec-search-input::placeholder {
+  color: #6b7180;
+}
+
+.rec-search-input.open {
+  display: block;
+}
+
+.rec-search-input:focus {
+  border-color: #f97316;
 }
 
 .section-move-up,
@@ -3280,6 +3921,7 @@ input:-webkit-autofill:focus {
   right: 0;
   transform: translateY(-50%);
   top: 40%;
+  touch-action: manipulation;
 }
 
 .section-move-up:hover,
@@ -3359,9 +4001,10 @@ input:-webkit-autofill:focus {
   text-align: justify;
 }
 
-/* Öneriler görünümü */
+/* Öneriler görünümü: kartlar dotted turuncu çizginin altına ortalanır
+   (taban .poster-grid zaten center; bu kural niyeti belgeler). */
 #view-recommend .poster-grid {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .rec-placeholder {
@@ -3404,7 +4047,22 @@ input:-webkit-autofill:focus {
 .hidden-header-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
+}
+
+/* Hidden filtre: öneri filtresiyle aynı menü, butona ortalı */
+.hidden-sort-wrap {
+  position: relative;
+  display: inline-flex;
+  line-height: 1;
+  z-index: 30;
+}
+
+#hidden-sort-menu {
+  z-index: 60;
+  left: auto;
+  right: -30px;
+  transform: none;
 }
 
 .hidden-modal .modal-header {
@@ -3415,7 +4073,10 @@ input:-webkit-autofill:focus {
   margin-right: auto;
 }
 
-#hidden-search-input {
+#hidden-search-input,
+#results-search-input,
+#person-search-input,
+#director-search-input {
   display: none;
   width: 230px;
   /* Dar konteynerde flex shrink ile kuculur -> esit bosluklar her ekranda */
@@ -3429,15 +4090,24 @@ input:-webkit-autofill:focus {
   outline: none;
 }
 
-#hidden-search-input::placeholder {
+#hidden-search-input::placeholder,
+#results-search-input::placeholder,
+#person-search-input::placeholder,
+#director-search-input::placeholder {
   color: #6b7180;
 }
 
-#hidden-search-input.open {
+#hidden-search-input.open,
+#results-search-input.open,
+#person-search-input.open,
+#director-search-input.open {
   display: block;
 }
 
-#hidden-search-input:focus {
+#hidden-search-input:focus,
+#results-search-input:focus,
+#person-search-input:focus,
+#director-search-input:focus {
   border-color: #f97316;
 }
 
@@ -3461,6 +4131,19 @@ input:-webkit-autofill:focus {
   color: #FFFFFF;
 }
 
+/* Gizlenenler baslik kapat butonu: arama/filtre ile ayni 30x30 ortali kutu
+   (ciplak × glif ~14-19px kaliyordu, optik aralik esitsiz gorunuyordu).
+   Guclu secici mobildeki .modal-close padding'ini de ezer; renk/hover korunur. */
+.hidden-modal .hidden-header-actions .modal-close {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 #hidden-list {
   display: flex;
   flex-wrap: wrap;
@@ -3477,6 +4160,7 @@ input:-webkit-autofill:focus {
 /* Öneri kartı görünümü */
 .hidden-tile {
   position: relative;
+  flex: 0 0 auto;
   width: 110px;
   background: #171a23;
   border: 1px solid #262a36;
@@ -3496,11 +4180,12 @@ input:-webkit-autofill:focus {
 }
 
 .hidden-name {
-  padding: 8px 8px;
+  padding: 8px 8px 4px;
   text-align: center;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.58rem;
   line-height: 1.25;
+  min-height: 2.5em;
   /* Iki satira kadar goster, tasma halinde ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -3508,6 +4193,145 @@ input:-webkit-autofill:focus {
   overflow: hidden;
   white-space: normal;
   word-break: break-word;
+}
+
+/* Gizlenen kart bilgi satırı: 3 satır dikey (rozet+puan / yayıncı / statü).
+   Renk/çerçeve/biçim öneri kartı aynası (.card .info .meta deseni); fontlar 0.55rem sabit. */
+.hidden-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 8px 8px;
+  font-size: 0.55rem;
+  color: #8b90a0;
+}
+
+.hidden-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 1.7em;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+
+/* Yayıncı ve statü slotları: boşken de sabit yer tutar, satırlar her kartta hizalanır */
+.hidden-meta-net {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 1.7em;
+  width: 100%;
+  overflow: visible;
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+.hidden-meta-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.2em;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.hidden-meta-status .next-ep {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.hidden-meta-row .badge {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  font-size: 0.55rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  margin-bottom: 0;
+}
+
+.hidden-meta-row .badge-movie {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.hidden-meta-row .badge-anime {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border-color: rgba(236, 72, 153, 0.4);
+}
+
+.hidden-meta-row .badge-belgesel {
+  background: rgba(141, 219, 7, 0.15);
+  color: #d9f99d;
+  border-color: rgba(141, 219, 7, 0.4);
+}
+
+.hidden-meta-row .badge-score {
+  background: rgba(194, 120, 8, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(194, 120, 8, 0.4);
+  margin-left: 2px;
+}
+
+.hidden-meta .badge-platform {
+  background: rgba(212, 160, 23, 0.15);
+  color: #d4a017;
+  border: 1px solid rgba(212, 160, 23, 0.4);
+  border-radius: 999px;
+  font-size: 0.55rem;
+  font-weight: 600;
+  display: block;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 1px 5px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.hidden-meta .next-ep {
+  color: #22c55e;
+  font-size: 0.55rem;
+  font-weight: 600;
+  margin-top: 0;
+}
+
+.hidden-meta .next-ep .next-ep-days {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 1px 4px;
+  min-width: 19px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.hidden-meta .next-ep.muted {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.hidden-meta .next-ep.today {
+  color: #60a5fa;
+  font-weight: 700;
 }
 
 /* Kart .hide-btn ile aynı ikon stili — posterin sol üstünde, her zaman görünür */
@@ -3592,7 +4416,8 @@ select#s-email-provider.email-lit {
 
 .provider-combobox select#s-email-provider,
 .provider-combobox select#s-lang,
-.provider-combobox select#s-cache-ttl {
+.provider-combobox select#s-cache-ttl,
+.provider-combobox select#s-early-watched-days {
   width: 100%;
 }
 
@@ -4171,3 +4996,27 @@ body.logged-out main { padding: 0; }
 #admin-rate-bars .rate-err { font-size: 0.7rem; color: #f87171; text-align: center; }
 /* Faz 31c: onay modali iki satirli metin (silme onayi soru + aciklama) */
 #confirm-text { white-space: pre-line; }
+/* Desktop bolum filtre menuleri (601px+, TV haric; mobil mobil.css'ten gelir):
+   - Izlenmis/izlenmemis + oneriler: sag kenar turuncu cizginin en sagina
+     dayali (menu wrap'in cocugu oldugu icin wrap'in h2 sag boslugu kadar
+     negatiflenir: izlenmis/izlenmemis -52px, oneriler -112px).
+   - Tum bolum menuleri (dizi/film/belgesel/anime dahil) 3px asagi. */
+@media (min-width: 601px) {
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu {
+    right: -52px;
+    top: calc(100% + 11px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .rec-sort-menu {
+    left: auto;
+    right: -112px;
+    transform: none;
+    top: calc(100% + 11px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-film .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-anime .follow-sort-menu.sort-menu {
+    top: calc(100% + 11px);
+  }
+}

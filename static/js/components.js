@@ -1,4 +1,4 @@
-// Faz 4: components — modal bileþenleri (yayýn takvimi, detaylar, kiþi, anime detay/takvim, izlenmemiþ, onay).
+// Faz 4: components ï¿½ modal bileï¿½enleri (yayï¿½n takvimi, detaylar, kiï¿½i, anime detay/takvim, izlenmemiï¿½, onay).
 import { state } from "./state.js";
 function isTvUIActive() {
   try {
@@ -9,15 +9,15 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=449";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=506";
 import {
-  IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG,
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   posterHTML, scoreTag, platformTag, typeLabel, formatDate,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr,
-} from "./utils.js";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js";
-import { setMedia, renderChips, doComboSearch } from "./search.js";
+} from "./utils.js?v=506";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=507";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=506";
 
 let currentDetails = null;
 
@@ -57,8 +57,10 @@ async function openReleases(mediaType, tmdbId, title) {
     });
 
     const renderAll = (focusKey) => {
+      // Hic izlenmemis dizide "tum sezonlari temizle" anlamsiz -> disable
+      const totalWatchedAll = seasonNames.reduce((n, k) => n + groups[k].filter((it) => it.watched).length, 0);
       let html = "";
-      seasonNames.forEach((seasonKey) => {
+      seasonNames.forEach((seasonKey, si) => {
         const seasonItems = groups[seasonKey].sort((a, b) => {
           const ea = a.episode == null ? -1 : a.episode;
           const eb = b.episode == null ? -1 : b.episode;
@@ -67,7 +69,7 @@ async function openReleases(mediaType, tmdbId, title) {
         const seasonLabel =
           seasonKey === "other"
             ? data.media_type === "movie"
-              ? t("release_date")
+              ? t("movie_release_date")
               : t("other")
             : t("season", { n: seasonKey });
         html += `<div class="season-box">`;
@@ -83,7 +85,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const seasonCode = "S" + String(seasonKey).padStart(2, "0");
           const watchTipText = allWatched ? t("season_mark_unwatched", { code: seasonCode }) : t("season_mark_watched", { code: seasonCode });
           const watchIcon = allWatched ? EYE_OFF_SVG : EYE_SVG;
-          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}">${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
+          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} Â· %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}"${totalWatchedAll ? "" : " disabled"}>${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
         } else {
           html += `<div class="season-box-title">${seasonLabel}</div>`;
         }
@@ -98,7 +100,12 @@ async function openReleases(mediaType, tmdbId, title) {
             : "";
           const watchedClass = it.watched ? " watched" : "";
           const released = st === "date-past" || st === "date-today" || isToday;
-          const prevWatched = i === 0 ? true : seasonItems[i - 1].watched;
+          // Sezon kilidi: onceki sezon tamamen izlenmeden bu sezonun ilk bolumu kapali.
+          // Izlenmis bolumler geri alinabilsin diye her zaman secilebilir.
+          const prevKey = si > 0 ? seasonNames[si - 1] : null;
+          const prevReleased = prevKey ? groups[prevKey].filter((x) => canSelectAll(x)) : [];
+          const prevComplete = !prevKey || prevReleased.length === 0 || prevReleased.every((x) => x.watched);
+          const prevWatched = i === 0 ? prevComplete : seasonItems[i - 1].watched;
           const selectable =
             data.media_type === "tv"
               ? it.watched || (released && prevWatched)
@@ -114,16 +121,19 @@ async function openReleases(mediaType, tmdbId, title) {
           if (data.media_type === "tv") {
             html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
           } else {
-            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("release_date")}</span>${epName}</span></td>`;
+            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("movie_release_date")}</span>${epName}</span></td>`;
           }
-          html += `<td${dateClass}>${dateText}</td></tr>`;
+          const infoBtn = data.media_type === "tv"
+            ? `<button class="episode-info-btn" data-g="${seasonKey}" data-i="${i}" data-tip="${t("ep_summary")}" data-i18n-title="ep_summary">${INFO_SVG}</button>`
+            : "";
+          html += `<td${dateClass}><span class="episode-date-wrap"><span class="episode-date-text">${dateText}</span>${infoBtn}</span></td></tr>`;
         });
         html += "</tbody></table></div>";
       });
 
       body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
       bindReleasesEvents();
-      // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
+      // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
       try {
         if (focusKey && (focusKey.g !== undefined || focusKey.s !== undefined)) {
           let same = null;
@@ -239,6 +249,16 @@ async function openReleases(mediaType, tmdbId, title) {
         });
       });
 
+      body.querySelectorAll(".episode-info-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          if (e) e.stopPropagation();
+          const gk = btn.dataset.g, ik = Number(btn.dataset.i);
+          const it = groups[gk] ? groups[gk][ik] : null;
+          if (!it) return;
+          openEpisodeInfo(tmdbId, data.title || title, it.season, it.episode);
+        });
+      });
+
       body.querySelectorAll(".season-clear-all").forEach((btn) => {
         btn.addEventListener("click", async () => {
           if (btn.disabled) return;
@@ -283,8 +303,49 @@ function closeDetails() {
   currentDetails = null;
 }
 
+async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
+  const modal = document.getElementById("episode-info-modal");
+  if (!modal) return;
+  const s2 = String(season).padStart(2, "0"), e2 = String(episode).padStart(2, "0");
+  document.getElementById("episode-info-title").textContent = `${showTitle || ""} S${s2}E${e2} ${t("ep_summary")}`;
+  document.getElementById("episode-info-runtime-icon").innerHTML = CLOCK_SVG;
+  document.getElementById("episode-info-watched-icon").innerHTML = EYE_SVG;
+  document.getElementById("episode-info-overview").textContent = t("loading");
+  document.getElementById("episode-info-runtime").textContent = "";
+  document.getElementById("episode-info-watched").textContent = "";
+  modal.style.display = "flex";
+  try {
+    if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
+  } catch (_) {}
+  try {
+    const res = await fetch(`/api/episode/info?tmdb_id=${encodeURIComponent(tmdbId)}&season=${encodeURIComponent(season)}&episode=${encodeURIComponent(episode)}&lang=${encodeURIComponent(state.currentLang || "en-US")}`);
+    const j = await res.json();
+    if (!res.ok) throw new Error("http " + res.status);
+    document.getElementById("episode-info-overview").textContent = (j.overview || "").trim() || t("ep_no_overview");
+    document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${j.runtime ? fmtRuntime(j.runtime) : "â€”"}`;
+    let wText = "â€”";
+    if (j.watched_at) {
+      try {
+        wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: state.currentTz }).format(new Date(j.watched_at * 1000));
+      } catch (_) {
+        try {
+          wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(j.watched_at * 1000));
+        } catch (_) { wText = String(j.watched_at); }
+      }
+    }
+    document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${wText}`;
+  } catch (e) {
+    document.getElementById("episode-info-overview").textContent = t("error");
+  }
+}
+
+function closeEpisodeInfo() {
+  document.getElementById("episode-info-modal").style.display = "none";
+}
+
 function closeModals() {
   closeReleases();
+  closeEpisodeInfo();
   closeDetails();
   closeTvUnfollow();
   closeAnimeUnfollow();
@@ -297,7 +358,7 @@ function closeModals() {
 }
 
 // Adanmis onay modallari: her biri yalniz kendi blogunu acar/kapatir.
-// Ortak confirm-modal YASAKTIR (KRITIK KURAL) — yeni onay akisi yeni blok ister.
+// Ortak confirm-modal YASAKTIR (KRITIK KURAL) ï¿½ yeni onay akisi yeni blok ister.
 function wireDedicatedConfirm(id, text, onYes) {
   const ov = document.getElementById(id);
   const body = ov.querySelector(".confirm-text");
@@ -364,10 +425,26 @@ function closeStremioDisconnect() {
 function openStremioDisconnectConfirm(text, onYes) {
   wireDedicatedConfirm("stremio-disconnect-modal", text, onYes);
 }
+function closeRemoteDisconnect() {
+  document.getElementById("remote-disconnect-modal").style.display = "none";
+}
+function openRemoteDisconnectConfirm(text, onYes) {
+  wireDedicatedConfirm("remote-disconnect-modal", text, onYes);
+}
+function closeRemotePeerDelete() {
+  document.getElementById("remote-peer-delete-modal").style.display = "none";
+}
+function openRemotePeerDeleteConfirm(text, onYes) {
+  wireDedicatedConfirm("remote-peer-delete-modal", text, onYes);
+}
 
 document.getElementById("releases-close").onclick = closeReleases;
 document.getElementById("releases-modal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeReleases();
+});
+document.getElementById("episode-info-close").onclick = closeEpisodeInfo;
+document.getElementById("episode-info-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeEpisodeInfo();
 });
 document.getElementById("details-close").onclick = closeDetails;
 document.getElementById("details-modal").addEventListener("click", (e) => {
@@ -417,11 +494,22 @@ function renderTmdbDetails(data, title, highlightGenre) {
   if (data.tagline) html += `<div class="details-tagline">${data.tagline}</div>`;
   if (data.overview) html += `<p class="details-overview">${data.overview}</p>`;
   if (data.cast && data.cast.length) {
+    html += `<div class="details-section-title"><span data-i18n="cast_title">${t("cast_title")}</span></div>`;
     html += '<div class="details-cast"><div class="details-cast-list">';
     data.cast.forEach((c) => {
       const img = c.profile_path ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
       const fav = c.id && state.favActors.has(String(c.id)) ? " fav" : "";
       html += `<div class="cast-item" data-person-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div>${c.id ? `<button class="cast-fav${fav}" data-person-id="${c.id}" data-person-name="${c.name.replace(/"/g, "&quot;")}" data-tip="${t("fav_actor")}">${HEART_SVG}</button>` : ""}</div>`;
+    });
+    html += "</div></div>";
+  }
+  if (data.directors && data.directors.length) {
+    html += `<div class="details-section-title"><span data-i18n="director_title">${t("director_title")}</span></div>`;
+    html += '<div class="details-cast"><div class="details-cast-list">';
+    data.directors.forEach((d) => {
+      const img = d.profile_path ? `<img class="cast-avatar" src="${IMAGE_BASE}${d.profile_path}" alt="${d.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${d.name.charAt(0)}</div>`;
+      const fav = d.id && state.favDirectors.has(String(d.id)) ? " fav" : "";
+      html += `<div class="cast-item" data-director-id="${d.id || ""}" data-source="tmdb" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${d.name}</div></div>${d.id ? `<button class="cast-fav${fav}" data-director-id="${d.id}" data-director-name="${d.name.replace(/"/g, "&quot;")}" data-source="tmdb" data-tip="${t("fav_director")}">${HEART_SVG}</button>` : ""}</div>`;
     });
     html += "</div></div>";
   }
@@ -436,10 +524,18 @@ function bindTmdbDetailsEvents() {
     if (!pid) return;
     el.onclick = () => openPerson(pid, el.querySelector(".cast-name").textContent);
   });
+  body.querySelectorAll('.cast-item[data-director-id]').forEach((el) => {
+    const did = el.dataset.directorId;
+    if (!did) return;
+    // anime director is not TMDB, not clickable
+    if (el.dataset.source === "anilist") return;
+    el.onclick = () => openDirector(did, el.querySelector(".cast-name").textContent);
+  });
   body.querySelectorAll(".cast-fav").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
-      toggleFavActor(btn);
+      if (btn.dataset.directorId) toggleFavDirector(btn);
+      else toggleFavActor(btn);
     };
   });
 }
@@ -471,11 +567,22 @@ function renderAnimeDetails(data) {
   html += '<div class="details-main">';
   if (data.description) html += `<div class="details-tagline" style="white-space:pre-wrap">${data.description.replace(/<[^>]*>/g, "")}</div>`;
   if (data.characters && data.characters.length) {
+    html += `<div class="details-section-title"><span data-i18n="char_title">${t("char_title")}</span></div>`;
     html += '<div class="details-cast"><div class="details-cast-list">';
     data.characters.forEach((c) => {
       const img = c.image ? `<img class="cast-avatar" src="${c.image}" alt="${c.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
       const fav = c.id && state.favAnimeChars.has(String(c.id)) ? " fav" : "";
       html += `<div class="cast-item" data-char-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div>${c.id ? `<button class="cast-fav${fav}" data-char-id="${c.id}" data-char-name="${c.name.replace(/"/g, "&quot;")}" data-anime-title="${(data.title || "").replace(/"/g, "&quot;")}" data-tip="${t("fav_char")}">${HEART_SVG}</button>` : ""}</div>`;
+    });
+    html += "</div></div>";
+  }
+  if (data.directors && data.directors.length) {
+    html += `<div class="details-section-title"><span data-i18n="director_title">${t("director_title")}</span></div>`;
+    html += '<div class="details-cast"><div class="details-cast-list">';
+    data.directors.forEach((d) => {
+      const img = d.image ? `<img class="cast-avatar" src="${d.image}" alt="${d.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${d.name.charAt(0)}</div>`;
+      const fav = d.id && state.favDirectors.has(String(d.id)) ? " fav" : "";
+      html += `<div class="cast-item cast-item-static" data-director-id="${d.id || ""}" data-source="anilist">${img}<div class="cast-info"><div class="cast-name">${d.name}</div></div>${d.id ? `<button class="cast-fav${fav}" data-director-id="${d.id}" data-director-name="${d.name.replace(/"/g, "&quot;")}" data-source="anilist" data-tip="${t("fav_director")}">${HEART_SVG}</button>` : ""}</div>`;
     });
     html += "</div></div>";
   }
@@ -493,7 +600,8 @@ function bindAnimeDetailsEvents() {
   body.querySelectorAll(".cast-fav").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
-      toggleFavAnimeChar(btn);
+      if (btn.dataset.directorId) toggleFavDirector(btn);
+      else toggleFavAnimeChar(btn);
     };
   });
 }
@@ -551,6 +659,30 @@ async function toggleFavActor(btn) {
   }
 }
 
+async function toggleFavDirector(btn) {
+  const personId = btn.dataset.directorId || btn.dataset.personId;
+  const name = btn.dataset.directorName || btn.dataset.personName || "";
+  const source = btn.dataset.source || "tmdb";
+  const key = String(personId);
+  const prevFav = state.favDirectors.has(key);
+  try {
+    const r = await fetch("/api/fav_directors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ person_id: personId, name, source }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.added) state.favDirectors.set(key, name);
+    else state.favDirectors.delete(key);
+    btn.classList.toggle("fav", j.added);
+    toast(j.added ? t("fav_director_added", { name }) : t("fav_director_removed", { name }));
+  } catch (err) {
+    btn.classList.toggle("fav", prevFav);
+    toast(errText(err.message) || t("error"));
+  }
+}
+
 async function toggleFavAnimeChar(btn) {
   const charId = btn.dataset.charId;
   const name = btn.dataset.charName || "";
@@ -577,13 +709,16 @@ async function toggleFavAnimeChar(btn) {
 }
 
 function openAnimeChar(charId, name) {
-  setMedia("anime");
+  // Ãœst butonlara dokunulmaz; kapsam yalnÄ±z Ã§iplerden gelir.
   const input = document.getElementById("search-input");
   if (input) input.value = "";
   state.chips.length = 0;
+  state.comboSource = "anime";
+  state.chips.push({ type: "media", label: t("tab_anime"), value: "anime" });
   state.chips.push({ type: "char", label: name, value: charId });
+  updateComboActorLabel();
   renderChips();
-  doComboSearch("", state.chips, "anime");
+  doComboSearch("", state.chips);
 }
 
 async function openPerson(personId, name) {
@@ -591,79 +726,17 @@ async function openPerson(personId, name) {
   const body = document.getElementById("person-body");
   document.getElementById("person-title").textContent = name || "";
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  resetCreditsUI("person");
   modal.style.display = "flex";
   try {
     const res = await fetch(`/api/person/${encodeURIComponent(personId)}`);
     const data = await res.json();
-    if (!res.ok) {
-      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
-      return;
-    }
-const grid = document.createElement("div");
-    grid.className = "poster-grid person-grid";
-    if (!data.length) {
-    grid.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
-    return;
-  }
-data.forEach((item) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    cardTvAttrs(div, item.title||"");
-    div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
-      <div class="info">
-        <div class="title">${item.title}</div>
-<div class="meta">
-          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
-          ${scoreTag(item.vote_average)}
-          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
-          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
-        </div>
-        </div>
-        ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
-      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
-      `;
-      div.querySelector(".remove").onclick = async (e) => {
-        e.stopPropagation();
-        const r = await fetch("/api/follow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tmdb_id: item.tmdb_id,
-            media_type: item.media_type,
-            title: item.title,
-            poster_path: item.poster_path,
-          }),
-        });
-        const j = await r.json();
-        toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
-        if (r.ok) {
-          loadFollowed(item.media_type === "tv" ? "dizi" : "film");
-          switchView(item.media_type === "tv" ? "dizi" : "film");
-          modal.style.display = "none";
-        }
-      };
-      const calBtn = div.querySelector(".calendar-btn");
-      if (calBtn) {
-        calBtn.onclick = (e) => {
-          e.stopPropagation();
-          openReleases(item.media_type, item.tmdb_id, item.title);
-        };
-      }
-      const infoBtnP = div.querySelector(".info-btn");
-      if (infoBtnP) infoBtnP.onclick = (e) => { e.stopPropagation(); div.click(); };
-      div.onclick = () => {
-        openDetails(item.media_type, item.tmdb_id, item.title);
-        modal.style.display = "none";
-      };
-      grid.appendChild(div);
-      applyTitleHint(div);
-    });
+    if (!res.ok) { body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`; return; }
+    const grid = _buildCreditsGrid(data, modal);
     body.innerHTML = "";
     body.appendChild(grid);
-  } catch (e) {
-    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
-  }
+    applyCreditsState("person");
+  } catch (e) { body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`; }
 }
 
 document.getElementById("person-close").onclick = () => {
@@ -673,10 +746,299 @@ document.getElementById("person-modal").onclick = (e) => {
   if (e.target === e.currentTarget) document.getElementById("person-modal").style.display = "none";
 };
 
+/* Filmografi modalÄ± (kiÅŸi/yÃ¶netmen) rozet slotlarÄ±: arama kartlarÄ±ndaki desenin
+   aynÄ±sÄ± (search.js'e dokunulmaz, yerel kopya). */
+const CRED_SLOT_NET = `<span class="badge badge-platform slot-empty" aria-hidden="true">â€“</span>`;
+const CRED_SLOT_SEASON = `<span class="season-count-badge slot-empty" aria-hidden="true">â€“</span>`;
+const CRED_SLOT_EP = `<span class="episode-count slot-empty" aria-hidden="true">â€“</span>`;
+const CRED_SLOT_STATUS = `<div class="next-ep muted slot-empty" aria-hidden="true">&nbsp;</div>`;
+const CRED_SLOT_SCORE = `<span class="badge badge-score slot-empty" aria-hidden="true">â€“</span>`;
+const CRED_SLOT_DATE = `<div class="next-ep muted slot-empty" aria-hidden="true">&nbsp;</div>`;
+/* Filmografi sÄ±ralama durumu: arama metni modal-aÃ§Ä±lÄ±ÅŸlÄ±k, sÄ±ralama+yÃ¶n global hatÄ±rlamalÄ±. */
+const CREDITS_DEFAULT_DIR = { alpha: "asc", score: "desc", vision: "desc", upcoming: "asc" };
+let creditsSort = "alpha";
+let creditsSortDir = "asc";
+const creditsQ = { person: "", director: "" };
+function loadCreditsFilter() {
+  try {
+    const s = localStorage.getItem("creditsFilter");
+    if (s && CREDITS_DEFAULT_DIR[s]) {
+      creditsSort = s;
+      const d = localStorage.getItem("creditsFilterDir");
+      creditsSortDir = (d === "asc" || d === "desc") ? d : CREDITS_DEFAULT_DIR[s];
+      return;
+    }
+  } catch (_) {}
+  creditsSort = "alpha";
+  creditsSortDir = "asc";
+}
+function saveCreditsFilter() {
+  try {
+    localStorage.setItem("creditsFilter", creditsSort);
+    localStorage.setItem("creditsFilterDir", creditsSortDir);
+  } catch (_) {}
+}
+loadCreditsFilter();
+function creditsWhich(modal) {
+  return modal && modal.id === "director-modal" ? "director" : "person";
+}
+function creditsGridEl(which) {
+  const body = document.getElementById(which === "director" ? "director-body" : "person-body");
+  return body ? body.querySelector(".person-grid") : null;
+}
+function creditsMenuEl(which) {
+  return document.getElementById(which === "director" ? "director-filter-menu" : "person-filter-menu");
+}
+function creditsFilterBtn(which) {
+  return document.getElementById(which === "director" ? "director-filter-btn" : "person-filter-btn");
+}
+function creditsToday() {
+  try {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  } catch (_) { return ""; }
+}
+function resetCreditsUI(which) {
+  creditsQ[which] = "";
+  const inp = document.getElementById(which === "director" ? "director-search-input" : "person-search-input");
+  if (inp) { inp.value = ""; inp.style.display = "none"; }
+  const sBtn = document.getElementById(which === "director" ? "director-search-btn" : "person-search-btn");
+  if (sBtn) sBtn.classList.remove("active");
+  closeCreditsMenu(which);
+}
+function closeCreditsMenu(which) {
+  try {
+    const menu = creditsMenuEl(which);
+    if (menu) menu.classList.remove("open");
+    const btn = creditsFilterBtn(which);
+    if (btn) btn.classList.remove("active");
+  } catch (_) {}
+}
+function updateCreditsMenu(which) {
+  const menu = creditsMenuEl(which);
+  if (!menu) return;
+  const grid = creditsGridEl(which);
+  const cards = grid ? Array.from(grid.children).filter((c) => c && c.classList && c.classList.contains("card")) : [];
+  const today = creditsToday();
+  const hasUpcoming = cards.some((c) => { const d = (c.dataset && c.dataset.sortDate) || ""; return !!d && d > today; });
+  menu.querySelectorAll(".sort-item").forEach((b) => {
+    const k = b.dataset.sort;
+    const active = creditsSort === k;
+    b.classList.toggle("active", active);
+    try { b.querySelectorAll(".dir-arrow").forEach((a) => a.remove()); } catch (_) {}
+    if (active) {
+      try {
+        const arrow = document.createElement("i");
+        arrow.className = "dir-arrow fa-solid " + (creditsSortDir === "asc" ? "fa-arrow-up" : "fa-arrow-down");
+        arrow.setAttribute("aria-hidden", "true");
+        b.prepend(arrow, document.createTextNode(" "));
+      } catch (_) {}
+    }
+    const dis = k === "upcoming" && !hasUpcoming;
+    b.disabled = dis;
+    b.setAttribute("aria-disabled", dis ? "true" : "false");
+  });
+}
+function toggleCreditsMenu(which, force) {
+  const menu = creditsMenuEl(which);
+  const btn = creditsFilterBtn(which);
+  if (!menu || !btn) return;
+  const willOpen = force !== undefined ? !!force : !menu.classList.contains("open");
+  closeCreditsMenu("person");
+  closeCreditsMenu("director");
+  if (willOpen) {
+    updateCreditsMenu(which);
+    menu.classList.add("open");
+    btn.classList.add("active");
+    if (isTvUIActive()) {
+      const first = menu.querySelector(".sort-item:not([disabled])");
+      if (first) { try { first.focus({ preventScroll: true }); } catch (_) { try { first.focus(); } catch (_) {} } }
+    }
+  }
+}
+function applyCreditsState(which) {
+  const grid = creditsGridEl(which);
+  if (!grid) return;
+  const q = (creditsQ[which] || "").toLocaleLowerCase();
+  const cards = Array.from(grid.children).filter((c) => c && c.classList && c.classList.contains("card"));
+  cards.forEach((c) => {
+    let title = "";
+    try { title = ((c.querySelector(".title") || {}).textContent) || ""; } catch (_) {}
+    c.style.display = (!q || title.toLocaleLowerCase().includes(q)) ? "" : "none";
+  });
+  const flip = creditsSortDir === (CREDITS_DEFAULT_DIR[creditsSort] || "asc") ? 1 : -1;
+  const base = (a, b) => {
+    if (creditsSort === "score") return (Number((b.dataset && b.dataset.sortScore) || 0) - Number((a.dataset && a.dataset.sortScore) || 0));
+    if (creditsSort === "vision") {
+      const x = (a.dataset && a.dataset.sortDate) || "", y = (b.dataset && b.dataset.sortDate) || "";
+      if (!x && !y) return 0;
+      if (!x) return 1;
+      if (!y) return -1;
+      return x < y ? 1 : x > y ? -1 : 0;
+    }
+    if (creditsSort === "upcoming") {
+      const today = creditsToday();
+      const x = (a.dataset && a.dataset.sortDate) || "", y = (b.dataset && b.dataset.sortDate) || "";
+      const xp = !x || x <= today, yp = !y || y <= today;
+      if (xp && yp) return 0;
+      if (xp) return 1;
+      if (yp) return -1;
+      return x < y ? -1 : x > y ? 1 : 0;
+    }
+    const x = ((a.dataset && a.dataset.sortTitle) || "").toLocaleLowerCase(), y = ((b.dataset && b.dataset.sortTitle) || "").toLocaleLowerCase();
+    return x < y ? -1 : x > y ? 1 : 0;
+  };
+  if (cards.length > 1) {
+    try { cards.sort((a, b) => base(a, b) * flip).forEach((c) => grid.appendChild(c)); } catch (_) {}
+  }
+  updateCreditsMenu(which);
+}
+(function wireCreditsControls() {
+  ["person", "director"].forEach((which) => {
+    const sBtn = document.getElementById(which === "director" ? "director-search-btn" : "person-search-btn");
+    const inp = document.getElementById(which === "director" ? "director-search-input" : "person-search-input");
+    const fBtn = creditsFilterBtn(which);
+    const menu = creditsMenuEl(which);
+    if (sBtn && inp) {
+      sBtn.onclick = () => {
+        const open = inp.style.display === "block";
+        if (open) {
+          inp.value = ""; inp.style.display = "none";
+          sBtn.classList.remove("active");
+          creditsQ[which] = "";
+          applyCreditsState(which);
+        } else {
+          inp.style.display = "block"; sBtn.classList.add("active");
+          inp.focus();
+        }
+      };
+      inp.addEventListener("input", () => {
+        creditsQ[which] = (inp.value || "").trim();
+        applyCreditsState(which);
+      });
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && inp.style.display === "block") sBtn.click();
+        e.stopPropagation();
+      });
+    }
+    if (fBtn) {
+      fBtn.onclick = (e) => {
+        if (e) e.stopPropagation();
+        if (fBtn.disabled) return;
+        toggleCreditsMenu(which);
+      };
+    }
+    if (menu) {
+      menu.querySelectorAll(".sort-item").forEach((b) => {
+        b.onclick = (e) => {
+          if (e) e.stopPropagation();
+          if (b.disabled) return;
+          const key = b.dataset.sort;
+          if (creditsSort === key) {
+            creditsSortDir = creditsSortDir === "asc" ? "desc" : "asc";
+            saveCreditsFilter();
+            applyCreditsState(which);
+          } else {
+            creditsSort = key;
+            creditsSortDir = CREDITS_DEFAULT_DIR[key] || "asc";
+            saveCreditsFilter();
+            applyCreditsState(which);
+            toggleCreditsMenu(which, false);
+            if (isTvUIActive() && fBtn) {
+              try { fBtn.focus({ preventScroll: true }); } catch (_) { try { fBtn.focus(); } catch (_) {} }
+            }
+          }
+        };
+      });
+    }
+  });
+  document.addEventListener("mousedown", (e) => {
+    if (!e.target.closest || !e.target.closest(".credits-sort-wrap")) {
+      closeCreditsMenu("person");
+      closeCreditsMenu("director");
+    }
+  });
+})();
+
+function _buildCreditsGrid(data, modal) {
+  const grid = document.createElement("div");
+  grid.className = "poster-grid person-grid";
+  if (!data.length) {
+    grid.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
+    return grid;
+  }
+  data.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    cardTvAttrs(div, item.title||"");
+    try {
+      div.dataset.sortTitle = item.title || "";
+      div.dataset.sortScore = String(Number(item.vote_average) || 0);
+      div.dataset.sortDate = item.release_date || "";
+    } catch (_) {}
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${scoreTag(item.vote_average) || CRED_SLOT_SCORE}
+          ${item.media_type === "tv" ? `<div class="mrow-net">${platformTag(item.networks) || CRED_SLOT_NET}</div>` : `<div class="mrow-net">${CRED_SLOT_NET}</div>`}
+          ${item.media_type === "tv" ? `<div class="season-line season-row">${item.number_of_seasons ? `<span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>` : CRED_SLOT_SEASON} ${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : CRED_SLOT_EP}</div>` : `<div class="season-line season-row">${CRED_SLOT_SEASON} ${CRED_SLOT_EP}</div>`}
+          ${item.media_type === "tv" ? (item.status ? `<div class="next-ep muted">${tvStatusLabel(item.status)}</div>` : CRED_SLOT_STATUS) : CRED_SLOT_STATUS}
+          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : CRED_SLOT_DATE}
+        </div>
+      </div>
+      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+    `;
+    div.querySelector(".remove").onclick = async (e) => {
+      e.stopPropagation();
+      const r = await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tmdb_id: item.tmdb_id, media_type: item.media_type, title: item.title, poster_path: item.poster_path }),
+      });
+      const j = await r.json();
+      toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
+      if (r.ok) { loadFollowed(item.media_type === "tv" ? "dizi" : "film"); switchView(item.media_type === "tv" ? "dizi" : "film"); modal.style.display = "none"; }
+    };
+    const calBtn = div.querySelector(".calendar-btn");
+    if (calBtn) calBtn.onclick = (e) => { e.stopPropagation(); openReleases(item.media_type, item.tmdb_id, item.title); };
+    const infoBtnP = div.querySelector(".info-btn");
+    if (infoBtnP) infoBtnP.onclick = (e) => { e.stopPropagation(); div.click(); };
+    div.onclick = () => { openDetails(item.media_type, item.tmdb_id, item.title); modal.style.display = "none"; };
+    grid.appendChild(div);
+    applyTitleHint(div);
+  });
+  return grid;
+}
+
+async function openDirector(personId, name) {
+  const modal = document.getElementById("director-modal");
+  const body = document.getElementById("director-body");
+  document.getElementById("director-title").textContent = name || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  resetCreditsUI("director");
+  modal.style.display = "flex";
+  try {
+    const res = await fetch(`/api/director/${encodeURIComponent(personId)}`);
+    const data = await res.json();
+    if (!res.ok) { body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`; return; }
+    const grid = _buildCreditsGrid(data, modal);
+    body.innerHTML = "";
+    body.appendChild(grid);
+    applyCreditsState("director");
+  } catch (e) { body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`; }
+}
+
+document.getElementById("director-close").onclick = () => { document.getElementById("director-modal").style.display = "none"; };
+document.getElementById("director-modal").onclick = (e) => { if (e.target === e.currentTarget) document.getElementById("director-modal").style.display = "none"; };
+
 async function openUnwatchedModal(item, isAnime) {
   const modal = document.getElementById("unwatched-modal");
   const body = document.getElementById("unwatched-body");
-  document.getElementById("unwatched-title").textContent = `${item.title} · ${t("unwatched_title")}`;
+  document.getElementById("unwatched-title").textContent = `${item.title} ï¿½ ${t("unwatched_title")}`;
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
 
@@ -734,7 +1096,7 @@ async function openUnwatchedModal(item, isAnime) {
         }
       });
     });
-    // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
+    // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
     try {
       if (savedIdx !== undefined && savedIdx !== null) {
         const same = body.querySelector(`.uw-watch[data-i="${savedIdx}"]`);
@@ -841,11 +1203,11 @@ async function openAnimeSchedule(id, title) {
       const truncA = rawTitleA.length > 30 ? rawTitleA.slice(0, 30) : rawTitleA;
       const watchTipTextA = allWatched ? t("season_mark_unwatched", { code: truncA }) : t("season_mark_watched", { code: truncA });
       const watchIconA = allWatched ? EYE_OFF_SVG : EYE_SVG;
-      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
+      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} Â· %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
-        let dateText = "—";
+        let dateText = "ï¿½";
         let cls = "";
         if (d && !isNaN(d.getTime())) {
           try {
@@ -946,7 +1308,7 @@ async function openAnimeSchedule(id, title) {
           }
         });
       });
-      // TV: toggle sonrasý ayný butonda kal (senkron); ilk açýlýþta ilk izlenmemiþ
+      // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
       try {
         if (savedEp !== undefined && savedEp !== null) {
           if (savedEp === 'all') {
@@ -1091,5 +1453,6 @@ export { openReleases, closeReleases, closeDetails, closeModals,
          openTvUnfollowConfirm, openAnimeUnfollowConfirm, openRejectConfirm,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
          openNotifClearConfirm, openStremioDisconnectConfirm,
-         openDetails, toggleFavActor, toggleFavAnimeChar, openAnimeChar, openPerson,
+         openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,
+          openDetails, toggleFavActor, toggleFavDirector, toggleFavAnimeChar, openAnimeChar, openPerson, openDirector,
          openUnwatchedModal, openAnimeDetails, openAnimeSchedule };

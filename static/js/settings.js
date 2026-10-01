@@ -1,9 +1,9 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=448";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=508";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
-import { sortMenu, activateUtilityTab, closeSortMenu } from "./views.js";
-import { openStremioDisconnectConfirm } from "./components.js";
+import { activateUtilityTab } from "./views.js?v=507";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=507";
 
 // ---- Search ----
 // ---- Settings ----
@@ -562,6 +562,7 @@ async function loadSettings() {
   initTzCombo();
   initPulldownCombobox("s-lang", "s-lang-list");
   initPulldownCombobox("s-cache-ttl", "s-cache-ttl-list");
+  initPulldownCombobox("s-early-watched-days", "s-early-watched-days-list");
   initPulldownCombobox("s-notif-limit", "s-notif-limit-list");
   initTimePicker("s-notification-hour");
   initTimePicker("s-sync-hour");
@@ -596,6 +597,7 @@ async function loadSettings() {
     if (el) el.checked = (s[`notif_${k}`] || "1") !== "0";
   });
   document.getElementById("s-cache-ttl").value = s.cache_ttl || "90";
+  document.getElementById("s-early-watched-days").value = s.early_watched_days || "14";
   syncAutoSaveBaselines();
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
@@ -632,6 +634,7 @@ function applyReadonlyGlobals(s) {
     backup_samba_pass: ["s-backup-samba-pass"],
     app_auto_update: ["s-appupdate-auto"],
     cache_ttl: ["s-cache-ttl"],
+    early_watched_days: ["s-early-watched-days"],
     brevo_api_key: ["s-brevo-key"],
     email_from: ["s-email-from"],
     email_provider: ["s-email-provider"],
@@ -768,11 +771,14 @@ async function showSettingsSubmodal(id) {
   }
   updateEmailFocusUI();
   setEmailFrameVisible(false);
+  const tpOv = document.getElementById("settings-thirdparty-modal");
+  if (tpOv && tpOv.style.display !== "none" && id !== "settings-thirdparty-modal") flushTpBaseUrl();
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = el.id === id ? "flex" : "none";
   });
   if (id === "settings-favorites-modal") {
     renderFavActorsList();
+    renderFavDirectorsList();
     renderFavGenresList();
   }
   if (id === "settings-notify-modal") updateNotifyToggleStates();
@@ -781,6 +787,7 @@ async function showSettingsSubmodal(id) {
 }
 
 function closeSettingsModals() {
+  flushTpBaseUrl();
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = "none";
   });
@@ -822,6 +829,48 @@ async function renderFavActorsList() {
       row.addEventListener("click", (e) => {
         if (e.target.closest(".fav-heart")) return;
         openFavListing("actor", row.dataset.id, row.dataset.name);
+      });
+    });
+  } catch (e) {}
+}
+
+async function renderFavDirectorsList() {
+  const list = document.getElementById("fav-directors-list");
+  if (!list) return;
+  try {
+    const r = await fetch("/api/fav_directors");
+    const j = await r.json();
+    const directors = j.directors || [];
+    if (!directors.length) {
+      list.innerHTML = `<div class="fav-empty">${t("no_fav_director")}</div>`;
+      return;
+    }
+    list.innerHTML = directors
+      .map(
+        (a) => `<div class="fav-item fav-item-clickable" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}" data-source="${escAttr(a.source || "tmdb")}"><span class="fav-name">${escAttr(a.name)}</span><button class="fav-heart" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}" data-tip="${t("fav_director_remove")}">${HEART_SVG}</button></div>`
+      )
+      .join("");
+    list.querySelectorAll(".fav-heart").forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/fav_directors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ person_id: btn.dataset.id, name: btn.dataset.name }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          state.favDirectors.delete(String(btn.dataset.id));
+          renderFavDirectorsList();
+          toast(t("fav_director_removed", { name: btn.dataset.name }));
+        }
+      };
+    });
+    list.querySelectorAll(".fav-item-clickable").forEach((row) => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".fav-heart")) return;
+        if ((row.dataset.source || "tmdb") !== "tmdb") return;
+        openFavListing("director", row.dataset.id, row.dataset.name);
       });
     });
   } catch (e) {}
@@ -880,11 +929,12 @@ async function openFavListing(kind, ident, title) {
   try {
     let url = "";
     if (kind === "actor") url = `/api/favorites/actor/${encodeURIComponent(ident)}`;
+    else if (kind === "director") url = `/api/favorites/director/${encodeURIComponent(ident)}`;
     else url = `/api/favorites/genre?name=${encodeURIComponent(ident)}&media=all`;
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=448");
+      const { errText: _err } = await import("./i18n.js?v=506");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -894,8 +944,8 @@ async function openFavListing(kind, ident, title) {
       return;
     }
     const { posterHTML, scoreTag, typeLabel, formatDate, applyTitleHint } = await import("./utils.js");
-    const { openDetails } = await import("./components.js");
-    const { loadFollowed } = await import("./views.js");
+    const { openDetails } = await import("./components.js?v=506");
+    const { loadFollowed } = await import("./views.js?v=507");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -930,7 +980,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=448");
+        const { t: _t } = await import("./i18n.js?v=506");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1338,9 +1388,9 @@ async function checkAppUpdate(showToast) {
   });
 })();
 
-// Favoriler: 2 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
+// Favoriler: 3 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
 (function initFavoritesAccordion() {
-  [["fav-actors-box", "fav-actors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
+  [["fav-actors-box", "fav-actors-body"], ["fav-directors-box", "fav-directors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
     const box = document.getElementById(boxId);
     const body = document.getElementById(bodyId);
     if (!box || !body) return;
@@ -1350,8 +1400,10 @@ async function checkAppUpdate(showToast) {
       if (e.target.closest(".switch") || e.target.closest("input") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
       const isOpen = body.style.display !== "none";
       document.getElementById("fav-actors-body").style.display = "none";
+      document.getElementById("fav-directors-body").style.display = "none";
       document.getElementById("fav-genres-body").style.display = "none";
       document.getElementById("fav-actors-box").classList.remove("accordion-open");
+      document.getElementById("fav-directors-box").classList.remove("accordion-open");
       document.getElementById("fav-genres-box").classList.remove("accordion-open");
       if (!isOpen) {
         body.style.display = "";
@@ -1363,7 +1415,6 @@ async function checkAppUpdate(showToast) {
 
 document.getElementById("tab-settings").addEventListener("click", (e) => {
   e.stopPropagation();
-  closeSortMenu();
   const menu = document.getElementById("settings-menu");
   const open = menu.classList.contains("open");
   if (open) {
@@ -1379,7 +1430,12 @@ document.getElementById("tab-settings").addEventListener("click", (e) => {
       const wrap = document.querySelector(".settings-wrap");
       if (notif && wrap) {
         menu.style.right = "";
-        menu.style.width = (wrap.getBoundingClientRect().right - notif.getBoundingClientRect().left) + "px";
+        menu.style.width = "";
+        // Icerik (orn. "Guncelleme Saatleri") olculenden uzunsa tasmamasi icin
+        // buyuk olani yaz: scrollWidth = yazi + padding (border 1px*2 eklenir).
+        const need = Math.ceil(menu.scrollWidth) + 2;
+        const span = wrap.getBoundingClientRect().right - notif.getBoundingClientRect().left;
+        menu.style.width = Math.max(span, need) + "px";
       }
     } else {
       menu.style.right = "";
@@ -1400,13 +1456,14 @@ document.addEventListener("click", (e) => {
 document.querySelectorAll(".settings-modal-close").forEach((btn) => {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
+    flushTpBaseUrl();
     const ov = btn.closest(".settings-modal-overlay");
     if (ov) ov.style.display = "none";
   });
 });
 document.querySelectorAll(".settings-modal-overlay").forEach((ov) => {
   ov.addEventListener("click", (e) => {
-    if (e.target === ov) ov.style.display = "none";
+    if (e.target === ov) { flushTpBaseUrl(); ov.style.display = "none"; }
   });
 });
 
@@ -1418,11 +1475,14 @@ function showSavedHint(el) {
 }
 
 async function saveSettingsPartial(patch, hintEl) {
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), 20000);
   try {
     const r = await fetch("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
+      signal: ctl.signal,
     });
     if (r.ok) {
       showSavedHint(hintEl);
@@ -1434,6 +1494,8 @@ async function saveSettingsPartial(patch, hintEl) {
   } catch (e) {
     toast(t("save_failed"), true);
     return false;
+  } finally {
+    clearTimeout(to);
   }
 }
 
@@ -1761,6 +1823,12 @@ document.getElementById("s-cache-ttl").addEventListener("change", () => {
   saveSettingsPartial({ cache_ttl: el.value }, hint);
 });
 
+document.getElementById("s-early-watched-days").addEventListener("change", () => {
+  const el = document.getElementById("s-early-watched-days");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ early_watched_days: el.value }, hint);
+});
+
 async function runChannelTest(body) {
   const r = await fetch("/api/settings/test", {
     method: "POST",
@@ -1888,7 +1956,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js").then((m) => {
+  import("./notification.js?v=506").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -1978,6 +2046,15 @@ document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
 
 let tpStremioOpen = false;
 let tpBaseUrl = "";
+let tpIsAdmin = false;
+// Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
+let tpVpsOpen = false;
+let tpRemoteOpen = false;
+let vpsProfile = null;
+let vpsGate = { configured: false, connected: false };
+let vpsAuth = "key";
+let vpsSecretMasked = false;
+let remoteJobTimer = null;
 
 async function renderThirdPartyApps() {
   const wrap = document.getElementById("thirdparty-apps");
@@ -1997,14 +2074,33 @@ async function renderThirdPartyApps() {
     const s = await fetch("/api/settings", { cache: "no-store" });
     const sj = await s.json();
     tpBaseUrl = (s.ok && sj && sj.tp_base_url ? String(sj.tp_base_url) : "").trim();
+    tpIsAdmin = !!(s.ok && sj && sj.is_admin);
   } catch (_) {
     tpBaseUrl = "";
+    tpIsAdmin = false;
+  }
+  let vpsHtml = "";
+  if (tpIsAdmin) {
+    try {
+      const vs = await fetch("/api/remote/vps-status", { cache: "no-store" });
+      const vj = await vs.json();
+      if (vs.ok && vj && vj.ok) {
+        vpsProfile = vj;
+        vpsGate = { configured: !!vj.configured, connected: !!(vj.connected && vj.configured) };
+        vpsAuth = vj.auth_type === "password" ? "password" : "key";
+      }
+    } catch (_) {
+      vpsProfile = null;
+      vpsGate = { configured: false, connected: false };
+    }
+    vpsHtml = renderVpsSection();
   }
   if (!apps.length) {
-    wrap.innerHTML = `<div class="fav-empty">${t("tp_empty")}</div>`;
+    wrap.innerHTML = vpsHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
+    bindThirdPartyEvents();
     return;
   }
-  wrap.innerHTML = apps
+  wrap.innerHTML = vpsHtml + apps
     .map((app) => {
       const renderer = thirdPartyAppRenderers[app.id];
       try {
@@ -2039,22 +2135,68 @@ const thirdPartyAppRenderers = {
           <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>
           ${_watch ? `<div class="tp-frame-note tp-watch-detail" title="${_watch}">${_watch}</div>` : ""}
         </div>` : ""}
+        ${tpIsAdmin ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /></div>
+          </label>
+        </div>` : (tpBaseUrl ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span></span>
+            <div class="tp-url-box"><a id="tp-base-link" href="${escAttr(tpBaseUrl)}" target="_blank" rel="noopener">${escAttr(tpBaseUrl)}</a></div>
+          </label>
+        </div>` : "")}
         ${app.installUrl ? `
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
             <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
           </label>
         </div>` : ""}
-        ${tpBaseUrl ? `
-        <div class="tp-sub-box">
-          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span></span>
-            <div class="tp-url-box"><a id="tp-base-link" href="${escAttr(tpBaseUrl)}" target="_blank" rel="noopener">${escAttr(tpBaseUrl)}</a></div>
-          </label>
-        </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected ? "" : "disabled aria-disabled=\"true\""}>${t("install_on_vps")}</button>
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
           ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
+        ${tpIsAdmin ? `<pre id="tp-stremio-joblog" class="tp-joblog" style="display:none"></pre>` : ""}
+      </div>
+    </div>`;
+  },
+  remote: (app) => {
+    const isConn = app.status === "connected";
+    const cls = isConn ? "tp-connected" : "tp-not-connected";
+    const txt = isConn ? t("tp_connected") : t("tp_not_connected");
+    const gate = vpsGate.connected;
+    const installDisabled = (!gate || !!app.installed) ? "disabled aria-disabled=\"true\"" : "";
+    const installBtn = `<button id="tp-remote-install" class="tab" ${installDisabled}>${t("install_on_vps")}</button>`;
+    let actionBtn = "";
+    if (isConn) {
+      actionBtn = `<button id="tp-remote-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>`;
+    } else if (app.installed) {
+      actionBtn = `<button id="tp-remote-connect" class="tab">${t("remote_connect")}</button>`;
+    }
+    return `
+    <div class="channel-box accordion-box notif-type-box${tpRemoteOpen ? " accordion-open" : ""}" id="tp-app-remote">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak Bağlantı")}</span>
+      </div>
+      <div class="notif-type-body" style="display:${tpRemoteOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_status")}</span>
+            <span class="tp-status-value ${cls}">${escAttr(txt)}</span>
+          </div>
+          ${app.lastSignal ? `<div class="tp-status-row"><span class="notify-name">${t("vps_last_test")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>` : ""}
+        </div>
+        ${tpIsAdmin ? `
+        <div class="tp-sub-box">
+          <div class="test-row" style="justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+            ${installBtn}
+            ${actionBtn}
+            <button id="tp-peer-add" class="tab" ${gate ? "" : "disabled aria-disabled=\"true\""}>${t("peer_add")}</button>
+          </div>
+          <pre id="tp-remote-joblog" class="tp-joblog" style="display:none"></pre>
+          <div id="tp-peer-list"></div>
+        </div>` : ""}
       </div>
     </div>`;
   },
@@ -2117,19 +2259,83 @@ function formatSignalTime(ts) {
   }
 }
 
-function bindThirdPartyEvents() {
-  const tpBox = document.getElementById("tp-app-stremio");
-  if (tpBox) {
-    const tpHead = tpBox.querySelector(".notif-type-head");
-    const tpBody = tpBox.querySelector(".notif-type-body");
-    if (tpHead && tpBody) {
-      tpHead.addEventListener("click", (e) => {
-        if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
-        tpStremioOpen = tpBody.style.display === "none";
-        tpBody.style.display = tpStremioOpen ? "block" : "none";
-        tpBox.classList.toggle("accordion-open", tpStremioOpen);
-      });
+// Public Adres tek kayit yolu (blur/Enter/modal-kapanis hepsi buraya gelir).
+// blur tek basina yetmez (odak bazi tiklamalarda ayrilmaz) -> modal
+// kapanirken flush edilir. Kayit sonrasi kutu tazelenir (kurulum
+// baglantisi yeni adresten gelir), "Kaydedildi" YENI elemanda gosterilir.
+let tpSaving = false;
+async function flushTpBaseUrl() {
+  const baseInput = document.getElementById("tp-base-input");
+  if (!baseInput) return;
+  if (tpSaving) { console.debug("[tp-base] already saving"); return; }
+  tpSaving = true;
+  try {
+    const raw = baseInput.value || "";
+    console.debug("[tp-base] flush", { raw });
+    const v = raw.trim().replace(/\/+$/, "");
+    if (v === tpBaseUrl) { console.debug("[tp-base] unchanged"); return; }
+    if (v !== "" && !/^https:\/\/[^/:?#\s]+\.[^/:?#\s]+(:\d+)?\/?$/.test(v)) {
+      toast(t("tp_bad_url"), true);
+      baseInput.value = tpBaseUrl;
+      return;
     }
+      if (v !== "") {
+        const host = v.replace(/^https:\/\//i, "").split(/[/:?#]/)[0].toLowerCase();
+        const ctl = new AbortController();
+        const to = setTimeout(() => ctl.abort(), 15000);
+        try {
+          const cr = await fetch("/api/thirdparty/check-host?host=" + encodeURIComponent(host), { cache: "no-store", signal: ctl.signal });
+          const cj = await cr.json();
+          if (cr.ok && cj && cj.ok === false) {
+            toast(t("tp_bad_url"), true);
+            baseInput.value = tpBaseUrl;
+            return;
+          }
+        } catch (_) { /* backend kapisi esastir, devam et */ }
+        finally { clearTimeout(to); }
+      }
+    const ok = await saveSettingsPartial({ tp_base_url: v }, null);
+    if (!ok) { baseInput.value = tpBaseUrl; return; }
+    tpBaseUrl = v;
+    await renderThirdPartyApps();
+    const ni = document.getElementById("tp-base-input");
+    const nh = ni && ni.closest("label").querySelector(".saved-hint");
+    showSavedHint(nh);
+    console.debug("[tp-base] saved");
+  } catch (err) {
+    console.debug("[tp-base] error", err);
+    toast(t("error"), true);
+    baseInput.value = tpBaseUrl;
+  } finally {
+    tpSaving = false;
+  }
+}
+
+function bindThirdPartyEvents() {
+  // Tek-açık akordeon: VPS / Stremio / Uzak Bağlantı kartları.
+  ["vps-info-box", "tp-app-stremio", "tp-app-remote"].forEach((id) => {
+    const box = document.getElementById(id);
+    if (!box) return;
+    const head = box.querySelector(".notif-type-head");
+    const body = box.querySelector(".notif-type-body");
+    if (!head || !body) return;
+    head.addEventListener("click", (e) => {
+      if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
+      setTpAccordion(id === "vps-info-box" ? "vps" : id === "tp-app-remote" ? "remote" : "stremio");
+    });
+  });
+  bindVpsRemoteEvents();
+  // Public Adres: odaktan cikis/Enter -> tek kayit yolu (flushTpBaseUrl).
+  const baseInput = document.getElementById("tp-base-input");
+  if (baseInput) {
+    console.debug("[tp-base] bound");
+    baseInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); baseInput.blur(); }
+    });
+    baseInput.addEventListener("blur", () => {
+      console.debug("[tp-base] blur");
+      flushTpBaseUrl();
+    });
   }
   const copyBtn = document.getElementById("tp-stremio-copy");
   if (copyBtn) {
@@ -2196,6 +2402,409 @@ function bindThirdPartyEvents() {
       }, { yes: t("confirm_yes") });
     });
   }
+}
+
+function setTpAccordion(which) {
+  const boxes = [
+    { id: "vps-info-box", get: () => tpVpsOpen, set: (v) => { tpVpsOpen = v; } },
+    { id: "tp-app-stremio", get: () => tpStremioOpen, set: (v) => { tpStremioOpen = v; } },
+    { id: "tp-app-remote", get: () => tpRemoteOpen, set: (v) => { tpRemoteOpen = v; } },
+  ];
+  const cur = boxes.find((b) => b.id === (which === "vps" ? "vps-info-box" : which === "stremio" ? "tp-app-stremio" : "tp-app-remote"));
+  if (!cur) return;
+  const willOpen = !cur.get();
+  boxes.forEach((b) => {
+    const open = (b.id === cur.id) && willOpen;
+    b.set(open);
+    const el = document.getElementById(b.id);
+    if (el) {
+      el.classList.toggle("accordion-open", open);
+      const body = el.querySelector(".notif-type-body");
+      if (body) body.style.display = open ? "block" : "none";
+    }
+  });
+}
+
+function renderVpsSection() {
+  const p = vpsProfile || { host: "", port: 22, username: "root", auth_type: "key", configured: false, connected: false, lastTestTs: null, fingerprint: "" };
+  const stCls = p.connected && p.configured ? "tp-connected" : "tp-not-connected";
+  const stTxt = !(p.configured) ? t("vps_unknown") : (p.connected ? t("tp_connected") : t("tp_not_connected"));
+  const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "—";
+  const hasSecret = !!p.configured;
+  const showKey = vpsAuth === "key";
+  return `
+  <div class="channel-box accordion-box notif-type-box${tpVpsOpen ? " accordion-open" : ""}" id="vps-info-box">
+    <div class="notif-type-head"><span class="notif-type-title"><i class="fa-solid fa-server"></i> ${escAttr(t("vps_conn_info"))}</span></div>
+    <div class="notif-type-body" style="display:${tpVpsOpen ? "block" : "none"}">
+      <div class="tp-status-row">
+        <span class="notify-name">${escAttr(t("tp_status"))}</span>
+        <span id="vps-status-value" class="tp-status-value ${stCls}">${escAttr(stTxt)}</span>
+      </div>
+      <div class="tp-frame-note vps-last-test-row">${escAttr(t("vps_last_test"))}: <span id="vps-last-test">${escAttr(lastTs)}</span></div>
+      <div class="tp-sub-box">
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint"></span></span>
+          <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
+        </label>
+      </div>
+      <div class="tp-sub-box">
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint"></span></span>
+          <div class="tp-url-box"><input id="vps-port" type="number" min="1" max="65535" value="${escAttr(String(p.port || 22))}" /></div>
+        </label>
+      </div>
+      <div class="tp-sub-box">
+        <span class="settings-label-head"><span>${escAttr(t("vps_auth"))}</span></span>
+        <div class="test-row" style="display:flex; gap:12px; margin:6px 0; justify-content:center;">
+          <button id="vps-auth-key" class="tab${showKey ? " active" : ""}">${escAttr(t("vps_auth_key"))}</button>
+          <button id="vps-auth-pass" class="tab${showKey ? "" : " active"}">${escAttr(t("vps_auth_pass"))}</button>
+        </div>
+      </div>
+      <div class="tp-sub-box" id="vps-user-row" style="display:${showKey ? "none" : "block"}">
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span></span>
+          <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.username || "root")}" /></div>
+        </label>
+      </div>
+      <div class="tp-sub-box">
+        <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}">
+          <label><span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved"></span></span>
+            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
+          </label>
+          <div class="backup-key-actions">
+            <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
+            <button id="vps-key-clear" class="tab">${escAttr(t("clear"))}</button>
+            <button id="vps-key-upload" class="tab">${escAttr(t("backup_upload_key"))}</button>
+          </div>
+          <div class="tp-frame-note" id="vps-key-fmt">${escAttr(t("vps_key_fmt", { fmt: t("vps_fmt_unknown") }))}</div>
+        </div>
+        <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
+          <label><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved"></span></span>
+            <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${hasSecret && p.auth_type === "password" ? "••••••••" : ""}" /></div>
+          </label>
+        </div>
+      </div>
+      <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+        <button id="vps-save" class="tab">${escAttr(t("vps_save"))}</button>
+        <button id="vps-test" class="tab">${escAttr(t("vps_test"))}</button>
+      </div>
+      ${p.fingerprint ? `<div class="tp-frame-note" style="word-break:break-all">${escAttr(p.fingerprint)}</div>` : ""}
+    </div>
+  </div>`;
+}
+
+const PEER_SVG = {
+  suspend: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/></svg>',
+  resume: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>',
+  del: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>',
+  dl: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><polyline points="6,11 12,17 18,11"/><path d="M4 21h16"/></svg>',
+};
+
+function vpsKeyFmtLabel() {
+  const ta = document.getElementById("vps-key");
+  if (!ta) return t("vps_fmt_unknown");
+  const v = (ta.value || "").trim();
+  if (!v) return t("vps_fmt_unknown");
+  if (/BEGIN OPENSSH PRIVATE KEY/.test(v)) return t("vps_fmt_openssh");
+  if (/PuTTY-User-Key-File/.test(v)) return t("vps_fmt_ppk");
+  if (/BEGIN RSA PRIVATE KEY|BEGIN EC PRIVATE KEY/.test(v)) return t("vps_fmt_pem");
+  if (/BEGIN SSH2/.test(v)) return t("vps_fmt_ssh2");
+  return t("vps_fmt_unknown");
+}
+
+function updateVpsKeyFmt() {
+  const el = document.getElementById("vps-key-fmt");
+  if (el) el.textContent = t("vps_key_fmt", { fmt: vpsKeyFmtLabel() });
+}
+
+async function saveVpsProfile() {
+  const host = (document.getElementById("vps-host")?.value || "").trim();
+  let port = 22;
+  try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
+  const username = (document.getElementById("vps-user")?.value || "root").trim() || "root";
+  const body = { host, port, username, auth_type: vpsAuth };
+  if (vpsAuth === "key") {
+    const k = document.getElementById("vps-key");
+    body.secret = k ? k.value.trim() : "";
+  } else {
+    const p = document.getElementById("vps-pass");
+    body.secret = p ? p.value : "";
+  }
+  try {
+    const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "save");
+    toast(t("saved"));
+    renderThirdPartyApps();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+async function testVpsConnection() {
+  const btn = document.getElementById("vps-test");
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch("/api/remote/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "test");
+    if (j.connected) {
+      toast(t("vps_test_ok"));
+    } else {
+      const detail = j.reason ? ` (${j.reason}${j.detail ? ": " + j.detail : ""})` : "";
+      toast(t("vps_test_fail") + detail, true);
+    }
+    renderThirdPartyApps();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+    renderThirdPartyApps();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function bindVpsAuthToggle() {
+  const kb = document.getElementById("vps-auth-key");
+  const pb = document.getElementById("vps-auth-pass");
+  const set = (mode) => {
+    vpsAuth = mode;
+    const keyWrap = document.getElementById("vps-key-wrap");
+    const passWrap = document.getElementById("vps-pass-wrap");
+    const userRow = document.getElementById("vps-user-row");
+    if (keyWrap) keyWrap.style.display = mode === "key" ? "block" : "none";
+    if (passWrap) passWrap.style.display = mode === "key" ? "none" : "block";
+    if (userRow) userRow.style.display = mode === "key" ? "none" : "block";
+    if (kb) kb.classList.toggle("active", mode === "key");
+    if (pb) pb.classList.toggle("active", mode !== "key");
+  };
+  if (kb) kb.addEventListener("click", () => set("key"));
+  if (pb) pb.addEventListener("click", () => set("password"));
+}
+
+function bindVpsKeyActions() {
+  const fileInput = document.getElementById("vps-key-file");
+  const uploadBtn = document.getElementById("vps-key-upload");
+  if (fileInput && uploadBtn) {
+    uploadBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        const ta = document.getElementById("vps-key");
+        if (ta) { ta.value = String(rd.result || "").trim(); ta.setAttribute("data-has", "0"); updateVpsKeyFmt(); }
+      };
+      rd.readAsText(f);
+      fileInput.value = "";
+    });
+  }
+  const clearBtn = document.getElementById("vps-key-clear");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      const ta = document.getElementById("vps-key");
+      if (ta) { ta.value = ""; ta.setAttribute("data-has", "0"); updateVpsKeyFmt(); }
+    });
+  }
+  const keyTa = document.getElementById("vps-key");
+  if (keyTa) keyTa.addEventListener("input", updateVpsKeyFmt);
+}
+
+function downloadRemoteConf(file, conf) {
+  try {
+    const blob = new Blob([conf], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file || "nextep_remote.conf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (_) {}
+}
+
+async function remoteTunnelConnect() {
+  try {
+    const r = await fetch("/api/remote/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "connect");
+    toast(t("remote_connected"));
+    renderThirdPartyApps();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+function remoteTunnelDisconnect() {
+  openRemoteDisconnectConfirm(t("remote_disconnect_confirm"), async () => {
+    try {
+      const r = await fetch("/api/remote/disconnect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(errText(j.error) || j.error || "disconnect");
+      toast(t("remote_disconnected"));
+      renderThirdPartyApps();
+    } catch (e) {
+      toast(errText((e && e.message) || "") || t("error"), true);
+    }
+  });
+}
+
+async function startRemoteJob(kind, params) {
+  try {
+    const r = await fetch("/api/remote/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, params: params || {} }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "job");
+    const log = document.getElementById(kind === "wg" ? "tp-remote-joblog" : "tp-stremio-joblog");
+    if (log) { log.style.display = "block"; log.textContent = t("job_started") + "\n"; }
+    pollRemoteJob(j.job_id, log);
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+function pollRemoteJob(jobId, logEl) {
+  clearTimeout(remoteJobTimer);
+  const tick = async () => {
+    try {
+      const r = await fetch("/api/remote/jobs/" + jobId, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "job");
+      if (logEl) { logEl.style.display = "block"; logEl.textContent = j.log || ""; }
+      if (j.status === "running") {
+        remoteJobTimer = setTimeout(tick, 1500);
+      } else {
+        toast(j.status === "success" ? t("job_success") : t("job_failed"), j.status !== "success");
+        renderThirdPartyApps();
+      }
+    } catch (_) {
+      remoteJobTimer = setTimeout(tick, 2500);
+    }
+  };
+  tick();
+}
+
+async function renderRemotePeers() {
+  const list = document.getElementById("tp-peer-list");
+  if (!list) return;
+  let peers = [];
+  try {
+    const r = await fetch("/api/remote/peers", { cache: "no-store" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "peers");
+    peers = j.peers || [];
+  } catch (_) { return; }
+  if (!peers.length) { list.innerHTML = ""; return; }
+  list.innerHTML = peers.map((p) => `
+    <div class="peer-chip${p.suspended ? " peer-suspended" : ""}" data-num="${p.num}">
+      <div class="peer-file">${escAttr(p.file)}</div>
+      <input class="peer-name" data-num="${p.num}" value="${escAttr(p.name || "")}" placeholder="${escAttr(t("peer_name_ph"))}" autocomplete="off" spellcheck="false" />
+      ${p.suspended ? `<span class="peer-badge">${escAttr(t("peer_suspended"))}</span><div class="tp-frame-note">${escAttr(t("peer_suspended_note"))}</div>` : ""}
+      <div class="peer-actions">
+        <button class="peer-btn peer-suspend" data-num="${p.num}" data-suspended="${p.suspended ? "1" : "0"}" title="${escAttr(p.suspended ? t("peer_unsuspend") : t("peer_suspend"))}">${p.suspended ? PEER_SVG.resume : PEER_SVG.suspend}</button>
+        <button class="peer-btn peer-delete" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_delete"))}">${PEER_SVG.del}</button>
+        <button class="peer-btn peer-dl" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_download"))}">${PEER_SVG.dl}</button>
+      </div>
+    </div>`).join("");
+  list.querySelectorAll(".peer-name").forEach((inp) => {
+    inp.addEventListener("blur", () => {
+      remotePeerRename(inp.dataset.num, inp.value);
+    });
+  });
+  list.addEventListener("click", async (e) => {
+    const sBtn = e.target.closest(".peer-suspend");
+    const dBtn = e.target.closest(".peer-delete");
+    const lBtn = e.target.closest(".peer-dl");
+    if (sBtn) {
+      const num = sBtn.dataset.num;
+      const suspended = sBtn.dataset.suspended === "1";
+      remotePeerSuspend(num, suspended);
+    } else if (dBtn) {
+      remotePeerDelete(dBtn.dataset.num, dBtn.dataset.file);
+    } else if (lBtn) {
+      remotePeerDownload(lBtn.dataset.num, lBtn.dataset.file);
+    }
+  });
+}
+
+async function addRemotePeer() {
+  try {
+    const r = await fetch("/api/remote/peers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "" }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "peer");
+    if (j.conf) downloadRemoteConf(j.file, j.conf);
+    toast(t("peer_added"));
+    renderThirdPartyApps();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+async function remotePeerRename(num, value) {
+  try {
+    const r = await fetch("/api/remote/peers/" + num, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: value.trim() }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "rename");
+    toast(t("saved"));
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+async function remotePeerSuspend(num, currentSuspended) {
+  try {
+    const r = await fetch("/api/remote/peers/" + num, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ suspended: !currentSuspended }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "suspend");
+    toast(currentSuspended ? t("peer_resumed") : t("peer_suspended"));
+    renderThirdPartyApps();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+function remotePeerDelete(num, file) {
+  openRemotePeerDeleteConfirm(file + " " + t("peer_confirm_delete"), async () => {
+    try {
+      const r = await fetch("/api/remote/peers/" + num, { method: "DELETE" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(errText(j.error) || j.error || "delete");
+      toast(t("peer_deleted"));
+      renderThirdPartyApps();
+    } catch (e) {
+      toast(errText((e && e.message) || "") || t("error"), true);
+    }
+  });
+}
+
+async function remotePeerDownload(num, file) {
+  try {
+    const r = await fetch("/api/remote/peers/" + num + "/conf", { cache: "no-store" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "conf");
+    downloadRemoteConf(j.file || file, j.conf || "");
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
+
+function bindVpsRemoteEvents() {
+  const saveBtn = document.getElementById("vps-save");
+  if (saveBtn) saveBtn.addEventListener("click", saveVpsProfile);
+  const testBtn = document.getElementById("vps-test");
+  if (testBtn) testBtn.addEventListener("click", testVpsConnection);
+  bindVpsAuthToggle();
+  bindVpsKeyActions();
+  ["vps-host", "vps-port", "vps-user", "vps-pass"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveVpsProfile(); } });
+  });
+  const remoteInstall = document.getElementById("tp-remote-install");
+  if (remoteInstall) remoteInstall.addEventListener("click", () => startRemoteJob("wg", {}));
+  const remoteConnectBtn = document.getElementById("tp-remote-connect");
+  if (remoteConnectBtn) remoteConnectBtn.addEventListener("click", remoteTunnelConnect);
+  const remoteDisconnectBtn = document.getElementById("tp-remote-disconnect");
+  if (remoteDisconnectBtn) remoteDisconnectBtn.addEventListener("click", remoteTunnelDisconnect);
+  const peerAdd = document.getElementById("tp-peer-add");
+  if (peerAdd) peerAdd.addEventListener("click", addRemotePeer);
+  const stremioInstall = document.getElementById("tp-stremio-install");
+  if (stremioInstall) stremioInstall.addEventListener("click", () => startRemoteJob("stremio", { domain: (tpBaseUrl || "").replace(/^https?:\/\//i, "").split("/")[0] }));
+  renderRemotePeers();
 }
 
 export { loadSettings, renderFavActorsList, renderFavGenresList, saveSettingsPartial,

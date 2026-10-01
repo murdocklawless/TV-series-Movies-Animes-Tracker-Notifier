@@ -25,7 +25,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_db, get_setting, set_setting, get_user_setting, set_user_setting
 from auth import get_current_user
-from tmdb import tmdb_request, get_tmdb_info, get_tmdb_cast, save_details
+from tmdb import tmdb_request, get_tmdb_info, get_tmdb_cast, get_tmdb_credits, save_details
 from rate_track import acquire, record, handle_429
 from poster_store import download_tmdb_poster_with_sizes, download_anime_poster_with_sizes
 from scheduler import sync_episodes
@@ -61,6 +61,7 @@ stremio_bp = Blueprint("stremio", __name__)
 # Genisletilebilir uygulama defteri: ileride Nuvio vb. buraya satir eklenir.
 THIRDPARTY_APPS = [
     {"id": "stremio", "name": "Stremio", "protocol": "stremio"},
+    {"id": "remote", "name": "Uzak Bağlantı", "protocol": "wireguard"},
 ]
 
 SIGNAL_TTL = 30 * 86400  # tampon budama suresi (gecelik is)
@@ -704,10 +705,12 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0):
         print(f"[stremio] kilit-disi sinyal atlandi (tamponsuz): tmdb={tmdb_id} S{season}E{episode}", flush=True)
         return  # yazma yok, tampon yok
     record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
+    import time as _t
+    _now = int(_t.time())
     conn.execute(
-        "INSERT INTO episodes (follow_id, season, episode, watched) VALUES (?,?,?,1) "
-        "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1",
-        (follow_id, season, episode),
+        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) VALUES (?,?,?,1,?) "
+        "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
+        (follow_id, season, episode, _now),
     )
     conn.commit()
     _stamp_verified_ts(uid)
@@ -768,7 +771,8 @@ def _ensure_tmdb_follow(conn, media_type, tmdb_id, owner_id=0):
         return None
     new_id = row["id"]
     if info:
-        save_details(conn, new_id, info, get_tmdb_cast(media_type, tmdb_id))
+        _credits = get_tmdb_credits(media_type, tmdb_id)
+        save_details(conn, new_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
         conn.commit()
     try:
         if poster:
@@ -881,6 +885,43 @@ def thirdparty_status():
 _CONNECTED_WINDOW = 24 * 3600  # "Bagli" rozeti icin sinyal tazelik penceresi
 
 
+def _remote_app_status(base):
+    """Uzak baglanti karti: Pi tüneli kurulu mu + aktif mi (fail-soft)."""
+    import os as _os
+    import subprocess as _sp
+    try:
+        from routes.remote import ensure_remote_tables as _ensure
+        _ensure()
+    except Exception:
+        pass
+    installed = _os.path.exists("/etc/wireguard/nextep.conf")
+    active = False
+    try:
+        pr = _sp.run(["systemctl", "is-active", "--quiet", "wg-quick@nextep"], timeout=5)
+        active = pr.returncode == 0
+    except Exception:
+        active = False
+    try:
+        hts = get_setting("remote_last_handshake") or ""
+        base["lastSignal"] = int(float(hts)) if hts else None
+    except Exception:
+        base["lastSignal"] = None
+    base["installUrl"] = None
+    base["installed"] = installed
+    base["tunnelOk"] = True
+    if installed and active:
+        base["connected"] = True
+        base["status"] = "connected"
+        base["note"] = "connected"
+    elif installed:
+        base["status"] = "ready"
+        base["note"] = "ready_none"
+    else:
+        base["status"] = "not-connected"
+        base["note"] = "not-installed"
+    return base
+
+
 def _app_status(app):
     import time as _t
     aid = app["id"]
@@ -902,6 +943,8 @@ def _app_status(app):
         return base
     base["installed"] = True
     base["installUrl"] = _install_url(aid, u)
+    if aid == "remote":
+        return _remote_app_status(base)
     if aid != "stremio":
         base["connected"] = True
         base["status"] = "connected"
@@ -996,13 +1039,15 @@ def _clear_apply_tv(conn, tmdb_id, owner_id=0):
     ).fetchone()
     if not follow:
         return jsonify({"error": "Takip bulunamadı"}), 404
-    conn.execute("UPDATE episodes SET watched=0 WHERE follow_id=?", (follow["id"],))
+    conn.execute("UPDATE episodes SET watched=0, watched_at=NULL WHERE follow_id=?", (follow["id"],))
     conn.commit()
     signals = sorted(
         signals_for_tv(tmdb_id, user_id=uid),
         key=lambda s: ((s.get("season") or 0), (s.get("episode") or 0)),
     )
     applied = []
+    import time as _t
+    _now = int(_t.time())
     for s in signals:
         if s.get("season") is None or s.get("episode") is None:
             continue
@@ -1010,9 +1055,9 @@ def _clear_apply_tv(conn, tmdb_id, owner_id=0):
             print(f"[stremio] clear-apply kilit atlandi: S{s['season']}E{s['episode']}", flush=True)
             continue
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, watched) VALUES (?,?,?,1) "
-            "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1",
-            (follow["id"], s["season"], s["episode"]),
+            "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) VALUES (?,?,?,1,?) "
+            "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
+            (follow["id"], s["season"], s["episode"], _now),
         )
         applied.append({"season": s["season"], "episode": s["episode"]})
     conn.commit()

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=457" />
-  <link rel="stylesheet" href="/static/css/tablet.css?v=407" />
-  <link rel="stylesheet" href="/static/css/mobil.css?v=411" />
-  <link rel="stylesheet" href="/static/css/tv.css?v=421" />
+  <link rel="stylesheet" href="/static/css/style.css?v=526" />
+  <link rel="stylesheet" href="/static/css/tablet.css?v=504" />
+  <link rel="stylesheet" href="/static/css/mobil.css?v=519" />
+  <link rel="stylesheet" href="/static/css/tv.css?v=508" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -19,7 +19,8 @@
         <div class="logo-title" data-i18n="logo_title">Dizi · Film · Anime Takip</div>
       </div>
     </div>
-    <div class="tabs-group media-tabs-group">
+    <div class="nav-tabs-scroll">
+      <div class="tabs-group media-tabs-group">
         <button id="tab-dizi" class="tab active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-tab-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
         <button id="tab-film" class="tab" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-tab-icon"></i><span data-i18n="tab_film">Film</span></button>
         <button id="tab-belgesel" class="tab" data-i18n="tab_belgesel"><i class="fa-solid fa-photo-film media-tab-icon"></i><span data-i18n="tab_belgesel">Belgesel</span></button>
@@ -33,22 +34,13 @@
           <button id="tab-notif" class="tab" data-tip="Bildirimler" data-i18n-title="notif_title"><i class="fa-solid fa-bell"></i><span id="notif-badge" class="notif-badge" style="display:none">0</span></button>
         </div>
         <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
-        <div class="sort-wrap">
-          <button id="tab-sort" class="tab" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
-          <div id="sort-menu" class="sort-menu">
-            <button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button>
-            <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
-            <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
-            <button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
-            <button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button>
-          </div>
-        </div>
         <div class="settings-wrap">
           <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
           <div id="settings-menu" class="settings-menu">
             <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
             <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB API Key</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-favorites-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favorites">Favoriler</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-follow-modal"><i class="fa-solid fa-list-check"></i><span data-i18n="settings_follow">Takip / İzlenmiş</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-appupdate-modal"><i class="fa-solid fa-cloud-arrow-up"></i><span data-i18n="settings_appupdate">NextEp Güncelleme</span></button>
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme Saatleri</span></button>
@@ -71,6 +63,7 @@
             <div id="notif-list" class="notif-list"></div>
             <div id="notif-empty" class="notif-empty" style="display:none" data-i18n="notif_empty">Henüz bildiriminiz yok.</div>
           </div>
+    </div>
     </div>
   </nav>
 
@@ -134,7 +127,14 @@
 
     <!-- Dizi view -->
     <section id="view-dizi" class="view active">
-      <div id="poster-grid-shows" class="poster-grid"></div>
+      <div id="dizi-shows-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="dizi" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="dizi" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_dizi" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="dizi" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="dizi"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="shows_title">Diziler</span></h2>
+        <div id="poster-grid-shows" class="poster-grid"></div>
+      </div>
+      <div id="dizi-later-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="dizi-later" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="dizi-later" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_dizi_later" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="dizi-later" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="dizi-later"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="later_shows">Sonra İzlenecek Diziler</span></h2>
+        <div id="poster-grid-shows-later" class="poster-grid"></div>
+      </div>
       <div id="empty-dizi" class="empty">
         <p data-i18n="empty_1">Henüz takip ettiğiniz bir şey yok.</p>
         <p data-i18n="empty_2">Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.</p>
@@ -143,7 +143,14 @@
 
     <!-- Film view -->
     <section id="view-film" class="view">
-      <div id="poster-grid-movies" class="poster-grid"></div>
+      <div id="film-movies-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="film" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="film" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_film" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="film" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="film"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="films_title">Filmler</span></h2>
+        <div id="poster-grid-movies" class="poster-grid"></div>
+      </div>
+      <div id="film-later-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="film-later" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="film-later" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_film_later" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="film-later" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="film-later"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="later_films">Sonra İzlenecek Filmler</span></h2>
+        <div id="poster-grid-movies-later" class="poster-grid"></div>
+      </div>
       <div id="empty-film" class="empty">
         <p data-i18n="empty_1">Henüz takip ettiğiniz bir şey yok.</p>
         <p data-i18n="empty_2">Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.</p>
@@ -152,7 +159,14 @@
 
     <!-- Anime view -->
     <section id="view-anime" class="view">
-      <div id="anime-grid" class="poster-grid"></div>
+      <div id="anime-grid-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="anime-list" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="anime-list" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_anime" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="anime-list" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="anime-list"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="anime_title">Animeler</span></h2>
+        <div id="anime-grid" class="poster-grid"></div>
+      </div>
+      <div id="anime-later-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="anime-list-later" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="anime-list-later" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_anime_later" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="anime-list-later" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="anime-list-later"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="later_anime">Sonra İzlenecek Animeler</span></h2>
+        <div id="anime-grid-later" class="poster-grid"></div>
+      </div>
       <div id="empty-anime" class="empty">
         <p data-i18n="anime_empty_1">Henüz takip ettiğiniz anime yok.</p>
         <p data-i18n="anime_empty_2">Ara &amp; Ekle sekmesinden Anime seçerek ekleyin.</p>
@@ -161,7 +175,14 @@
 
     <!-- Belgesel view -->
     <section id="view-belgesel" class="view">
-      <div id="poster-grid-docs" class="poster-grid"></div>
+      <div id="belgesel-docs-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="belgesel" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="belgesel" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_belgesel" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="belgesel" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="belgesel"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="docs_title">Belgeseller</span></h2>
+        <div id="poster-grid-docs" class="poster-grid"></div>
+      </div>
+      <div id="belgesel-later-wrap">
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="belgesel-later" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="belgesel-later" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_belgesel_later" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="belgesel-later" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="belgesel-later"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="later_docs">Sonra İzlenecek Belgeseller</span></h2>
+        <div id="poster-grid-docs-later" class="poster-grid"></div>
+      </div>
       <div id="empty-belgesel" class="empty">
         <p data-i18n="belgesel_empty_1">Henüz takip ettiğiniz belgesel yok.</p>
         <p data-i18n="belgesel_empty_2">Ara &amp; Ekle sekmesinden Belgesel seçerek ekleyin.</p>
@@ -171,19 +192,19 @@
     <!-- Unwatched view -->
     <section id="view-unwatched" class="view">
       <div id="unwatched-shows-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="unwatched-shows" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="unwatched-shows" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_unwatched_shows" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="unwatched-shows" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="unwatched-shows"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
         <div id="unwatched-shows" class="poster-grid"></div>
       </div>
       <div id="unwatched-movies-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="unwatched-movies" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="unwatched-movies" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_unwatched_movies" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="unwatched-movies" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="unwatched-movies"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
         <div id="unwatched-movies" class="poster-grid"></div>
       </div>
       <div id="unwatched-docs-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_docs">İzlenmemiş Belgeseller</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="unwatched-docs" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="unwatched-docs" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_unwatched_docs" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="unwatched-docs" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="unwatched-docs"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="unwatched_docs">İzlenmemiş Belgeseller</span></h2>
         <div id="unwatched-docs" class="poster-grid"></div>
       </div>
       <div id="unwatched-anime-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="unwatched-anime" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="unwatched-anime" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_unwatched_anime" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="unwatched-anime" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="unwatched-anime"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
         <div id="unwatched-anime" class="poster-grid"></div>
       </div>
       <div id="empty-unwatched" class="empty">
@@ -194,19 +215,19 @@
     <!-- Watched view -->
     <section id="view-watched" class="view">
       <div id="watched-shows-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_shows">İzlenmiş Diziler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="watched-shows" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="watched-shows" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_watched_shows" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="watched-shows" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="watched-shows"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="watched_shows">İzlenmiş Diziler</span></h2>
         <div id="watched-shows" class="poster-grid"></div>
       </div>
       <div id="watched-movies-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_movies">İzlenmiş Filmler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="watched-movies" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="watched-movies" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_watched_movies" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="watched-movies" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="watched-movies"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="watched_movies">İzlenmiş Filmler</span></h2>
         <div id="watched-movies" class="poster-grid"></div>
       </div>
       <div id="watched-docs-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_docs">İzlenmiş Belgeseller</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="watched-docs" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="watched-docs" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_watched_docs" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="watched-docs" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="watched-docs"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="watched_docs">İzlenmiş Belgeseller</span></h2>
         <div id="watched-docs" class="poster-grid"></div>
       </div>
       <div id="watched-anime-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_anime">İzlenmiş Animeler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="watched-anime" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="watched-anime" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_watched_anime" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="watched-anime" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="watched-anime"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="watched_anime">İzlenmiş Animeler</span></h2>
         <div id="watched-anime" class="poster-grid"></div>
       </div>
       <div id="empty-watched" class="empty">
@@ -217,19 +238,19 @@
     <!-- Recommendations view -->
     <section id="view-recommend" class="view">
       <div id="recommend-shows-wrap">
-        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="shows" data-i18n-title="recommend_refresh_shows"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="shows" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_shows">Önerilen Diziler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="shows" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="shows" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_rec_shows" style="display:none" /><div class="section-sort-wrap"><button class="section-filter" data-section="shows" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="rec-sort-menu sort-menu" data-section="shows"><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button><button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button></div></div><button class="section-refresh" data-section="shows" data-i18n-title="recommend_refresh_shows"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="shows" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_shows">Önerilen Diziler</span></h2>
         <div id="recommend-shows" class="poster-grid"></div>
       </div>
       <div id="recommend-movies-wrap">
-        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="movies" data-i18n-title="recommend_refresh_movies"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="movies" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_movies">Önerilen Filmler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="movies" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="movies" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_rec_movies" style="display:none" /><div class="section-sort-wrap"><button class="section-filter" data-section="movies" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="rec-sort-menu sort-menu" data-section="movies"><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button><button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button></div></div><button class="section-refresh" data-section="movies" data-i18n-title="recommend_refresh_movies"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="movies" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_movies">Önerilen Filmler</span></h2>
         <div id="recommend-movies" class="poster-grid"></div>
       </div>
       <div id="recommend-docs-wrap">
-        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="docs" data-i18n-title="recommend_refresh_docs"><i class="fa-solid fa-rotate"></i></button><button class="section-move-up" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_docs">Önerilen Belgeseller</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="docs" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="docs" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_rec_docs" style="display:none" /><div class="section-sort-wrap"><button class="section-filter" data-section="docs" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="rec-sort-menu sort-menu" data-section="docs"><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button><button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button></div></div><button class="section-refresh" data-section="docs" data-i18n-title="recommend_refresh_docs"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="docs" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="docs" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_docs">Önerilen Belgeseller</span></h2>
         <div id="recommend-docs" class="poster-grid"></div>
       </div>
       <div id="recommend-anime-wrap">
-        <h2 class="unwatched-section-title"><button class="section-refresh" data-section="anime" data-i18n-title="recommend_refresh_anime"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="anime" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_anime">Önerilen Animeler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-search" data-section="anime" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="anime" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_rec_anime" style="display:none" /><div class="section-sort-wrap"><button class="section-filter" data-section="anime" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="rec-sort-menu sort-menu" data-section="anime"><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button><button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button></div></div><button class="section-refresh" data-section="anime" data-i18n-title="recommend_refresh_anime"><i class="fa-solid fa-rotate"></i></button><button class="section-hide" data-section="anime" data-i18n-title="section_hide_tip"><i class="fa-solid fa-ban"></i></button><button class="section-move-up" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="recommend" data-view="view-recommend" data-empty="empty-recommend" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="recommend_anime">Önerilen Animeler</span></h2>
         <div id="recommend-anime" class="poster-grid"></div>
       </div>
       <div id="empty-recommend" class="empty">
@@ -255,7 +276,7 @@
               <button id="media-anime" data-i18n="tab_anime"><span data-i18n="tab_anime">Anime</span></button>
             </div>
             <div class="search-bar">
-              <input id="normal-search-input" type="text" placeholder="Film veya dizi ara..." data-i18n="search_placeholder" />
+              <input id="normal-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" placeholder="Film veya dizi ara..." data-i18n="search_placeholder" />
             </div>
             <div class="combo-search-row">
               <button id="normal-search-btn" class="search-action-btn" data-i18n="search_basic">Ara</button>
@@ -267,7 +288,9 @@
               <button id="filter-media-movie" class="filter-add-btn btn-movie" data-i18n="type_movie">Film</button>
               <button id="filter-media-tv" class="filter-add-btn btn-tv" data-i18n="type_tv">Dizi</button>
               <button id="filter-media-doc" class="filter-add-btn btn-doc" data-i18n="type_doc">Belgesel</button>
+              <button id="filter-media-anime" class="filter-add-btn btn-anime" data-i18n="tab_anime">Anime</button>
               <button id="filter-actor" class="filter-add-btn btn-actor" data-i18n="filter_actor">Oyuncu</button>
+              <button id="filter-director" class="filter-add-btn btn-director" data-i18n="filter_director">Yönetmen</button>
               <button id="filter-genre" class="filter-add-btn btn-genre" data-i18n="filter_genre">Tür</button>
               <button id="filter-year" class="filter-add-btn btn-year" data-i18n="search_type_year">Yıl</button>
               <button id="filter-score" class="filter-add-btn btn-score" data-i18n="search_type_score">Puan</button>
@@ -286,6 +309,17 @@
       <div class="modal results-modal">
         <div class="modal-header">
           <h3 id="results-title"></h3>
+          <input id="results-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="hidden_search_hint" style="display:none" />
+          <button id="results-search-btn" class="hidden-header-btn" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <div class="sort-wrap">
+            <button id="search-filter-btn" class="hidden-header-btn" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
+            <div id="search-filter-menu" class="sort-menu">
+              <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
+              <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
+              <button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button>
+              <button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
+            </div>
+          </div>
           <button id="search-results-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
         </div>
         <div id="search-results" class="poster-grid modal-body"></div>
@@ -390,6 +424,14 @@
             <div id="fav-actors-list" class="fav-list"></div>
           </div>
         </div>
+        <div class="channel-box accordion-box notif-type-box" id="fav-directors-box">
+          <div class="notif-type-head">
+            <span class="notif-type-title" data-i18n="settings_favdirectors">Favori Yönetmenler</span>
+          </div>
+          <div class="notif-type-body" id="fav-directors-body" style="display:none">
+            <div id="fav-directors-list" class="fav-list"></div>
+          </div>
+        </div>
         <div class="channel-box accordion-box notif-type-box" id="fav-genres-box">
           <div class="notif-type-head">
             <span class="notif-type-title" data-i18n="settings_favgenres">Favori Türler</span>
@@ -398,6 +440,30 @@
             <div id="fav-genres-list" class="fav-list"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-follow-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_follow">Takip / İzlenmiş</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body settings-form">
+        <label><span class="settings-label-head"><span data-i18n="label_early_watched_days">Erken İzlenmiş Eşiği</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="provider-combobox">
+            <select id="s-early-watched-days">
+              <option value="14" selected>14 gün (2 hafta)</option>
+              <option value="21">21 gün (3 hafta)</option>
+              <option value="30">30 gün</option>
+              <option value="60">60 gün</option>
+              <option value="90">90 gün</option>
+            </select>
+            <div id="s-early-watched-days-list" class="provider-list" style="display:none"></div>
+          </div>
+        </label>
+        <div class="cache-info" data-i18n="label_early_watched_info">Yayınına eşikten fazla gün kalan dizi / film / belgesel / anime Takip'ten İzlenmiş'e taşınabilir. Tarih eşiğe inince otomatik Takip'e döner.</div>
       </div>
     </div>
   </div>
@@ -486,7 +552,7 @@
   <div id="settings-thirdparty-modal" class="modal-overlay settings-modal-overlay" style="display:none">
     <div class="modal settings-modal">
       <div class="modal-header">
-        <h3 data-i18n="settings_thirdparty">Third Party Apps</h3>
+        <h3 data-i18n="settings_thirdparty">Bağlantılar</h3>
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
@@ -886,6 +952,23 @@
     </div>
   </div>
 
+  <!-- Episode info modal -->
+  <div id="episode-info-modal" class="modal-overlay" style="display:none">
+    <div class="modal episode-info-modal">
+      <div class="modal-header">
+        <h3 id="episode-info-title"></h3>
+        <button id="episode-info-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="episode-info-overview" class="episode-info-overview"></p>
+        <div class="episode-info-meta">
+          <div class="episode-info-row"><span class="episode-info-icon" id="episode-info-runtime-icon"></span><span id="episode-info-runtime"></span></div>
+          <div class="episode-info-row"><span class="episode-info-icon" id="episode-info-watched-icon"></span><span id="episode-info-watched"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Details modal -->
   <div id="details-modal" class="modal-overlay" style="display:none">
     <div class="modal details-modal">
@@ -1021,15 +1104,76 @@
       </div>
     </div>
   </div>
+  <div id="remote-disconnect-modal" class="modal-overlay" style="display:none">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <h3 data-i18n="disconnect_title">Bağlantıyı Kes</h3>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button class="btn confirm-danger" data-i18n="disconnect_yes">Evet, Kes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="remote-peer-delete-modal" class="modal-overlay" style="display:none">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <h3 data-i18n="peer_delete_title">Kullanıcıyı Sil</h3>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button class="btn confirm-danger" data-i18n="peer_delete_yes">Evet, Sil</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Person modal -->
   <div id="person-modal" class="modal-overlay" style="display:none">
     <div class="modal person-modal">
       <div class="modal-header">
         <h3 id="person-title"></h3>
+        <input id="person-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="credits_search_hint" style="display:none" />
+        <button id="person-search-btn" class="hidden-header-btn" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <div class="sort-wrap credits-sort-wrap">
+          <button id="person-filter-btn" class="hidden-header-btn" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
+          <div id="person-filter-menu" class="sort-menu">
+            <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
+            <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
+            <button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button>
+            <button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
+          </div>
+        </div>
         <button id="person-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div id="person-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Director modal — person-modal ile aynı -->
+  <div id="director-modal" class="modal-overlay" style="display:none">
+    <div class="modal person-modal">
+      <div class="modal-header">
+        <h3 id="director-title"></h3>
+        <input id="director-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="credits_search_hint" style="display:none" />
+        <button id="director-search-btn" class="hidden-header-btn" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <div class="sort-wrap credits-sort-wrap">
+          <button id="director-filter-btn" class="hidden-header-btn" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
+          <div id="director-filter-menu" class="sort-menu">
+            <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
+            <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
+            <button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button>
+            <button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
+          </div>
+        </div>
+        <button id="director-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div id="director-body" class="modal-body"></div>
     </div>
   </div>
 
@@ -1090,9 +1234,10 @@
     <div class="modal hidden-modal">
       <div class="modal-header">
         <h3 id="hidden-title" data-i18n="hidden_title">Gizlenenler</h3>
-        <input id="hidden-search-input" type="text" data-i18n="hidden_search_hint" style="display:none" />
+        <input id="hidden-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="hidden_search_hint" style="display:none" />
         <div class="hidden-header-actions">
           <button id="hidden-search-btn" class="hidden-header-btn" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button>
+          <div class="hidden-sort-wrap"><button id="hidden-filter-btn" class="hidden-header-btn" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div id="hidden-sort-menu" class="sort-menu"><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="vision"><i class="fa-solid fa-film"></i><span data-i18n="search_filter_vision">Vizyon tarihine göre</span></button><button class="sort-item" data-sort="upcoming"><i class="fa-solid fa-calendar-check"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button></div></div>
           <button id="hidden-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
         </div>
       </div>
@@ -1100,6 +1245,6 @@
     </div>
   </div>
 
-<script type="module" src="/static/js/nextep.js?v=474"></script>
+  <script type="module" src="/static/js/nextep.js?v=508"></script>
 </body>
 </html>
