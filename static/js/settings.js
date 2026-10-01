@@ -2444,33 +2444,33 @@ function renderVpsSection() {
       </div>
       <div class="tp-frame-note vps-last-test-row">${escAttr(t("vps_last_test"))}: <span id="vps-last-test">${escAttr(lastTs)}</span></div>
       <div class="tp-sub-box">
-        <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved"></span></span>
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
         </label>
-        <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint" id="vps-port-saved"></span></span>
+        <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint" id="vps-port-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-port" type="number" min="1" max="65535" value="${escAttr(String(p.port || 22))}" /></div>
         </label>
       </div>
       <div class="tp-sub-box">
-        <span class="settings-label-head"><span>${escAttr(t("vps_auth"))}</span><span class="saved-hint" id="vps-auth-saved"></span></span>
+        <span class="settings-label-head"><span>${escAttr(t("vps_auth"))}</span><span class="saved-hint" id="vps-auth-saved" data-i18n="saved">${t("saved")}</span></span>
         <div class="test-row" style="display:flex; gap:12px; margin:6px 0; justify-content:center;">
           <button id="vps-auth-key" class="tab${showKey ? " active" : ""}">${escAttr(t("vps_auth_key"))}</button>
           <button id="vps-auth-pass" class="tab${showKey ? "" : " active"}">${escAttr(t("vps_auth_pass"))}</button>
         </div>
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}">
-          <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
+          <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="backup-key-actions">
             <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
             <button id="vps-key-clear" class="tab">${escAttr(t("clear"))}</button>
             <button id="vps-key-upload" class="tab">${escAttr(t("backup_upload_key"))}</button>
           </div>
-          <div class="tp-frame-note" id="vps-key-fmt">${escAttr(t("vps_key_fmt", { fmt: t("vps_fmt_unknown") }))}</div>
+          <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
         </div>
         <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
-          <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved"></span></span>
+          <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.username || "root")}" /></div>
           </label>
-          <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved"></span></span>
+          <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${hasSecret && p.auth_type === "password" ? "••••••••" : ""}" /></div>
           </label>
         </div>
@@ -2478,7 +2478,6 @@ function renderVpsSection() {
       <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
         <button id="vps-test" class="tab">${escAttr(t("vps_test"))}</button>
       </div>
-      ${p.fingerprint ? `<div class="tp-frame-note" style="word-break:break-all">${escAttr(p.fingerprint)}</div>` : ""}
     </div>
   </div>`;
 }
@@ -2489,23 +2488,6 @@ const PEER_SVG = {
   del: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>',
   dl: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><polyline points="6,11 12,17 18,11"/><path d="M4 21h16"/></svg>',
 };
-
-function vpsKeyFmtLabel() {
-  const ta = document.getElementById("vps-key");
-  if (!ta) return t("vps_fmt_unknown");
-  const v = (ta.value || "").trim();
-  if (!v) return t("vps_fmt_unknown");
-  if (/BEGIN OPENSSH PRIVATE KEY/.test(v)) return t("vps_fmt_openssh");
-  if (/PuTTY-User-Key-File/.test(v)) return t("vps_fmt_ppk");
-  if (/BEGIN RSA PRIVATE KEY|BEGIN EC PRIVATE KEY/.test(v)) return t("vps_fmt_pem");
-  if (/BEGIN SSH2/.test(v)) return t("vps_fmt_ssh2");
-  return t("vps_fmt_unknown");
-}
-
-function updateVpsKeyFmt() {
-  const el = document.getElementById("vps-key-fmt");
-  if (el) el.textContent = t("vps_key_fmt", { fmt: vpsKeyFmtLabel() });
-}
 
 let vpsSaving = false;
 async function flushVpsProfile(hintId) {
@@ -2518,7 +2500,6 @@ async function flushVpsProfile(hintId) {
     let port = 22;
     try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
     const username = (document.getElementById("vps-user")?.value || "root").trim() || "root";
-    const body = { host, port, username, auth_type: vpsAuth };
     let secret = "";
     if (vpsAuth === "key") {
       const k = document.getElementById("vps-key");
@@ -2527,6 +2508,18 @@ async function flushVpsProfile(hintId) {
       const p = document.getElementById("vps-pass");
       secret = p ? p.value : "";
     }
+    // Bilgi değişmediyse kaydetme (POST + hint yok).
+    const saved = vpsProfile || null;
+    const secretChanged = secret !== "" && secret !== "••••••••";
+    const unchanged =
+      !!saved &&
+      host === (saved.host || "") &&
+      port === (saved.port || 22) &&
+      username === (saved.username || "root") &&
+      vpsAuth === (saved.auth_type || "key") &&
+      !secretChanged;
+    if (unchanged) return;
+    const body = { host, port, username, auth_type: vpsAuth };
     // Boş secret gönderilmez -> backend eskiyi korur; masked "••••••••" korunur.
     if (secret !== "") body.secret = secret;
     const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -2595,7 +2588,7 @@ function bindVpsKeyActions() {
       const rd = new FileReader();
       rd.onload = () => {
         const ta = document.getElementById("vps-key");
-        if (ta) { ta.value = String(rd.result || "").trim(); ta.setAttribute("data-has", "0"); updateVpsKeyFmt(); }
+        if (ta) { ta.value = String(rd.result || "").trim(); ta.setAttribute("data-has", "0"); }
       };
       rd.readAsText(f);
       fileInput.value = "";
@@ -2605,11 +2598,9 @@ function bindVpsKeyActions() {
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
       const ta = document.getElementById("vps-key");
-      if (ta) { ta.value = ""; ta.setAttribute("data-has", "0"); updateVpsKeyFmt(); }
+      if (ta) { ta.value = ""; ta.setAttribute("data-has", "0"); }
     });
   }
-  const keyTa = document.getElementById("vps-key");
-  if (keyTa) keyTa.addEventListener("input", updateVpsKeyFmt);
 }
 
 function downloadRemoteConf(file, conf) {
@@ -2799,7 +2790,7 @@ function bindVpsRemoteEvents() {
     "vps-port": "vps-port-saved",
     "vps-user": "vps-user-saved",
     "vps-pass": "vps-pass-saved",
-    "vps-key": "vps-auth-saved",
+    "vps-key": "vps-key-saved",
   };
   Object.entries(flushMap).forEach(([id, hintId]) => {
     const el = document.getElementById(id);

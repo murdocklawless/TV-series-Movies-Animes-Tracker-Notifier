@@ -978,11 +978,6 @@ def remote_profile_save():
                 pass
     except Exception as e:
         return jsonify({"error": f"db_failed: {str(e)[:200]}"}), 500
-    # Duzenlemede baglanti sifirlanir (kapi kapanir, yeniden TEST gerekir).
-    try:
-        set_setting("vps_status_connected", "0")
-    except Exception:
-        pass
     out = {"ok": True, "configured": bool(host and secret),
            "key_format": detect_key_format(secret) if auth_type == "key" else None}
     return jsonify(out)
