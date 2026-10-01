@@ -2461,13 +2461,15 @@ function renderVpsSection() {
           <button id="vps-auth-pass" class="tab${showKey ? "" : " active"}">${escAttr(t("vps_auth_pass"))}</button>
         </div>
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}">
-          <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
+          <label>
+            <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
+            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
+          </label>
           <div class="backup-key-actions">
             <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
             <button id="vps-key-clear" class="tab">${escAttr(t("clear"))}</button>
             <button id="vps-key-upload" class="tab">${escAttr(t("backup_upload_key"))}</button>
           </div>
-          <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
         </div>
         <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
           <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
