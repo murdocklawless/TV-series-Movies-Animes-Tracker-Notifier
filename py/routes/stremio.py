@@ -902,12 +902,25 @@ def _remote_app_status(base):
     except Exception:
         active = False
     try:
-        hts = get_setting("remote_last_handshake") or ""
-        if hts:
-            base["lastSignal"] = int(float(hts))
-        else:
+        ls = None
+        if active:
+            try:
+                pr = _sp.run(["wg", "show", "nextep", "latest-handshakes"],
+                             capture_output=True, text=True, timeout=5)
+                for line in (pr.stdout or "").splitlines():
+                    parts = line.split()
+                    if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 0:
+                        ls = max(ls or 0, int(parts[1]))
+            except Exception:
+                ls = None
+        if ls is None:
+            hts = get_setting("remote_last_handshake") or ""
+            if hts:
+                ls = int(float(hts))
+        if ls is None:
             tts = get_setting("vps_last_test_ts") or ""
-            base["lastSignal"] = int(float(tts)) if tts else None
+            ls = int(float(tts)) if tts else None
+        base["lastSignal"] = ls
     except Exception:
         base["lastSignal"] = None
     base["installUrl"] = None
