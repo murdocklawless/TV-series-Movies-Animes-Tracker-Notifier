@@ -3374,6 +3374,14 @@ input:-webkit-autofill:focus {
   box-sizing: border-box;
 }
 
+.tp-card-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.tp-card-disabled .notif-type-head {
+  cursor: not-allowed;
+}
+
 .tp-joblog {
   background: rgba(0, 0, 0, 0.35);
   border-radius: 8px;

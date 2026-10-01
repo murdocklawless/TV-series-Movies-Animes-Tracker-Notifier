@@ -920,10 +920,15 @@ def remote_vps_status():
         last_ts = None
     configured = bool(p["host"] and p["username"] and p["has_secret"])
     try:
+        ever_connected = (get_setting("vps_ever_connected") or "") == "1"
+    except Exception:
+        ever_connected = False
+    try:
         stremio_installed = (get_setting("stremio_vps_installed") or "") == "1"
     except Exception:
         stremio_installed = False
     return jsonify({"ok": True, "configured": configured, "connected": connected and configured,
+                    "everConnected": ever_connected,
                     "lastTestTs": last_ts, "host": p["host"], "port": p["port"],
                     "username": p["username"], "auth_type": p["auth_type"],
                     "fingerprint": p["fingerprint"], "stremioInstalled": stremio_installed})
@@ -1049,6 +1054,10 @@ def remote_test():
         except Exception:
             pass
         if ok:
+            try:
+                set_setting("vps_ever_connected", "1")
+            except Exception:
+                pass
             return jsonify({"ok": True, "connected": True, "lastTestTs": ts,
                             "remoteHost": (proc.stdout or "").strip().splitlines()[-1][:100] if proc.stdout else "",
                             "fingerprint": fp})

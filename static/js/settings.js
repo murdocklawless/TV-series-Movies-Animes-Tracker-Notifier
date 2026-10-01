@@ -2053,7 +2053,7 @@ let tpIsAdmin = false;
 let tpVpsOpen = false;
 let tpRemoteOpen = false;
 let vpsProfile = null;
-let vpsGate = { configured: false, connected: false };
+let vpsGate = { configured: false, connected: false, everConnected: false };
 let vpsAuth = "key";
 let vpsSecretMasked = false;
 let remoteJobTimer = null;
@@ -2088,7 +2088,7 @@ async function renderThirdPartyApps() {
       const vj = await vs.json();
       if (vs.ok && vj && vj.ok) {
         vpsProfile = vj;
-        vpsGate = { configured: !!vj.configured, connected: !!(vj.connected && vj.configured) };
+        vpsGate = { configured: !!vj.configured, connected: !!(vj.connected && vj.configured), everConnected: !!vj.everConnected };
         vpsAuth = vj.auth_type === "password" ? "password" : "key";
       }
     } catch (_) {
@@ -2119,8 +2119,9 @@ const thirdPartyAppRenderers = {
   stremio: (app) => {
     const _note = tpStatusNote(app);
     const _watch = tpWatchDetail(app);
+    const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
     return `
-    <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}" id="tp-app-stremio">
+    <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-stremio"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
         <span class="notif-type-title"><i class="fa-solid fa-cubes"></i> ${escAttr(app.name || "Stremio")}</span>
       </div>
@@ -2168,6 +2169,7 @@ const thirdPartyAppRenderers = {
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
     const gate = vpsGate.connected;
+    const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
     const installDisabled = (!gate || !!app.installed) ? "disabled aria-disabled=\"true\"" : "";
     const installBtn = `<button id="tp-remote-install" class="tab" ${installDisabled}>${t("install_on_vps")}</button>`;
     let actionBtn = "";
@@ -2177,7 +2179,7 @@ const thirdPartyAppRenderers = {
       actionBtn = `<button id="tp-remote-connect" class="tab">${t("remote_connect")}</button>`;
     }
     return `
-    <div class="channel-box accordion-box notif-type-box${tpRemoteOpen ? " accordion-open" : ""}" id="tp-app-remote">
+    <div class="channel-box accordion-box notif-type-box${tpRemoteOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-remote"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
         <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak Bağlantı")}</span>
       </div>
@@ -2322,6 +2324,7 @@ function bindThirdPartyEvents() {
     const body = box.querySelector(".notif-type-body");
     if (!head || !body) return;
     head.addEventListener("click", (e) => {
+      if (box.classList.contains("tp-card-disabled")) return;
       if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
       setTpAccordion(id === "vps-info-box" ? "vps" : id === "tp-app-remote" ? "remote" : "stremio");
     });
