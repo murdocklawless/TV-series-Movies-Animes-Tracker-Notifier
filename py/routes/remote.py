@@ -924,7 +924,7 @@ def remote_vps_status():
     except Exception:
         ever_connected = False
     try:
-        stremio_installed = (get_setting("stremio_vps_installed") or "") == "1"
+        stremio_installed = (get_setting("stremio_vps_installed") or "") == "1" or bool(get_setting("tp_base_url") or "")
     except Exception:
         stremio_installed = False
     return jsonify({"ok": True, "configured": configured, "connected": connected and configured,

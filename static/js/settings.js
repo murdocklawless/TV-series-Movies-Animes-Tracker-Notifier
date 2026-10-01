@@ -2120,6 +2120,7 @@ const thirdPartyAppRenderers = {
     const _note = tpStatusNote(app);
     const _watch = tpWatchDetail(app);
     const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
+    const stremioInstalled = !!(vpsProfile && vpsProfile.stremioInstalled);
     return `
     <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-stremio"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
@@ -2156,7 +2157,7 @@ const thirdPartyAppRenderers = {
           </label>
         </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
-          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected ? "" : "disabled aria-disabled=\"true\""}>${t("install_on_vps")}</button>
+          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected && !stremioInstalled ? "" : "disabled aria-disabled=\"true\""}>${t("install_on_vps")}</button>
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
           ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
