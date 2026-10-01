@@ -3448,10 +3448,6 @@ input:-webkit-autofill:focus {
 .peer-btn.peer-dl {
   color: #22c55e;
 }
-.vps-last-test-row {
-  color: #22c55e;
-  font-size: 0.7rem;
-}
 
 .tp-url-box {
   display: flex;

@@ -2442,7 +2442,10 @@ function renderVpsSection() {
         <span class="notify-name">${escAttr(t("tp_status"))}</span>
         <span id="vps-status-value" class="tp-status-value ${stCls}">${escAttr(stTxt)}</span>
       </div>
-      <div class="tp-frame-note vps-last-test-row">${escAttr(t("vps_last_test"))}: <span id="vps-last-test">${escAttr(lastTs)}</span></div>
+      <div class="tp-status-row">
+        <span class="notify-name">${escAttr(t("vps_last_test"))}</span>
+        <span id="vps-last-test" class="tp-last-signal">${escAttr(lastTs)}</span>
+      </div>
       <div class="tp-sub-box">
         <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
