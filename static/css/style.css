@@ -1658,6 +1658,9 @@ input:-webkit-autofill:focus {
   max-width: 480px;
   width: 100%;
 }
+#settings-thirdparty-modal .settings-modal {
+  max-width: 560px;
+}
 
 .settings-submodal {
   display: flex;
