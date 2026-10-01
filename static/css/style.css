@@ -3387,6 +3387,11 @@ input:-webkit-autofill:focus {
 .tp-card-disabled .notif-type-head {
   cursor: not-allowed;
 }
+#tp-app-stremio .test-row .tab,
+#tp-app-remote .test-row .tab {
+  width: 135px;
+  white-space: nowrap;
+}
 
 .tp-joblog {
   background: rgba(0, 0, 0, 0.35);

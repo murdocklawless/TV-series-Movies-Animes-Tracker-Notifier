@@ -747,7 +747,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   }
   #tp-app-stremio .test-row .tab,
   #tp-app-remote .test-row .tab {
-    width: auto;
+    width: 135px;
     white-space: nowrap;
   }
 }
