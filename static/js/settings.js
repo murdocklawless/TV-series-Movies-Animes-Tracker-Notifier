@@ -2477,7 +2477,7 @@ function renderVpsSection() {
         </div>
         <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
           <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.username || "root")}" /></div>
+            <div class="tp-url-box"><input id="vps-user" type="text" readonly value="root" /></div>
           </label>
           <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${hasSecret && p.auth_type === "password" ? "••••••••" : ""}" /></div>
@@ -2508,7 +2508,7 @@ async function flushVpsProfile(hintId) {
     const host = (hostEl.value || "").trim();
     let port = 22;
     try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
-    const username = (document.getElementById("vps-user")?.value || "root").trim() || "root";
+    const username = "root";
     let secret = "";
     if (vpsAuth === "key") {
       const k = document.getElementById("vps-key");

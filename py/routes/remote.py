@@ -945,7 +945,7 @@ def remote_profile_save():
         port = int(body.get("port") or 22)
     except (TypeError, ValueError):
         return jsonify({"error": "bad_port"}), 400
-    username = str(body.get("username") or "").strip() or "root"
+    username = "root"
     auth_type = str(body.get("auth_type") or "key").strip().lower()
     secret_in = body.get("secret")
     if not host or (not _HOST_RE.match(host) and not _IPV4_RE.match(host)):
