@@ -3388,7 +3388,8 @@ input:-webkit-autofill:focus {
   cursor: not-allowed;
 }
 #tp-app-stremio .test-row .tab,
-#tp-app-remote .test-row .tab {
+#tp-app-remote .test-row .tab,
+#vps-info-box .test-row .tab {
   width: 135px;
   white-space: nowrap;
 }

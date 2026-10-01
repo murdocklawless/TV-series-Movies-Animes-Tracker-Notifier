@@ -746,7 +746,8 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     align-items: center;
   }
   #tp-app-stremio .test-row .tab,
-  #tp-app-remote .test-row .tab {
+  #tp-app-remote .test-row .tab,
+  #vps-info-box .test-row .tab {
     width: 135px;
     white-space: nowrap;
   }
