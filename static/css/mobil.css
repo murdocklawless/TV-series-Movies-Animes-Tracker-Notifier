@@ -541,11 +541,13 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .media-tabs-group .tab,
   html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .tab,
   html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .notif-wrap,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .watched-ask-wrap,
   html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .utils-tabs-group .settings-wrap {
     flex: 0 0 auto;
     flex-shrink: 0;
   }
-  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-wrap {
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-wrap,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .watched-ask-wrap {
     overflow: visible;
     position: relative;
   }
@@ -553,13 +555,23 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
      menuler (ayarlar/bildirim) viewport'a sabitlenir. Bolum filtre
      menuleri h2 icinde absolute kalir, simgeye hizali acilir. */
   html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .settings-menu,
-  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-menu {
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .notif-menu,
+  html:not(.is-tv):not(.tv-mode) .nav-tabs-scroll .watched-ask-menu {
     position: fixed;
     top: 122px;
     right: 8px;
     left: auto;
     max-width: calc(100vw - 16px);
     z-index: 30;
+  }
+  html:not(.is-tv):not(.tv-mode) .watched-ask-menu .ask-poster-img {
+    width: 34px;
+    height: 50px;
+  }
+  html:not(.is-tv):not(.tv-mode) .watched-ask-menu .ask-poster-fallback {
+    width: 34px;
+    height: 50px;
+    font-size: 0.9rem;
   }
 }
 
@@ -750,5 +762,19 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   #vps-info-box .test-row .tab {
     width: 135px;
     white-space: nowrap;
+  }
+}
+
+/* Uzak Baglanti client etiketleri (mobil): admin/uyeler gibi tek satir tam
+   genislik; masaustunde member-chips flex'i 2'li satiri zaten verir. */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #tp-peer-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+  html:not(.is-tv):not(.tv-mode) #tp-peer-list .member-chip {
+    width: 100%;
+    flex-shrink: 0;
   }
 }

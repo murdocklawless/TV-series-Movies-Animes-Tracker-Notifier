@@ -1,7 +1,7 @@
 /* tv.css — Android TV (html.is-tv / html.tv-mode) */
 @media (hover: hover) {
   html.is-tv .card:hover, html.tv-mode .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
-  html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn { display:flex; }
+  html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn, html.is-tv .card:hover .defer-btn, html.tv-mode .card:hover .defer-btn { display:flex; }
 }
 
 html.is-tv .modal-overlay, html.tv-mode .modal-overlay { top:0; left:0; right:0; bottom:0; }
@@ -15,11 +15,11 @@ html.is-tv #releases-modal > .modal, html.tv-mode #releases-modal > .modal {
 html.is-tv .modal-overlay .modal-body, html.tv-mode .modal-overlay .modal-body { overflow-y: auto; }
 
 html.is-tv .card:focus, html.is-tv .card:focus-visible, html.tv-mode .card:focus, html.tv-mode .card:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
   border-color: #f97316 !important;
   transform: scale(1.06);
-  box-shadow: 0 0 0 3px rgba(249,115,22,0.35), 0 8px 24px rgba(0,0,0,0.45);
+  box-shadow: 0 0 0 1px rgba(249,115,22,0.35), 0 8px 24px rgba(0,0,0,0.45);
 }
 
 html.is-tv .tab:focus, html.tv-mode .tab:focus, html.is-tv .tab:focus-visible, html.tv-mode .tab:focus-visible {
@@ -27,17 +27,17 @@ html.is-tv .tab:focus, html.tv-mode .tab:focus, html.is-tv .tab:focus-visible, h
   outline-offset: 1px;
 }
 
-html.is-tv .card .calendar-btn:focus { outline:2px solid #f97316; outline-offset:1px; }
-
 html.is-tv .card:focus-within .remove, html.tv-mode .card:focus-within .remove,
 html.is-tv .card:focus-within .calendar-btn, html.tv-mode .card:focus-within .calendar-btn,
 html.is-tv .card:focus-within .info-btn, html.tv-mode .card:focus-within .info-btn,
 html.is-tv .card:focus-within .move-btn, html.tv-mode .card:focus-within .move-btn,
 html.is-tv .card:focus-within .hide-btn, html.tv-mode .card:focus-within .hide-btn,
+html.is-tv .card:focus-within .defer-btn, html.tv-mode .card:focus-within .defer-btn,
 html.is-tv .card:focus-within .move-back-btn, html.tv-mode .card:focus-within .move-back-btn { display:flex; }
 
 html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn,
-html.is-tv .card .info-btn, html.tv-mode .card .info-btn { display:flex; }
+html.is-tv .card .info-btn, html.tv-mode .card .info-btn,
+html.is-tv .card .poster-wrap .defer-btn, html.tv-mode .card .poster-wrap .defer-btn { display:flex; }
 
 html.is-tv .hidden-by-modal, html.tv-mode .hidden-by-modal { display:none !important; }
 
@@ -47,7 +47,7 @@ html.is-tv .tabs-group .tab, html.tv-mode .tabs-group .tab {
   font-size: 0.78rem;
 }
 
-html.is-tv #tab-sort, html.tv-mode #tab-sort, html.is-tv #tab-settings, html.tv-mode #tab-settings { top: 0; }
+html.is-tv #tab-settings, html.tv-mode #tab-settings { top: 0; }
 
 html.is-tv .utils-tabs-group #tab-search, html.tv-mode .utils-tabs-group #tab-search {
   padding: 7px 13px;
@@ -83,10 +83,10 @@ html.is-tv #tab-exit:focus-visible, html.tv-mode #tab-exit:focus-visible {
 html.is-tv #tab-settings, html.tv-mode #tab-settings { display: none !important; }
 
 html.is-tv .card:focus-within, html.tv-mode .card:focus-within {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
   border-color: #f97316 !important;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 html.is-tv .notif-menu, html.tv-mode .notif-menu { max-height: 340px; }
@@ -130,6 +130,10 @@ html.is-tv .card .info-btn, html.tv-mode .card .info-btn { left: 5.6px; bottom: 
 
 html.is-tv .card .info-btn svg, html.tv-mode .card .info-btn svg { width: 11.2px; height: 11.2px; }
 
+html.is-tv .card .poster-wrap .defer-btn, html.tv-mode .card .poster-wrap .defer-btn { left: 50%; transform: translateX(-50%); bottom: 5.6px; width: 21px; height: 21px; }
+
+html.is-tv .card .poster-wrap .defer-btn svg, html.tv-mode .card .poster-wrap .defer-btn svg { width: 11.2px; height: 11.2px; }
+
 html.is-tv .card .info, html.tv-mode .card .info { padding: 7px 8.4px; }
 
 html.is-tv .card .info .title, html.tv-mode .card .info .title { font-size: 0.63rem; line-height: 0.91; min-height: 1.82em; margin-bottom: 2.8px; }
@@ -154,11 +158,32 @@ html.is-tv .season-line, html.tv-mode .season-line { margin-top: 2.8px; min-heig
 
 html.is-tv .season-count-badge, html.tv-mode .season-count-badge, html.is-tv .episode-count, html.tv-mode .episode-count { font-size: 0.49rem; padding: 0.7px 5.6px; }
 
+/* Arama + çoklu arama modalı sonuç kartları (yalnız modal, film hariç):
+   tip+puan / platform / sezon / bölüm / statü / tarih, tüm satır araları 3px,
+   sezon+bölüm+platform 0.7rem. */
+html.is-tv #search-results-modal .card.search-stacked .info .meta .badge, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge,
+html.is-tv #search-results-modal .card.search-stacked .season-count-badge, html.tv-mode #search-results-modal .card.search-stacked .season-count-badge,
+html.is-tv #search-results-modal .card.search-stacked .season-line .episode-count, html.tv-mode #search-results-modal .card.search-stacked .season-line .episode-count { font-size: 0.7rem; }
+html.is-tv #search-results-modal .card.search-stacked .info .meta .badge, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge { margin-bottom: 3px; }
+html.is-tv #search-results-modal .card.search-stacked .info .meta .badge.badge-platform, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge.badge-platform { margin-top: 0; }
+html.is-tv #search-results-modal .card.search-stacked .season-line, html.tv-mode #search-results-modal .card.search-stacked .season-line { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 3px; min-height: 0; }
+html.is-tv #search-results-modal .card.search-stacked .season-line .episode-count, html.tv-mode #search-results-modal .card.search-stacked .season-line .episode-count { margin-left: 0; }
+html.is-tv #search-results-modal .card.search-stacked .info .meta .next-ep, html.tv-mode #search-results-modal .card.search-stacked .info .meta .next-ep { margin-top: 3px; }
+/* TV: kişi/yönetmen filmografi kartlarında sezon üstte, bölüm altta */
+html.is-tv #person-modal .card .season-line.season-row, html.tv-mode #person-modal .card .season-line.season-row, html.is-tv #director-modal .card .season-line.season-row, html.tv-mode #director-modal .card .season-line.season-row { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 3px; min-height: 0; }
+html.is-tv #person-modal .card .season-line .episode-count, html.tv-mode #person-modal .card .season-line .episode-count, html.is-tv #director-modal .card .season-line .episode-count, html.tv-mode #director-modal .card .season-line .episode-count { margin-left: 0; }
+/* Kişi/yönetmen filmografi kartları: arama kartı rozetlerinin aynısı */
+html.is-tv #person-modal .card .info .meta .badge, html.tv-mode #person-modal .card .info .meta .badge, html.is-tv #director-modal .card .info .meta .badge, html.tv-mode #director-modal .card .info .meta .badge,
+html.is-tv #person-modal .card .season-count-badge, html.tv-mode #person-modal .card .season-count-badge, html.is-tv #director-modal .card .season-count-badge, html.tv-mode #director-modal .card .season-count-badge,
+html.is-tv #person-modal .card .season-line .episode-count, html.tv-mode #person-modal .card .season-line .episode-count, html.is-tv #director-modal .card .season-line .episode-count, html.tv-mode #director-modal .card .season-line .episode-count { font-size: 0.7rem; }
+html.is-tv #person-modal .card .info .meta .badge, html.tv-mode #person-modal .card .info .meta .badge { margin-bottom: 3px; }
+html.is-tv #person-modal .card .info .meta .next-ep, html.tv-mode #person-modal .card .info .meta .next-ep { margin-top: 3px; }
+
 html.is-tv .no-poster, html.tv-mode .no-poster { font-size: 1.4rem; }
 
-html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 1px solid #f97316; outline-offset: 1px; }
+html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-search:focus, html.tv-mode .section-search:focus, html.is-tv .section-filter:focus, html.tv-mode .section-filter:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 1px solid #f97316; outline-offset: 1px; }
 
-html.is-tv .section-refresh:focus-visible, html.tv-mode .section-refresh:focus-visible, html.is-tv .section-hide:focus-visible, html.tv-mode .section-hide:focus-visible, html.is-tv .section-move-up:focus-visible, html.tv-mode .section-move-up:focus-visible, html.is-tv .section-move-down:focus-visible, html.tv-mode .section-move-down:focus-visible { outline: 1px solid #f97316; outline-offset: 1px; }
+html.is-tv .section-refresh:focus-visible, html.tv-mode .section-refresh:focus-visible, html.is-tv .section-hide:focus-visible, html.tv-mode .section-hide:focus-visible, html.is-tv .section-search:focus-visible, html.tv-mode .section-search:focus-visible, html.is-tv .section-filter:focus-visible, html.tv-mode .section-filter:focus-visible, html.is-tv .section-move-up:focus-visible, html.tv-mode .section-move-up:focus-visible, html.is-tv .section-move-down:focus-visible, html.tv-mode .section-move-down:focus-visible { outline: 1px solid #f97316; outline-offset: 1px; }
 
 /* Fix: TV nav should stay desktop 3-col even when tablet max-width 1366 applies */
 html.is-tv nav, html.tv-mode nav {
@@ -254,11 +279,19 @@ html.is-tv .filter-add-btn.btn-tv:focus-visible, html.tv-mode .filter-add-btn.bt
 }
 html.is-tv .filter-add-btn.btn-doc:focus, html.tv-mode .filter-add-btn.btn-doc:focus,
 html.is-tv .filter-add-btn.btn-doc:focus-visible, html.tv-mode .filter-add-btn.btn-doc:focus-visible {
-  outline-color: #ec4899;
+  outline-color: #8ddb07;
 }
 html.is-tv .filter-add-btn.btn-actor:focus, html.tv-mode .filter-add-btn.btn-actor:focus,
 html.is-tv .filter-add-btn.btn-actor:focus-visible, html.tv-mode .filter-add-btn.btn-actor:focus-visible {
   outline-color: #a855f7;
+}
+html.is-tv .filter-add-btn.btn-director:focus, html.tv-mode .filter-add-btn.btn-director:focus,
+html.is-tv .filter-add-btn.btn-director:focus-visible, html.tv-mode .filter-add-btn.btn-director:focus-visible {
+  outline-color: #f472b6;
+}
+html.is-tv .filter-add-btn.btn-anime:focus, html.tv-mode .filter-add-btn.btn-anime:focus,
+html.is-tv .filter-add-btn.btn-anime:focus-visible, html.tv-mode .filter-add-btn.btn-anime:focus-visible {
+  outline-color: #ec4899;
 }
 html.is-tv .filter-add-btn.btn-genre:focus, html.tv-mode .filter-add-btn.btn-genre:focus,
 html.is-tv .filter-add-btn.btn-genre:focus-visible, html.tv-mode .filter-add-btn.btn-genre:focus-visible {
@@ -299,9 +332,26 @@ html.is-tv .modal-close:focus-visible, html.tv-mode .modal-close:focus-visible {
   outline-offset: 2px;
 }
 
+/* Arama sonuçları filtre butonu odağı: 1px turuncu halka + 4px yuvarlak (modal-close ile birebir) */
+html.is-tv #search-filter-btn, html.tv-mode #search-filter-btn,
+html.is-tv #results-search-btn, html.tv-mode #results-search-btn {
+  border-radius: 4px;
+}
+
+html.is-tv #search-filter-btn:focus, html.tv-mode #search-filter-btn:focus,
+html.is-tv #search-filter-btn:focus-visible, html.tv-mode #search-filter-btn:focus-visible,
+html.is-tv #results-search-btn:focus, html.tv-mode #results-search-btn:focus,
+html.is-tv #results-search-btn:focus-visible, html.tv-mode #results-search-btn:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
 /* Bölüm başlık butonları + gizlenenler ara/X: aynı dikdörtgen-yuvarlak çerçeve */
 html.is-tv .section-refresh, html.tv-mode .section-refresh,
 html.is-tv .section-hide, html.tv-mode .section-hide,
+html.is-tv .section-search, html.tv-mode .section-search,
+html.is-tv .section-filter, html.tv-mode .section-filter,
 html.is-tv .section-move-up, html.tv-mode .section-move-up,
 html.is-tv .section-move-down, html.tv-mode .section-move-down,
 html.is-tv .hidden-header-btn, html.tv-mode .hidden-header-btn {
@@ -330,6 +380,11 @@ html.is-tv .card .hide-btn:focus, html.tv-mode .card .hide-btn:focus,
 html.is-tv .card .hide-btn:focus-visible, html.tv-mode .card .hide-btn:focus-visible,
 html.is-tv .card .calendar-btn:focus, html.tv-mode .card .calendar-btn:focus,
 html.is-tv .card .calendar-btn:focus-visible, html.tv-mode .card .calendar-btn:focus-visible,
+html.is-tv .card .poster-wrap .defer-btn:focus, html.tv-mode .card .poster-wrap .defer-btn:focus,
+html.is-tv .card .poster-wrap .defer-btn:focus-visible, html.tv-mode .card .poster-wrap .defer-btn:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+}
 html.is-tv .btn:focus, html.tv-mode .btn:focus,
 html.is-tv .btn:focus-visible, html.tv-mode .btn:focus-visible,
 html.is-tv #details-calendar:focus, html.tv-mode #details-calendar:focus,
@@ -340,6 +395,13 @@ html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,
 html.is-tv .notif-item:focus-visible, html.tv-mode .notif-item:focus-visible,
 html.is-tv .hidden-header-btn:focus, html.tv-mode .hidden-header-btn:focus,
 html.is-tv .hidden-header-btn:focus-visible, html.tv-mode .hidden-header-btn:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* Izlendi-sor paneli Evet/Hayir butonlari fokus halkasi */
+html.is-tv .ask-btn:focus, html.tv-mode .ask-btn:focus,
+html.is-tv .ask-btn:focus-visible, html.tv-mode .ask-btn:focus-visible {
   outline: 2px solid #f97316;
   outline-offset: 2px;
 }
@@ -444,5 +506,96 @@ html.is-tv #login-lang-list .provider-cell:focus-visible, html.tv-mode #login-la
   outline-offset: -2px;
   background: #262a36 !important;
   color: #fff !important;
+}
+
+/* Gizlenenler modal kartlari: desktop hidden-tile aynasi, TV kart olceginde.
+   Rozet + puan / yayinci / statu TV normal kartla birebir okunur. */
+html.is-tv .hidden-tile, html.tv-mode .hidden-tile { width: 119px; }
+html.is-tv .hidden-name, html.tv-mode .hidden-name { font-size: 0.63rem; }
+html.is-tv .hidden-meta, html.tv-mode .hidden-meta { font-size: 0.56rem; }
+html.is-tv .hidden-meta-row .badge, html.tv-mode .hidden-meta-row .badge,
+html.is-tv .hidden-meta-row .badge-score, html.tv-mode .hidden-meta-row .badge-score {
+  font-size: 0.49rem;
+  padding: 0.7px 5.6px;
+}
+html.is-tv .hidden-meta .badge-platform, html.tv-mode .hidden-meta .badge-platform {
+  font-size: 0.49rem;
+  padding: 0.7px 5.6px;
+  max-width: 63px;
+}
+html.is-tv .hidden-meta .next-ep, html.tv-mode .hidden-meta .next-ep { font-size: 0.525rem; }
+html.is-tv .hidden-meta .next-ep .next-ep-days, html.tv-mode .hidden-meta .next-ep .next-ep-days { font-size: 0.476rem; }
+html.is-tv .hidden-tile:focus, html.tv-mode .hidden-tile:focus,
+html.is-tv .hidden-tile:focus-visible, html.tv-mode .hidden-tile:focus-visible,
+html.is-tv .hidden-restore:focus, html.tv-mode .hidden-restore:focus,
+html.is-tv .hidden-restore:focus-visible, html.tv-mode .hidden-restore:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+}
+/* TV hidden-modal: baslik butonlari + filtre menusu fokus cerceveleri de 1px
+   (jenerik 2px TV halkasini bu modalda ezer; diger modallar etkilenmez) */
+html.is-tv #hidden-modal .hidden-header-btn:focus, html.tv-mode #hidden-modal .hidden-header-btn:focus,
+html.is-tv #hidden-modal .hidden-header-btn:focus-visible, html.tv-mode #hidden-modal .hidden-header-btn:focus-visible,
+html.is-tv #hidden-modal #hidden-close:focus, html.tv-mode #hidden-modal #hidden-close:focus,
+html.is-tv #hidden-modal #hidden-close:focus-visible, html.tv-mode #hidden-modal #hidden-close:focus-visible,
+html.is-tv #hidden-modal #hidden-sort-menu .sort-item:focus, html.tv-mode #hidden-modal #hidden-sort-menu .sort-item:focus,
+html.is-tv #hidden-modal #hidden-sort-menu .sort-item:focus-visible, html.tv-mode #hidden-modal #hidden-sort-menu .sort-item:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+}
+/* TV takvim modali: TARİH basligi 30px sola (12 baz + 60 ekstra = merkez 30px kayar).
+   Mobil/desktop kurallari TV'yi haric tuttugu icin onlar etkilenmez. */
+html.is-tv #releases-modal .releases-table thead th:last-child, html.tv-mode #releases-modal .releases-table thead th:last-child {
+  text-align: center;
+  padding-right: 72px;
+}
+/* TV takvim modali: ozet (i) butonu fokus 1px + 4px round.
+   Baz outline:none'i ezer; watch-btn zaten jenerik 1px halkada. */
+html.is-tv #releases-modal .episode-info-btn:focus, html.tv-mode #releases-modal .episode-info-btn:focus,
+html.is-tv #releases-modal .episode-info-btn:focus-visible, html.tv-mode #releases-modal .episode-info-btn:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* TV bolum arama kutulari (.rec-search-input): hidden-modal arama kutusu
+   (#hidden-search-input) aynasi — TV'de UA beyazi dusmemesi icin.
+   Konum absolute kalir (bolum basligi duzeni), gorsel hidden ile birebir:
+   normalde koyu gri cerceve #2a2f3d, odakta turuncu. */
+html.is-tv .rec-search-input, html.tv-mode .rec-search-input {
+  display: none;
+  position: absolute;
+  right: 172px;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 230px;
+  max-width: 100%;
+  z-index: 30;
+  background: #1b1f2a;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #e8eaf0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  outline: none;
+}
+html.is-tv #view-dizi .rec-search-input, html.tv-mode #view-dizi .rec-search-input,
+html.is-tv #view-film .rec-search-input, html.tv-mode #view-film .rec-search-input,
+html.is-tv #view-belgesel .rec-search-input, html.tv-mode #view-belgesel .rec-search-input,
+html.is-tv #view-anime .rec-search-input, html.tv-mode #view-anime .rec-search-input {
+  right: 74px;
+}
+html.is-tv #view-unwatched .rec-search-input, html.tv-mode #view-unwatched .rec-search-input,
+html.is-tv #view-watched .rec-search-input, html.tv-mode #view-watched .rec-search-input {
+  right: 112px;
+}
+html.is-tv .rec-search-input::placeholder, html.tv-mode .rec-search-input::placeholder {
+  color: #6b7180;
+}
+html.is-tv .rec-search-input.open, html.tv-mode .rec-search-input.open {
+  display: block;
+}
+html.is-tv .rec-search-input:focus, html.tv-mode .rec-search-input:focus {
+  border-color: #f97316;
 }
 

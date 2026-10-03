@@ -56,10 +56,15 @@ def _pset(uid, key, value):
 from tmdb import tmdb_request, _genre_names_to_ids, _genre_ids_for_media
 from anilist import _anime_title, _anime_cover, _anime_next_ep, anilist_recommend
 
-LIMIT = 18      # bölüm başına gösterilen öneri (3 satir tam dolar)
+LIMIT = 12      # bölüm başına gösterilen öneri (dizi/film/belgesel/anime)
 BUFFER = 60     # hariç tutmalar sonrası doldurmak için toplanan aday sayısı
-SEEN_CAP = 36   # rotasyon geçmişi (FIFO) — iki tam rotasyonu (18+18) kapsar
+SEEN_CAP = 24   # rotasyon geçmişi (FIFO) — iki tam rotasyonu (12+12) kapsar
 DETAIL_TTL = 7 * 86400   # kart detayı (networks/status) tazelik süresi
+
+# Öneri payload şeması: karta yeni alan eklenince (film yapımcısı, anime
+# stüdyosu) burası artırılır; fingerprint değişir ve bölüm bir kez kendini yeniler.
+# s3: LIMIT 18->12 + docs bölümü özel üretime geçti (türetilmişten ayrıldı).
+REC_SCHEMA = "s3"
 
 _rec_lock = threading.Lock()
 _rec_ram = {}   # {media: {"items": [...], "fp": str}} — gen/TTL bağımsız
@@ -70,11 +75,32 @@ def section_fingerprint(conn, kind, user_id=None):
     o bölümü geçersiz kılar (diğer bölümlere dokunulmaz). Faz 32: per-user."""
     uid = _rec_uid(user_id)
     parts = []
+    if kind in ("shows", "movies", "docs", "anime"):
+        parts.append(REC_SCHEMA)
     if kind == "anime":
         parts.append(",".join(sorted(_load_genre_list("fav_anime_genres", user_id=uid))))
         tbl = "anime"
     else:
         parts.append(",".join(sorted(_load_genre_list("fav_genres", user_id=uid))))
+        if kind == "docs":
+            # Belgesel: takipteki film+dizi havuzunun tür özeti (iki ortam birlikte).
+            gs = set()
+            if uid > 0:
+                rows = conn.execute(
+                    "SELECT genres FROM followed WHERE user_id=? AND media_type IN ('movie', 'tv')", (uid,)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT genres FROM followed WHERE media_type IN ('movie', 'tv')").fetchall()
+            for r in rows:
+                try:
+                    g = json.loads(r["genres"] or "[]")
+                except (ValueError, TypeError):
+                    continue
+                if isinstance(g, list):
+                    gs.update(x for x in g if x)
+            parts.append(",".join(sorted(gs)))
+            return "|".join(parts)
         mt = "tv" if kind == "shows" else "movie"
         gs = set()
         if uid > 0:
@@ -279,7 +305,7 @@ def remove_rec_item(kind, ident, user_id=None):
 
 
 def refresh_all_sections(user_id=None):
-    """Gecede bir scheduler'in çağırdığı tam tazeleme: 3 bölümü rotasyonla
+    """Gecede bir scheduler'in çağırdığı tam tazeleme: 4 bölümü rotasyonla
     yeniler ve kalıcı katmana yazar; eski kart detaylarını temizler. Fail-soft.
     Faz 32: user_id verilirse yalniz o kullanici, yoksa tum aktif kullanicilar."""
     uids = []
@@ -298,7 +324,7 @@ def refresh_all_sections(user_id=None):
     for uid in uids:
         conn = get_db()
         try:
-            for kind in ("shows", "movies", "anime"):
+            for kind in ("shows", "movies", "docs", "anime"):
                 try:
                     fp = section_fingerprint(conn, kind, user_id=uid)
                     items = generate_recommendations(conn, kind, user_id=uid)
@@ -322,6 +348,7 @@ def _load_seen(user_id=None):
     return {
         "shows": d.get("shows") or [],
         "movies": d.get("movies") or [],
+        "docs": d.get("docs") or [],
         "anime": d.get("anime") or [],
     }
 
@@ -346,7 +373,7 @@ def _load_rec_hidden(user_id=None):
     except (ValueError, TypeError):
         d = {}
     out = {}
-    for kind in ("shows", "movies", "anime"):
+    for kind in ("shows", "movies", "docs", "anime"):
         v = d.get(kind)
         out[kind] = v if isinstance(v, dict) else {}
     return out
@@ -369,22 +396,30 @@ def _hidden_ids(kind, user_id=None):
     return ids
 
 
-def hide_rec_item(kind, ident, title="", poster=None, user_id=None):
-    """Öğeyi kalıcı olarak gizler (varsa üzerine yazar). Faz 32: per-user."""
+def hide_rec_item(kind, ident, title="", poster=None, user_id=None, extra=None):
+    """Öğeyi kalıcı olarak gizler (varsa üzerine yazar). Faz 32: per-user.
+    extra: kart bilgi satırı + sıralama için ek alanlar
+    (score, release_date, networks, studios, media_type, tv_status)."""
     try:
         ident = int(ident)
     except (TypeError, ValueError):
         return False
-    if kind not in ("shows", "movies", "anime"):
+    if kind not in ("shows", "movies", "docs", "anime"):
         return False
     uid = _rec_uid(user_id)
     with _rec_lock:
         data = _load_rec_hidden(user_id=uid)
-        data[kind][str(ident)] = {
+        rec = {
             "ts": time.time(),
             "title": title or "",
             "poster": poster or "",
         }
+        if isinstance(extra, dict):
+            for k in ("score", "release_date", "networks", "studios", "media_type", "tv_status"):
+                v = extra.get(k)
+                if v is not None and v != "" and v != []:
+                    rec[k] = v
+        data[kind][str(ident)] = rec
         _save_rec_hidden(data, user_id=uid)
     return True
 
@@ -406,7 +441,8 @@ def unhide_rec_item(kind, ident, user_id=None):
 
 
 def list_rec_hidden(kind, user_id=None):
-    """Bir bölümün gizlenenleri: [{id,title,ts,poster}] — başlığa göre isim sıralı."""
+    """Bir bölümün gizlenenleri: [{id,title,ts,poster,score,release_date,
+    networks,studios,media_type,tv_status}] — başlığa göre isim sıralı."""
     hidden = _load_rec_hidden(user_id=user_id).get(kind) or {}
     items = []
     for k, v in hidden.items():
@@ -421,6 +457,12 @@ def list_rec_hidden(kind, user_id=None):
                 "title": v.get("title") or "",
                 "ts": v.get("ts") or 0,
                 "poster": v.get("poster") or "",
+                "score": v.get("score"),
+                "release_date": v.get("release_date") or "",
+                "networks": v.get("networks") or [],
+                "studios": v.get("studios") or [],
+                "media_type": v.get("media_type") or "",
+                "tv_status": v.get("tv_status") or "",
             }
         )
     items.sort(key=lambda x: (x["title"] or "").lower())
@@ -460,6 +502,16 @@ def _followed_ids(conn, kind, user_id=None):
         else:
             rows = conn.execute("SELECT anilist_id FROM anime").fetchall()
         return {r["anilist_id"] for r in rows if r["anilist_id"]}
+    if kind == "docs":
+        # Belgesel iki ortamdan da gelebilir: takipteki tüm film+dizi id'leri engeldir.
+        if uid > 0:
+            rows = conn.execute(
+                "SELECT tmdb_id FROM followed WHERE user_id=? AND media_type IN ('movie', 'tv')", (uid,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT tmdb_id FROM followed WHERE media_type IN ('movie', 'tv')").fetchall()
+        return {r["tmdb_id"] for r in rows if r["tmdb_id"]}
     mt = "tv" if kind == "shows" else "movie"
     if uid > 0:
         rows = conn.execute("SELECT tmdb_id FROM followed WHERE user_id=? AND media_type=?", (uid, mt,)).fetchall()
@@ -478,6 +530,15 @@ def build_profile(conn, kind, user_id=None):
             rows = conn.execute("SELECT genres, in_watched FROM anime WHERE user_id=?", (uid,)).fetchall()
         else:
             rows = conn.execute("SELECT genres, in_watched FROM anime").fetchall()
+    elif kind == "docs":
+        # Belgesel yedeği: film+dizi takip havuzundan tür sıklığı (izlenmiş 2x ağırlık).
+        if uid > 0:
+            rows = conn.execute(
+                "SELECT genres, in_watched FROM followed WHERE user_id=? AND media_type IN ('movie', 'tv')", (uid,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT genres, in_watched FROM followed WHERE media_type IN ('movie', 'tv')").fetchall()
     else:
         mt = "tv" if kind == "shows" else "movie"
         if uid > 0:
@@ -546,6 +607,50 @@ def _fetch_tmdb_candidates(media_type, genre_ids, wanted):
     return out
 
 
+def _fetch_tmdb_docs(wanted):
+    """Belgesel adayları: /discover/movie + /discover/tv, with_genres=99 (belgesel),
+    sayfa 1-3, film/dizi dönüşümlü (çeşitlilik). Aday dict şeması
+    _fetch_tmdb_candidates ile birebir."""
+    out = []
+    seen = set()
+    for page in (1, 2, 3):
+        for media_type in ("movie", "tv"):
+            params = {
+                "sort_by": "popularity.desc",
+                "vote_average.gte": 6,
+                "page": page,
+                "include_adult": "false",
+                "with_genres": "99",
+            }
+            data = tmdb_request(f"/discover/{media_type}", params)
+            if not data:
+                continue
+            results = data.get("results") or []
+            if not results:
+                continue
+            for it in results:
+                tid = it.get("id")
+                key = (media_type, tid)
+                if not tid or key in seen:
+                    continue
+                seen.add(key)
+                out.append(
+                    {
+                        "id": tid,
+                        "tmdb_id": tid,
+                        "media_type": media_type,
+                        "title": it.get("title") or it.get("name") or "",
+                        "poster_path": it.get("poster_path"),
+                        "release_date": it.get("release_date") or it.get("first_air_date"),
+                        "vote_average": it.get("vote_average") or 0,
+                        "genre_ids": it.get("genre_ids") or [],
+                    }
+                )
+                if len(out) >= wanted:
+                    return out
+    return out
+
+
 def _fetch_anime_candidates(genre_names, wanted):
     media = anilist_recommend(genre_names, per_page=wanted)
     out = []
@@ -554,6 +659,9 @@ def _fetch_anime_candidates(genre_names, wanted):
         if not mid:
             continue
         ep, air_at = _anime_next_ep(m)
+        sd = m.get("startDate") or {}
+        sy, sm, sdy = sd.get("year"), sd.get("month"), sd.get("day")
+        rel = f"{sy}-{sm or 1:02d}-{sdy or 1:02d}" if sy else ""
         out.append(
             {
                 "id": mid,
@@ -565,6 +673,8 @@ def _fetch_anime_candidates(genre_names, wanted):
                 "format": m.get("format"),
                 "status": m.get("status"),
                 "genres": m.get("genres") or [],
+                "studios": [s.get("name") for s in ((m.get("studios") or {}).get("nodes") or []) if s.get("name")][:3],
+                "release_date": rel,
                 "next_episode": ep,
                 "airing_at": air_at,
             }
@@ -575,6 +685,16 @@ def _fetch_anime_candidates(genre_names, wanted):
 def _pool_candidates(kind, names, wanted):
     if kind == "anime":
         return _fetch_anime_candidates(names, wanted)
+    if kind == "docs":
+        # Belgesel özel havuzu (with_genres=99, film+dizi); profil türleriyle
+        # eşleşenler öne alınır (kişiselleştirme), kalanı popülerlikle doldurur.
+        pool = _fetch_tmdb_docs(wanted)
+        gids = set(_genre_names_to_ids(names)) if names else set()
+        if gids:
+            hit = [c for c in pool if set(c.get("genre_ids") or []) & gids]
+            miss = [c for c in pool if not (set(c.get("genre_ids") or []) & gids)]
+            pool = hit + miss
+        return pool
     gids = _genre_names_to_ids(names) if names else []
     return _fetch_tmdb_candidates("tv" if kind == "shows" else "movie", gids, wanted)
 
@@ -647,6 +767,74 @@ def _attach_tv_details(items):
         it["tv_status"] = status
 
 
+def _attach_movie_details(items):
+    """Film/belgesel önerileri için yapımcı (ilk production_company) çeker.
+    _attach_tv_details deseni: rec_detail (kind='movie', 7 gün taze) + paralel
+    TMDB detay; şirket networks alanında taşınır (rozette ilk öğe gösterilir).
+    Fail-soft: hata durumunda boş kalır."""
+    now = time.time()
+    cached = {}
+    missing = []
+    try:
+        conn = get_db()
+        for it in items:
+            tid = it["tmdb_id"]
+            row = conn.execute(
+                "SELECT networks, status, ts FROM rec_detail WHERE kind='movie' AND id=?",
+                (tid,),
+            ).fetchone()
+            if row and now - (row["ts"] or 0) < DETAIL_TTL:
+                try:
+                    cached[tid] = json.loads(row["networks"] or "[]")
+                    continue
+                except (ValueError, TypeError):
+                    pass
+            missing.append(it)
+        conn.close()
+    except Exception:
+        missing = list(items)
+
+    def fetch(item):
+        try:
+            data = tmdb_request(f"/movie/{item['tmdb_id']}")
+            if not data:
+                return item["tmdb_id"], []
+            comps = [c.get("name") for c in (data.get("production_companies") or []) if c.get("name")][:1]
+            return item["tmdb_id"], comps
+        except Exception:
+            return item["tmdb_id"], []
+
+    results = {}
+    if missing:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            results = {tid: comps for tid, comps in ex.map(fetch, missing)}
+
+    if results:
+        try:
+            conn = get_db()
+            for tid, comps in results.items():
+                if comps:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO rec_detail (kind, id, networks, status, ts) "
+                        "VALUES ('movie', ?, ?, NULL, ?)",
+                        (tid, json.dumps(comps), now),
+                    )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    for it in items:
+        tid = it["tmdb_id"]
+        if tid in cached:
+            comps = cached[tid]
+        elif tid in results:
+            comps = results[tid]
+        else:
+            comps = []
+        it["networks"] = comps
+
+
 def _can_move_watched(item):
     """İzlenmişe taşı butonu yalnızca tamamlanmış öğelerde çıkar:
     anime FINISHED/CANCELLED, dizi Ended/Canceled/Cancelled, film yayınlanmış."""
@@ -668,6 +856,8 @@ def generate_fill(conn, kind, exclude_ids, limit, user_id=None):
     followed = _followed_ids(conn, kind, user_id=uid)
     seen = _load_seen(user_id=uid)
     hidden = _hidden_ids(kind, user_id=uid)
+    if kind == "movies":
+        hidden = hidden | _hidden_ids("docs", user_id=uid)
     fav, fallback = build_profile(conn, kind, user_id=uid)
     primary = fav if fav else fallback
 
@@ -692,6 +882,15 @@ def generate_fill(conn, kind, exclude_ids, limit, user_id=None):
 
     if kind == "shows":
         _attach_tv_details(chosen)
+    if kind == "movies":
+        _attach_movie_details(chosen)
+    if kind == "docs":
+        tv_items = [c for c in chosen if c.get("media_type") == "tv"]
+        mv_items = [c for c in chosen if c.get("media_type") != "tv"]
+        if tv_items:
+            _attach_tv_details(tv_items)
+        if mv_items:
+            _attach_movie_details(mv_items)
 
     for c in chosen:
         c["can_move_watched"] = _can_move_watched(c)
@@ -700,7 +899,7 @@ def generate_fill(conn, kind, exclude_ids, limit, user_id=None):
 
 
 def generate_recommendations(conn, kind, user_id=None):
-    """Tek bölüm (shows/movies/anime) için öneri listesi üretir + rotasyonu işler.
+    """Tek bölüm (shows/movies/docs/anime) için öneri listesi üretir + rotasyonu işler.
     Faz 32: per-user."""
     uid = _rec_uid(user_id)
     seen = _load_seen(user_id=uid)
@@ -710,11 +909,13 @@ def generate_recommendations(conn, kind, user_id=None):
         fp = _profile_fingerprint(conn)
     stored_fp = _pget(uid, "rec_profile_fp")
     if stored_fp != fp:
-        seen = {"shows": [], "movies": [], "anime": []}
+        seen = {"shows": [], "movies": [], "docs": [], "anime": []}
         _pset(uid, "rec_profile_fp", fp)
 
     followed = _followed_ids(conn, kind, user_id=uid)
     hidden = _hidden_ids(kind, user_id=uid)
+    if kind == "movies":
+        hidden = hidden | _hidden_ids("docs", user_id=uid)
     fav, fallback = build_profile(conn, kind, user_id=uid)
     primary = fav if fav else fallback
 
@@ -740,11 +941,20 @@ def generate_recommendations(conn, kind, user_id=None):
 
     if kind == "shows":
         _attach_tv_details(chosen)
+    if kind == "movies":
+        _attach_movie_details(chosen)
+    if kind == "docs":
+        tv_items = [c for c in chosen if c.get("media_type") == "tv"]
+        mv_items = [c for c in chosen if c.get("media_type") != "tv"]
+        if tv_items:
+            _attach_tv_details(tv_items)
+        if mv_items:
+            _attach_movie_details(mv_items)
 
     for c in chosen:
         c["can_move_watched"] = _can_move_watched(c)
 
     seen[kind] = (seen[kind] + [c["id"] for c in chosen])[-SEEN_CAP:]
-    _save_seen(seen, user_id=uid)
+    _save_seen(seen, user_id=user_id)
 
     return [{k: v for k, v in c.items() if k != "id"} for c in chosen]

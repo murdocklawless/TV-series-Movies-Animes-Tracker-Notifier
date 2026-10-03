@@ -1,9 +1,9 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=508";
-import { toast, escAttr, HEART_SVG } from "./utils.js";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=513";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js";
 import { activateUtilityTab } from "./views.js?v=507";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=507";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=508";
 
 // ---- Search ----
 // ---- Settings ----
@@ -15,12 +15,17 @@ const NOTIF_TYPES = [
   ["status_pilot", "tv"], ["status_returning", "tv"], ["season_upcoming", "tv"],
   ["unwatched_bulk", "tv"], ["vote_threshold", "tv"],
   ["movie_today", "movie"], ["movie_rescheduled", "movie"], ["networks_changed", "movie"],
+  ["doc_movie_today", "belgesel"], ["doc_movie_rescheduled", "belgesel"], ["doc_networks_changed", "belgesel"],
+  ["doc_episode_today", "belgesel"], ["doc_season_start", "belgesel"], ["doc_season_planned", "belgesel"],
+  ["doc_season_production", "belgesel"], ["doc_status_ended", "belgesel"], ["doc_status_canceled", "belgesel"],
+  ["doc_status_pilot", "belgesel"], ["doc_status_returning", "belgesel"], ["doc_season_upcoming", "belgesel"],
+  ["doc_unwatched_bulk", "belgesel"], ["doc_vote_threshold", "belgesel"],
   ["anime_episode_today", "anime"], ["anime_hiatus", "anime"], ["anime_cancelled", "anime"],
   ["anime_finished", "anime"], ["anime_releasing", "anime"],   ["anime_episodes", "anime"],
   ["anime_unwatched_bulk", "anime"],
   ["member_pending", "member"], ["password_reset", "member"],
 ];
-const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"], ["member", "notif_group_member"]];
+const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["belgesel", "notif_group_belgesel"], ["anime", "notif_group_anime"], ["member", "notif_group_member"]];
 
 function setNotifTypeVisible(group, on) {
   const box = document.getElementById(`notif-type-box-${group}`);
@@ -43,13 +48,13 @@ function renderNotifTypes() {
         ${NOTIF_TYPES.filter(([, gg]) => gg === g).map(([k]) => `
           <div class="notify-row notify-type-row">
             <span class="notify-name"><span data-i18n="notif_type_${k}">${escAttr(t("notif_type_" + k))}</span></span>
-            <label class="switch"><input type="checkbox" id="s-notif-${k}" checked /><span class="slider"></span></label>
+            <span class="notif-switch-area"><span class="saved-hint" data-i18n="saved">${escAttr(t("saved"))}</span><label class="switch"><input type="checkbox" id="s-notif-${k}" checked /><span class="slider"></span></label></span>
           </div>`).join("")}
       </div>
     </div>`).join("");
-  const hint = document.getElementById("notify-saved-hint");
   NOTIF_TYPES.forEach(([k]) => {
     document.getElementById(`s-notif-${k}`).addEventListener("change", (e) => {
+      const hint = e.target.closest(".notify-row").querySelector(".saved-hint");
       saveSettingsPartial({ [`notif_${k}`]: e.target.checked ? "1" : "0" }, hint);
     });
   });
@@ -935,7 +940,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=506");
+      const { errText: _err } = await import("./i18n.js?v=513");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -981,7 +986,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=506");
+        const { t: _t } = await import("./i18n.js?v=513");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1802,19 +1807,19 @@ document.getElementById("s-appupdate-auto").addEventListener("change", (e) => {
 });
 
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {
-  saveSettingsPartial({ telegram_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+  saveSettingsPartial({ telegram_enabled: e.target.checked ? "1" : "0" }, e.target.closest(".notify-row").querySelector(".saved-hint"));
 });
 document.getElementById("s-ntfy-enabled").addEventListener("change", (e) => {
-  saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+  saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, e.target.closest(".notify-row").querySelector(".saved-hint"));
 });
 document.getElementById("s-discord-enabled").addEventListener("change", (e) => {
-  saveSettingsPartial({ discord_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+  saveSettingsPartial({ discord_enabled: e.target.checked ? "1" : "0" }, e.target.closest(".notify-row").querySelector(".saved-hint"));
 });
 document.getElementById("s-email-enabled").addEventListener("change", (e) => {
-  saveSettingsPartial({ email_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+  saveSettingsPartial({ email_enabled: e.target.checked ? "1" : "0" }, e.target.closest(".notify-row").querySelector(".saved-hint"));
 });
 document.getElementById("s-center-enabled").addEventListener("change", (e) => {
-  saveSettingsPartial({ notif_center_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+  saveSettingsPartial({ notif_center_enabled: e.target.checked ? "1" : "0" }, e.target.closest(".notify-row").querySelector(".saved-hint"));
 });
 
 renderNotifTypes();
@@ -1958,7 +1963,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=506").then((m) => {
+  import("./notification.js?v=517").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2049,6 +2054,7 @@ document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
 let tpStremioOpen = false;
 let tpBaseUrl = "";
 let tpIsAdmin = false;
+let tpAskBeforeWatched = true;
 // Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
 let tpVpsOpen = false;
 let tpRemoteOpen = false;
@@ -2077,9 +2083,11 @@ async function renderThirdPartyApps() {
     const sj = await s.json();
     tpBaseUrl = (s.ok && sj && sj.tp_base_url ? String(sj.tp_base_url) : "").trim();
     tpIsAdmin = !!(s.ok && sj && sj.is_admin);
+    tpAskBeforeWatched = !!(s.ok && sj && (sj.ask_before_watched || "1") !== "0");
   } catch (_) {
     tpBaseUrl = "";
     tpIsAdmin = false;
+    tpAskBeforeWatched = true;
   }
   let vpsHtml = "";
   if (tpIsAdmin) {
@@ -2121,12 +2129,22 @@ const thirdPartyAppRenderers = {
     const _watch = tpWatchDetail(app);
     const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
     const stremioInstalled = !!(vpsProfile && vpsProfile.stremioInstalled);
+    const stremioInstallLabel = app.installUrl ? `
+        <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
+          <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+        </label>` : "";
     return `
     <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-stremio"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
         <span class="notif-type-title"><i class="fa-solid fa-cubes"></i> ${escAttr(app.name || "Stremio")}</span>
       </div>
       <div class="notif-type-body" style="display:${tpStremioOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name"><span data-i18n="ask_before_watched_label">${t("ask_before_watched_label")}</span></span>
+            <span class="ask-switch-area"><span class="saved-hint" id="ask-saved-hint" data-i18n="saved">${t("saved")}</span><label class="switch"><input type="checkbox" id="s-ask-before-watched" ${tpAskBeforeWatched ? "checked" : ""} /><span class="slider"></span></label></span>
+          </div>
+        </div>
         <div class="tp-sub-box">
           <div class="tp-status-row">
             <span class="notify-name">${t("tp_status")}</span>
@@ -2144,18 +2162,15 @@ const thirdPartyAppRenderers = {
           <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /></div>
           </label>
-        </div>` : (tpBaseUrl ? `
+          ${stremioInstallLabel}
+        </div>` : (tpBaseUrl || app.installUrl ? `
         <div class="tp-sub-box">
+          ${tpBaseUrl ? `
           <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span></span>
             <div class="tp-url-box"><a id="tp-base-link" href="${escAttr(tpBaseUrl)}" target="_blank" rel="noopener">${escAttr(tpBaseUrl)}</a></div>
-          </label>
+          </label>` : ""}
+          ${stremioInstallLabel}
         </div>` : "")}
-        ${app.installUrl ? `
-        <div class="tp-sub-box">
-          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
-            <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
-          </label>
-        </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
           <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected && !stremioInstalled ? "" : "disabled aria-disabled=\"true\""}>${t("install_on_vps")}</button>
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
@@ -2193,14 +2208,15 @@ const thirdPartyAppRenderers = {
           ${app.lastSignal ? `<div class="tp-status-row"><span class="notify-name">${t("vps_last_test")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>` : ""}
         </div>
         ${tpIsAdmin ? `
-        <div class="tp-sub-box">
-          <div class="test-row" style="justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
-            ${installBtn}
-            ${actionBtn}
-            <button id="tp-peer-add" class="tab" ${gate ? "" : "disabled aria-disabled=\"true\""}>${t("peer_add")}</button>
-          </div>
-          <pre id="tp-remote-joblog" class="tp-joblog" style="display:none"></pre>
-          <div id="tp-peer-list"></div>
+        <div class="test-row" style="justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          ${installBtn}
+          ${actionBtn}
+          <button id="tp-peer-add" class="tab" ${gate ? "" : "disabled aria-disabled=\"true\""}>${t("peer_add")}</button>
+        </div>
+        <pre id="tp-remote-joblog" class="tp-joblog" style="display:none"></pre>
+        <div class="tp-sub-box" id="tp-peer-box">
+          <span class="notif-type-title" data-i18n="peer_list_title">${t("peer_list_title")}</span>
+          <div class="member-chips" id="tp-peer-list"></div>
         </div>` : ""}
       </div>
     </div>`;
@@ -2341,6 +2357,15 @@ function bindThirdPartyEvents() {
     baseInput.addEventListener("blur", () => {
       console.debug("[tp-base] blur");
       flushTpBaseUrl();
+    });
+  }
+  const askToggle = document.getElementById("s-ask-before-watched");
+  if (askToggle) {
+    askToggle.addEventListener("change", async (e) => {
+      const hint = document.getElementById("ask-saved-hint");
+      const ok = await saveSettingsPartial({ ask_before_watched: e.target.checked ? "1" : "0" }, hint);
+      tpAskBeforeWatched = e.target.checked;
+      if (window.setAskEnabled) window.setAskEnabled(e.target.checked);
     });
   }
   const copyBtn = document.getElementById("tp-stremio-copy");
@@ -2612,19 +2637,6 @@ function bindVpsKeyActions() {
   }
 }
 
-function downloadRemoteConf(file, conf) {
-  try {
-    const blob = new Blob([conf], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file || "nextep_remote.conf";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  } catch (_) {}
-}
-
 async function remoteTunnelConnect() {
   try {
     const r = await fetch("/api/remote/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
@@ -2695,18 +2707,29 @@ async function renderRemotePeers() {
     if (!r.ok) throw new Error(j.error || "peers");
     peers = j.peers || [];
   } catch (_) { return; }
-  if (!peers.length) { list.innerHTML = ""; return; }
-  list.innerHTML = peers.map((p) => `
-    <div class="peer-chip${p.suspended ? " peer-suspended" : ""}" data-num="${p.num}">
-      <div class="peer-file">${escAttr(p.file)}</div>
-      <input class="peer-name" data-num="${p.num}" value="${escAttr(p.name || "")}" placeholder="${escAttr(t("peer_name_ph"))}" autocomplete="off" spellcheck="false" />
-      ${p.suspended ? `<span class="peer-badge">${escAttr(t("peer_suspended"))}</span><div class="tp-frame-note">${escAttr(t("peer_suspended_note"))}</div>` : ""}
-      <div class="peer-actions">
-        <button class="peer-btn peer-suspend" data-num="${p.num}" data-suspended="${p.suspended ? "1" : "0"}" title="${escAttr(p.suspended ? t("peer_unsuspend") : t("peer_suspend"))}">${p.suspended ? PEER_SVG.resume : PEER_SVG.suspend}</button>
-        <button class="peer-btn peer-delete" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_delete"))}">${PEER_SVG.del}</button>
-        <button class="peer-btn peer-dl" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_download"))}">${PEER_SVG.dl}</button>
+  if (!peers.length) {
+    list.innerHTML = "";
+    const box = document.getElementById("tp-peer-box");
+    if (box) box.style.display = "none";
+    return;
+  }
+  const box = document.getElementById("tp-peer-box");
+  if (box) box.style.display = "";
+  list.innerHTML = peers.map((p) => {
+    const lbl = p.file.replace(/\.conf$/, "");
+    return `
+    <div class="member-chip${p.suspended ? " peer-suspended" : ""}" data-num="${p.num}">
+      <div class="member-text">
+        <div class="member-name" title="${escAttr(lbl)}">${escAttr(lbl)}</div>
+        <input class="peer-name" data-num="${p.num}" value="${escAttr(p.name || "")}" placeholder="${escAttr(t("peer_real_name_ph"))}" autocomplete="off" spellcheck="false" />
       </div>
-    </div>`).join("");
+      <div class="member-icons">
+        <button class="role-icon ${p.suspended ? "c-green" : "c-orange"} peer-suspend" data-num="${p.num}" data-suspended="${p.suspended ? "1" : "0"}" title="${escAttr(p.suspended ? t("peer_unsuspend") : t("peer_suspend"))}">${p.suspended ? ROLE_PLAY_SVG : ROLE_PAUSE_SVG}</button>
+        <button class="role-icon c-red peer-delete" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_delete"))}">${ROLE_X_SVG}</button>
+        <button class="role-icon c-gray peer-dl" data-num="${p.num}" data-file="${escAttr(p.file)}" title="${escAttr(t("peer_download"))}">${PEER_SVG.dl}</button>
+      </div>
+    </div>`;
+  }).join("");
   list.querySelectorAll(".peer-name").forEach((inp) => {
     inp.addEventListener("blur", () => {
       remotePeerRename(inp.dataset.num, inp.value);
@@ -2733,7 +2756,6 @@ async function addRemotePeer() {
     const r = await fetch("/api/remote/peers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "" }) });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "peer");
-    if (j.conf) downloadRemoteConf(j.file, j.conf);
     toast(t("peer_added"));
     renderThirdPartyApps();
   } catch (e) {
@@ -2780,13 +2802,13 @@ function remotePeerDelete(num, file) {
 
 async function remotePeerDownload(num, file) {
   try {
-    const r = await fetch("/api/remote/peers/" + num + "/conf", { cache: "no-store" });
-    const j = await r.json();
-    if (!r.ok) throw new Error(errText(j.error) || j.error || "conf");
-    downloadRemoteConf(j.file || file, j.conf || "");
-  } catch (e) {
-    toast(errText((e && e.message) || "") || t("error"), true);
-  }
+    const a = document.createElement("a");
+    a.href = "/api/remote/peers/" + num + "/conf/download";
+    a.download = file || "nextep_remote.conf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (_) {}
 }
 
 function bindVpsRemoteEvents() {

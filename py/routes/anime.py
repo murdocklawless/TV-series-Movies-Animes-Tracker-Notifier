@@ -4,16 +4,20 @@ import os
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from scheduler import can_early_watch_anime, is_final_status
 from auth import get_current_user
 from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from anilist import (
     anilist_search,
     anilist_detail,
     anilist_schedule,
+    anilist_staff,
+    anime_directors,
     _anime_title,
     _anime_cover,
     _anime_next_ep,
     save_anime_details,
+    save_anime_directors,
     load_anime_details,
     _anime_start_year,
 )
@@ -90,6 +94,7 @@ def anime_search():
                     else None
                 ),
                 "genres": m.get("genres") or [],
+                "studios": [s.get("name") for s in ((m.get("studios") or {}).get("nodes") or []) if s.get("name")][:3],
             }
         )
     return jsonify(results)
@@ -107,6 +112,18 @@ def anime_details():
     if arow and not refresh:
         d = load_anime_details(conn, arow["id"])
         if d and d.get("description"):
+            if not d.get("directors"):
+                try:
+                    _dirs = anilist_staff(anilist_id)
+                except Exception:
+                    _dirs = []
+                if _dirs:
+                    try:
+                        save_anime_directors(conn, arow["id"], _dirs)
+                        conn.commit()
+                    except Exception:
+                        pass
+                    d["directors"] = _dirs
             conn.close()
             return jsonify(_with_poster_local(d, arow))
     detail = anilist_detail(anilist_id)
@@ -145,6 +162,7 @@ def anime_details():
                 }
                 for c in (detail.get("characters") or {}).get("nodes") or []
             ],
+            "directors": anime_directors(detail),
         }
     )
 
@@ -170,6 +188,15 @@ def anime_followed():
                     (score, r["id"]),
                 )
                 conn.commit()
+        comp = _anime_followed_completed(conn, r["id"])
+        try:
+            early = can_early_watch_anime(conn, r["id"])
+        except Exception:
+            early = False
+        try:
+            final = is_final_status("anime", r["status"] if "status" in r.keys() else None)
+        except Exception:
+            final = False
         result.append(
             {
                 "id": r["id"],
@@ -182,8 +209,10 @@ def anime_followed():
                 "status": r["status"],
                 "score": score,
                 "studios": r["studios"],
-                "completed": _anime_followed_completed(conn, r["id"]),
+                "completed": comp,
+                "can_move_watched": bool(comp or early or final),
                 "in_watched": int(r["in_watched"] or 0),
+                "deferred": int(r["deferred"] or 0) if "deferred" in r.keys() else 0,
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )
@@ -316,7 +345,7 @@ def anime_schedule():
     if not arow:
         return jsonify({"error": "Anime bulunamadı"}), 404
     rows = conn.execute(
-        "SELECT episode, air_at, watched, notified FROM anime_episodes "
+        "SELECT episode, air_at, watched, notified, watched_at FROM anime_episodes "
         "WHERE anime_id=? ORDER BY episode",
         (anime_id,),
     ).fetchall()
@@ -325,12 +354,14 @@ def anime_schedule():
         {
             "title": arow["title"],
             "anilist_id": arow["anilist_id"],
+            "duration": arow["duration"] if "duration" in arow.keys() else None,
             "items": [
                 {
                     "episode": r["episode"],
                     "airing_at": r["air_at"],
                     "watched": r["watched"],
                     "notified": r["notified"],
+                    "watched_at": r["watched_at"] if "watched_at" in r.keys() else None,
                 }
                 for r in rows
             ],
@@ -354,10 +385,11 @@ def anime_episode_watch():
         conn.close()
         return jsonify({"error": "Anime bulunamadı"}), 404
     conn.execute(
-        "INSERT INTO anime_episodes (anime_id, episode, watched) "
-        "VALUES (?, ?, ?) "
-        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched",
-        (anime_id, episode, watched),
+        "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at",
+        (anime_id, episode, watched,
+         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None),
     )
     conn.commit()
     conn.close()
@@ -374,15 +406,46 @@ def anime_move_watched():
         return jsonify({"error": "Eksik bilgi"}), 400
     uid = _uid()
     conn = get_db()
-    row = conn.execute("SELECT id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
+    row = conn.execute("SELECT id, status FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
     if not row:
         conn.close()
         return jsonify({"error": "Anime bulunamadı"}), 400
-    if watched and not _anime_followed_completed(conn, anime_id):
-        conn.close()
-        return jsonify({"error": "Anime henüz tamamlanmadı"}), 400
+    try:
+        st = row["status"] if "status" in row.keys() else None
+        final = is_final_status("anime", st)
+    except Exception:
+        final = False
+    if watched and not final and not _anime_followed_completed(conn, anime_id):
+        try:
+            early = can_early_watch_anime(conn, anime_id)
+        except Exception:
+            early = False
+        if not early:
+            conn.close()
+            return jsonify({"error": "Anime henüz tamamlanmadı"}), 400
     conn.execute("UPDATE anime SET in_watched=? WHERE id=?", (watched, anime_id))
     conn.commit()
     conn.close()
     bump()
     return jsonify({"ok": True, "watched": watched})
+
+
+@anime_bp.route("/api/anime/defer", methods=["POST"])
+def anime_defer():
+    """Daha-sonra-izle durumu: kartı listenin en altına indirir (sort'tan muaf)."""
+    body = request.get_json(silent=True) or {}
+    anime_id = body.get("anime_id")
+    deferred = 1 if body.get("deferred") else 0
+    if not anime_id:
+        return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
+    conn = get_db()
+    row = conn.execute("SELECT id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Anime bulunamadı"}), 400
+    conn.execute("UPDATE anime SET deferred=? WHERE id=?", (deferred, anime_id))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True, "deferred": deferred})

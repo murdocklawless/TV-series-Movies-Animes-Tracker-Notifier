@@ -40,7 +40,7 @@ export function pushModal(el) {
   modalStack.push(el);
   // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil;
   // picker'da free-input'ta, sonuç modalında ilk kartta kalsın (açılış focus'unu observer çalmasın)
-  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'value-modal')) return;
+  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal')) return;
   // focus first focusable (no scroll — scroll can yank fixed overlay in WebView)
   try {
     const f = el.querySelector('button, [href], input, select, [tabindex]:not([tabindex="-1"])');
@@ -115,7 +115,7 @@ window._tvModalStack = modalStack;
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","stremio-disconnect-modal","person-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -158,13 +158,21 @@ document.addEventListener("keydown", (e) => {
       e.preventDefault(); e.stopPropagation(); LL2.exitToOrigin(); return;
     }
   } catch {}
-  if (openMenuItems().length) {
+  if (openMenuItems().length || isMenuOpen('#watched-ask-menu')) {
     e.preventDefault(); e.stopPropagation();
-    // Hangi pencere açıksa kapatınca onun butonunda kal (bildirim/sıralama/ayarlar).
+    // Hangi pencere açıksa kapatınca onun butonunda kal (bildirim/ayarlar/arama-filtre/öneri-sıralama/gizlenen-sıralama/kişi-sıralama).
+    const _recOpen = document.querySelector('.rec-sort-menu.open');
+    const _followOpen = document.querySelector('.follow-sort-menu.open');
     const backTarget =
       (isMenuOpen('#notif-menu') && '#tab-notif') ||
-      (isMenuOpen('#sort-menu') && '#tab-sort') ||
-      (isMenuOpen('#settings-menu') && '#tab-settings') || null;
+      (isMenuOpen('#watched-ask-menu') && '#tab-watched-ask') ||
+      (isMenuOpen('#settings-menu') && '#tab-settings') ||
+      (isMenuOpen('#search-filter-menu') && '#search-filter-btn') ||
+      (isMenuOpen('#hidden-sort-menu') && '#hidden-filter-btn') ||
+      (isMenuOpen('#person-filter-menu') && '#person-filter-btn') ||
+      (isMenuOpen('#director-filter-menu') && '#director-filter-btn') ||
+      (_recOpen && isVisible(_recOpen) && _recOpen.dataset.section && `.section-filter[data-section="${_recOpen.dataset.section}"]`) ||
+      (_followOpen && isVisible(_followOpen) && _followOpen.dataset.section && `.section-filter[data-section="${_followOpen.dataset.section}"]`) || null;
     closeOpenMenus();
     if (backTarget) {
       try {
@@ -203,8 +211,8 @@ document.addEventListener("keydown", (e) => {
       } catch(_){}
       return;
     }
-    // Sonuç modalında buton modundayken Back karta döner, modal açık kalır
-    if (top.id === 'search-results-modal' && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
+    // Sonuç + kişi/yönetmen modalında buton modundayken Back karta döner, modal açık kalır
+    if ((top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal') && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
       e.preventDefault(); e.stopPropagation();
       exitButtonMode();
       return;
@@ -255,19 +263,19 @@ function rectOf(el){ try{ return el.getBoundingClientRect(); }catch{ return {lef
 function rectC(el){ const r=rectOf(el); return r.left + r.width/2; }
 function rectT(el){ return rectOf(el).top; }
 
-const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-notif,#tab-search,#tab-sort,#tab-settings,#tab-exit,#search-close';
-const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn';
-const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
+const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-search,#tab-settings,#tab-exit,#search-close';
+const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn,.defer-btn';
+const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
 function isCard(el){ return !!(el && el.classList && el.classList.contains('card')); }
 function cardButtons(card){
   const out = Array.from(card.querySelectorAll(CARD_BTN_SEL)).filter(el=>isVisible(el)&&!el.disabled);
   out.forEach((b)=>{ try{ b.tabIndex = 0; }catch(_){} });
-  // Kanonik sıra: takvim -> taşı -> info -> takibi bırak (yalnız takvimli kartlarda;
+  // Kanonik sıra: takvim -> taşı -> info -> sonra-izle -> gizle -> takibi bırak (yalnız takvimli kartlarda;
   // takvimsiz kartlar DOM sırasında kalır)
   try {
     if (out.some((b)=>b.classList && b.classList.contains('calendar-btn'))) {
-      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'info-btn': 2, 'hide-btn': 3, 'remove': 4 };
+      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'info-btn': 2, 'defer-btn': 3, 'hide-btn': 4, 'remove': 5 };
       const rank = (b) => {
         if (!b.classList) return 9;
         for (const k of Object.keys(RANK)) if (b.classList.contains(k)) return RANK[k];
@@ -288,7 +296,7 @@ function sectionHeaderButtons(h2){
 function buildGrid(){
   const rows = [];
   const navEls = Array.from(document.querySelectorAll(NAVBAR_SEL)).filter(el=>isVisible(el)&&!el.disabled);
-  // top-band (8px) toleransi: #tab-sort/#tab-settings top:-1px oldugu icin x sirasi bozulmasin
+  // top-band (8px) toleransi: #tab-settings top:-1px oldugu icin x sirasi bozulmasin
   navEls.sort((a,b)=>{
     const band = (el) => Math.round(rectT(el)/8);
     return (band(a)-band(b)) || (rectC(a)-rectC(b));
@@ -367,7 +375,7 @@ function focusEl(el){
   try{ focusNoScroll(el); }catch(_){}
   try{
     // Bildirim/sort/settings dropdown: yalniz liste kabini kaydir, sayfayi oynatma
-    const dd = el.closest && el.closest('#notif-menu, #sort-menu, #settings-menu');
+    const dd = el.closest && el.closest('#notif-menu, #settings-menu');
     if (dd){
       const list = (dd.querySelector('#notif-list') && dd.querySelector('#notif-list').contains(el))
         ? dd.querySelector('#notif-list')
@@ -480,23 +488,16 @@ function enterButtonMode(card){
   buttonMode = { card, idx };
   focusEl(btns[idx]);
 }
-// Sonuç modalı kart seviyesi 2D navigasyon (kart-içi butonlara dalmaz;
+// Sonuç + kişi/yönetmen modalları kart seviyesi 2D navigasyon (kart-içi butonlara dalmaz;
 // butonlara OK ile buton modunda girilir, Back ile karta dönülür)
 function resultsModalMove(top, dir, e){
   try {
-    const closeBtn = top.querySelector('#search-results-close');
+    const closeBtn = top.querySelector('#search-results-close, #person-close, #director-close');
+    const filterBtn = top.querySelector('#search-filter-btn, #person-filter-btn, #director-filter-btn');
+    const searchBtn = top.querySelector('#results-search-btn, #person-search-btn, #director-search-btn');
     const cards = Array.from(top.querySelectorAll('.card')).filter(el=>isVisible(el)&&!el.disabled);
     if (!cards.length) return false;
     const ae = document.activeElement;
-    if (closeBtn && ae === closeBtn){
-      const t = (dir === 'down' || dir === 'right') ? cards[0] : cards[cards.length - 1];
-      e.preventDefault(); focusEl(t); return true;
-    }
-    let card = isCard(ae) ? ae : (ae && ae.closest && ae.closest('.card')) || null;
-    if (!card || !top.contains(card)){
-      const t = (dir === 'down' || dir === 'right') ? cards[0] : cards[cards.length - 1];
-      e.preventDefault(); focusEl(t); return true;
-    }
     cards.sort((a,b)=>rectT(a)-rectT(b)||rectC(a)-rectC(b));
     const TOL = 24, rows = [];
     for (const c of cards){
@@ -509,6 +510,26 @@ function resultsModalMove(top, dir, e){
     }
     rows.sort((a,b)=>rectT(a[0])-rectT(b[0]));
     rows.forEach(r=>r.sort((a,b)=>rectC(a)-rectC(b)));
+    const header = [searchBtn, filterBtn, closeBtn].filter(el=>el&&isVisible(el)&&!el.disabled);
+    const nearestIn = (row, x)=>{
+      let best = row[0], bestD = Infinity;
+      for (const el of row){ const d = Math.abs(rectC(el) - x); if (d < bestD){ bestD = d; best = el; } }
+      return best;
+    };
+    // Header satırı (filtre <-> X): sağ/sol mekik, aşağı ilk satıra, yukarı son karta
+    if (header.includes(ae)){
+      if (dir === 'left' || dir === 'right'){
+        if (header.length > 1){ e.preventDefault(); focusEl(header[(header.indexOf(ae)+1)%header.length]); return true; }
+        e.preventDefault(); return true;
+      }
+      if (dir === 'down'){ e.preventDefault(); focusEl(nearestIn(rows[0], rectC(ae))); return true; }
+      e.preventDefault(); focusEl(nearestIn(rows[rows.length-1], rectC(ae))); return true;
+    }
+    let card = isCard(ae) ? ae : (ae && ae.closest && ae.closest('.card')) || null;
+    if (!card || !top.contains(card)){
+      const t = (dir === 'down' || dir === 'right') ? cards[0] : cards[cards.length - 1];
+      e.preventDefault(); focusEl(t); return true;
+    }
     let ri = -1, ci = -1;
     rows.forEach((r,i)=>{ const j = r.indexOf(card); if (j !== -1){ ri = i; ci = j; } });
     if (ri === -1){ e.preventDefault(); focusEl(cards[0]); return true; }
@@ -520,19 +541,133 @@ function resultsModalMove(top, dir, e){
     } else {
       const nr = dir === 'down' ? ri + 1 : ri - 1;
       if (nr < 0 || nr >= rows.length){
-        if (closeBtn) target = closeBtn;
+        // satır dışına taşınca header'a (önce filtre); header yoksa karşı uca sar
+        if (filterBtn && isVisible(filterBtn) && !filterBtn.disabled) target = filterBtn;
+        else if (header.length) target = header[0];
         else {
           const wrap = dir === 'down' ? rows[0] : rows[rows.length - 1];
-          const srcC = rectC(card);
-          let best = wrap[0], bestD = Infinity;
-          for (const el of wrap){ const d = Math.abs(rectC(el) - srcC); if (d < bestD){ bestD = d; best = el; } }
-          target = best;
+          target = nearestIn(wrap, rectC(card));
         }
       } else {
-        const srcC = rectC(card);
-        let best = rows[nr][0], bestD = Infinity;
-        for (const el of rows[nr]){ const d = Math.abs(rectC(el) - srcC); if (d < bestD){ bestD = d; best = el; } }
-        target = best;
+        target = nearestIn(rows[nr], rectC(card));
+      }
+    }
+    if (target){ e.preventDefault(); focusEl(target); return true; }
+    return false;
+  } catch { return false; }
+}
+// Gizlenenler modalı: oklar unhide butonları arasında 2D gezer, satır kenarında
+// alt/üst satıra geçer; satır taşması arama butonuna çıkar;
+// arama sol/aşağı en üst-sol karta, X yukarı en alt-sağ karta, X sağ en alt-sol karta
+function hiddenModalMove(top, dir, e){
+  try {
+    const searchBtn = top.querySelector('#hidden-search-btn');
+    const filterBtn = top.querySelector('#hidden-filter-btn');
+    const closeBtn = top.querySelector('#hidden-close');
+    const btns = Array.from(top.querySelectorAll('.hidden-tile .hidden-restore')).filter(el=>isVisible(el)&&!el.disabled);
+    if (!btns.length) return false;
+    const tileOf = (b)=>{ try { return b.closest('.hidden-tile'); } catch { return null; } };
+    const tiles = btns.map(tileOf).filter(Boolean);
+    const uniq = [...new Set(tiles)];
+    uniq.sort((a,b)=>rectT(a)-rectT(b)||rectC(a)-rectC(b));
+    const TOL = 24, rows = [];
+    for (const t of uniq){
+      const y = rectT(t);
+      let placed = false;
+      for (const g of rows){
+        if (Math.abs(rectT(g[0]) - y) <= TOL){ g.push(t); placed = true; break; }
+      }
+      if (!placed) rows.push([t]);
+    }
+    rows.sort((a,b)=>rectT(a[0])-rectT(b[0]));
+    rows.forEach(r=>r.sort((a,b)=>rectC(a)-rectC(b)));
+    const header = [searchBtn, filterBtn, closeBtn].filter(el=>el&&isVisible(el)&&!el.disabled);
+    const btnIn = (tile)=>{
+      try { const b = tile.querySelector('.hidden-restore'); return (b && isVisible(b) && !b.disabled) ? b : null; } catch { return null; }
+    };
+    const nearestIn = (row, x)=>{
+      let best = row[0], bestD = Infinity;
+      for (const el of row){ const d = Math.abs(rectC(el) - x); if (d < bestD){ bestD = d; best = el; } }
+      return best;
+    };
+    const ae = document.activeElement;
+    if (header.includes(ae)){
+      const lastRow = rows[rows.length - 1];
+      const okSearch = (searchBtn && isVisible(searchBtn) && !searchBtn.disabled) ? searchBtn : null;
+      const okFilter = (filterBtn && isVisible(filterBtn) && !filterBtn.disabled) ? filterBtn : null;
+      const okClose = (closeBtn && isVisible(closeBtn) && !closeBtn.disabled) ? closeBtn : null;
+      if (ae === searchBtn){
+        if (dir === 'left' || dir === 'down'){
+          e.preventDefault(); focusEl(btnIn(rows[0][0]) || btns[0]); return true;
+        }
+        if (dir === 'right'){
+          e.preventDefault();
+          if (okFilter) focusEl(okFilter);
+          else if (okClose) focusEl(okClose);
+          return true;
+        }
+        e.preventDefault();
+        if (okClose) focusEl(okClose);
+        else if (okFilter) focusEl(okFilter);
+        return true;
+      }
+      if (ae === closeBtn){
+        if (dir === 'up'){
+          e.preventDefault(); focusEl(btnIn(lastRow[lastRow.length - 1]) || btns[btns.length - 1]); return true;
+        }
+        if (dir === 'right'){
+          e.preventDefault(); focusEl(btnIn(lastRow[0]) || btns[btns.length - 1]); return true;
+        }
+        if (dir === 'down'){ e.preventDefault(); focusEl(btnIn(nearestIn(rows[0], rectC(ae))) || btns[0]); return true; }
+        e.preventDefault();
+        if (okFilter) focusEl(okFilter);
+        else if (okSearch) focusEl(okSearch);
+        return true;
+      }
+      if (dir === 'left'){
+        e.preventDefault();
+        if (okSearch) focusEl(okSearch);
+        else if (okClose) focusEl(okClose);
+        return true;
+      }
+      if (dir === 'right'){
+        e.preventDefault();
+        if (okClose) focusEl(okClose);
+        else if (okSearch) focusEl(okSearch);
+        return true;
+      }
+      if (dir === 'down'){ e.preventDefault(); focusEl(btnIn(nearestIn(rows[0], rectC(ae))) || btns[0]); return true; }
+      e.preventDefault(); focusEl(btnIn(nearestIn(lastRow, rectC(ae))) || btns[btns.length-1]); return true;
+    }
+    let tile = null;
+    if (ae && ae.classList && ae.classList.contains('hidden-restore')) tile = tileOf(ae);
+    else if (ae && ae.closest) { try { tile = ae.closest('.hidden-tile'); } catch {} }
+    if (!tile || !top.contains(tile)){
+      const t = (dir === 'down' || dir === 'right') ? btns[0] : btns[btns.length - 1];
+      e.preventDefault(); focusEl(t); return true;
+    }
+    let ri = -1, ci = -1;
+    rows.forEach((r,i)=>{ const j = r.indexOf(tile); if (j !== -1){ ri = i; ci = j; } });
+    if (ri === -1){ e.preventDefault(); focusEl(btns[0]); return true; }
+    let target = null;
+    const headFirst = (searchBtn && isVisible(searchBtn) && !searchBtn.disabled) ? searchBtn : (header.length ? header[0] : null);
+    if (dir === 'left' || dir === 'right'){
+      const row = rows[ri];
+      if (dir === 'right'){
+        if (ci < row.length - 1) target = btnIn(row[ci + 1]);
+        else if (ri < rows.length - 1) target = btnIn(rows[ri + 1][0]);
+        else target = headFirst;
+      } else {
+        if (ci > 0) target = btnIn(row[ci - 1]);
+        else if (ri > 0) target = btnIn(rows[ri - 1][rows[ri - 1].length - 1]);
+        else target = headFirst;
+      }
+    } else {
+      const nr = dir === 'down' ? ri + 1 : ri - 1;
+      if (nr < 0 || nr >= rows.length){
+        target = headFirst || btnIn(nearestIn(rows[dir === 'down' ? 0 : rows.length - 1], rectC(tile)));
+      } else {
+        target = btnIn(nearestIn(rows[nr], rectC(tile)));
       }
     }
     if (target){ e.preventDefault(); focusEl(target); return true; }
@@ -559,9 +694,9 @@ function isOkKey(e){
   return k === 'Enter' || k === ' ' || e.keyCode === 23 || e.keyCode === 66;
 }
 
-// Open dropdown menus (sort/settings/notif) — linear nav within (notif-item'lar div, tabIndex verilir)
+// Open dropdown menus (settings/notif/search-filter) — linear nav within (notif-item'lar div, tabIndex verilir)
 function openMenuItems(){
-  const menus = ['#sort-menu','#settings-menu','#notif-menu'];
+  const menus = ['#settings-menu','#notif-menu','#watched-ask-menu','#search-filter-menu','.rec-sort-menu.open','.follow-sort-menu.open','#person-filter-menu.open','#director-filter-menu.open','#hidden-sort-menu.open'];
   const out = [];
   for (const s of menus){
     const m = document.querySelector(s);
@@ -599,11 +734,10 @@ function notifChainParts(){
 }
 function handleNotifMenuNav(e, dir){
   if (!notifMenuOpen()) return false;
-  // sort/settings aynı anda açıksa jenerik akışa bırak
+  // settings aynı anda açıksa jenerik akışa bırak
   try{
-    const s = document.querySelector('#sort-menu');
     const g = document.querySelector('#settings-menu');
-    if ((s && s.classList.contains('open') && isVisible(s)) || (g && g.classList.contains('open') && isVisible(g))) return false;
+    if (g && g.classList.contains('open') && isVisible(g)) return false;
   }catch{}
   const { mark, clear, items } = notifChainParts();
   const headers = [mark, clear].filter(Boolean);
@@ -651,14 +785,126 @@ function isMenuOpen(sel){
     return !!(m && m.classList.contains('open') && isVisible(m));
   }catch{ return false; }
 }
+
+// Izlendi-sor (watched_ask) paneli fokus turu: buton -> panel (ok), panel icinde
+// Evet<->Hayir yatay, mesajlar arasi dikey cycle, geri -> buton.
+function watchedAskMenuOpen(){
+  try{
+    const m = document.querySelector('#watched-ask-menu');
+    return !!(m && m.classList.contains('open') && isVisible(m));
+  }catch{ return false; }
+}
+function watchedAskRows(){
+  const out = [];
+  try{
+    const list = document.querySelector('#watched-ask-list');
+    if (list) out.push(...Array.from(list.querySelectorAll('.ask-item')).filter(el=>isVisible(el)));
+  }catch{}
+  return out;
+}
+function openAskPanelFromTv(){
+  try{ if (window.openAskMenu) window.openAskMenu(); }catch(_){}
+  setTimeout(()=>{
+    const rows = watchedAskRows();
+    if (rows.length){
+      const first = rows[0];
+      focusEl(first.querySelector('.ask-yes') || first.querySelector('.ask-no') || first);
+    }
+  }, 150);
+}
+function handleWatchedAskNav(e, dir){
+  if (watchedAskMenuOpen()){
+    const rows = watchedAskRows();
+    const ae = document.activeElement;
+    const clearBtn = document.querySelector('#ask-clear');
+    const hasClear = !!(clearBtn && isVisible(clearBtn));
+    if (ae && clearBtn && ae === clearBtn){
+      e.preventDefault();
+      if (dir === 'down' || dir === 'right'){
+        const t0 = rows[0];
+        if (t0) focusEl(t0.querySelector('.ask-yes') || t0.querySelector('.ask-no') || t0);
+      } else if (dir === 'up' || dir === 'left'){
+        const tN = rows[rows.length - 1];
+        if (tN) focusEl(tN.querySelector('.ask-yes') || tN.querySelector('.ask-no') || tN);
+      }
+      return true;
+    }
+    if (!rows.length){
+      e.preventDefault(); return true;
+    }
+    if (ae && ae.classList && ae.classList.contains('ask-btn')){
+      const item = ae.closest('.ask-item');
+      const idx = rows.indexOf(item);
+      const yesBtn = item ? item.querySelector('.ask-yes') : null;
+      const noBtn = item ? item.querySelector('.ask-no') : null;
+      if (dir === 'left' || dir === 'right'){
+        e.preventDefault();
+        focusEl(ae === yesBtn ? (noBtn || yesBtn) : (yesBtn || noBtn));
+        return true;
+      }
+      if (dir === 'down'){
+        e.preventDefault();
+        const nxt = rows[(idx + 1) % rows.length];
+        if (nxt) focusEl(nxt.querySelector('.ask-yes') || nxt.querySelector('.ask-no') || nxt);
+        return true;
+      }
+      if (dir === 'up'){
+        e.preventDefault();
+        if (idx === 0 && hasClear){ focusEl(clearBtn); return true; }
+        const prv = rows[(idx - 1 + rows.length) % rows.length];
+        if (prv) focusEl(prv.querySelector('.ask-yes') || prv.querySelector('.ask-no') || prv);
+        return true;
+      }
+      return true;
+    }
+    const target = (dir === 'down' || dir === 'right') ? rows[0] : rows[rows.length - 1];
+    e.preventDefault();
+    if (target) focusEl(target.querySelector('.ask-yes') || target.querySelector('.ask-no') || target);
+    return true;
+  }
+  if (document.activeElement && document.activeElement.id === 'tab-watched-ask' && (dir === 'left' || dir === 'right' || dir === 'down')){
+    e.preventDefault();
+    openAskPanelFromTv();
+    return true;
+  }
+  return false;
+}
+
+function handleSearchFilterMenuNav(e, dir){
+  let sel = null;
+  try {
+    if (isMenuOpen('#search-filter-menu')) sel = '#search-filter-menu';
+    else if (isMenuOpen('#hidden-sort-menu')) sel = '#hidden-sort-menu';
+    else if (isMenuOpen('#person-filter-menu')) sel = '#person-filter-menu';
+    else if (isMenuOpen('#director-filter-menu')) sel = '#director-filter-menu';
+    else {
+      const rm = document.querySelector('.rec-sort-menu.open');
+      if (rm && isVisible(rm)) sel = '.rec-sort-menu.open';
+      else {
+        const fm = document.querySelector('.follow-sort-menu.open');
+        if (fm && isVisible(fm)) sel = '.follow-sort-menu.open';
+      }
+    }
+    if (!sel) return false;
+  } catch { return false; }
+  const items = Array.from(document.querySelectorAll(sel + ' .sort-item')).filter(el=>isVisible(el)&&!el.disabled);
+  if (!items.length) return false;
+  const i = items.indexOf(document.activeElement);
+  if (i === -1){ e.preventDefault(); focusEl(items[0]); return true; }
+  const n = (dir==='right'||dir==='down') ? (i+1)%items.length : (i-1+items.length)%items.length;
+  e.preventDefault(); focusEl(items[n]); return true;
+}
 function closeOpenMenus(){
-  const pairs = [['#sort-menu','#tab-sort'],['#settings-menu','#tab-settings'],['#notif-menu','#tab-notif']];
+  const pairs = [['#settings-menu','#tab-settings'],['#notif-menu','#tab-notif'],['#watched-ask-menu','#tab-watched-ask'],['#search-filter-menu','#search-filter-btn'],['#hidden-sort-menu','#hidden-filter-btn'],['#person-filter-menu','#person-filter-btn'],['#director-filter-menu','#director-filter-btn']];
   for (const [sel, tabSel] of pairs){
     const m = document.querySelector(sel);
     if (m) m.classList.remove('open');
     const b = document.querySelector(tabSel);
     if (b) b.classList.remove('active');
   }
+  document.querySelectorAll('.rec-sort-menu.open').forEach((m)=>m.classList.remove('open'));
+  document.querySelectorAll('.follow-sort-menu.open').forEach((m)=>m.classList.remove('open'));
+  document.querySelectorAll('.section-filter.active').forEach((b)=>b.classList.remove('active'));
 }
 
 document.addEventListener("keydown", (e)=>{
@@ -667,9 +913,13 @@ document.addEventListener("keydown", (e)=>{
   const dir = dirFromEvent(e);
   if (top){
     if (!dir) return;
-    // Sonuç modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
+    // Sonuç + kişi/yönetmen modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
     // buton modunda kart-içi butonlar (modal kapanmaz)
-    if (top.id === 'search-results-modal'){
+    if (top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal'){
+      // Liste-içi arama kutusu odaktayken oklar yazı yazımına aittir, TV nav'a takılmaz
+      const rae = document.activeElement;
+      if (rae && (rae.id === 'results-search-input' || rae.id === 'person-search-input' || rae.id === 'director-search-input')) return;
+      if (handleSearchFilterMenuNav(e, dir)) return;
       if (buttonMode && !(buttonMode.card && top.contains(buttonMode.card))) buttonMode = null;
       if (buttonMode && buttonMode.card) {
         const liveR = resolveLiveCard(buttonMode.card);
@@ -682,6 +932,15 @@ document.addEventListener("keydown", (e)=>{
       }
       if (resultsModalMove(top, dir, e)) return;
       // kart yoksa jenerik cycle'a düş (X vb.)
+    }
+    // Gizlenenler modalı: önce kartlar (unhide butonları ızgarası),
+    // ilk satırdan yukarı header butonlarına
+    if (top.id === 'hidden-modal'){
+      const hae = document.activeElement;
+      if (hae && hae.id === 'hidden-search-input') return;
+      if (handleSearchFilterMenuNav(e, dir)) return;
+      if (hiddenModalMove(top, dir, e)) return;
+      // kart yoksa jenerik cycle'a düş (header X vb.)
     }
     // Releases/Unwatched/Anime schedule: custom X <-> episode cycle, disabled atlanir
     const isScheduleModal = top.id === 'releases-modal' || top.id === 'unwatched-modal' || (top.querySelector('.anime-watch') && top.id === 'releases-modal');
@@ -718,6 +977,38 @@ document.addEventListener("keydown", (e)=>{
               if (lastTarget){ e.preventDefault(); focusEl(lastTarget); return; }
             }
           }
+          // Releases: satir bazli yon — up/down satirlar arasi dikey, left/right ayni satirda watch <-> info
+          if (isReleases){
+            const infoList = Array.from(top.querySelectorAll('.episode-info-btn:not([disabled])')).filter(isVisible);
+            const aeInfoIdx = infoList.indexOf(ae);
+            const aeIsWatch = !!(ae && ae.classList && ae.classList.contains('watch-btn'));
+            const rowKey = (el)=>{ try{ return (el.dataset.g||'')+'|'+(el.dataset.i||''); }catch{ return ''; } };
+            const xVisible = (closeBtn && isVisible(closeBtn)) ? closeBtn : null;
+            if (aeInfoIdx !== -1 || aeIsWatch){
+              const isInfo = aeInfoIdx !== -1;
+              if (dir === 'left' || dir === 'right'){
+                let target = null;
+                if (isInfo){
+                  target = episodeBtns.find(b=>rowKey(b)===rowKey(ae) && !b.disabled && isVisible(b)) || null;
+                } else {
+                  target = infoList.find(b=>rowKey(b)===rowKey(ae)) || null;
+                }
+                e.preventDefault();
+                if (target) focusEl(target);
+                return; // karsi buton yoksa (film satiri/devre disi) kal
+              }
+              const list = isInfo ? infoList : episodeBtns;
+              const idx = isInfo ? aeInfoIdx : list.indexOf(ae);
+              if (idx !== -1){
+                const ni = idx + (dir === 'down' ? 1 : -1);
+                if (ni < 0 || ni >= list.length){
+                  if (xVisible){ e.preventDefault(); focusEl(xVisible); return; }
+                } else {
+                  e.preventDefault(); focusEl(list[ni]); return;
+                }
+              }
+            }
+          }
           // Normal linear cycle within visibleCycle (episodes + X)
           let i = visibleCycle.indexOf(ae);
           if (i === -1){
@@ -743,7 +1034,13 @@ document.addEventListener("keydown", (e)=>{
     return;
   }
   if (!dir) return;
+  // Öneri bölüm arama kutusu odaktayken oklar yazı yazımına aittir, TV nav'a takılmaz
+  try {
+    const rae = document.activeElement;
+    if (rae && rae.classList && rae.classList.contains('rec-search-input') && isVisible(rae)) return;
+  } catch {}
   e.preventDefault();
+  if (handleWatchedAskNav(e, dir)) return;
   if (handleNotifMenuNav(e, dir)) return;
   const menuItems = openMenuItems();
   if (menuItems.length){
@@ -775,7 +1072,7 @@ document.addEventListener("keydown", (e)=>{
 
 // ---- view-search D-pad (TV): dikey cycle + yatay gruplar ----
 const SEARCH_MEDIA_IDS = ['#media-dizi','#media-film','#media-belgesel','#media-anime'];
-const SEARCH_FILTER_IDS = ['#filter-media-movie','#filter-media-tv','#filter-media-doc','#filter-actor','#filter-genre','#filter-year','#filter-score'];
+const SEARCH_FILTER_IDS = ['#filter-media-movie','#filter-media-tv','#filter-media-doc','#filter-media-anime','#filter-actor','#filter-director','#filter-genre','#filter-year','#filter-score'];
 function isSearchViewActive(){
   try { const v = document.getElementById('view-search'); return !!(v && v.classList.contains('active')); } catch { return false; }
 }
@@ -971,8 +1268,8 @@ document.addEventListener("keydown", (e)=>{
   if (!isTvMode()) return;
   if (!isOkKey(e)) return;
   const tm = topModal();
-  // Sonuç modalında kart OK'i buton moduna girer (detay info butonundan açılır)
-  if (tm && tm.id === 'search-results-modal'){
+  // Sonuç + kişi/yönetmen modalında kart OK'i buton moduna girer (detay info butonundan açılır)
+  if (tm && (tm.id === 'search-results-modal' || tm.id === 'person-modal' || tm.id === 'director-modal')){
     if (buttonMode && !(buttonMode.card && tm.contains(buttonMode.card))) buttonMode = null;
     const ae0 = document.activeElement;
     const card0 = ae0 && (isCard(ae0) ? ae0 : (ae0.closest && ae0.closest('.card'))) || null;
@@ -988,6 +1285,14 @@ document.addEventListener("keydown", (e)=>{
       const b = btns[buttonMode.idx];
       if (b){ e.preventDefault(); e.stopPropagation(); b.click(); }
       return;
+    }
+    return;
+  }
+  // Gizlenenler modalı: odaktaki butonu ÇALIŞTIR (DPAD_CENTER native click üretmez)
+  if (tm && tm.id === 'hidden-modal'){
+    const hae = document.activeElement;
+    if (hae && tm.contains(hae) && hae.tagName === 'BUTTON' && !hae.disabled){
+      e.preventDefault(); e.stopPropagation(); hae.click(); return;
     }
     return;
   }

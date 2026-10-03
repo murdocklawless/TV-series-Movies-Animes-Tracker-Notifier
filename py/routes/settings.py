@@ -1,7 +1,10 @@
 import os
 import json
+import re
+import socket
 import requests
 import zoneinfo
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
 from flask import Blueprint, jsonify, request
 
@@ -149,6 +152,43 @@ def fav_actors():
     return jsonify({"ok": True, "added": added, "actors": actors})
 
 
+@settings_bp.route("/api/fav_directors", methods=["GET", "POST"])
+def fav_directors():
+    uid = _uid()
+    if request.method == "GET":
+        raw = get_user_setting(uid, "fav_directors") if uid else get_setting("fav_directors")
+        if raw is None:
+            raw = get_setting("fav_directors")
+        directors = json.loads(raw) if raw else []
+        return jsonify({"directors": directors})
+    body = request.get_json(silent=True) or {}
+    person_id = body.get("person_id")
+    name = (body.get("name") or "").strip()
+    source = (body.get("source") or "tmdb").strip() or "tmdb"
+    if not person_id:
+        return jsonify({"error": "Yönetmen id gerekli"}), 400
+    raw = get_user_setting(uid, "fav_directors") if uid else get_setting("fav_directors")
+    if raw is None:
+        raw = get_setting("fav_directors")
+    directors = json.loads(raw) if raw else []
+    if any(str(a.get("person_id")) == str(person_id) for a in directors):
+        directors = [a for a in directors if str(a.get("person_id")) != str(person_id)]
+        added = False
+    else:
+        directors.append({"person_id": person_id, "name": name, "source": source})
+        added = True
+    if uid:
+        set_user_setting(uid, "fav_directors", json.dumps(directors, ensure_ascii=False))
+    else:
+        set_setting("fav_directors", json.dumps(directors, ensure_ascii=False))
+    try:
+        from fav_listings import invalidate_fav_listing
+        invalidate_fav_listing("director", str(person_id))
+    except Exception:
+        pass
+    return jsonify({"ok": True, "added": added, "directors": directors})
+
+
 @settings_bp.route("/api/fav_anime_chars", methods=["GET", "POST"])
 def fav_anime_chars():
     uid = _uid()
@@ -267,6 +307,7 @@ def get_settings():
             "backup_samba_share", "backup_samba_user", "app_auto_update",
             "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
             "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
+            "early_watched_days",
         }
     return jsonify(
         {
@@ -305,6 +346,7 @@ def get_settings():
             "notif_center_poster": _pget("notif_center_poster") or "1",
             "notif_center_hide_read": _pget("notif_center_hide_read") or "0",
             "notif_center_limit": _pget("notif_center_limit") or "50",
+            "ask_before_watched": _pget("ask_before_watched") or "1",
             "discord_enabled": _pget("discord_enabled") or "1",
             "discord_webhook_url": _pget("discord_webhook_url") or "",
             "email_enabled": _pget("email_enabled") or "1",
@@ -318,6 +360,7 @@ def get_settings():
             "smtp_user": get_setting("smtp_user") or "",
             "has_smtp_pass": bool(get_setting("smtp_pass")),
             "cache_ttl": get_setting("cache_ttl") or "3600",
+            "early_watched_days": get_setting("early_watched_days") or "14",
             "tp_base_url": _pget("tp_base_url") or "",
             "server_today": today_str(),
             "geo_country": get_setting("geo_country") or "",
@@ -329,6 +372,103 @@ def get_settings():
             **{f"notif_{k}": _pget(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
     )
+
+
+# Public adres (Third Party Apps) kurallari: bos = ev-agi donusu (gecerli),
+# doluysa sema zorunlu https + hostsentaks + cozulen host. TLD listesi yok,
+# DNS gercegine bakilir (NXDOMAIN = engelle, zaman asimi = bilinmez/sur).
+_BASE_URL_RE = re.compile(r"^https://([^/:?#\s]+)(?::(\d+))?/?$")
+_HOST_LABEL_RE = re.compile(r"^(?!-)[A-Za-z0-9-]{1,63}(?<!-)$")
+
+
+def _parse_public_base(value):
+    """Normalize et + hostu dondur. Donus: (norm_v, host) ya da (None, None) = bicim bozuk."""
+    v = (value or "").strip().rstrip("/")
+    if not v:
+        return ("", None)
+    m = _BASE_URL_RE.match(v)
+    if not m:
+        return (None, None)
+    host, port = m.group(1).lower(), m.group(2)
+    if port is not None and not (1 <= int(port) <= 65535):
+        return (None, None)
+    if _is_ipv4_literal(host):
+        return (v, host)
+    if "." not in host or len(host) > 253:
+        return (None, None)
+    if not all(_HOST_LABEL_RE.match(p) for p in host.split(".")):
+        return (None, None)
+    return (v, host)
+
+
+def _is_ipv4_literal(host):
+    try:
+        parts = host.split(".")
+        return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
+    except Exception:
+        return False
+
+
+# DNS havuzu: modul seviyesinde tekil. Cagri basina `with` YOK — sonuc
+# zaman asimina ugrasa bile zombi thread beklenmez (onceki surumde Pi-hole
+# AAAA takilmasinda waitress iscisi rehin kalip havuz tukeniyordu).
+_DNS_POOL = ThreadPoolExecutor(max_workers=4)
+
+
+def _resolve_once(host, family):
+    """True (cozuldu) | False (NXDOMAIN) | None (zaman asimi/bilinmez)."""
+    try:
+        fut = _DNS_POOL.submit(socket.getaddrinfo, host, None, family, socket.SOCK_STREAM)
+        try:
+            fut.result(timeout=6)
+            return True
+        except FuturesTimeout:
+            try:
+                fut.cancel()
+            except Exception:
+                pass
+            return None
+    except socket.gaierror as e:
+        if e.errno == socket.EAI_NONAME:
+            return False
+        return None
+    except Exception:
+        return None
+
+
+def _check_host_status(host):
+    """ok | unresolvable (NXDOMAIN) | unknown (zaman asimi/diger)."""
+    if _is_ipv4_literal(host):
+        return "ok"
+    # Once A kaydi (hizli yol: local/custom.list aninda cevap verir)
+    first = _resolve_once(host, socket.AF_INET)
+    if first is True:
+        return "ok"
+    # A yok/vermedi: AAAA-only gercek adres olabilir -> tam bakis
+    second = _resolve_once(host, socket.AF_UNSPEC)
+    if second is True:
+        return "ok"
+    if first is False and second is False:
+        return "unresolvable"
+    return "unknown"
+
+
+@settings_bp.route("/api/thirdparty/check-host")
+def thirdparty_check_host():
+    """Public adres hostu cozuluyor mu? (kayit oncesi on kontrol; giris arkasi)."""
+    host = (request.args.get("host") or "").strip().lower()
+    if not host or len(host) > 253 or "." not in host:
+        return jsonify({"ok": False})
+    if _is_ipv4_literal(host):
+        return jsonify({"ok": True})
+    if not all(_HOST_LABEL_RE.match(p) for p in host.split(".")):
+        return jsonify({"ok": False})
+    st = _check_host_status(host)
+    if st == "unresolvable":
+        return jsonify({"ok": False})
+    if st == "unknown":
+        return jsonify({"ok": True, "warning": "unverified"})
+    return jsonify({"ok": True})
 
 
 @settings_bp.route("/api/settings", methods=["POST"])
@@ -347,9 +487,10 @@ def save_settings():
                      "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
                      "backup_rsync_user", "backup_samba_host", "backup_samba_port",
                      "backup_samba_share", "backup_samba_user", "app_auto_update",
-                     "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
-                     "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
-                     "smtp_pass", "backup_rsync_pass", "backup_samba_pass", "backup_rsync_key")
+                      "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
+                      "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
+                      "smtp_pass", "backup_rsync_pass", "backup_samba_pass", "backup_rsync_key",
+                      "early_watched_days", "tp_base_url")
         ]
         if blocked:
             return jsonify({"error": "auth_admin", "blocked": blocked}), 403
@@ -367,6 +508,17 @@ def save_settings():
                 return jsonify({"error": "gecersiz liste boyutu"}), 400
         except (TypeError, ValueError):
             return jsonify({"error": "gecersiz liste boyutu"}), 400
+    # Public adres: bicim + cozumluluk kapisi (NXDOMAIN = 400, zaman asimi = gecer)
+    if "tp_base_url" in body:
+        norm, host = _parse_public_base(body.get("tp_base_url"))
+        if norm is None:
+            return jsonify({"error": "Geçersiz public adres"}), 400
+        if host is not None and _check_host_status(host) == "unresolvable":
+            return jsonify({"error": "Geçersiz public adres"}), 400
+        body["tp_base_url"] = norm
+    if "early_watched_days" in body:
+        if str(body.get("early_watched_days")) not in ("14", "21", "30", "60", "90"):
+            return jsonify({"error": "gecersiz esik"}), 400
     for key in (
         "tmdb_api_key",
         "telegram_bot_token",
@@ -411,7 +563,9 @@ def save_settings():
         "smtp_port",
         "smtp_user",
         "cache_ttl",
+        "early_watched_days",
         "tp_base_url",
+        "ask_before_watched",
         *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:
@@ -439,6 +593,9 @@ def save_settings():
             list_cache.configure(int(body["cache_ttl"] or 0))
         except (TypeError, ValueError):
             pass
+    if "early_watched_days" in body:
+        # esik degisince takip/izlenmis listeleri bir sonraki istekte taze hesaplansin
+        bump()
     # Faz 32c: Bildirim Saati/timezone kisiye ozel job'u tetikler; global saatler tum cron'lari.
     if ("notification_hour" in body or "timezone" in body) and uid > 0:
         try:

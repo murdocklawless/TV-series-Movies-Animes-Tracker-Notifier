@@ -4,6 +4,7 @@
 export const state = {
   favGenres: new Set(),
   favActors: new Map(),
+  favDirectors: new Map(),
   favAnimeChars: new Map(),
   favAnimeGenres: new Set(),
 
@@ -18,6 +19,7 @@ export const state = {
 
   sortKey: "added",
   searchMedia: "dizi",
+  comboSource: "tmdb",
   chips: [],
   pickerMode: "",
   pickerSelected: new Set(),

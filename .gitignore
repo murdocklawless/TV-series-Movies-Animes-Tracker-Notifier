@@ -20,6 +20,8 @@ tests/
 # Faz 0: klasör düzenlemesi için yedek ve DB klasörleri
 *.bak
 *.bak-*
+*.bak_*
+*.pi_bak
 *.gz
 backup/
 bak/
@@ -35,3 +37,4 @@ md/vps.md
 .smtp_secret
 tmp_push/
 restore/
+temp/

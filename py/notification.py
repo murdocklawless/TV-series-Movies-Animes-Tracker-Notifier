@@ -153,9 +153,9 @@ def list_notifications():
         return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
-        rows = conn.execute("SELECT * FROM notifications WHERE is_read=0 AND (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
+        rows = conn.execute("SELECT * FROM notifications WHERE is_read=0 AND type!='watched_ask' AND (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
     else:
-        rows = conn.execute("SELECT * FROM notifications WHERE (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
+        rows = conn.execute("SELECT * FROM notifications WHERE type!='watched_ask' AND (user_id=0 OR user_id=?) ORDER BY created_at DESC LIMIT ? OFFSET ?", (uid, limit, offset)).fetchall()
     conn.close()
     out = []
     for r in rows:
@@ -179,9 +179,9 @@ def count_notifications():
         return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
-        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE is_read=0 AND (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
+        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE is_read=0 AND type!='watched_ask' AND (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
     else:
-        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
+        c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE type!='watched_ask' AND (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
     conn.close()
     payload = {"count": c}
     list_cache.set(key, payload)
@@ -234,6 +234,136 @@ def delete_all():
     uid = _me_id()
     conn = get_db()
     conn.execute("DELETE FROM notifications WHERE (user_id=0 OR user_id=?)", (uid,))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True})
+
+
+def _ask_row_dict(r):
+    d = dict(r)
+    if d.get("thumbnail_local"):
+        d["thumbnail_local"] = versioned_web_path(d["thumbnail_local"])
+    if d.get("poster_local"):
+        d["poster_local"] = versioned_web_path(d["poster_local"])
+    return d
+
+
+@notification_bp.route("/api/asks", methods=["GET"])
+def list_asks():
+    """Izlendi-sor bildirimleri (kullaniciya ozel). resolved: 0=bekliyor,1=Evet,2=Hayir."""
+    uid = _me_id()
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM notifications WHERE type='watched_ask' AND user_id=? ORDER BY created_at DESC",
+        (uid,),
+    ).fetchall()
+    conn.close()
+    return jsonify({"asks": [_ask_row_dict(r) for r in rows]})
+
+
+@notification_bp.route("/api/asks/count", methods=["GET"])
+def count_asks():
+    uid = _me_id()
+    conn = get_db()
+    c = conn.execute(
+        "SELECT COUNT(*) c FROM notifications WHERE type='watched_ask' AND user_id=? AND resolved=0",
+        (uid,),
+    ).fetchone()["c"]
+    conn.close()
+    return jsonify({"count": c})
+
+
+def _mark_ask_watched(row):
+    """Izlendi-sor onayi: medya tipine gore watched=1 yazar. commit'li."""
+    conn = get_db()
+    uid = row["user_id"]
+    media = (row["media_type"] or "").lower()
+    season, episode = row["season"], row["episode"]
+    try:
+        if media == "anime":
+            anilist_id = row["anilist_id"]
+            arow = conn.execute(
+                "SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id)
+            ).fetchone()
+            if not arow:
+                return None
+            if episode is None:
+                conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (arow["id"],))
+            else:
+                conn.execute(
+                    "INSERT INTO anime_episodes (anime_id, episode, watched) VALUES (?,?,1) "
+                    "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1",
+                    (arow["id"], episode),
+                )
+        elif media == "movie":
+            conn.execute(
+                "UPDATE followed SET watched=1, in_watched=1 WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
+                (uid, row["tmdb_id"]),
+            )
+        else:  # tv
+            frow = conn.execute(
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+                (uid, row["tmdb_id"]),
+            ).fetchone()
+            if frow and season is not None and episode is not None:
+                import time as _t
+                conn.execute(
+                    "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) VALUES (?,?,?,1,?) "
+                    "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
+                    (frow["id"], season, episode, int(_t.time())),
+                )
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"[asks] watched yazma hata: {e}", flush=True)
+        return None
+    finally:
+        conn.close()
+
+
+@notification_bp.route("/api/asks/<int:aid>/approve", methods=["POST"])
+def approve_ask(aid):
+    uid = _me_id()
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM notifications WHERE id=? AND type='watched_ask' AND user_id=?", (aid, uid)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"error": "ask bulunamadi"}), 404
+    _mark_ask_watched(row)
+    conn = get_db()
+    conn.execute("UPDATE notifications SET resolved=1, is_read=1 WHERE id=?", (aid,))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True})
+
+
+@notification_bp.route("/api/asks/<int:aid>/reject", methods=["POST"])
+def reject_ask(aid):
+    uid = _me_id()
+    conn = get_db()
+    row = conn.execute(
+        "SELECT id FROM notifications WHERE id=? AND type='watched_ask' AND user_id=?", (aid, uid)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "ask bulunamadi"}), 404
+    conn.execute("UPDATE notifications SET resolved=2, is_read=1 WHERE id=?", (aid,))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True})
+
+
+@notification_bp.route("/api/asks", methods=["DELETE"])
+def clear_asks():
+    """Izlendi-sor bildirimlerini (yalniz watched_ask) temizler."""
+    uid = _me_id()
+    conn = get_db()
+    conn.execute("DELETE FROM notifications WHERE type='watched_ask' AND user_id=?", (uid,))
     conn.commit()
     conn.close()
     bump()

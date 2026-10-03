@@ -105,6 +105,34 @@ def _fetch_actor_credits(person_id):
     return results
 
 
+def _fetch_director_credits(person_id):
+    data = tmdb_request(f"/person/{person_id}/combined_credits")
+    if not data:
+        return None
+    results = []
+    for item in (data.get("crew") or []):
+        if (item.get("job") or "").strip().lower() != "director":
+            continue
+        media_type = item.get("media_type")
+        if media_type not in ("movie", "tv"):
+            continue
+        title = item.get("title") or item.get("name")
+        if not title:
+            continue
+        results.append(
+            {
+                "tmdb_id": item.get("id"),
+                "media_type": media_type,
+                "title": title,
+                "poster_path": item.get("poster_path"),
+                "release_date": item.get("release_date") or item.get("first_air_date"),
+                "vote_average": item.get("vote_average") or 0,
+                "job": item.get("job") or "Director",
+            }
+        )
+    return results
+
+
 def _fetch_genre_candidates(genre_name, media="all", wanted=GENRE_LIMIT):
     names = [genre_name]
     gids_raw = _genre_names_to_ids(names)
@@ -184,6 +212,14 @@ def generate_fav_actor(person_id):
     return _fetch_actor_credits(pid)
 
 
+def generate_fav_director(person_id):
+    try:
+        pid = int(person_id)
+    except (TypeError, ValueError):
+        return None
+    return _fetch_director_credits(pid)
+
+
 def generate_fav_genre(genre_name, media="all"):
     return _fetch_genre_candidates(genre_name, media=media, wanted=GENRE_LIMIT)
 
@@ -221,6 +257,24 @@ def refresh_all_fav_listings():
                 items = generate_fav_actor(pid)
                 if items is not None:
                     save_fav_listing("actor", str(pid), items)
+            except Exception:
+                continue
+        # director ids
+        director_idents = []
+        try:
+            raw = get_setting("fav_directors")
+            arr = _json.loads(raw) if raw else []
+            for a in arr:
+                pid = a.get("person_id")
+                if pid is not None:
+                    director_idents.append(str(pid))
+        except Exception:
+            pass
+        for pid in director_idents:
+            try:
+                items = generate_fav_director(pid)
+                if items is not None:
+                    save_fav_listing("director", str(pid), items)
             except Exception:
                 continue
         for g in genre_names:

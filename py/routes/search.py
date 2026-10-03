@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, send_from_directory
 
 from config import STATIC_DIR
 from tmdb import tmdb_request, _tmdb_adv_results, _genre_names_to_ids, _genre_ids_for_media
-from anilist import _anime_adv_results, _anime_title, _anime_cover, _anime_next_ep
+from anilist import _anime_adv_results, _anime_title, _anime_cover, _anime_next_ep, _resolve_anime_staff_ids
 
 search_bp = Blueprint("search", __name__)
 
@@ -52,11 +52,15 @@ def search():
 def _build_search_item(item, media_type):
     num_seasons = None
     num_episodes = None
+    networks = []
+    status = ""
     if media_type == "tv":
         detail = tmdb_request(f"/tv/{item.get('id')}")
         if detail:
             num_seasons = detail.get("number_of_seasons")
             num_episodes = detail.get("number_of_episodes")
+            networks = [n.get("name") for n in (detail.get("networks") or []) if n.get("name")]
+            status = detail.get("status") or ""
     return {
         "tmdb_id": item.get("id"),
         "media_type": media_type,
@@ -67,6 +71,8 @@ def _build_search_item(item, media_type):
         "overview": item.get("overview"),
         "number_of_seasons": num_seasons,
         "number_of_episodes": num_episodes,
+        "networks": networks,
+        "status": status,
     }
 
 
@@ -162,9 +168,11 @@ def _resolve_actor_ids(parts):
 @search_bp.route("/api/combo-search")
 def combo_search():
     """Çoklu kriter araması: actors+genres+year+score+q (hepsi AND)."""
-    media = request.args.get("media", "show")  # show | anime
-    kind = request.args.get("kind", "").strip()  # movie | tv | boş (ikisi)
+    media = request.args.get("media", "show")  # show | anime (legacy; yerine source)
+    source = (request.args.get("source", "") or "").strip() or media
+    kind = request.args.get("kind", "").strip()  # movie | tv | doc | boş (hepsi)
     actors = request.args.get("actors", "").strip()
+    directors = request.args.get("directors", "").strip()
     genres = request.args.get("genres", "").strip()
     year = request.args.get("year", "").strip()
     score = request.args.get("score", "").strip()
@@ -179,7 +187,7 @@ def combo_search():
         media_types = ("tv",)
     doc_only = (kind == "doc")
 
-    if not (actors or genres or year or score or q or doc_only):
+    if not (actors or directors or genres or year or score or q or doc_only):
         return jsonify({"error": "En az bir kriter gerekli"}), 400
 
     year_i = None
@@ -200,14 +208,20 @@ def combo_search():
         if not (0 <= score_f <= 10):
             return jsonify({"error": "Puan 0-10 arasında olmalı"}), 400
 
-    if media == "anime":
+    if source == "anime" or media == "anime":
         character_id = None
         if actors:
             cids = [x.strip() for x in actors.split(",") if x.strip().isdigit()]
             if not cids:
                 return jsonify({"error": "Karakter bulunamadı"}), 400
             character_id = int(cids[0])
-        return jsonify(_anime_adv_results(year=year_i, score=score_f, genres=genres or None, q=q or None, character_id=character_id))
+        staff_id = None
+        if directors:
+            sids = _resolve_anime_staff_ids([x.strip() for x in directors.split(",") if x.strip()])
+            if not sids:
+                return jsonify({"error": "Yönetmen bulunamadı"}), 400
+            staff_id = int(sids[0])
+        return jsonify(_anime_adv_results(year=year_i, score=score_f, genres=genres or None, q=q or None, character_id=character_id, staff_id=staff_id))
 
     params_movie = {}
     params_tv = {}
@@ -219,6 +233,13 @@ def combo_search():
         people = ",".join(ids)
         params_movie["with_people"] = people
         params_tv["with_people"] = people
+    if directors:
+        dids = _resolve_actor_ids([x.strip() for x in directors.split(",") if x.strip()])
+        if not dids:
+            return jsonify({"error": "Yönetmen bulunamadı"}), 400
+        crew = ",".join(dids)
+        params_movie["with_crew"] = crew
+        params_tv["with_crew"] = crew
     if genres:
         gnames = [x.strip() for x in genres.split(",") if x.strip()]
         movie_groups = []
@@ -234,9 +255,9 @@ def combo_search():
                     all_gids.append(g)
         if not all_gids:
             return jsonify({"error": "Türler TMDB'de bulunamadı"}), 400
-        if actors:
+        if actors or directors:
             # TMDB with_people + with_genres birlikte OR döndürür; AND için
-            # oyuncu sonuçlarını tür ID'leriyle kendi tarafımızda filtrele.
+            # oyuncu/yönetmen sonuçlarını tür ID'leriyle kendi tarafımızda filtrele.
             # Film türleri TV'ye özel birleşik türleri taşımadığı için her
             # ortama uygun set ayrı ayrı hesaplanır (set = OR).
             genre_filter = {
@@ -259,7 +280,7 @@ def combo_search():
         for _p in (params_movie, params_tv):
             _wg = (_p.get("with_genres") or "").strip()
             _p["with_genres"] = (_wg + ",99" if _wg else "99")
-        if actors and genre_filter is None:
+        if (actors or directors) and genre_filter is None:
             genre_filter = {"movie": {99}, "tv": {99}}
     if year_i:
         params_movie["primary_release_year"] = year_i
@@ -286,15 +307,29 @@ def person_credits(person_id):
         title = item.get("title") or item.get("name")
         if not title:
             continue
-        results.append(
-            {
-                "tmdb_id": item.get("id"),
-                "media_type": media_type,
-                "title": title,
-                "poster_path": item.get("poster_path"),
-                "release_date": item.get("release_date") or item.get("first_air_date"),
-                "vote_average": item.get("vote_average") or 0,
-                "character": item.get("character"),
-            }
-        )
+        entry = _build_search_item(item, media_type)
+        entry["character"] = item.get("character")
+        results.append(entry)
+    return jsonify(results)
+
+
+@search_bp.route("/api/director/<int:person_id>")
+def director_credits(person_id):
+    """Yönetmenin yönettiği işler (combined_credits crew, job=Director)."""
+    data = tmdb_request(f"/person/{person_id}/combined_credits")
+    if not data:
+        return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+    results = []
+    for item in (data.get("crew") or []):
+        if (item.get("job") or "").strip().lower() != "director":
+            continue
+        media_type = item.get("media_type")
+        if media_type not in ("movie", "tv"):
+            continue
+        title = item.get("title") or item.get("name")
+        if not title:
+            continue
+        entry = _build_search_item(item, media_type)
+        entry["job"] = item.get("job") or "Director"
+        results.append(entry)
     return jsonify(results)

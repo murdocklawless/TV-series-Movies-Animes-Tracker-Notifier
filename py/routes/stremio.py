@@ -28,7 +28,7 @@ from auth import get_current_user
 from tmdb import tmdb_request, get_tmdb_info, get_tmdb_cast, get_tmdb_credits, save_details
 from rate_track import acquire, record, handle_429
 from poster_store import download_tmdb_poster_with_sizes, download_anime_poster_with_sizes
-from scheduler import sync_episodes
+from scheduler import sync_episodes, _is_doc_row
 from anilist import (
     anilist_detail,
     anilist_schedule,
@@ -636,6 +636,69 @@ def _prev_watched_anime(conn, anime_db_id, episode):
         return True
 
 
+def _ask_message(kind, title, season, episode, uid, is_doc=False):
+    """Izlendi-sor bildirim mesaji (kullanicinin kendi diliminde tarih-saat)."""
+    import datetime as _dt
+    try:
+        from scheduler import _user_tz
+        now = _dt.datetime.now(_user_tz(uid))
+    except Exception:
+        now = _dt.datetime.now()
+    stamp = now.strftime("%d.%m.%Y tarihinde saat %H:%M de")
+    if kind == "anime":
+        if episode is not None:
+            body = f"{title} isimli animenin {int(episode)}. bölümünü izlediniz."
+        else:
+            body = f"{title} isimli animeyi izlediniz."
+    elif kind == "movie":
+        if is_doc:
+            body = f"{title} isimli belgeseli izlediniz."
+        else:
+            body = f"{title} isimli filmi izlediniz."
+    else:  # tv
+        if season is not None and episode is not None:
+            noun = "belgeselin" if is_doc else "dizinin"
+            body = f"{title} isimli {noun} {int(season)}. Sezon {int(episode)}. Bölümünü izlediniz."
+        else:
+            noun = "belgeseli" if is_doc else "diziyi"
+            body = f"{title} isimli {noun} izlediniz."
+    return f"{stamp} {body} İzlendi bilgisi eklensin mi?"
+
+
+def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False):
+    """ask_before_watched ON iken watched_ask bildirimi olusturur (poster/thumbs dahil)."""
+    try:
+        import datetime as _dt
+        from notification import create_notification
+        kind_for_thumb = "anime" if kind == "anime" else kind
+        ident = anilist_id if kind_for_thumb == "anime" else tmdb_id
+        nid = create_notification(
+            title=title or "",
+            message=_ask_message(kind, title, season, episode, uid, is_doc=is_doc),
+            type_name="watched_ask",
+            media_type=kind_for_thumb,
+            tmdb_id=tmdb_id,
+            anilist_id=anilist_id,
+            season=season,
+            episode=episode,
+            kind_for_thumb=kind_for_thumb,
+            ident_for_thumb=ident,
+            notified_date=_dt.datetime.now().strftime("%Y-%m-%d"),
+            user_id=uid,
+        )
+        return nid
+    except Exception as e:
+        print(f"[stremio] ask olusturma hata: {e}", flush=True)
+        return None
+
+
+def _ask_enabled(uid):
+    try:
+        return get_user_setting(int(uid or 0), "ask_before_watched") == "1"
+    except Exception:
+        return False
+
+
 def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
     uid = int(owner_id or 0)
     arow = conn.execute("SELECT id, in_watched FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
@@ -643,9 +706,15 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
         record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
         return  # izlenmiste: no-op (tampona kaydedildi)
     if episode is None:
-        # anime filmi (E9): follow + dogrudan Izlenmis
+        # anime filmi (E9): follow + (ask kapaliysa) dogrudan Izlenmis
         record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
         anime_db_id = _ensure_anime_follow(conn, anilist_id, owner_id=uid)
+        if _ask_enabled(uid):
+            if anime_db_id:
+                trow = conn.execute("SELECT title FROM anime WHERE id=?", (anime_db_id,)).fetchone()
+                _create_watched_ask(uid, "anime", (trow["title"] if trow else ""), tmdb_id=tmdb_id, anilist_id=anilist_id)
+            bump()
+            return
         if anime_db_id:
             conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (anime_db_id,))
             conn.commit()
@@ -666,6 +735,12 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0):
     if cur and cur["watched"] == 1:
         record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
         return  # zaten izli: tamponu tazele
+    if _ask_enabled(uid):
+        trow = conn.execute("SELECT title FROM anime WHERE id=?", (anime_db_id,)).fetchone()
+        record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid)
+        _create_watched_ask(uid, "anime", (trow["title"] if trow else ""), tmdb_id=tmdb_id, anilist_id=anilist_id, season=season, episode=episode)
+        bump()
+        return
     if not _prev_watched_anime(conn, anime_db_id, episode):
         print(f"[stremio] kilit-disi sinyal atlandi (tamponsuz): anilist={anilist_id} ep={episode}", flush=True)
         return  # yazma yok, tampon yok
@@ -701,6 +776,12 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0):
     if cur and cur["watched"] == 1:
         record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
         return  # zaten izli: tamponu tazele
+    if _ask_enabled(uid):
+        trow = conn.execute("SELECT title, genres FROM followed WHERE id=?", (follow_id,)).fetchone()
+        record_signal("tv", tmdb_id, None, season, episode, user_id=uid)
+        _create_watched_ask(uid, "tv", (trow["title"] if trow else ""), tmdb_id=tmdb_id, season=season, episode=episode, is_doc=_is_doc_row(trow) if trow else False)
+        bump()
+        return
     if not _prev_watched_tv(conn, follow_id, season, episode):
         print(f"[stremio] kilit-disi sinyal atlandi (tamponsuz): tmdb={tmdb_id} S{season}E{episode}", flush=True)
         return  # yazma yok, tampon yok
@@ -732,6 +813,11 @@ def _movie_branch(conn, tmdb_id, owner_id=0):
         print(f"[stremio] movie tmdb={tmdb_id} cozulemedi, tampona yazilmadi", flush=True)
         return
     record_signal("movie", tmdb_id, None, None, None, user_id=uid)
+    if _ask_enabled(uid):
+        trow = conn.execute("SELECT title, genres FROM followed WHERE id=?", (movie_id,)).fetchone()
+        _create_watched_ask(uid, "movie", (trow["title"] if trow else ""), tmdb_id=tmdb_id, is_doc=_is_doc_row(trow) if trow else False)
+        bump()
+        return
     conn.execute("UPDATE followed SET watched=1, in_watched=1 WHERE id=?", (movie_id,))
     conn.commit()
     _stamp_verified_ts(uid)

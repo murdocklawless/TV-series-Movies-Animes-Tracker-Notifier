@@ -18,7 +18,7 @@ import tempfile
 import threading
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 
 from db import get_db, get_setting, set_setting
 from crypto_util import encrypt_secret, decrypt_secret
@@ -621,6 +621,10 @@ def remote_peers_add():
             used = {int(r["ip"].rsplit(".", 1)[1]) for r in
                     conn.execute("SELECT ip FROM wg_peers").fetchall()
                     if r["ip"] and "." in (r["ip"] or "")}
+            try:
+                used.add(int(pci["pi_ip"].rsplit(".", 1)[1]))
+            except Exception:
+                pass
         finally:
             try:
                 conn.close()
@@ -697,11 +701,8 @@ def remote_peers_add():
                     "ip": ip, "conf": conf})
 
 
-@remote_bp.route("/api/remote/peers/<int:num>/conf", methods=["GET"])
-def remote_peers_conf(num):
-    denied = _require_admin()
-    if denied:
-        return denied
+def _peer_conf(num):
+    """wg_peers satirinin istemci conf metnini uretir. (num, conf) | (None, hata)."""
     try:
         conn = get_db()
         try:
@@ -712,20 +713,48 @@ def remote_peers_conf(num):
             except Exception:
                 pass
         if not row:
-            return jsonify({"error": "not-found"}), 404
+            return None, "not-found"
         priv = decrypt_secret(row["privkey_enc"]) or ""
     except Exception as e:
-        return jsonify({"error": f"db_failed: {str(e)[:200]}"}), 500
+        return None, f"db_failed: {str(e)[:200]}"
     pci = _parse_pi_conf(_pi_wg_conf())
     if not priv or not pci["endpoint"] or not pci["vps_pub"]:
-        return jsonify({"error": "conf-unavailable"}), 500
+        return None, "conf-unavailable"
     base3 = (row["ip"] or "").rsplit(".", 1)[0]
     allowed = pci["allowed"] or f"{base3}.0/24"
     conf = (f"# nextep-vps-setup (telefon peer — nextep_remote_{num}.conf)\n"
             f"[Interface]\nPrivateKey = {priv}\nAddress = {row['ip']}/24\n\n"
             f"[Peer]\nPublicKey = {pci['vps_pub']}\nEndpoint = {pci['endpoint']}\n"
             f"AllowedIPs = {allowed}\nPersistentKeepalive = 25\n")
+    return num, conf
+
+
+@remote_bp.route("/api/remote/peers/<int:num>/conf", methods=["GET"])
+def remote_peers_conf(num):
+    denied = _require_admin()
+    if denied:
+        return denied
+    _, conf = _peer_conf(num)
+    if conf is None:
+        return jsonify({"error": "not-found"}), 404
+    if conf in ("not-found", "conf-unavailable") or conf.startswith("db_failed:"):
+        return jsonify({"error": conf}), (404 if conf == "not-found" else 500)
     return jsonify({"ok": True, "file": f"nextep_remote_{num}.conf", "conf": conf})
+
+
+@remote_bp.route("/api/remote/peers/<int:num>/conf/download", methods=["GET"])
+def remote_peers_conf_download(num):
+    denied = _require_admin()
+    if denied:
+        return denied
+    _, conf = _peer_conf(num)
+    if conf is None:
+        return jsonify({"error": "not-found"}), 404
+    if conf in ("not-found", "conf-unavailable") or conf.startswith("db_failed:"):
+        return jsonify({"error": conf}), (404 if conf == "not-found" else 500)
+    resp = Response(conf, mimetype="application/octet-stream")
+    resp.headers["Content-Disposition"] = f'attachment; filename="nextep_remote_{num}.conf"'
+    return resp
 
 
 @remote_bp.route("/api/remote/peers/<int:num>", methods=["PATCH"])
@@ -803,7 +832,7 @@ def remote_peers_patch(num):
                     timeout=60)
                 good = (rc == 0 and "SUSPENDED-OK" in out)
             else:
-                block = f"\\n[Peer]\\n# nextep_remote_{num} (telefon)\\nPublicKey = {pub}\\nAllowedIPs = {ip}/32\\n"
+                block = f"\n[Peer]\n# nextep_remote_{num} (telefon)\nPublicKey = {pub}\nAllowedIPs = {ip}/32\n"
                 rc, out = _vps_run(
                     profile, secret,
                     f"cp /etc/wireguard/{iface}.conf /etc/wireguard/{iface}.conf.bak_{ts} && "

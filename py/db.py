@@ -69,12 +69,16 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN watched INTEGER DEFAULT 0")
     if "in_watched" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN in_watched INTEGER DEFAULT 0")
+    if "deferred" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN deferred INTEGER DEFAULT 0")
     if "localized" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN localized TEXT")
     if "poster_local" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN poster_local TEXT")
     if "poster_local_w185" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN poster_local_w185 TEXT")
+    if "watched_at" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN watched_at INTEGER")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,6 +100,8 @@ def init_db():
         conn.execute("ALTER TABLE episodes ADD COLUMN name TEXT")
     if "air_time" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN air_time INTEGER")
+    if "watched_at" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN watched_at INTEGER")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS cast (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,6 +109,16 @@ def init_db():
             person_id INTEGER,
             name TEXT,
             character TEXT,
+            profile_path TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS directors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follow_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
             profile_path TEXT,
             sort_order INTEGER DEFAULT 0
         )"""
@@ -145,12 +161,24 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN start_date TEXT")
     if "in_watched" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN in_watched INTEGER DEFAULT 0")
+    if "deferred" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN deferred INTEGER DEFAULT 0")
     if "poster_local" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN poster_local TEXT")
     if "poster_local_w185" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN poster_local_w185 TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_cast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anime_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
+            image TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_directors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             anime_id INTEGER,
             person_id INTEGER,
@@ -170,6 +198,9 @@ def init_db():
             UNIQUE(anime_id, episode)
         )"""
     )
+    aecols = [r["name"] for r in conn.execute("PRAGMA table_info(anime_episodes)").fetchall()]
+    if "watched_at" not in aecols:
+        conn.execute("ALTER TABLE anime_episodes ADD COLUMN watched_at INTEGER")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,7 +216,9 @@ def init_db():
             thumbnail_local TEXT,
             is_read INTEGER DEFAULT 0,
             notified_date TEXT,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            user_id INTEGER NOT NULL DEFAULT 0,
+            resolved INTEGER NOT NULL DEFAULT 0
         )"""
     )
     try:
@@ -376,6 +409,9 @@ def init_db():
     cols_n = [r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()]
     if "user_id" not in cols_n:
         conn.execute("ALTER TABLE notifications ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0")
+    # Faz 36: izlendi-sor bildirimleri: 0 = bekliyor, 1 = Evet, 2 = Hayir.
+    if "resolved" not in cols_n:
+        conn.execute("ALTER TABLE notifications ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, is_read, created_at)"
     )
@@ -503,6 +539,7 @@ PERSONAL_KEYS = {
     "language",
     "timezone",
     "fav_actors",
+    "fav_directors",
     "fav_anime_chars",
     "fav_genres",
     "fav_anime_genres",
@@ -521,12 +558,12 @@ PERSONAL_KEYS = {
     "email_enabled",
     "email_to",
     "tp_stremio_uuid",
-    "tp_base_url",
     "tp_stremio_manifest_ts",
     "tp_stremio_verified_ts",
     "rec_seen",
     "rec_hidden",
     "rec_profile_fp",
+    "ask_before_watched",
 }
 
 # Faz 32: yalniz admin yazabilir (uye POST'unda 403). GET'te uyeye salt-okunur gosterilir.

@@ -248,31 +248,75 @@ def get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=None):
     return title, False
 
 
-def get_tmdb_cast(media_type, tmdb_id):
-    """TMDB'den oyuncu kadrosunu çeker (ilk 8)."""
+def get_tmdb_credits(media_type, tmdb_id):
+    """TMDB credits'ten oyuncu kadrosu (ilk 8) + yönetmenleri döndürür.
+
+    Tek istekle ikisini birden çıkarır; döndürülen sözlük
+    {"cast": [...], "directors": [...]} biçimindedir. Yönetmen kaydı:
+    {"person_id", "name", "profile_path"}.
+    Not: dizilerde /credits ekip listesi yönetmen içermez, o yüzden
+    dizi için /aggregate_credits kullanılır (crew.jobs dizisi + cast.roles).
+    """
     if media_type not in ("movie", "tv"):
-        return []
-    credits = tmdb_request(f"/{media_type}/{tmdb_id}/credits")
+        return {"cast": [], "directors": []}
+    path = f"/{media_type}/{tmdb_id}/" + ("aggregate_credits" if media_type == "tv" else "credits")
+    credits = tmdb_request(path)
     if not credits:
-        return []
-    out = []
+        return {"cast": [], "directors": []}
+    cast = []
     for c in (credits.get("cast") or [])[:8]:
         name = c.get("name") or c.get("original_name")
-        if name:
-            out.append(
-                {
-                    "person_id": c.get("id"),
-                    "name": name,
-                    "character": c.get("character") or "",
-                    "profile_path": c.get("profile_path"),
-                }
-            )
-    return out
+        if not name:
+            continue
+        character = c.get("character") or ""
+        if not character and media_type == "tv":
+            roles = c.get("roles") or []
+            character = (roles[0].get("character") if roles else "") or ""
+        cast.append(
+            {
+                "person_id": c.get("id"),
+                "name": name,
+                "character": character,
+                "profile_path": c.get("profile_path"),
+            }
+        )
+    directors = []
+    for m in credits.get("crew") or []:
+        if media_type == "tv":
+            jobs = [(j.get("job") or "").strip().lower() for j in (m.get("jobs") or [])]
+            if "director" not in jobs:
+                continue
+        elif (m.get("job") or "").strip().lower() != "director":
+            continue
+        name = m.get("name") or m.get("original_name")
+        if not name:
+            continue
+        if any(d.get("person_id") == m.get("id") for d in directors):
+            continue
+        directors.append(
+            {
+                "person_id": m.get("id"),
+                "name": name,
+                "profile_path": m.get("profile_path"),
+            }
+        )
+    return {"cast": cast, "directors": directors}
 
 
-def save_details(conn, follow_id, info, cast, include_texts=True):
-    """Detay verilerini ve oyuncu kadrosunu DB'ye yazar.
-    include_texts=False ise overview/genres/tagline korunur (dil-bagimsiz refresh icin)."""
+def get_tmdb_cast(media_type, tmdb_id):
+    """TMDB'den oyuncu kadrosunu çeker (ilk 8)."""
+    return get_tmdb_credits(media_type, tmdb_id).get("cast") or []
+
+
+def get_tmdb_directors(media_type, tmdb_id):
+    """TMDB credits.crew içinden job=Director olanları döndürür (tümü)."""
+    return get_tmdb_credits(media_type, tmdb_id).get("directors") or []
+
+
+def save_details(conn, follow_id, info, cast, include_texts=True, directors=None):
+    """Detay verilerini, oyuncu kadrosunu ve yönetmenleri DB'ye yazar.
+    include_texts=False ise overview/genres/tagline korunur (dil-bagimsiz refresh icin).
+    directors=None ise mevcut yönetmen kayıtlarına dokunulmaz."""
     if not info:
         return
     if include_texts:
@@ -316,6 +360,22 @@ def save_details(conn, follow_id, info, cast, include_texts=True):
             "VALUES (?, ?, ?, ?, ?, ?)",
             (follow_id, c.get("person_id"), c.get("name"), c.get("character") or "", c.get("profile_path"), i),
         )
+    if directors is not None:
+        save_directors(conn, follow_id, directors)
+
+
+def save_directors(conn, follow_id, directors):
+    """Sadece yönetmen kayıtlarını yeniler (cast'a dokunmaz)."""
+    try:
+        conn.execute("DELETE FROM directors WHERE follow_id=?", (follow_id,))
+        for i, d in enumerate(directors or []):
+            conn.execute(
+                "INSERT INTO directors (follow_id, person_id, name, profile_path, sort_order) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (follow_id, d.get("person_id"), d.get("name"), d.get("profile_path"), i),
+            )
+    except Exception:
+        pass
 
 
 def load_details(conn, follow_id):
@@ -332,6 +392,13 @@ def load_details(conn, follow_id):
         "SELECT person_id, name, character, profile_path FROM cast WHERE follow_id=? ORDER BY sort_order",
         (follow_id,),
     ).fetchall()
+    try:
+        directors = conn.execute(
+            "SELECT person_id, name, profile_path FROM directors WHERE follow_id=? ORDER BY sort_order",
+            (follow_id,),
+        ).fetchall()
+    except Exception:
+        directors = []
     return {
         "overview": row["overview"] or "",
         "genres": _safe_json_list(row["genres"]),
@@ -348,14 +415,33 @@ def load_details(conn, follow_id):
         "release_date": row["release_date"],
         "title": row["title"],
         "cast": [dict(c) for c in cast],
+        "directors": [{"person_id": d["person_id"], "name": d["name"], "profile_path": d["profile_path"]} for d in directors],
+    }
+
+
+def _person_crew_ids(kind, person_id, job="director"):
+    """Kişinin movie/tv_credits crew kayıtlarından verilen roldeki iş ID'lerini döndürür."""
+    try:
+        data = tmdb_request(f"/person/{person_id}/{kind}_credits")
+    except Exception:
+        return set()
+    if not data:
+        return set()
+    job = (job or "").strip().lower()
+    return {
+        item.get("id")
+        for item in (data.get("crew") or [])
+        if item.get("id") and (item.get("job") or "").strip().lower() == job
     }
 
 
 def _tmdb_tv_by_people(params, genre_filter=None, doc_only=False):
     """TV'de with_people discover güvenilmez (filtreyi yok sayıyor); bunun yerine
     her oyuncunun tv_credits'inden şovları toplayıp tür/yıl/puan/başlık filtrelerini
-    kendi tarafımızda uygular."""
+    kendi tarafımızda uygular. with_crew verilirse yönetmen (crew/Director)
+    kayıtlarıyla kesiştirir; yalnız with_crew varsa yönetilen şovları listeler."""
     person_ids = [p for p in (params.get("with_people") or "").split(",") if p]
+    crew_ids = [p for p in (params.get("with_crew") or "").split(",") if p]
     year = params.get("first_air_date_year")
     score = params.get("vote_average.gte")
     query = params.get("query")
@@ -367,6 +453,14 @@ def _tmdb_tv_by_people(params, genre_filter=None, doc_only=False):
                 sid = item.get("id")
                 if sid and sid not in show_ids:
                     show_ids.append(sid)
+    if crew_ids:
+        directed = set()
+        for pid in crew_ids:
+            directed |= _person_crew_ids("tv", pid)
+        if person_ids:
+            show_ids = [sid for sid in show_ids if sid in directed]
+        else:
+            show_ids = sorted(directed)
     out = []
     for sid in show_ids:
         det = tmdb_request(f"/tv/{sid}")
@@ -396,31 +490,52 @@ def _tmdb_tv_by_people(params, genre_filter=None, doc_only=False):
                 "overview": det.get("overview"),
                 "number_of_seasons": det.get("number_of_seasons"),
                 "number_of_episodes": det.get("number_of_episodes"),
+                "networks": [n.get("name") for n in (det.get("networks") or []) if n.get("name")],
+                "status": det.get("status") or "",
             }
         )
     out.sort(key=lambda x: x["vote_average"], reverse=True)
-    return out[:20]
+    return out[:50]
 
 
 def _tmdb_movie_by_people(params, genre_filter=None, doc_only=False):
     """Movie'de with_people discover limitli (20) ve eksik; aktörün movie_credits
     uç noktasından tüm filmleri toplayıp tür/yıl/puan/başlık filtrelerini kendi
-    tarafımızda uygular."""
+    tarafımızda uygular. with_crew verilirse yönetmen (crew/Director) kayıtlarıyla
+    kesiştirir; yalnız with_crew varsa yönetilen filmleri listeler."""
     person_ids = [p for p in (params.get("with_people") or "").split(",") if p]
+    crew_ids = [p for p in (params.get("with_crew") or "").split(",") if p]
     year = params.get("primary_release_year")
     score = params.get("vote_average.gte")
     query = params.get("query")
     out = []
     seen = set()
-    for pid in person_ids:
-        data = tmdb_request(f"/person/{pid}/movie_credits")
-        if not data:
-            continue
-        for item in (data.get("cast") or []):
+    directed = None
+    if crew_ids:
+        directed = set()
+        for pid in crew_ids:
+            directed |= _person_crew_ids("movie", pid)
+        if not directed and not person_ids:
+            return []
+    pools = []
+    if person_ids:
+        for pid in person_ids:
+            data = tmdb_request(f"/person/{pid}/movie_credits")
+            if data:
+                pools.append(data.get("cast") or [])
+    if crew_ids and not person_ids:
+        for pid in crew_ids:
+            data = tmdb_request(f"/person/{pid}/movie_credits")
+            if data:
+                pools.append([i for i in (data.get("crew") or []) if (i.get("job") or "").strip().lower() == "director"])
+    for pool in pools:
+        for item in pool:
             mid = item.get("id")
             if not mid or mid in seen:
                 continue
             seen.add(mid)
+            if directed is not None and mid not in directed:
+                continue
             if genre_filter:
                 item_genres = set(item.get("genre_ids") or [])
                 if not (item_genres & genre_filter):
@@ -449,7 +564,7 @@ def _tmdb_movie_by_people(params, genre_filter=None, doc_only=False):
                 }
             )
     out.sort(key=lambda x: x["vote_average"], reverse=True)
-    return out
+    return out[:50]
 
 
 def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=None, doc_only=False):
@@ -474,27 +589,31 @@ def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=No
         gf = (genre_filter or {}).get(media_type) if genre_filter else None
         params = dict(params_movie if media_type == "movie" else params_tv)
         params["include_adult"] = "false"
-        if media_type == "movie" and params.get("with_people"):
+        if media_type == "movie" and (params.get("with_people") or params.get("with_crew")):
             out.extend(_tmdb_movie_by_people(params, gf, doc_only))
             continue
-        if media_type == "tv" and params.get("with_people"):
+        if media_type == "tv" and (params.get("with_people") or params.get("with_crew")):
             out.extend(_tmdb_tv_by_people(params, gf, doc_only))
             continue
         data = tmdb_request(base_path, params)
         if not data:
             continue
-        for item in (data.get("results") or [])[:20]:
+        for item in (data.get("results") or [])[:25]:
             if gf:
                 item_genres = set(item.get("genre_ids") or [])
                 if not (item_genres & gf):
                     continue
             num_seasons = None
             num_episodes = None
+            networks = []
+            status = ""
             if media_type == "tv":
                 detail = tmdb_request(f"/tv/{item.get('id')}")
                 if detail:
                     num_seasons = detail.get("number_of_seasons")
                     num_episodes = detail.get("number_of_episodes")
+                    networks = [n.get("name") for n in (detail.get("networks") or []) if n.get("name")]
+                    status = detail.get("status") or ""
             out.append(
                 {
                     "tmdb_id": item.get("id"),
@@ -506,6 +625,8 @@ def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=No
                     "overview": item.get("overview"),
                     "number_of_seasons": num_seasons,
                     "number_of_episodes": num_episodes,
+                    "networks": networks,
+                    "status": status,
                 }
             )
-    return out
+    return out[:50]

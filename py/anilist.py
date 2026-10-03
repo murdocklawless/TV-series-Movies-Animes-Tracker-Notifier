@@ -54,6 +54,7 @@ query ($q: String) {
       averageScore
       startDate { year month day }
       genres
+      studios(isMain: true) { nodes { name } }
     }
   }
 }
@@ -77,9 +78,50 @@ query ($characterId: Int) {
 }
 """
 
+ANIME_STAFF_MEDIA_QUERY = """
+query ($staffId: Int) {
+  Staff(id: $staffId) {
+    staffMedia(type: ANIME, perPage: 50) {
+      nodes { id }
+    }
+  }
+}
+"""
+
+ANIME_STAFF_SEARCH_QUERY = """
+query ($q: String) {
+  Page(page: 1, perPage: 5) {
+    staff(search: $q) {
+      id
+      name { full }
+    }
+  }
+}
+"""
+
+
+def _resolve_anime_staff_ids(parts):
+    """Yönetmen chip değerlerini AniList staff ID'lerine çevirir (rakam veya isim araması)."""
+    ids = []
+    for p in parts:
+        p = (p or "").strip()
+        if not p:
+            continue
+        if p.isdigit():
+            ids.append(p)
+            continue
+        try:
+            data = anilist_query(ANIME_STAFF_SEARCH_QUERY, {"q": p})
+        except Exception:
+            continue
+        nodes = ((data or {}).get("Page") or {}).get("staff") or []
+        if nodes and nodes[0].get("id"):
+            ids.append(str(nodes[0]["id"]))
+    return ids
+
 ANIME_ADV_SEARCH_QUERY = """
 query ($year: Int, $score: Int, $genres: [String], $q: String, $idIn: [Int]) {
-  Page(page: 1, perPage: 20) {
+  Page(page: 1, perPage: 50) {
     media(type: ANIME, seasonYear: $year, averageScore_greater: $score, genre_in: $genres, search: $q, id_in: $idIn) {
       id
       title { romaji english native }
@@ -91,13 +133,14 @@ query ($year: Int, $score: Int, $genres: [String], $q: String, $idIn: [Int]) {
       averageScore
       startDate { year month day }
       genres
+      studios(isMain: true) { nodes { name } }
     }
   }
 }
 """
 
 
-def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=None):
+def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=None, staff_id=None):
     variables = {}
     if year is not None:
         variables["year"] = int(year)
@@ -107,6 +150,7 @@ def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=
         variables["genres"] = [g.strip() for g in genres.split(",") if g.strip()]
     if q:
         variables["q"] = q
+    id_sets = []
     if character_id is not None:
         cdata = anilist_query(ANIME_CHAR_MEDIA_QUERY, {"characterId": int(character_id)})
         ids = []
@@ -114,7 +158,20 @@ def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=
             ids = [n.get("id") for n in (cdata["Character"].get("media") or {}).get("nodes") or [] if n.get("id")]
         if not ids:
             return []
-        variables["idIn"] = ids
+        id_sets.append(set(ids))
+    if staff_id is not None:
+        sdata = anilist_query(ANIME_STAFF_MEDIA_QUERY, {"staffId": int(staff_id)})
+        sids = []
+        if sdata and sdata.get("Staff"):
+            sids = [n.get("id") for n in (sdata["Staff"].get("staffMedia") or {}).get("nodes") or [] if n.get("id")]
+        if not sids:
+            return []
+        id_sets.append(set(sids))
+    if id_sets:
+        joint = set.intersection(*id_sets)
+        if not joint:
+            return []
+        variables["idIn"] = sorted(joint)
     data = anilist_query(ANIME_ADV_SEARCH_QUERY, variables)
     if not data or not data.get("Page"):
         return []
@@ -138,6 +195,7 @@ def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=
                     else None
                 ),
                 "genres": m.get("genres") or [],
+                "studios": [s.get("name") for s in ((m.get("studios") or {}).get("nodes") or []) if s.get("name")][:3],
             }
         )
     return results
@@ -174,6 +232,16 @@ query ($id: Int) {
         image { large }
       }
     }
+    staff(perPage: 10) {
+      edges {
+        role
+        node {
+          id
+          name { full }
+          image { large }
+        }
+      }
+    }
   }
 }
 """
@@ -184,6 +252,49 @@ def anilist_detail(anime_id):
     if not data:
         return None
     return data.get("Media")
+
+
+ANIME_STAFF_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    staff(perPage: 10) {
+      edges {
+        role
+        node {
+          id
+          name { full }
+          image { large }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def anilist_staff(anime_id):
+    """Hafif staff sorgusuyla yönetmenleri döndürür (önbellek doldurma için)."""
+    try:
+        data = anilist_query(ANIME_STAFF_QUERY, {"id": int(anime_id)})
+    except Exception:
+        return []
+    if not data:
+        return []
+    return anime_directors(data.get("Media"))
+
+
+def save_anime_directors(conn, anime_id, directors):
+    """Sadece anime yönetmen kayıtlarını yeniler (karakterlere dokunmaz)."""
+    try:
+        conn.execute("DELETE FROM anime_directors WHERE anime_id=?", (anime_id,))
+        for i, d in enumerate(directors or []):
+            conn.execute(
+                "INSERT INTO anime_directors (anime_id, person_id, name, image, sort_order) VALUES (?, ?, ?, ?, ?)",
+                (anime_id, d.get("id"), d.get("name"), d.get("image"), i),
+            )
+    except Exception:
+        pass
 
 
 def load_anime_map(conn, source, external_id):
@@ -328,8 +439,40 @@ def _anime_start_year(d):
     return (d.get("startDate") or {}).get("year") if (d.get("startDate") or {}).get("year") else None
 
 
-def save_anime_details(conn, anime_id, detail):
-    """AniList detayından statik + dinamik verileri ve karakterleri DB'ye yazar (title/cover_url hariç)."""
+def anime_directors(detail):
+    """AniList detayındaki staff edges içinden yönetmenleri çıkarır (tümü).
+
+    Döndürülen kayıt: {"id", "name", "image"}. Rol eşleşmesi büyük/küçük
+    harf duyarsız "director" içerirlik kontrolüdür (Director, Co-Director,
+    Series Director, Episode Director vb. hepsi alınır).
+    """
+    if not detail:
+        return []
+    out = []
+    for edge in (detail.get("staff") or {}).get("edges") or []:
+        role = (edge.get("role") or "")
+        if "director" not in role.strip().lower():
+            continue
+        node = edge.get("node") or {}
+        name = (node.get("name") or {}).get("full") if node.get("name") else ""
+        if not name:
+            continue
+        if any(d.get("id") == node.get("id") for d in out):
+            continue
+        out.append(
+            {
+                "id": node.get("id"),
+                "name": name,
+                "image": (node.get("image") or {}).get("large") if node.get("image") else None,
+            }
+        )
+    return out
+
+
+def save_anime_details(conn, anime_id, detail, directors=None):
+    """AniList detayından statik + dinamik verileri ve karakterleri DB'ye yazar (title/cover_url hariç).
+    directors=None ise mevcut yönetmen kayıtlarına dokunulmaz; verilirse
+    anime_directors tablosu yenilenir."""
     if not detail:
         return
     studios = ", ".join(
@@ -362,6 +505,9 @@ def save_anime_details(conn, anime_id, detail):
             "INSERT INTO anime_cast (anime_id, person_id, name, image, sort_order) VALUES (?, ?, ?, ?, ?)",
             (anime_id, c.get("id"), name, (c.get("image") or {}).get("large") if c.get("image") else None, i),
         )
+    if directors is None:
+        directors = anime_directors(detail)
+    save_anime_directors(conn, anime_id, directors)
 
 
 def load_anime_details(conn, anime_id):
@@ -377,6 +523,13 @@ def load_anime_details(conn, anime_id):
         "SELECT person_id, name, image FROM anime_cast WHERE anime_id=? ORDER BY sort_order",
         (anime_id,),
     ).fetchall()
+    try:
+        dirs = conn.execute(
+            "SELECT person_id, name, image FROM anime_directors WHERE anime_id=? ORDER BY sort_order",
+            (anime_id,),
+        ).fetchall()
+    except Exception:
+        dirs = []
     return {
         "anilist_id": row["anilist_id"],
         "title": row["title"],
@@ -395,6 +548,10 @@ def load_anime_details(conn, anime_id):
             {"id": c["person_id"], "name": c["name"], "image": c["image"]}
             for c in chars
         ],
+        "directors": [
+            {"id": d["person_id"], "name": d["name"], "image": d["image"]}
+            for d in dirs
+        ],
     }
 
 
@@ -412,6 +569,7 @@ query ($genres: [String], $perPage: Int) {
       averageScore
       startDate { year month day }
       genres
+      studios { nodes { name } }
     }
   }
 }
@@ -431,6 +589,7 @@ query ($perPage: Int) {
       averageScore
       startDate { year month day }
       genres
+      studios { nodes { name } }
     }
   }
 }

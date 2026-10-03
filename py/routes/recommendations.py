@@ -17,7 +17,7 @@ from recommendations import (
     unhide_rec_item,
     list_rec_hidden,
 )
-from tmdb import get_tmdb_info, get_tmdb_cast, save_details, tmdb_request
+from tmdb import get_tmdb_info, get_tmdb_cast, get_tmdb_credits, save_details, tmdb_request
 from anilist import anilist_detail, _anime_title, _anime_cover, save_anime_details, anilist_schedule
 from scheduler import sync_episodes
 from poster_store import download_tmdb_poster_with_sizes
@@ -25,17 +25,20 @@ from poster_store import download_tmdb_poster_with_sizes
 recommendations_bp = Blueprint("recommendations", __name__)
 
 _MEDIA_KINDS = {
-    "all": ["shows", "movies", "anime"],
+    "all": ["shows", "movies", "docs", "anime"],
     "dizi": ["shows"],
     "film": ["movies"],
+    "belgesel": ["docs"],
     "anime": ["anime"],
 }
 
 _HIDDEN_MEDIA = {
     "dizi": "shows",
     "film": "movies",
+    "belgesel": "docs",
     "shows": "shows",
     "movies": "movies",
+    "docs": "docs",
     "anime": "anime",
     "tv": "shows",
     "movie": "movies",
@@ -66,7 +69,7 @@ def recommendations():
     uid = _uid()
     if limit_raw:
         try:
-            limit = min(int(limit_raw), 18)
+            limit = min(int(limit_raw), 12)
         except (TypeError, ValueError):
             return jsonify({"error": "Geçersiz limit"}), 400
         exclude = [int(x) for x in (request.args.get("exclude") or "").split(",") if x.strip().isdigit()]
@@ -103,9 +106,12 @@ def recommendations():
 @recommendations_bp.route("/api/recommendations/hide", methods=["POST"])
 def rec_hide():
     """'Bir daha gösterme': öneriyi kalıcı olarak gizler + payload'dan cerrahi
-    çıkarır. Body: {tmdb_id+media_type} veya {anilist_id} (+title, poster_path)."""
+    çıkarır. Body: {tmdb_id+media_type} veya {anilist_id} (+title, poster_path,
+    vote_average/score, release_date, networks, studios, tv_status)."""
     body = request.get_json(silent=True) or {}
-    if body.get("anilist_id"):
+    if body.get("kind") == "docs" and body.get("tmdb_id"):
+        kind, ident = "docs", body.get("tmdb_id")
+    elif body.get("anilist_id"):
         kind, ident = "anime", body.get("anilist_id")
     else:
         media_type = body.get("media_type")
@@ -114,7 +120,20 @@ def rec_hide():
             return jsonify({"error": "Eksik bilgi"}), 400
         kind = "shows" if media_type == "tv" else "movies"
         ident = tmdb_id
-    if not hide_rec_item(kind, ident, body.get("title") or "", body.get("poster_path"), user_id=_uid()):
+    score = body.get("vote_average", body.get("score"))
+    try:
+        score = float(score) if score is not None else None
+    except (TypeError, ValueError):
+        score = None
+    extra = {
+        "score": score,
+        "release_date": body.get("release_date") or "",
+        "networks": body.get("networks") or [],
+        "studios": body.get("studios") or [],
+        "media_type": body.get("media_type") or "",
+        "tv_status": body.get("tv_status") or "",
+    }
+    if not hide_rec_item(kind, ident, body.get("title") or "", body.get("poster_path"), user_id=_uid(), extra=extra):
         return jsonify({"error": "Geçersiz bilgi"}), 400
     remove_rec_item(kind, ident, user_id=_uid())
     return jsonify({"ok": True})
@@ -209,7 +228,8 @@ def rec_move_watched():
                 )
                 follow_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 if info:
-                    save_details(conn, follow_id, info, get_tmdb_cast(media_type, tmdb_id))
+                    _credits = get_tmdb_credits(media_type, tmdb_id)
+                    save_details(conn, follow_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
                 try:
                     pp = poster_path
                     if not pp:
@@ -234,7 +254,8 @@ def rec_move_watched():
             if media_type == "movie":
                 conn.execute("UPDATE followed SET watched=1, in_watched=1 WHERE id=?", (follow_id,))
             else:
-                conn.execute("UPDATE episodes SET watched=1 WHERE follow_id=?", (follow_id,))
+                import time as _t
+                conn.execute("UPDATE episodes SET watched=1, watched_at=? WHERE follow_id=?", (int(_t.time()), follow_id,))
                 conn.execute("UPDATE followed SET in_watched=1 WHERE id=?", (follow_id,))
         if body.get("anilist_id"):
             rec_kind, ident = "anime", body.get("anilist_id")

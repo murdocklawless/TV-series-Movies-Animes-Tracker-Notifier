@@ -4,6 +4,7 @@ from fav_listings import (
     load_fav_listing,
     save_fav_listing,
     generate_fav_actor,
+    generate_fav_director,
     generate_fav_genre,
 )
 from ramcache import cached_response
@@ -21,6 +22,19 @@ def fav_actor_list(person_id):
     if items is None:
         return jsonify({"error": "TMDB'den veri alinamadi"}), 400
     save_fav_listing("actor", ident, items)
+    return cached_response({"items": items}, False)
+
+
+@fav_listings_bp.route("/api/favorites/director/<int:person_id>")
+def fav_director_list(person_id):
+    ident = str(person_id)
+    items = load_fav_listing("director", ident)
+    if items is not None:
+        return cached_response({"items": items}, True)
+    items = generate_fav_director(person_id)
+    if items is None:
+        return jsonify({"error": "TMDB'den veri alinamadi"}), 400
+    save_fav_listing("director", ident, items)
     return cached_response({"items": items}, False)
 
 

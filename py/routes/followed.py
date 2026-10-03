@@ -6,9 +6,9 @@ from flask import Blueprint, jsonify, request
 
 from db import get_db, today_str, _safe_json_list
 from auth import get_current_user
-from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request, get_tmdb_info_fallback, get_tmdb_title_fallback
+from tmdb import get_tmdb_info, get_tmdb_cast, get_tmdb_credits, get_tmdb_directors, save_details, save_directors, load_details, tmdb_request, get_tmdb_info_fallback, get_tmdb_title_fallback
 from tvmaze import _tvmaze_episode_times
-from scheduler import sync_episodes
+from scheduler import sync_episodes, can_early_watch_tv, can_early_watch_movie, can_early_watch_anime, is_final_status
 from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from ramcache import list_cache, bump, gen, cached_response
 from recommendations import remove_rec_item
@@ -62,7 +62,8 @@ def follow():
     conn.commit()
 
     if info:
-        save_details(conn, new_id, info, get_tmdb_cast(media_type, tmdb_id))
+        _credits = get_tmdb_credits(media_type, tmdb_id)
+        save_details(conn, new_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
         conn.commit()
 
     # Poster lokal indirme (w500, bir kez) - ayri kolon poster_local
@@ -123,6 +124,7 @@ def followed():
             item["networks"] = []
         # film için watched, dizi için completed
         item["watched"] = int(item.get("watched") or 0)
+        item["deferred"] = int(item.get("deferred") or 0)
         if item.get("poster_local"):
             item["poster_local"] = versioned_web_path(item["poster_local"])
         if item.get("poster_local_w185"):
@@ -147,6 +149,25 @@ def followed():
                 item["completed"] = bool(total > 0 and total == watched_cnt)
             except Exception:
                 item["completed"] = False
+            try:
+                early = can_early_watch_tv(conn, item["id"])
+            except Exception:
+                early = False
+            try:
+                final = is_final_status("tv", item.get("status"))
+            except Exception:
+                final = False
+            item["can_move_watched"] = bool(item.get("completed") or early or final)
+        if item["media_type"] == "movie":
+            try:
+                early = can_early_watch_movie(item.get("release_date"))
+            except Exception:
+                early = False
+            try:
+                final = is_final_status("movie", item.get("status"))
+            except Exception:
+                final = False
+            item["can_move_watched"] = bool(item.get("watched") == 1 or early or final)
         items.append(item)
     conn.close()
     list_cache.set(key, items)
@@ -307,10 +328,20 @@ def watched():
         watched_cnt = conn.execute(
             "SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)
         ).fetchone()["c"]
-        if total <= 0 or total != watched_cnt:
-            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
-            conn.commit()
-            continue
+        try:
+            st = r["status"] if "status" in r.keys() else None
+            final_tv = is_final_status("tv", st)
+        except Exception:
+            final_tv = False
+        if (total <= 0 or total != watched_cnt) and not final_tv:
+            try:
+                early = can_early_watch_tv(conn, r["id"])
+            except Exception:
+                early = False
+            if not early:
+                conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+                conn.commit()
+                continue
         rows = conn.execute(
             "SELECT season, episode, air_date, name FROM episodes "
             "WHERE follow_id=? AND watched=1 ORDER BY season ASC, episode ASC",
@@ -337,7 +368,8 @@ def watched():
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
-                "watched": total,
+                "watched": watched_cnt,
+                "total": total,
                 "items": items,
             }
         )
@@ -347,10 +379,21 @@ def watched():
         "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND in_watched=1 ORDER BY release_date IS NULL, release_date ASC",
         (uid,),
     ).fetchall():
-        if not (r["watched"] == 1):
-            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
-            conn.commit()
-            continue
+        try:
+            st = r["status"] if "status" in r.keys() else None
+            final_movie = is_final_status("movie", st)
+        except Exception:
+            final_movie = False
+        if not (r["watched"] == 1) and not final_movie:
+            try:
+                rel = r["release_date"] if "release_date" in r.keys() else None
+                early = can_early_watch_movie(rel)
+            except Exception:
+                early = False
+            if not early:
+                conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+                conn.commit()
+                continue
         movies.append(
             {
                 "id": r["id"],
@@ -376,10 +419,20 @@ def watched():
         watched_cnt = conn.execute(
             "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (r["id"],)
         ).fetchone()["c"]
-        if total <= 0 or total != watched_cnt:
-            conn.execute("UPDATE anime SET in_watched=0 WHERE id=?", (r["id"],))
-            conn.commit()
-            continue
+        try:
+            st = r["status"] if "status" in r.keys() else None
+            final_anime = is_final_status("anime", st)
+        except Exception:
+            final_anime = False
+        if (total <= 0 or total != watched_cnt) and not final_anime:
+            try:
+                early = can_early_watch_anime(conn, r["id"])
+            except Exception:
+                early = False
+            if not early:
+                conn.execute("UPDATE anime SET in_watched=0 WHERE id=?", (r["id"],))
+                conn.commit()
+                continue
         rows = conn.execute(
             "SELECT episode, air_at FROM anime_episodes "
             "WHERE anime_id=? AND watched=1 ORDER BY episode ASC",
@@ -395,7 +448,8 @@ def watched():
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "score": r["score"],
                 "studios": r["studios"],
-                "watched": total,
+                "watched": watched_cnt,
+                "total": total,
                 "items": [{"episode": x["episode"], "air_at": x["air_at"]} for x in rows],
             }
         )
@@ -423,11 +477,22 @@ def followed_move_watched():
     if not follow:
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 400
+    try:
+        st = follow["status"] if "status" in follow.keys() else None
+        final = is_final_status(media_type, st)
+    except Exception:
+        final = False
     if watched:
         if media_type == "movie":
-            if not (follow["watched"] == 1):
-                conn.close()
-                return jsonify({"error": "Film henüz izlenmedi"}), 400
+            if not (follow["watched"] == 1) and not final:
+                try:
+                    rel = follow["release_date"] if "release_date" in follow.keys() else None
+                    early = can_early_watch_movie(rel)
+                except Exception:
+                    early = False
+                if not early:
+                    conn.close()
+                    return jsonify({"error": "Film henüz izlenmedi"}), 400
         else:
             total = conn.execute(
                 "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (follow["id"],)
@@ -435,14 +500,51 @@ def followed_move_watched():
             watched_cnt = conn.execute(
                 "SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (follow["id"],)
             ).fetchone()["c"]
-            if total <= 0 or total != watched_cnt:
-                conn.close()
-                return jsonify({"error": "Dizi henüz tamamlanmadı"}), 400
-    conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
+            if (total <= 0 or total != watched_cnt) and not final:
+                try:
+                    early = can_early_watch_tv(conn, follow["id"])
+                except Exception:
+                    early = False
+                if not early:
+                    conn.close()
+                    return jsonify({"error": "Dizi henüz tamamlanmadı"}), 400
+    if watched and media_type == "movie":
+        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        conn.execute(
+            "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?) WHERE id=?",
+            (watched, now_ts, follow["id"]),
+        )
+    else:
+        conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
     bump()
     return jsonify({"ok": True, "watched": watched})
+
+
+@followed_bp.route("/api/followed/defer", methods=["POST"])
+def followed_defer():
+    """Daha-sonra-izle durumu: kartı listenin en altına indirir (sort'tan muaf)."""
+    body = request.get_json(silent=True) or {}
+    tmdb_id = body.get("tmdb_id")
+    media_type = body.get("media_type")
+    deferred = 1 if body.get("deferred") else 0
+    if not tmdb_id or media_type not in ("movie", "tv"):
+        return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 400
+    conn.execute("UPDATE followed SET deferred=? WHERE id=?", (deferred, follow["id"]))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True, "deferred": deferred})
 
 
 @followed_bp.route("/api/releases")
@@ -461,8 +563,13 @@ def releases():
     ).fetchone()
 
     if media_type == "movie":
-        rel = (follow["release_date"] if follow else None) or (get_tmdb_info("movie", tmdb_id) or {}).get("release_date")
+        movie_info = get_tmdb_info("movie", tmdb_id) or {}
+        rel = (follow["release_date"] if follow else None) or movie_info.get("release_date")
         watched = int((follow["watched"] if follow and follow["watched"] is not None else 0))
+        runtime = (follow["runtime"] if follow and "runtime" in follow.keys() and follow["runtime"] is not None else None)
+        if runtime is None:
+            runtime = movie_info.get("runtime")
+        watched_at = (follow["watched_at"] if follow and "watched_at" in follow.keys() and follow["watched_at"] is not None else None)
         conn.close()
         return jsonify(
             {
@@ -473,6 +580,8 @@ def releases():
                         "label": "Yayın Tarihi",
                         "date": rel,
                         "watched": watched,
+                        "runtime": runtime,
+                        "watched_at": watched_at,
                     }
                 ],
             }
@@ -517,6 +626,70 @@ def releases():
     )
 
 
+@followed_bp.route("/api/episode/info")
+def episode_info():
+    """Bölüm özet modalı: TMDB'den arayüz dilinde özet+süre (boşsa İngilizce),
+    DB'den izlenme tarihi."""
+    tmdb_id = request.args.get("tmdb_id")
+    try:
+        season = int(request.args.get("season"))
+        episode = int(request.args.get("episode"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Geçersiz istek"}), 400
+    lang = request.args.get("lang") or "en-US"
+    if not tmdb_id:
+        return jsonify({"error": "Geçersiz istek"}), 400
+
+    uid = _uid()
+    key = ("episode_info", uid, tmdb_id, season, episode, lang, gen())
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id, title FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+        (uid, tmdb_id,),
+    ).fetchone()
+    title = follow["title"] if follow else ""
+    watched_at = None
+    if follow:
+        row = conn.execute(
+            "SELECT watched_at FROM episodes WHERE follow_id=? AND season=? AND episode=?",
+            (follow["id"], season, episode,),
+        ).fetchone()
+        if row:
+            watched_at = row["watched_at"]
+    conn.close()
+
+    overview, runtime = "", None
+    season_data = tmdb_request(f"/tv/{tmdb_id}/season/{season}", lang=lang)
+    if season_data:
+        for ep in season_data.get("episodes", []):
+            if ep.get("episode_number") == episode:
+                overview = (ep.get("overview") or "").strip()
+                runtime = ep.get("runtime")
+                break
+    if not overview and lang != "en-US":
+        season_en = tmdb_request(f"/tv/{tmdb_id}/season/{season}", lang="en-US")
+        if season_en:
+            for ep in season_en.get("episodes", []):
+                if ep.get("episode_number") == episode:
+                    overview = (ep.get("overview") or "").strip()
+                    if runtime is None:
+                        runtime = ep.get("runtime")
+                    break
+    payload = {
+        "title": title,
+        "season": season,
+        "episode": episode,
+        "overview": overview,
+        "runtime": runtime,
+        "watched_at": watched_at,
+    }
+    list_cache.set(key, payload)
+    return cached_response(payload, False)
+
+
 @followed_bp.route("/api/episode/watch", methods=["POST"])
 def episode_watch():
     body = request.get_json()
@@ -538,11 +711,12 @@ def episode_watch():
         return jsonify({"error": "Takip bulunamadı"}), 400
 
     conn.execute(
-        "INSERT INTO episodes (follow_id, season, episode, watched) "
-        "VALUES (?, ?, ?, ?) "
+        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) "
+        "VALUES (?, ?, ?, ?, ?) "
         "ON CONFLICT(follow_id, season, episode) "
-        "DO UPDATE SET watched=excluded.watched",
-        (follow["id"], season, episode, watched),
+        "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at",
+        (follow["id"], season, episode, watched,
+         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None),
     )
     conn.commit()
     conn.close()
@@ -622,11 +796,12 @@ def season_watch():
                 except (ValueError, OSError, OverflowError):
                     pass
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, air_date, watched) "
-            "VALUES (?, ?, ?, ?, ?) "
+            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(follow_id, season, episode) "
-            "DO UPDATE SET watched=excluded.watched, air_date=excluded.air_date",
-            (follow["id"], season, ep_num, air_date, watched),
+            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date",
+            (follow["id"], season, ep_num, air_date, watched,
+             int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None),
         )
         count += 1
     conn.commit()
@@ -651,7 +826,11 @@ def movie_watch():
     if not follow:
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 400
-    conn.execute("UPDATE followed SET watched=? WHERE id=?", (watched, follow["id"]))
+    conn.execute("UPDATE followed SET watched=?, watched_at=? WHERE id=?", (
+        watched,
+        int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
+        follow["id"],
+    ))
     conn.commit()
     conn.close()
     bump()
@@ -718,11 +897,42 @@ def _sync_tmdb_poster(conn, media_type, tmdb_id, fresh_path, row):
     return w500
 
 
+def _ensure_directors(conn, media_type, tmdb_id, follow_id, d):
+    """Önbellek isabetinde yönetmen kaydı boşsa tek seferlik canlı doldurur.
+
+    Eski satırlarda directors tablosu boştur; ilk açılışta bir /credits
+    isteğiyle doldurulup DB'ye yazılır, sonraki açılışlar önbellektendir.
+    """
+    if d.get("directors"):
+        return d
+    try:
+        dirs = get_tmdb_directors(media_type, tmdb_id)
+    except Exception:
+        return d
+    if not dirs:
+        return d
+    try:
+        save_directors(conn, follow_id, dirs)
+        conn.commit()
+    except Exception:
+        pass
+    d = dict(d)
+    d["directors"] = [
+        {"person_id": x.get("person_id"), "name": x.get("name"), "profile_path": x.get("profile_path")}
+        for x in dirs
+    ]
+    return d
+
+
 def _build_response(media_type, d):
     """Normalleştirilmiş detail sözlüğünü movie/tv JSON yanıtına çevirir."""
     cast = [
         {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
         for c in (d.get("cast") or [])
+    ]
+    directors = [
+        {"id": x.get("person_id"), "name": x.get("name"), "profile_path": x.get("profile_path")}
+        for x in (d.get("directors") or [])
     ]
     # highlight_person / highlight_person_id: eşleşen oyuncuyu listeye başa al.
     highlight = (request.args.get("highlight_person") or "").strip().lower()
@@ -743,6 +953,7 @@ def _build_response(media_type, d):
         "vote_count": d.get("vote_count"),
         "runtime": d.get("runtime"),
         "cast": cast,
+        "directors": directors,
     }
     if media_type == "movie":
         base["release_date"] = d.get("release_date")
@@ -780,6 +991,7 @@ def details():
         if follow and not refresh:
             d = load_details(conn, follow["id"])
             if d:
+                d = _ensure_directors(conn, media_type, tmdb_id, follow["id"], d)
                 conn.close()
                 return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
         data = tmdb_request(f"/{media_type}/{tmdb_id}")
@@ -788,9 +1000,10 @@ def details():
             return jsonify({"error": "TMDB'den veri alınamadı"}), 400
         info = get_tmdb_info_fallback(media_type, tmdb_id, lang=None)
         title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=data)
-        cst = get_tmdb_cast(media_type, tmdb_id)
+        credits = get_tmdb_credits(media_type, tmdb_id)
+        cst = credits.get("cast") or []
         if follow:
-            save_details(conn, follow["id"], info, cst)
+            save_details(conn, follow["id"], info, cst, directors=credits.get("directors") or [])
             _sync_tmdb_poster(conn, media_type, int(tmdb_id), data.get("poster_path"), follow)
             conn.commit()
         conn.close()
@@ -801,6 +1014,7 @@ def details():
             d["_fallback_fields"] = list((d.get("_fallback_fields") or [])) + ["title"]
         d["poster_path"] = data.get("poster_path")
         d["cast"] = cst
+        d["directors"] = credits.get("directors") or []
         return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
     # -- lang VERİLDİYSE: dil başına önbellek (14 dil; boş alan en-US ile doldurulur). --
@@ -819,6 +1033,7 @@ def details():
         if loc.get("_fallback_lang"):
             d["_fallback_lang"] = loc.get("_fallback_lang")
             d["_fallback_fields"] = loc.get("_fallback_fields") or []
+        d = _ensure_directors(conn, media_type, tmdb_id, follow["id"], d)
         conn.close()
         return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
@@ -829,7 +1044,8 @@ def details():
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
     info = get_tmdb_info_fallback(media_type, tmdb_id, lang=locale)
     title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=locale, sel_data=data)
-    cst = get_tmdb_cast(media_type, tmdb_id)
+    credits = get_tmdb_credits(media_type, tmdb_id)
+    cst = credits.get("cast") or []
     fb_fields = list((info or {}).get("_fallback_fields") or [])
     if title_fb and "title" not in fb_fields:
         fb_fields.append("title")
@@ -847,7 +1063,7 @@ def details():
             "UPDATE followed SET localized=? WHERE id=?",
             (json.dumps(localized, ensure_ascii=False), follow["id"]),
         )
-        save_details(conn, follow["id"], info, cst, include_texts=False)
+        save_details(conn, follow["id"], info, cst, include_texts=False, directors=credits.get("directors") or [])
         conn.commit()
     conn.close()
 
@@ -858,4 +1074,5 @@ def details():
         d["_fallback_fields"] = fb_fields
     d["poster_path"] = data.get("poster_path")
     d["cast"] = cst
+    d["directors"] = credits.get("directors") or []
     return jsonify(_attach_poster_local(_build_response(media_type, d), pl))

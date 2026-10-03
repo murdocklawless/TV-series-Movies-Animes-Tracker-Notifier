@@ -123,8 +123,8 @@ async function openReleases(mediaType, tmdbId, title) {
           } else {
             html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("movie_release_date")}</span>${epName}</span></td>`;
           }
-          const infoBtn = data.media_type === "tv"
-            ? `<button class="episode-info-btn" data-g="${seasonKey}" data-i="${i}" data-tip="${t("ep_summary")}" data-i18n-title="ep_summary">${INFO_SVG}</button>`
+          const infoBtn = data.media_type === "tv" || data.media_type === "movie"
+            ? `<button class="episode-info-btn" data-g="${seasonKey}" data-i="${i}" data-tip="${data.media_type === "movie" ? t("info_title") : t("ep_summary")}" data-i18n-title="${data.media_type === "movie" ? "info_title" : "ep_summary"}">${INFO_SVG}</button>`
             : "";
           html += `<td${dateClass}><span class="episode-date-wrap"><span class="episode-date-text">${dateText}</span>${infoBtn}</span></td></tr>`;
         });
@@ -255,7 +255,11 @@ async function openReleases(mediaType, tmdbId, title) {
           const gk = btn.dataset.g, ik = Number(btn.dataset.i);
           const it = groups[gk] ? groups[gk][ik] : null;
           if (!it) return;
-          openEpisodeInfo(tmdbId, data.title || title, it.season, it.episode);
+          if (data.media_type === "movie") {
+            openMovieInfo(tmdbId, data.title || title, it);
+          } else {
+            openEpisodeInfo(tmdbId, data.title || title, it.season, it.episode);
+          }
         });
       });
 
@@ -303,14 +307,67 @@ function closeDetails() {
   currentDetails = null;
 }
 
+function openMovieInfo(tmdbId, movieTitle, it) {
+  const modal = document.getElementById("episode-info-modal");
+  if (!modal) return;
+  const metaEl = document.querySelector(".episode-info-meta");
+  document.getElementById("episode-info-title").textContent = `${movieTitle || ""} ${t("info_title")}`;
+  document.getElementById("episode-info-runtime-icon").innerHTML = CLOCK_SVG;
+  document.getElementById("episode-info-watched-icon").innerHTML = EYE_SVG;
+  document.getElementById("episode-info-overview").style.display = "none";
+  document.getElementById("episode-info-overview").textContent = "";
+  if (metaEl) metaEl.style.borderTop = "none";
+  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${it.runtime ? fmtRuntime(it.runtime) : "—"}`;
+  document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
+  modal.style.display = "flex";
+  try {
+    if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
+  } catch (_) {}
+}
+
+function openAnimeEpisodeInfo(animeId, animeTitle, it, animeDuration) {
+  const modal = document.getElementById("episode-info-modal");
+  if (!modal) return;
+  const metaEl = document.querySelector(".episode-info-meta");
+  document.getElementById("episode-info-title").textContent = `${animeTitle || ""} EP${it.episode} ${t("info_title")}`;
+  document.getElementById("episode-info-runtime-icon").innerHTML = CLOCK_SVG;
+  document.getElementById("episode-info-watched-icon").innerHTML = EYE_SVG;
+  document.getElementById("episode-info-overview").style.display = "none";
+  document.getElementById("episode-info-overview").textContent = "";
+  if (metaEl) metaEl.style.borderTop = "none";
+  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${animeDuration ? fmtRuntime(animeDuration) : "—"}`;
+  document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
+  modal.style.display = "flex";
+  try {
+    if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
+  } catch (_) {}
+}
+
+function formatWatchedAt(watchedAt) {
+  let wText = "—";
+  if (watchedAt) {
+    try {
+      wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: state.currentTz }).format(new Date(watchedAt * 1000));
+    } catch (_) {
+      try {
+        wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(watchedAt * 1000));
+      } catch (_) { wText = String(watchedAt); }
+    }
+  }
+  return wText;
+}
+
 async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
   const modal = document.getElementById("episode-info-modal");
   if (!modal) return;
+  const metaEl = document.querySelector(".episode-info-meta");
   const s2 = String(season).padStart(2, "0"), e2 = String(episode).padStart(2, "0");
   document.getElementById("episode-info-title").textContent = `${showTitle || ""} S${s2}E${e2} ${t("ep_summary")}`;
   document.getElementById("episode-info-runtime-icon").innerHTML = CLOCK_SVG;
   document.getElementById("episode-info-watched-icon").innerHTML = EYE_SVG;
+  document.getElementById("episode-info-overview").style.display = "";
   document.getElementById("episode-info-overview").textContent = t("loading");
+  if (metaEl) metaEl.style.borderTop = "";
   document.getElementById("episode-info-runtime").textContent = "";
   document.getElementById("episode-info-watched").textContent = "";
   modal.style.display = "flex";
@@ -418,6 +475,12 @@ function closeNotifClear() {
 }
 function openNotifClearConfirm(text, onYes) {
   wireDedicatedConfirm("notif-clear-modal", text, onYes);
+}
+function closeAskClear() {
+  document.getElementById("ask-clear-modal").style.display = "none";
+}
+function openAskClearConfirm(text, onYes) {
+  wireDedicatedConfirm("ask-clear-modal", text, onYes);
 }
 function closeStremioDisconnect() {
   document.getElementById("stremio-disconnect-modal").style.display = "none";
@@ -1211,9 +1274,9 @@ async function openAnimeSchedule(id, title) {
         let cls = "";
         if (d && !isNaN(d.getTime())) {
           try {
-            dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
+            dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
           } catch (e) {
-            dateText = d.toLocaleString();
+            dateText = d.toLocaleDateString();
           }
           const day = utcDayStr(it.airing_at);
           const localT = todayInTzStr();
@@ -1233,7 +1296,7 @@ async function openAnimeSchedule(id, title) {
         const btnDisabled = !selectable ? " disabled" : "";
         const watchedCls = it.watched ? " watched" : "";
         const todayCls = cls === "date-today" ? " today-release" : "";
-        html += `<tr class="${watchedCls}${todayCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
+        html += `<tr class="${watchedCls}${todayCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-g="0" data-i="${i}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}"><span class="episode-date-wrap"><span class="episode-date-text">${dateText}</span><button class="episode-info-btn" data-g="0" data-i="${i}" data-e="${it.episode}" data-tip="${t("info_title")}" data-i18n-title="info_title">${INFO_SVG}</button></span></td></tr>`;
       });
       html += "</tbody></table></div>";
       body.innerHTML = html;
@@ -1257,6 +1320,16 @@ async function openAnimeSchedule(id, title) {
           } catch (e) {
             toast(t("error"));
           }
+        });
+      });
+
+      body.querySelectorAll(".episode-info-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          if (e) e.stopPropagation();
+          const episode = Number(btn.dataset.e);
+          const it = items.find((x) => x.episode === episode);
+          if (!it) return;
+          openAnimeEpisodeInfo(id, data.title || title, it, data.duration);
         });
       });
 
@@ -1452,7 +1525,7 @@ if (detailsRefreshBtn) {
 export { openReleases, closeReleases, closeDetails, closeModals,
          openTvUnfollowConfirm, openAnimeUnfollowConfirm, openRejectConfirm,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
-         openNotifClearConfirm, openStremioDisconnectConfirm,
+         openNotifClearConfirm, openAskClearConfirm, openStremioDisconnectConfirm,
          openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,
           openDetails, toggleFavActor, toggleFavDirector, toggleFavAnimeChar, openAnimeChar, openPerson, openDirector,
          openUnwatchedModal, openAnimeDetails, openAnimeSchedule };
