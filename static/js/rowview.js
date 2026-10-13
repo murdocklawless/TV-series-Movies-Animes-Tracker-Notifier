@@ -10,7 +10,7 @@ const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" st
 const ROW_TOOLTIP = { tr: "Satır görünümü", en: "Row view", de: "Zeilenansicht", fr: "Vue lignes", es: "Vista de filas", it: "Vista righe", ru: "Список", ar: "عرض الصفوف", pt: "Vista em linhas", nl: "Rijenweergave", pl: "Widok wierszy", ja: "行表示", ko: "행 보기", zh: "列表视图" };
 const CARD_TOOLTIP = { tr: "Kart görünümü", en: "Card view", de: "Kartenansicht", fr: "Vue cartes", es: "Vista de tarjetas", it: "Vista schede", ru: "Сетка", ar: "عرض البطاقات", pt: "Vista em cartões", nl: "Kaartweergave", pl: "Widok kart", ja: "カード表示", ko: "카드 보기", zh: "卡片视图" };
 
-const BTN_SEL = ".calendar-btn, .move-btn, .move-back-btn, .hide-btn, .remove";
+const BTN_SEL = ".calendar-btn, .move-btn, .move-back-btn, .hide-btn, .remove, .defer-btn";
 const hoverFine = !!(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches);
 
 function tr(map) {
@@ -37,6 +37,20 @@ function esc(s) {
 // ---- Kart verisini çıkar --------------------------------------------------------
 function txt(root, sel) { const e = root.querySelector(sel); return e ? e.textContent.trim() : ""; }
 function isEmptySlot(e) { return !e || e.classList.contains("slot-empty"); }
+// Bir .next-ep öğesinden taban metni ve geri-sayım rakamını (.next-ep-days) ayırır
+function splitDays(el) {
+  if (!el) return { text: "", days: "" };
+  const daysEl = el.querySelector(".next-ep-days");
+  let text = (el.textContent || "").trim();
+  let days = "";
+  if (daysEl) {
+    days = (daysEl.textContent || "").trim();
+    if (days && text.endsWith(days)) text = text.slice(0, text.length - days.length);
+    text = text.replace(/[\s·.]+$/, "").trim();
+  }
+  return { text, days };
+}
+function daysHTML(n) { return n ? ` · <span class="wrow-days">${esc(n)}</span>` : ""; }
 function typeClass(badge) {
   if (!badge) return "";
   if (badge.classList.contains("badge-tv")) return "wtype-tv";
@@ -47,7 +61,7 @@ function typeClass(badge) {
 }
 function extract(card) {
   const info = card.querySelector(".info");
-  const out = { title: "", type: "", typeCls: "", score: "", net: "", season: "", episode: "", status: "", mid: "", count: "" };
+  const out = { title: "", type: "", typeCls: "", score: "", net: "", season: "", episode: "", status: "", statusDays: "", mid: "", midDays: "", count: "" };
   if (!info) return out;
   out.title = txt(info, ".title");
   const typeBadge = info.querySelector(".mrow-type .badge");
@@ -60,9 +74,11 @@ function extract(card) {
   out.season = txt(info, ".season-count-badge");
   out.episode = txt(info, ".episode-count");
   const statusEl = info.querySelector(".mrow-status");
-  out.status = isEmptySlot(statusEl) ? "" : statusEl.textContent.trim();
+  const st = isEmptySlot(statusEl) ? { text: "", days: "" } : splitDays(statusEl);
+  out.status = st.text; out.statusDays = st.days;
   const midEl = info.querySelector(".mrow-mid");
-  out.mid = isEmptySlot(midEl) ? "" : midEl.textContent.trim();
+  const md = isEmptySlot(midEl) ? { text: "", days: "" } : splitDays(midEl);
+  out.mid = md.text; out.midDays = md.days;
   const line = info.querySelector(".ep-count-line");
   const badge = line ? line.querySelector(".ep-count-badge") : null;
   if (badge) {
@@ -85,7 +101,9 @@ function gridKind(grid, section) {
 // Bir kart için (kind'a göre) hücre spesifikasyonları
 function cellSpecs(d, kind) {
   const status = d.status || ((d.season || d.episode) ? "" : d.mid);
+  const statusDays = d.status ? d.statusDays : ((d.season || d.episode) ? "" : d.midDays);
   const detail = (d.season || d.episode) ? [d.season, d.episode].filter(Boolean).join(" · ") : d.mid;
+  const detailDays = (d.season || d.episode) ? "" : d.midDays;
   const map = {
     title: { cls: "wc-title title", html: `<span class="wclip" title="${esc(d.title)}">${esc(d.title)}</span>` },
     type: { cls: "wc-type " + d.typeCls, html: esc(d.type) },
@@ -93,10 +111,10 @@ function cellSpecs(d, kind) {
     net: { cls: "wc-net", html: esc(d.net) },
     season: { cls: "wc-season", html: esc(d.season) },
     episode: { cls: "wc-episode", html: esc(d.episode) },
-    status: { cls: "wc-status", html: esc(status) },
+    status: { cls: "wc-status", html: esc(status) + daysHTML(statusDays) },
     count: { cls: "wc-count", html: esc(d.count) },
-    date: { cls: "wc-date", html: esc(d.mid) },
-    detail: { cls: "wc-mid", html: esc(detail) },
+    date: { cls: "wc-date", html: esc(d.mid) + daysHTML(d.midDays) },
+    detail: { cls: "wc-mid", html: esc(detail) + daysHTML(detailDays) },
   };
   const order = {
     tv: ["title", "type", "score", "net", "season", "episode", "status", "count"],
@@ -131,12 +149,16 @@ function restoreCard(card) {
     info.innerHTML = info.dataset.wrowOrig;
     delete info.dataset.wrowOrig;
   }
-  btns.forEach((b) => { if (b.parentNode !== card) card.appendChild(b); });
+  btns.forEach((b) => {
+    const p = b.__wrowParent;
+    if (p && b.parentNode !== p) p.appendChild(b);
+  });
 }
 function buildCard(card, kind, d, kept, section) {
   const info = card.querySelector(".info");
   if (!info) return;
   const btns = cardButtons(card);
+  btns.forEach((b) => { if (b.__wrowParent === undefined) b.__wrowParent = b.parentElement; });
   info.dataset.wrowOrig = info.innerHTML;
   const specs = cellSpecs(d, kind).filter((s) => kept.has(s.key));
   info.innerHTML = specs.map((s, i) => `<span class="wcell ${s.cls}${s.html ? "" : " is-empty"}${i === 0 ? " first" : ""}">${s.html || ""}</span>`).join("");
@@ -155,28 +177,21 @@ function buildCard(card, kind, d, kept, section) {
   if (title) { try { if (isTvMode()) title.tabIndex = 0; } catch (_) {} }
 }
 
-const SLOT_SEL = { calendar: ".calendar-btn", move: ".move-btn, .move-back-btn", hide: ".hide-btn", remove: ".remove" };
+const SLOT_SEL = { calendar: ".calendar-btn", defer: ".defer-btn", move: ".move-btn, .move-back-btn", hide: ".hide-btn", remove: ".remove" };
 function slotKeysFor(kind, section) {
   const s = (section || "").toLowerCase();
   if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return ["move", "hide", "remove"];
   if (s.startsWith("watched")) return ["calendar", "move"];
   if (s.startsWith("unwatched")) return ["calendar"];
-  return ["calendar", "move", "remove"];
+  return ["calendar", "defer", "move", "remove"];
 }
 
-// Yatay kaydırma yalnız satır alanında olsun diye grid bir sarmalayıcıya alınır
-function wrapGrid(grid) {
-  if (grid.__rowWrap && grid.__rowWrap.parentNode) return;
-  const w = document.createElement("div");
-  w.className = "row-scroll";
-  grid.parentNode.insertBefore(w, grid);
-  w.appendChild(grid);
-  grid.__rowWrap = w;
-}
-function unwrapGrid(grid) {
-  const w = grid.__rowWrap;
-  if (w && w.parentNode) { w.parentNode.insertBefore(grid, w); w.remove(); }
-  grid.__rowWrap = null;
+// Yatay kaydırma yalnız satır alanında olsun diye bölüm wrap'ine sınıf eklenir
+// (grid.parentElement DEĞİŞMEZ → views.js renderSectionSummary bozulmaz).
+function setXScroll(grid, on) {
+  const wrap = grid.parentElement;
+  if (!wrap) return;
+  wrap.classList.toggle("row-xscroll", !!on);
 }
 
 function enhance(grid, on) {
@@ -185,7 +200,7 @@ function enhance(grid, on) {
   const cards = Array.from(grid.querySelectorAll(":scope > .card"));
   if (!on) {
     cards.forEach(restoreCard);
-    unwrapGrid(grid);
+    setXScroll(grid, false);
     hidePreview();
     return;
   }
@@ -196,7 +211,7 @@ function enhance(grid, on) {
   const kept = keptKeys(datas, kind);
   // 3) her kartı kur
   cards.forEach((card, i) => { try { buildCard(card, kind, datas[i], kept, section); } catch (_) {} });
-  wrapGrid(grid);
+  setXScroll(grid, true);
 }
 
 // ---- Poster önizlemesi ----------------------------------------------------------

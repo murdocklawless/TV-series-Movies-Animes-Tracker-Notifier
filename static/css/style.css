@@ -5959,7 +5959,9 @@ body.logged-out main { padding: 0; }
 #view-recommend .unwatched-section-title { padding-right: 196px; }
 
 /* Satır düzeni — dinamik (auto) sütunlar: display:table */
-.row-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.row-xscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.row-xscroll > .unwatched-section-title,
+.row-xscroll > .section-summary { position: sticky; left: 0; z-index: 3; }
 .poster-grid.row-mode { display: table; width: 100%; table-layout: auto; font-size: 0.8rem; }
 .poster-grid.row-mode .card {
   display: table-row;
@@ -6002,6 +6004,26 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-status { color: #22c55e; }
 .poster-grid.row-mode .wc-count { color: #14b8a6; }
 .poster-grid.row-mode .wc-date, .poster-grid.row-mode .wc-mid { color: #8b90a0; }
+/* Geri sayım rozeti: karttaki .next-ep-days ile aynı, boyut satır butonlarıyla (1.7em) */
+.poster-grid.row-mode .wrow-days {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-weight: 600;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 50%;
+  width: 1.7em;
+  height: 1.7em;
+  min-width: 1.7em;
+  padding: 0;
+  margin-left: 4px;
+  line-height: 1;
+  vertical-align: text-bottom;
+  font-size: 0.6rem;
+}
 /* Aksiyonlar: tek hücre, sağa hizalı, metin boyutunda ikonlar */
 .poster-grid.row-mode .wcell.wc-actions {
   width: 100%;
@@ -6057,10 +6079,21 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-actions > .move-back-btn { color: #e879f9; }
 .poster-grid.row-mode .wc-actions > .hide-btn { color: #f87171; }
 .poster-grid.row-mode .wc-actions > .remove { color: #ff5f57; }
-.poster-grid.row-mode .wc-actions > .calendar-btn svg { width: 1em; height: 1em; }
+.poster-grid.row-mode .wc-actions > .defer-btn { color: #f87171; }
+.poster-grid.row-mode .wc-actions > .defer-btn.active { color: #22c55e; }
+.poster-grid.row-mode .wc-actions > .calendar-btn svg,
+.poster-grid.row-mode .wc-actions > .defer-btn svg { width: 1em; height: 1em; }
 .poster-grid.row-mode .wc-actions > .move-btn i,
 .poster-grid.row-mode .wc-actions > .move-back-btn i,
 .poster-grid.row-mode .wc-actions > .hide-btn i { font-size: 1em; }
+/* Hover (kart ile birebir) */
+.poster-grid.row-mode .wc-actions > .calendar-btn:hover { color: #bae6fd; }
+.poster-grid.row-mode .wc-actions > .move-btn:hover,
+.poster-grid.row-mode .wc-actions > .move-back-btn:hover { color: #f0abfc; }
+.poster-grid.row-mode .wc-actions > .hide-btn:hover { color: #fca5a5; }
+.poster-grid.row-mode .wc-actions > .remove:hover { color: #fca5a5; }
+.poster-grid.row-mode .wc-actions > .defer-btn:hover { color: #fca5a5; }
+.poster-grid.row-mode .wc-actions > .defer-btn.active:hover { color: #86efac; }
 /* Odak çerçevesi (TV/klavye) */
 .poster-grid.row-mode .card .wc-title:focus,
 .poster-grid.row-mode .card .wc-title:focus-visible,
