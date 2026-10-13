@@ -1,9 +1,9 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=513";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js";
-import { activateUtilityTab } from "./views.js?v=507";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=508";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=520";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=516";
+import { activateUtilityTab } from "./views.js?v=518";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=519";
 
 // ---- Search ----
 // ---- Settings ----
@@ -106,6 +106,8 @@ function renderTzList(query) {
 }
 
 let tzHlIndex = -1;
+// Aktif saat penceresi (tek seferde yalniz bir saat picker acik kalir)
+let activeTimeList = null;
 
 function initTimePicker(base) {
   const input = document.getElementById(base);
@@ -177,13 +179,23 @@ function initTimePicker(base) {
 
   let picks = 0;
 
+  function closeList() {
+    list.style.display = "none";
+    open = false;
+    try {
+      if (list.closest("#feed-schedule-body") && typeof releaseModalRoom === "function") {
+        releaseModalRoom(list);
+      }
+    } catch (_) {}
+    if (activeTimeList && activeTimeList.list === list) activeTimeList = null;
+  }
+
   function applyPick(val) {
     input.value = val;
     lastHourValue = val;
     picks++;
     if (picks >= 2) {
-      list.style.display = "none";
-      open = false;
+      closeList();
       input.dispatchEvent(new Event("change"));
     } else {
       render();
@@ -208,15 +220,24 @@ function initTimePicker(base) {
   function toggle() {
     if (input.disabled) return;
     if (!open) {
+      // Acik olan baska bir saat penceresi varsa once onu kapat
+      if (activeTimeList && activeTimeList.list !== list && typeof activeTimeList.close === "function") {
+        try { activeTimeList.close(); } catch (_) {}
+      }
       picks = 0;
       render();
       list.style.display = "flex";
       scrollSelectedIntoView();
       open = true;
       list.scrollIntoView({ block: "nearest" });
+      try {
+        if (list.closest("#feed-schedule-body") && typeof ensureModalRoom === "function") {
+          ensureModalRoom(list, list.scrollHeight + 16);
+        }
+      } catch (_) {}
+      activeTimeList = { list: list, close: closeList };
     } else {
-      list.style.display = "none";
-      open = false;
+      closeList();
     }
   }
 
@@ -242,10 +263,7 @@ function initTimePicker(base) {
     }
   });
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".time-combobox")) {
-      list.style.display = "none";
-      open = false;
-    }
+    if (!box.contains(e.target)) closeList();
   });
 }
 
@@ -417,6 +435,9 @@ function initPulldownCombobox(selectId, listId) {
   const select = document.getElementById(selectId);
   const list = document.getElementById(listId);
   if (!select || !list) return;
+  // Idempotent: ayni select'e ikinci kez baglanma (cift mousedown -> ac/kapa bug'i)
+  if (select.dataset.pdInit === "1") return;
+  select.dataset.pdInit = "1";
 
   let hlIndex = -1;
   function pdRows() {
@@ -505,6 +526,78 @@ function initPulldownCombobox(selectId, listId) {
     if (e.key === "Escape") toggleList(false);
   });
 }
+// Oneriler beslemesi (feed) pulldown'lari icin views.js'e kopru
+window.initPulldownCombobox = initPulldownCombobox;
+
+// ---- Oneriler beslemesi (feed) haftalik zamanlama (kaynak basina gun+saat) ----
+const FEED_SCHED_SOURCES = ["trend", "popular", "top_rated", "netflix", "hbo_max", "disney_plus", "paramount", "apple_tv", "prime_video", "amc", "random"];
+const FEED_SCHED_DAYS = ["weekday_monday", "weekday_tuesday", "weekday_wednesday", "weekday_thursday", "weekday_friday", "weekday_saturday", "weekday_sunday"];
+const FEED_SCHED_DEFAULT = {
+  trend: { dow: 0, time: "04:00" }, popular: { dow: 0, time: "04:20" }, top_rated: { dow: 1, time: "04:00" },
+  netflix: { dow: 1, time: "04:20" }, hbo_max: { dow: 2, time: "04:00" }, disney_plus: { dow: 2, time: "04:20" },
+  paramount: { dow: 3, time: "04:00" }, apple_tv: { dow: 3, time: "04:20" }, prime_video: { dow: 4, time: "04:00" },
+  amc: { dow: 4, time: "04:20" }, random: { dow: 5, time: "04:00" },
+};
+let feedScheduleBuilt = false;
+function initFeedSchedule(scheduleJson) {
+  const body = document.getElementById("feed-schedule-body");
+  const toggle = document.getElementById("feed-schedule-toggle");
+  if (!body || !toggle) return;
+  let data = {};
+  try { data = scheduleJson ? JSON.parse(scheduleJson) : {}; } catch (_) { data = {}; }
+  if (!feedScheduleBuilt) {
+    let html = "";
+    FEED_SCHED_SOURCES.forEach((src) => {
+      const dayOpts = FEED_SCHED_DAYS.map((k, i) => `<option value="${i}" data-i18n="${k}">${t(k)}</option>`).join("");
+      html += `<div class="feed-sched-row" data-src="${src}">`
+        + `<span class="feed-sched-name" data-i18n="feed_src_${src}">${t("feed_src_" + src)}</span>`
+        + `<div class="provider-combobox feed-sched-day"><select id="feed-day-${src}" class="feed-select">${dayOpts}</select>`
+        + `<div id="feed-day-${src}-list" class="provider-list" style="display:none"></div></div>`
+        + `<div class="time-combobox feed-sched-time">`
+        + `<input id="feed-time-${src}" type="text" value="04:00" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="numeric" />`
+        + `<i class="fa-solid fa-clock time-clock"></i>`
+        + `<div id="feed-time-${src}-list" class="time-list" style="display:none">`
+        + `<div class="time-col"><div class="time-col-title" data-i18n="time_hour">${t("time_hour")}</div><div class="time-col-body" id="feed-time-${src}-hour-list"></div></div>`
+        + `<div class="time-col"><div class="time-col-title" data-i18n="time_minute">${t("time_minute")}</div><div class="time-col-body" id="feed-time-${src}-minute-list"></div></div>`
+        + `</div></div></div>`;
+    });
+    body.innerHTML = html;
+    const commit = () => saveFeedSchedule();
+    FEED_SCHED_SOURCES.forEach((src) => {
+      initPulldownCombobox(`feed-day-${src}`, `feed-day-${src}-list`);
+      initTimePicker(`feed-time-${src}`);
+      const daySel = document.getElementById(`feed-day-${src}`);
+      const timeEl = document.getElementById(`feed-time-${src}`);
+      if (daySel) daySel.addEventListener("change", commit);
+      if (timeEl) timeEl.addEventListener("change", commit);
+    });
+    toggle.addEventListener("click", () => {
+      const open = body.style.display !== "none";
+      body.style.display = open ? "none" : "";
+      const icon = toggle.querySelector("i");
+      if (icon) icon.style.transform = open ? "" : "rotate(180deg)";
+    });
+    feedScheduleBuilt = true;
+  }
+  FEED_SCHED_SOURCES.forEach((src) => {
+    const cfg = (data && data[src]) || FEED_SCHED_DEFAULT[src] || { dow: 0, time: "04:00" };
+    const daySel = document.getElementById(`feed-day-${src}`);
+    const timeEl = document.getElementById(`feed-time-${src}`);
+    if (daySel) daySel.value = String(cfg.dow != null ? cfg.dow : 0);
+    if (timeEl) timeEl.value = cfg.time || "04:00";
+  });
+}
+function saveFeedSchedule() {
+  const obj = {};
+  FEED_SCHED_SOURCES.forEach((src) => {
+    const daySel = document.getElementById(`feed-day-${src}`);
+    const timeEl = document.getElementById(`feed-time-${src}`);
+    obj[src] = { dow: daySel ? (parseInt(daySel.value, 10) || 0) : 0, time: timeEl ? timeEl.value : "04:00" };
+  });
+  const block = document.getElementById("feed-schedule-block");
+  const hint = block ? (block.closest("label") || {}).querySelector ? block.closest("label").querySelector(".saved-hint") : null : null;
+  saveSettingsPartial({ feed_schedule: JSON.stringify(obj) }, hint);
+}
 
 async function loadSettings() {
   const res = await fetch("/api/settings");
@@ -516,7 +609,6 @@ async function loadSettings() {
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
-  document.getElementById("s-rec-hour").value = s.rec_hour || "05:25";
   document.getElementById("s-backup-hour").value = s.backup_hour || "03:00";
   document.getElementById("s-appupdate-hour").value = s.app_update_hour || "04:00";
   document.getElementById("s-maint-hour").value = s.maint_hour || "05:45";
@@ -573,10 +665,10 @@ async function loadSettings() {
   initTimePicker("s-sync-hour");
   initTimePicker("s-genre-hour");
   initTimePicker("s-data-hour");
-  initTimePicker("s-rec-hour");
   initTimePicker("s-backup-hour");
   initTimePicker("s-appupdate-hour");
   initTimePicker("s-maint-hour");
+  initFeedSchedule(s.feed_schedule);
   state.currentTz = s.timezone || "Europe/Istanbul";
   state.serverToday = s.server_today || null;
   document.getElementById("s-tz").value = state.currentTz;
@@ -620,7 +712,6 @@ function applyReadonlyGlobals(s) {
     sync_hour: ["s-sync-hour"],
     genre_hour: ["s-genre-hour"],
     data_hour: ["s-data-hour"],
-    rec_hour: ["s-rec-hour"],
     backup_hour: ["s-backup-hour"],
     app_update_hour: ["s-appupdate-hour"],
     maint_hour: ["s-maint-hour"],
@@ -940,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=513");
+      const { errText: _err } = await import("./i18n.js?v=520");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -949,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, formatDate, applyTitleHint } = await import("./utils.js");
-    const { openDetails } = await import("./components.js?v=506");
-    const { loadFollowed } = await import("./views.js?v=507");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=516");
+    const { openDetails } = await import("./components.js?v=519");
+    const { loadFollowed } = await import("./views.js?v=518");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -963,10 +1054,11 @@ async function openFavListing(kind, ident, title) {
         <div class="info">
           <div class="title">${escAttr(item.title)}</div>
           <div class="meta">
-            <span class="badge badge-${mediaType}">${typeLabel(mediaType)}</span>
-            ${scoreTag(item.vote_average)}
-            ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
-            ${item.character ? `<div class="next-ep muted">${escAttr(item.character)}</div>` : ""}
+            ${resultCardRows({
+              type: `<span class="badge badge-${mediaType}">${typeLabel(mediaType)}</span>`,
+              score: scoreTag(item.vote_average),
+              status: cardDateLine(mediaType, item),
+            })}
           </div>
         </div>
         <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
@@ -986,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=513");
+        const { t: _t } = await import("./i18n.js?v=520");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -994,7 +1086,7 @@ async function openFavListing(kind, ident, title) {
         }
       };
       div.onclick = () => {
-        openDetails(mediaType, item.tmdb_id, item.title);
+        openDetails(mediaType, item.tmdb_id, item.title, undefined, undefined, undefined, true);
         modal.style.display = "none";
       };
       grid.appendChild(div);
@@ -1778,11 +1870,6 @@ document.getElementById("s-data-hour").addEventListener("change", () => {
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ data_hour: el.value }, hint);
 });
-document.getElementById("s-rec-hour").addEventListener("change", () => {
-  const el = document.getElementById("s-rec-hour");
-  const hint = el.closest("label").querySelector(".saved-hint");
-  saveSettingsPartial({ rec_hour: el.value }, hint);
-});
 
 document.getElementById("s-backup-hour").addEventListener("change", () => {
   const el = document.getElementById("s-backup-hour");
@@ -1963,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=517").then((m) => {
+  import("./notification.js?v=527").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

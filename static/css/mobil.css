@@ -116,7 +116,7 @@
   }
 
   html:not(.is-tv):not(.tv-mode) .card .info .title {
-    font-size: 0.78rem;
+    font-size: 0.63rem;
   }
 
   html:not(.is-tv):not(.tv-mode) .card .remove,
@@ -200,18 +200,6 @@
     text-align: center;
   }
 
-  html:not(.is-tv):not(.tv-mode) .modal-overlay {
-    padding: 0;
-  }
-
-  html:not(.is-tv):not(.tv-mode) .modal {
-    max-width: 100%;
-    max-height: 100vh;
-    height: 100vh;
-    border-radius: 0;
-    border: none;
-  }
-
   html:not(.is-tv):not(.tv-mode) #releases-modal > .modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .confirm-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .details-modal,
@@ -220,7 +208,9 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .value-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
-  html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal {
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .stats-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .history-modal {
     max-width: 92%;
     max-height: none;
     height: auto;
@@ -235,6 +225,8 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .stats-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .history-modal,
   html:not(.is-tv):not(.tv-mode) #releases-modal > .modal {
     max-height: 90vh;
   }
@@ -377,6 +369,7 @@
   }
 
   html:not(.is-tv):not(.tv-mode) .card .info .meta {
+    font-size: 0.65rem;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -389,13 +382,13 @@
   }
 
   html:not(.is-tv):not(.tv-mode) .card .info .meta .badge {
-    font-size: 0.6rem;
+    font-size: 0.45rem;
     padding: 1px 6px;
     margin: 0 2px 3px 0;
   }
 
 html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
-    font-size: 0.6rem;
+    font-size: 0.45rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -408,21 +401,28 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     flex-direction: column;
   }
 
-  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep.anime-ep .next-ep-sep {
-    display: none;
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep .next-ep-days {
+    font-size: 0.45rem;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    padding: 0;
   }
 
-  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep .next-ep-days {
-    font-size: 0.6rem;
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep .ep-count-badge {
+    font-size: 0.45rem;
+    height: 16px;
+    min-width: 16px;
+    padding: 0 4px;
   }
 
   /* Arama + çoklu arama modalı yığılmış kartları: tip+puan / platform / sezon /
-     bölüm / statü / tarih; tüm satır araları 3px, tüm rozetler 0.6rem.
+     bölüm / statü / tarih; tüm satır araları 3px, tüm rozetler 0.45rem.
      Eksik satırda görünmez yer tutucu basılır (kartlar kaymaz, film hariç). */
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .info .meta .badge,
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-count-badge,
-  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line .episode-count {
-    font-size: 0.6rem;
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .episode-count {
+    font-size: 0.45rem;
   }
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .mrow-net {
     flex-basis: 100%;
@@ -441,7 +441,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line.season-row {
     flex-direction: column;
   }
-  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line .episode-count {
+  html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .episode-count {
     margin-left: 0;
   }
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line + .season-line {
@@ -457,8 +457,8 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     margin-top: 3px;
     min-height: 0;
   }
-  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line .episode-count,
-  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line .episode-count {
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .episode-count,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .episode-count {
     margin-left: 0;
   }
   /* Kişi/yönetmen filmografi kartları: arama kartı rozetlerinin aynısı */
@@ -466,9 +466,9 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #director-modal .card .info .meta .badge,
   html:not(.is-tv):not(.tv-mode) #person-modal .card .season-count-badge,
   html:not(.is-tv):not(.tv-mode) #director-modal .card .season-count-badge,
-  html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line .episode-count,
-  html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line .episode-count {
-    font-size: 0.6rem;
+  html:not(.is-tv):not(.tv-mode) #person-modal .card .episode-count,
+  html:not(.is-tv):not(.tv-mode) #director-modal .card .episode-count {
+    font-size: 0.45rem;
   }
   html:not(.is-tv):not(.tv-mode) #person-modal .card .mrow-net,
   html:not(.is-tv):not(.tv-mode) #director-modal .card .mrow-net {
@@ -479,6 +479,43 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line.season-row,
   html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line.season-row {
     margin-top: 0;
+  }
+}
+
+/* Satır şeması mobil: eski flex-wrap akışı kapatılır; statü/sezon satırları tek satır. */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .card .info .meta {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 2px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row {
+    min-height: 1.6em;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .season-line,
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
+    flex-basis: auto;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row .next-ep {
+    display: block;
+    flex-direction: unset;
+    align-items: unset;
+    justify-content: unset;
+    gap: unset;
+    margin-top: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row .season-line.season-row {
+    flex-direction: row;
+    margin-top: 0;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row .badge {
+    margin: 0 2px 0 0;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row .season-count-badge,
+  html:not(.is-tv):not(.tv-mode) .card .info .meta .meta-row .episode-count {
+    font-size: 0.45rem;
   }
 }
 
@@ -602,19 +639,19 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title,
   html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title {
     flex-wrap: nowrap;
-    padding-right: 70px;
+    padding-right: 58px;
   }
   html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .section-search,
   html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .section-search,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .section-search,
   html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .section-search {
-    right: 42px;
+    right: 30px;
   }
   html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .follow-sort-wrap,
   html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .follow-sort-wrap,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .follow-sort-wrap,
   html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .follow-sort-wrap {
-    right: 12px;
+    right: 0;
   }
   html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title > span,
   html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title > span,
@@ -641,42 +678,92 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     padding-right: 0;
     text-align: left;
   }
-  /* Mobil bolum arama kutulari: ekrana yatay ortali (h2 tam genislikte
-     oldugu icin h2 icinde ortalamak ekranda ortalar), ust kenar turuncu
-     cizginin 1px alti. Genislik sabit 160px. */
+  /* Satır/kart geçiş ikonu ofsetleri (mobil) */
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .section-view-toggle,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .section-view-toggle,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .section-view-toggle,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .section-view-toggle { right: 0; }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .section-search { right: 60px; }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title .follow-sort-wrap { right: 30px; }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-anime .unwatched-section-title { padding-right: 88px; }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title .section-view-toggle,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .section-view-toggle { right: 52px; }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title .section-search,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .section-search { right: 112px; }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title .follow-sort-wrap,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .follow-sort-wrap { right: 82px; }
+  html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title,
+  html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title { padding-right: 142px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-view-toggle { right: 97px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title { padding-right: 171px; }
+  /* Satır görünümü: mobil poster önizleme boyutu (kart posterinin ~%25'i) */
+  html:not(.is-tv):not(.tv-mode) .wrow-poster { width: calc((100vw - 16px) / 6); }
+  html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-title .wclip { max-width: 16ch; }
+  html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-actions::before { content: "|"; color: #f97316; margin: 0 8px; font-weight: 400; }
+  html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-actions > button {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: 1.7em !important;
+    height: 1.7em !important;
+    display: inline-flex !important;
+    margin: -0.45em 0 !important;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-radius: 50% !important;
+  }
+  html:not(.is-tv):not(.tv-mode) .section-summary { font-size: 0.5rem; }
+  /* Mobil bolum arama kutulari: sag kenar turuncu cizginin en sag noktasina
+     (h2 sag kenari, right:0) hizali, ust kenar cizginin 3px alti (filtre
+     menusuyle ayni hizada). Genislik sabit 160px. */
   html:not(.is-tv):not(.tv-mode) #view-dizi .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-film .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-anime .rec-search-input.open {
     position: absolute;
-    left: 50%;
-    right: auto;
-    top: calc(100% + 1px);
-    transform: translateX(-50%);
+    left: auto;
+    right: 0;
+    top: calc(100% + 3px);
+    transform: none;
     width: 160px;
     max-width: 45vw;
   }
   html:not(.is-tv):not(.tv-mode) #view-unwatched .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-watched .rec-search-input.open {
     position: absolute;
-    left: 50%;
-    right: auto;
-    top: calc(100% + 1px);
-    transform: translateX(-50%);
+    left: auto;
+    right: 0;
+    top: calc(100% + 3px);
+    transform: none;
     width: 160px;
     max-width: 45vw;
   }
   html:not(.is-tv):not(.tv-mode) .rec-search-input.open {
     position: absolute;
-    left: 50%;
-    right: auto;
-    top: calc(100% + 1px);
-    transform: translateX(-50%);
+    left: auto;
+    right: 0;
+    top: calc(100% + 3px);
+    transform: none;
     width: 160px;
     max-width: 45vw;
   }
   /* Mobil bolum filtre menuleri: sag kenar turuncu cizginin en sag
-     noktasina (h2 sag kenarina) dayali, ust kenar cizginin 1px alti.
+     noktasina (h2 sag kenarina) dayali, arama kutusuyla ayni hizada
+     (ust kenar cizginin ~3px alti = wrap_alt + 10px).
      Menu wrap'in cocugu oldugu icin right negatiflenir (wrap'in h2 sag
      boslugu kadar): dizi grubu -12px, izlenmis/izlenmemis -52px. */
   html:not(.is-tv):not(.tv-mode) #view-dizi .follow-sort-menu.sort-menu,
@@ -685,7 +772,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-anime .follow-sort-menu.sort-menu {
     position: absolute;
     top: calc(100% + 10px);
-    right: -12px;
+    right: 0;
     left: auto;
     transform: none;
     max-width: calc(100vw - 16px);
@@ -709,21 +796,31 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   }
 }
 
-/* Hidden-modal arama kutusu (mobil): basligin altina inip modala yatay
-   ortalanir, genislik 160px. Header cita olur (absolute kutunun dayanagi). */
+/* Hidden-modal arama kutusu (mobil): basligin altina X kapatma butonuyla
+   ayni saga hizali iner; ust kenar filtre menusuyle ayni hizada (cizgiden 3px). */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) .hidden-modal .modal-header {
     position: relative;
   }
   html:not(.is-tv):not(.tv-mode) #hidden-search-input.open {
     position: absolute;
-    top: calc(100% + 1px);
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
+    top: calc(100% + 3px);
+    left: auto;
+    right: 16px;
+    transform: none;
     width: 160px;
     max-width: calc(100vw - 32px);
     z-index: 30;
+  }
+  html:not(.is-tv):not(.tv-mode) .hidden-modal .hidden-sort-wrap {
+    position: static;
+  }
+  html:not(.is-tv):not(.tv-mode) #hidden-sort-menu {
+    top: calc(100% + 3px);
+    right: 16px;
+    left: auto;
+    transform: none;
+    z-index: 60;
   }
 }
 
@@ -777,4 +874,47 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     width: 100%;
     flex-shrink: 0;
   }
+}
+
+/* Oneriler beslemesi haftalik zamanlama: ad ustte, gun + saat alt satirda yan yana */
+@media (max-width: 600px) {
+  .feed-sched-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .feed-sched-name {
+    grid-column: 1 / -1;
+  }
+  .feed-sched-day,
+  .feed-sched-time {
+    width: 100%;
+  }
+}
+
+/* Oneriler besleme basligi: 4 kontrol cizginin en sagina yanasik (input mevcut kalir) */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-view-toggle { right: 50px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-search    { right: 100px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-sort-wrap { right: 75px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-refresh   { right: 25px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-hide      { right: 0; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .rec-sort-menu     { left: auto; right: 0; transform: none; }
+}
+
+/* Oneriler besleme pulldown'lari: mobilde 140px + tek satir */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-combo { width: 140px; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-bar { flex-wrap: nowrap; gap: 8px; }
+}
+
+/* Izleme Gecmisi modali (mobil): yil/ay/gun okları uste-alta, tek satir + gun kutulari esit uzun */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) .history-controls { flex-wrap: nowrap; gap: 8px; }
+  html:not(.is-tv):not(.tv-mode) .history-num-box { flex: 1 1 0; min-width: 0; }
+  html:not(.is-tv):not(.tv-mode) .history-num-row { flex-direction: column-reverse; align-items: stretch; gap: 0; }
+  html:not(.is-tv):not(.tv-mode) .history-num-row input { width: 100%; max-width: 64px; margin: 0 auto; }
+  html:not(.is-tv):not(.tv-mode) .history-arrow { padding: 6px 12px; min-height: 30px; }
+  html:not(.is-tv):not(.tv-mode) .history-arrow[data-dir="-1"] i { transform: rotate(-90deg); }
+  html:not(.is-tv):not(.tv-mode) .history-arrow[data-dir="1"] i { transform: rotate(-90deg); }
+  html:not(.is-tv):not(.tv-mode) .history-cal { gap: 5px; }
+  html:not(.is-tv):not(.tv-mode) .history-cell:not(.blank) { aspect-ratio: auto; min-height: 62px; }
 }

@@ -301,7 +301,7 @@ def get_settings():
     if not admin:
         readonly_global = set(GLOBAL_ADMIN_ONLY_KEYS) | {
             "tmdb_api_key", "sync_hour", "genre_hour", "data_hour",
-            "rec_hour", "backup_hour", "app_update_hour",
+            "rec_hour", "feed_schedule", "backup_hour", "app_update_hour",
             "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
             "backup_rsync_user", "backup_samba_host", "backup_samba_port",
             "backup_samba_share", "backup_samba_user", "app_auto_update",
@@ -319,6 +319,7 @@ def get_settings():
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
             "rec_hour": get_setting("rec_hour") or "05:25",
+            "feed_schedule": get_setting("feed_schedule") or "",
             "backup_hour": get_setting("backup_hour") or "03:00",
             "backup_mode": get_setting("backup_mode") or "",
             "backup_rsync_host": get_setting("backup_rsync_host") or "",
@@ -483,7 +484,7 @@ def save_settings():
             k for k in body
             if k in GLOBAL_ADMIN_ONLY_KEYS
             or k in ("tmdb_api_key", "sync_hour", "genre_hour", "data_hour",
-            "rec_hour", "backup_hour", "app_update_hour", "maint_hour",
+            "rec_hour", "feed_schedule", "backup_hour", "app_update_hour", "maint_hour",
                      "backup_mode", "backup_rsync_host", "backup_rsync_port", "backup_rsync_path",
                      "backup_rsync_user", "backup_samba_host", "backup_samba_port",
                      "backup_samba_share", "backup_samba_user", "app_auto_update",
@@ -528,6 +529,7 @@ def save_settings():
         "genre_hour",
         "data_hour",
         "rec_hour",
+        "feed_schedule",
         "backup_hour",
         "backup_mode",
         "backup_rsync_host",
@@ -603,7 +605,7 @@ def save_settings():
             reschedule_user_jobs(uid)
         except Exception:
             pass
-    if admin and any(k in body for k in ("sync_hour", "genre_hour", "data_hour", "rec_hour", "backup_hour", "app_update_hour", "maint_hour", "timezone")):
+    if admin and any(k in body for k in ("sync_hour", "genre_hour", "data_hour", "rec_hour", "feed_schedule", "backup_hour", "app_update_hour", "maint_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 

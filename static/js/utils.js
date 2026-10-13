@@ -1,6 +1,6 @@
 ﻿// Faz 4: utils — genel yardımcılar, SVG sabitleri, tarih/saat formatları.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=448";
+import { t } from "./i18n.js?v=520";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
@@ -105,6 +105,46 @@ function typeLabel(mediaType) {
   return mediaType === "tv" ? t("type_tv") : t("type_movie");
 }
 
+// Poster altı sabit satırlar: tür+puan / yayıncı / orta(sezon-bölüm|statü) / statü (+ opsiyonel bölüm sayısı).
+// Bilgi olmayan satır görünmez yer tutucu ile rezerve edilir → komşu kartlarla hizalanır.
+// count verilmezse bölüm-sayısı satırı hiç basılmaz.
+const CARD_SLOT = {
+  net: `<span class="badge badge-platform slot-empty" aria-hidden="true">–</span>`,
+  season: `<div class="season-line slot-empty" aria-hidden="true">&nbsp;</div>`,
+  status: `<div class="next-ep slot-empty" aria-hidden="true">&nbsp;</div>`,
+};
+
+function cardRows({ type = "", score = "", net = "", mid = "", status = "", count = "", reserve = true }) {
+  const netRow = net ? `<div class="meta-row mrow-net">${net}</div>` : (reserve ? `<div class="meta-row mrow-net">${CARD_SLOT.net}</div>` : "");
+  const midRow = mid ? `<div class="meta-row mrow-mid">${mid}</div>` : (reserve ? `<div class="meta-row mrow-mid">${CARD_SLOT.season}</div>` : "");
+  return `<div class="meta-row mrow-type">${type}${score}</div>`
+    + netRow
+    + midRow
+    + (status ? `<div class="meta-row mrow-status">${status}</div>` : ``)
+    + (count ? `<div class="meta-row mrow-count">${count}</div>` : ``);
+}
+
+// Kişi/yönetmen filmografi + arama/çoklu arama + favori kartları için sade 2 satır şeması:
+// tip·puan / vizyon-yayın tarihi. Satır boşsa görünmez yer tutucu → kartlar hizalı kalır.
+function resultCardRows({ type = "", score = "", status = "" }) {
+  return `<div class="meta-row mrow-type">${type}${score}</div>`
+    + `<div class="meta-row mrow-status">${status || CARD_SLOT.status}</div>`;
+}
+
+// Kart 3. satırı: film/single-doc → "Vizyon Tarihi: {tarih}", dizi/multi-doc/anime →
+// "Yayın Tarihi: {tarih}". Tarih yoksa "" döner (çağıran yer tutucu basar).
+function cardDateLine(mediaType, item) {
+  if (!item) return "";
+  if (mediaType === "anime") {
+    const y = item.start_date;
+    if (!y) return "";
+    return `<div class="next-ep muted">${t("release_date")}: ${y}</div>`;
+  }
+  if (!item.release_date) return "";
+  const label = t(mediaType === "movie" ? "movie_release_date" : "release_date");
+  return `<div class="next-ep muted">${label}: ${formatDate(item.release_date).text}</div>`;
+}
+
 function toast(msg, isErr) {
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -139,12 +179,33 @@ const CALENDAR_SVG = `
     <line x1="3" y1="10" x2="21" y2="10"></line>
   </svg>`;
 
+const ARROW_DOWN_SVG = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="12" y1="4" x2="12" y2="20"></line>
+    <polyline points="5 13 12 20 19 13"></polyline>
+  </svg>`;
+
+const ARROW_UP_SVG = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <line x1="12" y1="20" x2="12" y2="4"></line>
+    <polyline points="5 11 12 4 19 11"></polyline>
+  </svg>`;
+
 const INFO_SVG = `
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="10"></circle>
     <line x1="12" y1="16" x2="12" y2="12"></line>
     <line x1="12" y1="8" x2="12.01" y2="8"></line>
+  </svg>`;
+
+const CLOCK_SVG = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"></circle>
+    <polyline points="12 6 12 12 16 14"></polyline>
   </svg>`;
 
 function tzLocale() {
@@ -371,9 +432,11 @@ function isDocItem(item) {
 
 
 export {
-  IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, UNDO_SVG, EYE_SVG, EYE_OFF_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG,
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, UNDO_SVG, EYE_SVG, EYE_OFF_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
+  ARROW_DOWN_SVG, ARROW_UP_SVG,
   ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG,
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
+  CARD_SLOT, cardRows, resultCardRows, cardDateLine,
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,
   isMobile, daysUntil, daysHint, todayInTz, todayInTzStr, isReleaseToday, isToday, dateState,

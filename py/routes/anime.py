@@ -4,7 +4,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from scheduler import can_early_watch_anime, is_final_status
+from scheduler import save_watch_snapshot, pop_watch_snapshot, can_early_watch_anime, is_final_status
 from auth import get_current_user
 from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from anilist import (
@@ -189,6 +189,7 @@ def anime_followed():
                 )
                 conn.commit()
         comp = _anime_followed_completed(conn, r["id"])
+        total_eps, watched_eps = _anime_followed_counts(conn, r["id"])
         try:
             early = can_early_watch_anime(conn, r["id"])
         except Exception:
@@ -209,6 +210,11 @@ def anime_followed():
                 "status": r["status"],
                 "score": score,
                 "studios": r["studios"],
+                "duration": r["duration"] if "duration" in r.keys() else None,
+                "total_eps": total_eps,
+                "watched_eps": watched_eps,
+                "watched_min": int(watched_eps * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
+                "unwatched_min": int((total_eps - watched_eps) * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
                 "completed": comp,
                 "can_move_watched": bool(comp or early or final),
                 "in_watched": int(r["in_watched"] or 0),
@@ -221,16 +227,19 @@ def anime_followed():
     return cached_response(result, False)
 
 
-def _anime_followed_completed(conn, anime_id):
+def _anime_followed_counts(conn, anime_id):
     total = conn.execute(
         "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (anime_id,)
     ).fetchone()["c"]
-    if total <= 0:
-        return False
     watched_cnt = conn.execute(
         "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (anime_id,)
     ).fetchone()["c"]
-    return total == watched_cnt
+    return total, watched_cnt
+
+
+def _anime_followed_completed(conn, anime_id):
+    total, watched_cnt = _anime_followed_counts(conn, anime_id)
+    return total > 0 and total == watched_cnt
 
 
 def _anime_followed_next(conn, anime_id):
@@ -423,6 +432,46 @@ def anime_move_watched():
         if not early:
             conn.close()
             return jsonify({"error": "Anime henüz tamamlanmadı"}), 400
+    now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    if watched:
+        # Tüm bölümleri otomatik izlenmiş yap; önceden izlenmemiş olanları snapshot'a yaz.
+        try:
+            rows = conn.execute(
+                "SELECT episode FROM anime_episodes WHERE anime_id=? AND watched=0",
+                (anime_id,),
+            ).fetchall()
+            auto = [r["episode"] for r in rows]
+        except Exception:
+            auto = []
+        if auto:
+            conn.execute(
+                "UPDATE anime_episodes SET watched=1 WHERE anime_id=? AND watched=0",
+                (anime_id,),
+            )
+            save_watch_snapshot(conn, uid, "anime", anime_id, auto)
+            conn.execute(
+                "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
+                (uid, "anime", anime_id, None, now_ts),
+            )
+    else:
+        # Geri taşıma: yalnız otomatik işaretlenen bölümleri izlenmemişe çevir.
+        try:
+            snap = pop_watch_snapshot(conn, uid, "anime", anime_id)
+        except Exception:
+            snap = None
+        if snap:
+            try:
+                for e in snap:
+                    conn.execute(
+                        "UPDATE anime_episodes SET watched=0, watched_at=NULL WHERE anime_id=? AND episode=?",
+                        (anime_id, e),
+                    )
+            except Exception:
+                pass
+        conn.execute(
+            "DELETE FROM watch_marks WHERE user_id=? AND kind='anime' AND ref_id=?",
+            (uid, anime_id),
+        )
     conn.execute("UPDATE anime SET in_watched=? WHERE id=?", (watched, anime_id))
     conn.commit()
     conn.close()

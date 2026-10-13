@@ -40,7 +40,11 @@ export function pushModal(el) {
   modalStack.push(el);
   // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil;
   // picker'da free-input'ta, sonuç modalında ilk kartta kalsın (açılış focus'unu observer çalmasın)
-  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal')) return;
+  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal' || el.id === 'history-modal' || el.id === 'stats-modal')) {
+    if (el.id === 'history-modal') initHistoryFocus(el);
+    if (el.id === 'stats-modal') initStatsFocus(el);
+    return;
+  }
   // focus first focusable (no scroll — scroll can yank fixed overlay in WebView)
   try {
     const f = el.querySelector('button, [href], input, select, [tabindex]:not([tabindex="-1"])');
@@ -113,9 +117,128 @@ function resolveLiveButton(oldBtn) {
 export function topModal() { return modalStack[modalStack.length - 1] || null; }
 window._tvModalStack = modalStack;
 
+// ---- History + Stats modal D-pad: ilk odak ----
+function initHistoryFocus(modal){
+  try{
+    setTimeout(()=>{
+      const c = modal.querySelector('.history-cell.has');
+      if (c){ try{ c.tabIndex = 0; }catch(_){} focusNoScroll(c); }
+    }, 0);
+  }catch(_){}
+}
+function initStatsFocus(modal){
+  try{
+    let tries = 0;
+    const tick = ()=>{
+      const b = modal.querySelector('.stats-box');
+      if (b){ try{ b.tabIndex = 0; }catch(_){} focusNoScroll(b); return; }
+      if (tries++ < 60) setTimeout(tick, 100);
+    };
+    setTimeout(tick, 0);
+  }catch(_){}
+}
+function focusCell(el){
+  if (!el) return;
+  try{ el.tabIndex = 0; }catch(_){}
+  focusEl(el);
+}
+function nearestRowTarget(row, x){
+  let best = row[0], bestD = Infinity;
+  for (const el of row){ const d = Math.abs(rectC(el) - x); if (d < bestD){ bestD = d; best = el; } }
+  return best;
+}
+function historyCellRows(cells){
+  const rows = []; const TOL = 24;
+  for (const c of cells){
+    const t = rectT(c); let placed = false;
+    for (const g of rows){ if (Math.abs(rectT(g[0]) - t) <= TOL){ g.push(c); placed = true; break; } }
+    if (!placed) rows.push([c]);
+  }
+  rows.forEach(r=>r.sort((a,b)=>rectC(a)-rectC(b)));
+  return rows;
+}
+function historyModalMove(top, dir, e){
+  try{
+    // izleme popup satırları: ↑/↓ sarmal, ←/→ no-op (odak değişince focusEl scroll eder)
+    try {
+      const tip = document.getElementById('history-tooltip');
+      if (tip && tip.style.display !== 'none'){
+        const rows = Array.from(tip.querySelectorAll('.history-tip-row')).filter(isVisible);
+        const ae = document.activeElement;
+        if (rows.length && (rows.includes(ae) || (ae && ae.closest && ae.closest('#history-tooltip')))){
+          if (dir === 'up' || dir === 'down'){
+            const i = rows.indexOf(ae);
+            const n = (i === -1) ? ((dir === 'down') ? 0 : rows.length - 1)
+              : ((dir === 'down') ? ((i + 1) % rows.length) : ((i - 1 + rows.length) % rows.length));
+            e.preventDefault(); focusCell(rows[n]); return true;
+          }
+          if (dir === 'left' || dir === 'right'){ e.preventDefault(); return true; }
+        }
+      }
+    } catch(_){}
+    try { if (window.__nxHistHideTip) window.__nxHistHideTip(); } catch(_){}
+    const X = top.querySelector('#history-close');
+    const cells = Array.from(top.querySelectorAll('.history-cell.has')).filter(isVisible);
+    if (!cells.length) return false;
+    cells.sort((a,b)=>rectT(a)-rectT(b)||rectC(a)-rectC(b));
+    const rows = historyCellRows(cells);
+    const chain = Array.from(top.querySelectorAll('.history-arrow, #history-year, #history-month, #history-day')).filter(isVisible);
+    const dLeft = top.querySelector('.history-arrow[data-target="day"][data-dir="-1"]');
+    const ae = document.activeElement;
+    if (X && ae === X){
+      if (dir === 'down' || dir === 'right'){ e.preventDefault(); focusCell(cells[0]); return true; }
+      if (dir === 'up' || dir === 'left'){ e.preventDefault(); focusCell(cells[cells.length - 1]); return true; }
+      return false;
+    }
+    if (chain.includes(ae)){
+      if (dir === 'left' || dir === 'right'){
+        const i = chain.indexOf(ae);
+        const n = (dir === 'right') ? (i + 1) % chain.length : (i - 1 + chain.length) % chain.length;
+        e.preventDefault(); focusEl(chain[n]); return true;
+      }
+      if (dir === 'up'){ if (X && isVisible(X)){ e.preventDefault(); focusEl(X); return true; } return false; }
+      if (dir === 'down'){ e.preventDefault(); focusCell(cells[0]); return true; }
+      return false;
+    }
+    let ri = -1, ci = -1;
+    rows.forEach((r,i)=>{ const j = r.indexOf(ae); if (j !== -1){ ri = i; ci = j; } });
+    if (ri !== -1){
+      if (dir === 'left' || dir === 'right'){
+        const row = rows[ri];
+        const n = (ci + ((dir === 'right') ? 1 : -1) + row.length) % row.length;
+        e.preventDefault(); focusCell(row[n]); return true;
+      }
+      if (dir === 'up'){
+        if (ri === 0){ if (dLeft && isVisible(dLeft)){ e.preventDefault(); focusEl(dLeft); return true; } return false; }
+        e.preventDefault(); focusCell(nearestRowTarget(rows[ri - 1], rectC(ae))); return true;
+      }
+      if (dir === 'down'){
+        if (ri === rows.length - 1){ e.preventDefault(); focusCell(cells[0]); return true; }
+        e.preventDefault(); focusCell(nearestRowTarget(rows[ri + 1], rectC(ae))); return true;
+      }
+      return false;
+    }
+    if (dir){ e.preventDefault(); focusCell(cells[0]); return true; }
+    return false;
+  }catch(_){ return false; }
+}
+function statsModalMove(top, dir, e){
+  try{
+    const X = top.querySelector('#stats-close');
+    const boxes = Array.from(top.querySelectorAll('.stats-box')).filter(isVisible);
+    if (!boxes.length) return false;
+    const chain = (X && isVisible(X)) ? [...boxes, X] : boxes;
+    const ae = document.activeElement;
+    const i = chain.indexOf(ae);
+    if (i === -1){ e.preventDefault(); focusCell(boxes[0]); return true; }
+    const n = (dir === 'down' || dir === 'right') ? (i + 1) % chain.length : (i - 1 + chain.length) % chain.length;
+    e.preventDefault(); focusCell(chain[n]); return true;
+  }catch(_){ return false; }
+}
+
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -182,6 +305,18 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
+  // History: izlenen popup açıkken Geri önce onu kapatır (modal kapanmaz)
+  try {
+    const _htTop = topModal();
+    if (_htTop && _htTop.id === 'history-modal'){
+      const ht = document.getElementById('history-tooltip');
+      if (ht && ht.style.display !== 'none'){
+        const cal = document.getElementById('history-cal');
+        if (cal) cal.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+        e.preventDefault(); e.stopPropagation(); return;
+      }
+    }
+  } catch(_){}
   const top = topModal();
   if (top) {
     const isCardModal = top.id === 'releases-modal' || top.id === 'details-modal' || top.id === 'unwatched-modal';
@@ -250,6 +385,17 @@ document.addEventListener("keydown", (e) => {
       }
     }
   } catch(_){}
+  // Oneriler gorunumunde Geri -> Oneriler navbar butonuna odaklan
+  try {
+    const rv = document.getElementById('view-recommend');
+    if (rv && rv.classList.contains('active')) {
+      const t = document.getElementById('tab-recommend');
+      if (t && !t.disabled && isVisible(t)) {
+        e.preventDefault(); e.stopPropagation(); focusEl(t);
+        return;
+      }
+    }
+  } catch(_){}
 });
 
 function isTvMode() {
@@ -263,7 +409,7 @@ function rectOf(el){ try{ return el.getBoundingClientRect(); }catch{ return {lef
 function rectC(el){ const r=rectOf(el); return r.left + r.width/2; }
 function rectT(el){ return rectOf(el).top; }
 
-const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-search,#tab-settings,#tab-exit,#search-close';
+const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-stats,#tab-history,#tab-search,#tab-settings,#tab-exit,#search-close';
 const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn,.defer-btn';
 const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
@@ -302,6 +448,12 @@ function buildGrid(){
     return (band(a)-band(b)) || (rectC(a)-rectC(b));
   });
   rows.push(navEls);
+  // Oneriler beslemesi pulldown satirlari (navbar ile baslik/kartlar arasinda,
+  // her pulldown ayri satir: asagi -> 1.menu -> 2.menu -> kartlar)
+  const feedEls = [document.getElementById('feed-media'), document.getElementById('feed-source')]
+    .filter(el=>el && isVisible(el) && !el.disabled);
+  feedEls.forEach(el=>{ try{ el.tabIndex = 0; }catch(_){} });
+  if (feedEls.length) rows.push(feedEls);
   // Section headers — single row per h2, tek satır (refresh/hide/move hepsi aynı satırda)
   const activeView = document.querySelector('.view.active');
   const scope = activeView || document;
@@ -375,7 +527,7 @@ function focusEl(el){
   try{ focusNoScroll(el); }catch(_){}
   try{
     // Bildirim/sort/settings dropdown: yalniz liste kabini kaydir, sayfayi oynatma
-    const dd = el.closest && el.closest('#notif-menu, #settings-menu');
+    const dd = el.closest && el.closest('#notif-menu, #settings-menu, #watched-ask-menu');
     if (dd){
       const list = (dd.querySelector('#notif-list') && dd.querySelector('#notif-list').contains(el))
         ? dd.querySelector('#notif-list')
@@ -437,6 +589,7 @@ function gridMove(dir){
   }
   const r = pos.r, c = pos.c;
   let target = null;
+  const pdIdx = rows.findIndex(row => row && row.length && row[0] && row[0].id && (row[0].id === 'feed-media' || row[0].id === 'feed-source'));
   if (dir === 'left' || dir === 'right'){
     const row = rows[r];
     if (!row.length){ target = rows[0][0]; }
@@ -446,13 +599,25 @@ function gridMove(dir){
     }
   } else {
     if (r === 0 && dir === 'down'){
-      const fIdx = findFirstCardRow(rows);
-      if(fIdx !== -1) target = rows[fIdx][0];
-      else {
-        const firstRow = rows[1];
-        if (firstRow && firstRow.length) target = firstRow[0];
-        else if (rows[0] && rows[0].length) target = rows[0][0];
+      const firstRow = rows[1];
+      if (firstRow && firstRow.length && firstRow[0] && (firstRow[0].id === 'feed-media' || firstRow[0].id === 'feed-source')){
+        target = firstRow[0];
+      } else {
+        const fIdx = findFirstCardRow(rows);
+        if(fIdx !== -1) target = rows[fIdx][0];
+        else {
+          const fr = rows[1];
+          if (fr && fr.length) target = fr[0];
+          else if (rows[0] && rows[0].length) target = rows[0][0];
+        }
       }
+    } else if (dir === 'down' && pdIdx !== -1 && r === pdIdx) {
+      // Oneriler pulldown -> ust (ilk) kart satirinin en solu
+      const fIdx = findFirstCardRow(rows);
+      target = fIdx !== -1 ? rows[fIdx][0] : (rows[pdIdx] && rows[pdIdx][0]) || null;
+    } else if (dir === 'down' && pdIdx !== -1 && r === rows.length - 1) {
+      // En alt satirdan asagi -> soldaki pulldown (media)
+      target = (rows[pdIdx] && rows[pdIdx][0]) || null;
     } else {
       const nr = dir === 'down' ? (r+1 < rows.length ? r+1 : 0) : (r-1 >= 0 ? r-1 : rows.length-1);
       if (nr === 0){
@@ -522,8 +687,8 @@ function resultsModalMove(top, dir, e){
         if (header.length > 1){ e.preventDefault(); focusEl(header[(header.indexOf(ae)+1)%header.length]); return true; }
         e.preventDefault(); return true;
       }
-      if (dir === 'down'){ e.preventDefault(); focusEl(nearestIn(rows[0], rectC(ae))); return true; }
-      e.preventDefault(); focusEl(nearestIn(rows[rows.length-1], rectC(ae))); return true;
+      if (dir === 'down'){ e.preventDefault(); focusEl(rows[0][0]); return true; }
+      e.preventDefault(); focusEl(rows[rows.length - 1][0]); return true;
     }
     let card = isCard(ae) ? ae : (ae && ae.closest && ae.closest('.card')) || null;
     if (!card || !top.contains(card)){
@@ -542,7 +707,8 @@ function resultsModalMove(top, dir, e){
       const nr = dir === 'down' ? ri + 1 : ri - 1;
       if (nr < 0 || nr >= rows.length){
         // satır dışına taşınca header'a (önce filtre); header yoksa karşı uca sar
-        if (filterBtn && isVisible(filterBtn) && !filterBtn.disabled) target = filterBtn;
+        if (searchBtn && isVisible(searchBtn) && !searchBtn.disabled) target = searchBtn;
+        else if (filterBtn && isVisible(filterBtn) && !filterBtn.disabled) target = filterBtn;
         else if (header.length) target = header[0];
         else {
           const wrap = dir === 'down' ? rows[0] : rows[rows.length - 1];
@@ -694,6 +860,68 @@ function isOkKey(e){
   return k === 'Enter' || k === ' ' || e.keyCode === 23 || e.keyCode === 66;
 }
 
+// Oneriler beslemesi (feed) pulldown D-pad: capture fazinda; native select ve
+// ana bubble handler'dan once calisir. OK ile liste ac/kapat, oklarla liste
+// icinde gezin; liste kapaliyken oklar gridMove ile odagi tasir.
+(function wireFeedNav(){
+  const FEED_SELECTS = ['feed-media', 'feed-source'];
+  const FEED_LISTS = ['feed-media-list', 'feed-source-list'];
+  function openFeedList(){
+    for (const id of FEED_LISTS){
+      const l = document.getElementById(id);
+      if (l && l.style.display !== 'none' && l.style.display !== '') return { list: l, id };
+    }
+    return null;
+  }
+  document.addEventListener('keydown', (e)=>{
+    if (!isTvMode()) return;
+    const ae = document.activeElement;
+    const inFeedSelect = !!(ae && ae.id && FEED_SELECTS.indexOf(ae.id) !== -1);
+    const open = openFeedList();
+    if (!inFeedSelect && !open) return;
+    const key = e.key;
+    const isBack = key === 'Escape' || key === 'GoBack' || key === 'BrowserBack' || e.keyCode === 4 || e.keyCode === 461 || key === 'Back';
+    const dir = dirFromEvent(e);
+    const ok = isOkKey(e);
+    if (open){
+      if (isBack){
+        e.preventDefault(); e.stopPropagation();
+        const selId = open.id.replace('-list', '');
+        const sel = document.getElementById(selId);
+        if (sel) sel.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        return;
+      }
+      if (!dir && !ok) return;
+      const rows = Array.from(open.list.querySelectorAll('.provider-cell'));
+      if (!rows.length){ e.preventDefault(); e.stopPropagation(); return; }
+      let idx = rows.findIndex((r)=>r.classList.contains('hl'));
+      if (idx === -1) idx = 0;
+      e.preventDefault(); e.stopPropagation();
+      if (ok){
+        (rows[idx] || rows[0]).click();
+        return;
+      }
+      if (dir === 'down' || dir === 'right') idx = (idx + 1) % rows.length;
+      else if (dir === 'up' || dir === 'left') idx = (idx - 1 + rows.length) % rows.length;
+      rows.forEach((r, i)=>r.classList.toggle('hl', i === idx));
+      try { rows[idx].scrollIntoView({ block: 'nearest' }); } catch(_){}
+      return;
+    }
+    // select odakli, liste kapali
+    if (isBack) return;
+    if (ok){
+      e.preventDefault(); e.stopPropagation();
+      ae.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+      return;
+    }
+    if (dir){
+      e.preventDefault(); e.stopPropagation();
+      gridMove(dir);
+      return;
+    }
+  }, true);
+})();
+
 // Open dropdown menus (settings/notif/search-filter) — linear nav within (notif-item'lar div, tabIndex verilir)
 function openMenuItems(){
   const menus = ['#settings-menu','#notif-menu','#watched-ask-menu','#search-filter-menu','.rec-sort-menu.open','.follow-sort-menu.open','#person-filter-menu.open','#director-filter-menu.open','#hidden-sort-menu.open'];
@@ -798,9 +1026,18 @@ function watchedAskRows(){
   const out = [];
   try{
     const list = document.querySelector('#watched-ask-list');
-    if (list) out.push(...Array.from(list.querySelectorAll('.ask-item')).filter(el=>isVisible(el)));
+    if (list){
+      const items = Array.from(list.querySelectorAll('.ask-item')).filter(el=>isVisible(el));
+      // Cozulmus satirlarda Evet/Hayir butonu yok; satiri odaklanabilir yap.
+      items.forEach((el)=>{ try{ el.tabIndex = 0; }catch(_){} });
+      out.push(...items);
+    }
   }catch{}
   return out;
+}
+function watchedAskFocusRow(item){
+  if (!item) return;
+  focusEl(item.querySelector('.ask-yes') || item.querySelector('.ask-no') || item);
 }
 function openAskPanelFromTv(){
   try{ if (window.openAskMenu) window.openAskMenu(); }catch(_){}
@@ -818,51 +1055,43 @@ function handleWatchedAskNav(e, dir){
     const ae = document.activeElement;
     const clearBtn = document.querySelector('#ask-clear');
     const hasClear = !!(clearBtn && isVisible(clearBtn));
+    e.preventDefault();
+    // Temizle butonu: asagi/sag ilk mesaj, yukari/sol son mesaj (dairesel)
     if (ae && clearBtn && ae === clearBtn){
-      e.preventDefault();
-      if (dir === 'down' || dir === 'right'){
-        const t0 = rows[0];
-        if (t0) focusEl(t0.querySelector('.ask-yes') || t0.querySelector('.ask-no') || t0);
-      } else if (dir === 'up' || dir === 'left'){
-        const tN = rows[rows.length - 1];
-        if (tN) focusEl(tN.querySelector('.ask-yes') || tN.querySelector('.ask-no') || tN);
-      }
+      if (dir === 'down' || dir === 'right') watchedAskFocusRow(rows[0]);
+      else if (dir === 'up' || dir === 'left') watchedAskFocusRow(rows[rows.length - 1]);
       return true;
     }
     if (!rows.length){
-      e.preventDefault(); return true;
+      return true;
     }
-    if (ae && ae.classList && ae.classList.contains('ask-btn')){
-      const item = ae.closest('.ask-item');
-      const idx = rows.indexOf(item);
-      const yesBtn = item ? item.querySelector('.ask-yes') : null;
-      const noBtn = item ? item.querySelector('.ask-no') : null;
-      if (dir === 'left' || dir === 'right'){
-        e.preventDefault();
-        focusEl(ae === yesBtn ? (noBtn || yesBtn) : (yesBtn || noBtn));
-        return true;
-      }
-      if (dir === 'down'){
-        e.preventDefault();
-        const nxt = rows[(idx + 1) % rows.length];
-        if (nxt) focusEl(nxt.querySelector('.ask-yes') || nxt.querySelector('.ask-no') || nxt);
-        return true;
-      }
-      if (dir === 'up'){
-        e.preventDefault();
-        if (idx === 0 && hasClear){ focusEl(clearBtn); return true; }
-        const prv = rows[(idx - 1 + rows.length) % rows.length];
-        if (prv) focusEl(prv.querySelector('.ask-yes') || prv.querySelector('.ask-no') || prv);
-        return true;
+    // Odak bir satirin kendi uzerinde (cozulmus) veya icindeki Evet/Hayir butonunda olabilir
+    const curItem = (ae && ae.closest) ? ae.closest('.ask-item') : null;
+    const idx = curItem ? rows.indexOf(curItem) : -1;
+    if (dir === 'left' || dir === 'right'){
+      if (idx !== -1){
+        const item = rows[idx];
+        const yesBtn = item.querySelector('.ask-yes');
+        const noBtn = item.querySelector('.ask-no');
+        if (yesBtn && noBtn) focusEl(ae === yesBtn ? noBtn : yesBtn);
       }
       return true;
     }
-    const target = (dir === 'down' || dir === 'right') ? rows[0] : rows[rows.length - 1];
-    e.preventDefault();
-    if (target) focusEl(target.querySelector('.ask-yes') || target.querySelector('.ask-no') || target);
+    if (dir === 'down'){
+      if (idx === -1) watchedAskFocusRow(rows[0]);
+      else watchedAskFocusRow(rows[(idx + 1) % rows.length]);
+      return true;
+    }
+    if (dir === 'up'){
+      if (idx === -1 || idx === 0){
+        if (hasClear) focusEl(clearBtn);
+        else watchedAskFocusRow(rows[rows.length - 1]);
+      } else watchedAskFocusRow(rows[idx - 1]);
+      return true;
+    }
     return true;
   }
-  if (document.activeElement && document.activeElement.id === 'tab-watched-ask' && (dir === 'left' || dir === 'right' || dir === 'down')){
+  if (document.activeElement && document.activeElement.id === 'tab-watched-ask' && dir === 'down'){
     e.preventDefault();
     openAskPanelFromTv();
     return true;
@@ -905,6 +1134,8 @@ function closeOpenMenus(){
   document.querySelectorAll('.rec-sort-menu.open').forEach((m)=>m.classList.remove('open'));
   document.querySelectorAll('.follow-sort-menu.open').forEach((m)=>m.classList.remove('open'));
   document.querySelectorAll('.section-filter.active').forEach((b)=>b.classList.remove('active'));
+  const wam = document.querySelector('#watched-ask-menu');
+  if (wam) wam.classList.remove('active');
 }
 
 document.addEventListener("keydown", (e)=>{
@@ -912,6 +1143,23 @@ document.addEventListener("keydown", (e)=>{
   const top = topModal();
   const dir = dirFromEvent(e);
   if (top){
+    if (top.id === 'history-modal' && isOkKey(e)){
+      const ae = document.activeElement;
+      if (ae && ae.classList && ae.classList.contains('history-cell') && ae.classList.contains('has')){
+        e.preventDefault(); e.stopPropagation();
+        try { ae.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); } catch(_){}
+        window.__nxHistCell = ae;
+        // izleme popup'ında odak ilk satıra (↑/↓ çalışsın); satırda OK = hiçbir şey (B)
+        setTimeout(()=>{
+          try {
+            const tip = document.getElementById('history-tooltip');
+            const a = tip && tip.querySelector('.history-tip-row');
+            if (a){ a.tabIndex = 0; focusEl(a); }
+          } catch(_){}
+        }, 0);
+        return;
+      }
+    }
     if (!dir) return;
     // Sonuç + kişi/yönetmen modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
     // buton modunda kart-içi butonlar (modal kapanmaz)
@@ -942,6 +1190,10 @@ document.addEventListener("keydown", (e)=>{
       if (hiddenModalMove(top, dir, e)) return;
       // kart yoksa jenerik cycle'a düş (header X vb.)
     }
+    // History modal: rozet kutuları 2D + kontroller + X
+    if (top.id === 'history-modal'){ if (historyModalMove(top, dir, e)) return; }
+    // Stats modal: box + X döngüsü (4 yön aynı mantık)
+    if (top.id === 'stats-modal'){ if (statsModalMove(top, dir, e)) return; }
     // Releases/Unwatched/Anime schedule: custom X <-> episode cycle, disabled atlanir
     const isScheduleModal = top.id === 'releases-modal' || top.id === 'unwatched-modal' || (top.querySelector('.anime-watch') && top.id === 'releases-modal');
     if (isScheduleModal || top.id === 'releases-modal' || top.id === 'unwatched-modal'){
@@ -1303,6 +1555,14 @@ document.addEventListener("keydown", (e)=>{
     const btns = cardButtons(buttonMode.card);
     const b = btns[buttonMode.idx];
     if (b){ e.preventDefault(); e.stopPropagation(); b.click(); }
+    return;
+  }
+  // Izlendi-sor butonu: OK paneli acar/kapatir; odak butonda kalir (asagi ile ilk mesaja inilir)
+  const aeAskTab = document.activeElement;
+  if (aeAskTab && aeAskTab.id === 'tab-watched-ask'){
+    e.preventDefault(); e.stopPropagation();
+    if (window.askMenuOpen && window.askMenuOpen()){ if (window.closeAskMenu) window.closeAskMenu(); }
+    else if (window.openAskMenu) window.openAskMenu();
     return;
   }
   const menuItems = openMenuItems();

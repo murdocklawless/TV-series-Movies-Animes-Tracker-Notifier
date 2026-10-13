@@ -607,13 +607,6 @@ def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=No
             num_episodes = None
             networks = []
             status = ""
-            if media_type == "tv":
-                detail = tmdb_request(f"/tv/{item.get('id')}")
-                if detail:
-                    num_seasons = detail.get("number_of_seasons")
-                    num_episodes = detail.get("number_of_episodes")
-                    networks = [n.get("name") for n in (detail.get("networks") or []) if n.get("name")]
-                    status = detail.get("status") or ""
             out.append(
                 {
                     "tmdb_id": item.get("id"),

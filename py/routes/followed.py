@@ -8,7 +8,7 @@ from db import get_db, today_str, _safe_json_list
 from auth import get_current_user
 from tmdb import get_tmdb_info, get_tmdb_cast, get_tmdb_credits, get_tmdb_directors, save_details, save_directors, load_details, tmdb_request, get_tmdb_info_fallback, get_tmdb_title_fallback
 from tvmaze import _tvmaze_episode_times
-from scheduler import sync_episodes, can_early_watch_tv, can_early_watch_movie, can_early_watch_anime, is_final_status
+from scheduler import sync_episodes, save_watch_snapshot, pop_watch_snapshot, can_early_watch_tv, can_early_watch_movie, can_early_watch_anime, is_final_status
 from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from ramcache import list_cache, bump, gen, cached_response
 from recommendations import remove_rec_item
@@ -23,6 +23,35 @@ def _uid():
         return int(u["id"]) if u else 0
     except Exception:
         return 0
+
+
+def _tv_air_stats(conn, follow_id):
+    """TV öğesi için son yayın tarihi + bölüm aralığı medyanı (gün).
+    'Yeni bölüm' vs 'Yeni sezon' etiketi ayrımı için kullanılır."""
+    last_air_date = None
+    ep_gap_days = None
+    try:
+        rows = conn.execute(
+            "SELECT air_date FROM episodes WHERE follow_id=? AND air_date IS NOT NULL ORDER BY air_date",
+            (follow_id,),
+        ).fetchall()
+        dates = [r["air_date"] for r in rows]
+        if dates:
+            last_air_date = dates[-1]
+            gaps = []
+            for i in range(1, len(dates)):
+                try:
+                    d1 = datetime.date.fromisoformat(dates[i - 1])
+                    d2 = datetime.date.fromisoformat(dates[i])
+                    gaps.append((d2 - d1).days)
+                except (ValueError, TypeError):
+                    pass
+            if gaps:
+                gaps.sort()
+                ep_gap_days = gaps[len(gaps) // 2]
+    except Exception:
+        pass
+    return last_air_date, ep_gap_days
 
 
 @followed_bp.route("/api/follow", methods=["POST"])
@@ -122,6 +151,10 @@ def followed():
             item["networks"] = json.loads(item.get("networks")) if item.get("networks") else []
         except (ValueError, TypeError):
             item["networks"] = []
+        try:
+            item["genres"] = _safe_json_list(item.get("genres")) if item.get("genres") else []
+        except (ValueError, TypeError):
+            item["genres"] = []
         # film için watched, dizi için completed
         item["watched"] = int(item.get("watched") or 0)
         item["deferred"] = int(item.get("deferred") or 0)
@@ -142,13 +175,29 @@ def followed():
                     "episode": nxt["episode"],
                     "air_date": nxt["air_date"],
                 }
-            # tüm bölümler izlendi mi?
+            # tüm bölümler izlendi mi? + bölüm toplamları (özet için)
             try:
                 total = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (item["id"],)).fetchone()["c"]
                 watched_cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (item["id"],)).fetchone()["c"]
                 item["completed"] = bool(total > 0 and total == watched_cnt)
+                item["total_eps"] = total
+                item["watched_eps"] = watched_cnt
+                show_rt = item.get("runtime")
+                mrow = conn.execute(
+                    "SELECT "
+                    "COALESCE(SUM(CASE WHEN watched=1 THEN COALESCE(runtime, ?) END),0) AS wmin, "
+                    "COALESCE(SUM(CASE WHEN watched=0 THEN COALESCE(runtime, ?) END),0) AS umin "
+                    "FROM episodes WHERE follow_id=?",
+                    (show_rt, show_rt, item["id"]),
+                ).fetchone()
+                item["watched_min"] = int(mrow["wmin"] or 0)
+                item["unwatched_min"] = int(mrow["umin"] or 0)
             except Exception:
                 item["completed"] = False
+                item["total_eps"] = 0
+                item["watched_eps"] = 0
+                item["watched_min"] = 0
+                item["unwatched_min"] = 0
             try:
                 early = can_early_watch_tv(conn, item["id"])
             except Exception:
@@ -158,7 +207,22 @@ def followed():
             except Exception:
                 final = False
             item["can_move_watched"] = bool(item.get("completed") or early or final)
+            try:
+                _last_air, _gap = _tv_air_stats(conn, item["id"])
+                item["last_air_date"] = _last_air
+                item["ep_gap_days"] = _gap
+            except Exception:
+                item["last_air_date"] = None
+                item["ep_gap_days"] = None
         if item["media_type"] == "movie":
+            item["total_eps"] = 1
+            item["watched_eps"] = int(item.get("watched") or 0)
+            if item.get("watched"):
+                item["watched_min"] = int(item.get("runtime") or 0)
+                item["unwatched_min"] = 0
+            else:
+                item["watched_min"] = 0
+                item["unwatched_min"] = int(item.get("runtime") or 0)
             try:
                 early = can_early_watch_movie(item.get("release_date"))
             except Exception:
@@ -205,6 +269,37 @@ def unwatched():
             }
             for x in rows
         ]
+        try:
+            nxt = conn.execute(
+                "SELECT season, episode, air_date FROM episodes "
+                "WHERE follow_id=? AND air_date IS NOT NULL AND air_date>=? "
+                "ORDER BY air_date ASC, episode ASC LIMIT 1",
+                (r["id"], today),
+            ).fetchone()
+        except Exception:
+            nxt = None
+        try:
+            total_eps = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)).fetchone()["c"]
+            watched_eps = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)).fetchone()["c"]
+        except Exception:
+            total_eps, watched_eps = 0, 0
+        show_rt = r["runtime"] if "runtime" in r.keys() else None
+        try:
+            mrow = conn.execute(
+                "SELECT "
+                "COALESCE(SUM(CASE WHEN watched=1 THEN COALESCE(runtime, ?) END),0) AS wmin, "
+                "COALESCE(SUM(CASE WHEN watched=0 THEN COALESCE(runtime, ?) END),0) AS umin "
+                "FROM episodes WHERE follow_id=?",
+                (show_rt, show_rt, r["id"]),
+            ).fetchone()
+            watched_min = int(mrow["wmin"] or 0)
+            unwatched_min = int(mrow["umin"] or 0)
+        except Exception:
+            watched_min, unwatched_min = 0, 0
+        try:
+            _last_air, _gap = _tv_air_stats(conn, r["id"])
+        except Exception:
+            _last_air, _gap = None, None
         shows.append(
             {
                 "id": r["id"],
@@ -217,6 +312,18 @@ def unwatched():
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
+                "status": r["status"] if "status" in r.keys() else None,
+                "season_list": r["season_list"] if "season_list" in r.keys() else None,
+                "number_of_seasons": r["number_of_seasons"] if "number_of_seasons" in r.keys() else None,
+                "number_of_episodes": r["number_of_episodes"] if "number_of_episodes" in r.keys() else None,
+                "runtime": r["runtime"] if "runtime" in r.keys() else None,
+                "total_eps": total_eps,
+                "watched_eps": watched_eps,
+                "watched_min": watched_min,
+                "unwatched_min": unwatched_min,
+                "last_air_date": _last_air,
+                "ep_gap_days": _gap,
+                "next_episode": {"season": nxt["season"], "episode": nxt["episode"], "air_date": nxt["air_date"]} if nxt else None,
                 "unwatched": len(items),
                 "items": items,
             }
@@ -240,6 +347,11 @@ def unwatched():
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "release_date": r["release_date"],
+                "runtime": r["runtime"] if "runtime" in r.keys() else None,
+                "total_eps": 1,
+                "watched_eps": int(r["watched"] or 0),
+                "watched_min": 0,
+                "unwatched_min": int(r["runtime"]) if ("runtime" in r.keys() and r["runtime"]) else 0,
                 "watched": int(r["watched"] or 0),
             }
         )
@@ -254,6 +366,20 @@ def unwatched():
         ).fetchall()
         if not rows:
             continue
+        try:
+            nxt = conn.execute(
+                "SELECT episode, air_at FROM anime_episodes "
+                "WHERE anime_id=? AND air_at IS NOT NULL AND air_at>? "
+                "ORDER BY air_at ASC, episode ASC LIMIT 1",
+                (r["id"], now),
+            ).fetchone()
+        except Exception:
+            nxt = None
+        try:
+            total_eps = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)).fetchone()["c"]
+            watched_eps = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (r["id"],)).fetchone()["c"]
+        except Exception:
+            total_eps, watched_eps = 0, 0
         anime_list.append(
             {
                 "id": r["id"],
@@ -264,6 +390,13 @@ def unwatched():
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "score": r["score"],
                 "studios": r["studios"],
+                "status": r["status"] if "status" in r.keys() else None,
+                "duration": r["duration"] if "duration" in r.keys() else None,
+                "total_eps": total_eps,
+                "watched_eps": watched_eps,
+                "watched_min": int(watched_eps * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
+                "unwatched_min": int((total_eps - watched_eps) * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
+                "next_episode": {"episode": nxt["episode"], "airing_at": nxt["air_at"]} if nxt else None,
                 "unwatched": len(rows),
                 "items": [{"episode": x["episode"], "air_at": x["air_at"]} for x in rows],
             }
@@ -356,6 +489,23 @@ def watched():
             }
             for x in rows
         ]
+        show_rt = r["runtime"] if "runtime" in r.keys() else None
+        try:
+            mrow = conn.execute(
+                "SELECT "
+                "COALESCE(SUM(CASE WHEN watched=1 THEN COALESCE(runtime, ?) END),0) AS wmin, "
+                "COALESCE(SUM(CASE WHEN watched=0 THEN COALESCE(runtime, ?) END),0) AS umin "
+                "FROM episodes WHERE follow_id=?",
+                (show_rt, show_rt, r["id"]),
+            ).fetchone()
+            watched_min = int(mrow["wmin"] or 0)
+            unwatched_min = int(mrow["umin"] or 0)
+        except Exception:
+            watched_min, unwatched_min = 0, 0
+        try:
+            _last_air, _gap = _tv_air_stats(conn, r["id"])
+        except Exception:
+            _last_air, _gap = None, None
         shows.append(
             {
                 "id": r["id"],
@@ -368,6 +518,15 @@ def watched():
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
+                "status": r["status"] if "status" in r.keys() else None,
+                "season_list": r["season_list"] if "season_list" in r.keys() else None,
+                "number_of_seasons": r["number_of_seasons"] if "number_of_seasons" in r.keys() else None,
+                "number_of_episodes": r["number_of_episodes"] if "number_of_episodes" in r.keys() else None,
+                "runtime": r["runtime"] if "runtime" in r.keys() else None,
+                "watched_min": watched_min,
+                "unwatched_min": unwatched_min,
+                "last_air_date": _last_air,
+                "ep_gap_days": _gap,
                 "watched": watched_cnt,
                 "total": total,
                 "items": items,
@@ -407,6 +566,9 @@ def watched():
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
                 "release_date": r["release_date"],
+                "runtime": r["runtime"] if "runtime" in r.keys() else None,
+                "watched_min": int(r["runtime"]) if ("runtime" in r.keys() and r["runtime"]) else 0,
+                "unwatched_min": 0,
                 "watched": 1,
             }
         )
@@ -448,6 +610,10 @@ def watched():
                 "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "score": r["score"],
                 "studios": r["studios"],
+                "status": r["status"] if "status" in r.keys() else None,
+                "duration": r["duration"] if "duration" in r.keys() else None,
+                "watched_min": int(watched_cnt * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
+                "unwatched_min": int((total - watched_cnt) * (r["duration"] or 0)) if ("duration" in r.keys() and r["duration"]) else 0,
                 "watched": watched_cnt,
                 "total": total,
                 "items": [{"episode": x["episode"], "air_at": x["air_at"]} for x in rows],
@@ -508,14 +674,68 @@ def followed_move_watched():
                 if not early:
                     conn.close()
                     return jsonify({"error": "Dizi henüz tamamlanmadı"}), 400
-    if watched and media_type == "movie":
-        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-        conn.execute(
-            "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?) WHERE id=?",
-            (watched, now_ts, follow["id"]),
-        )
+    now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    if watched:
+        if media_type == "tv":
+            # Tüm sezon/bölümleri otomatik izlenmiş yap; önceden izlenmemiş
+            # olanları snapshot'a yaz (geri taşımada "kaldığım yer" korunur).
+            try:
+                rows = conn.execute(
+                    "SELECT season, episode FROM episodes WHERE follow_id=? AND watched=0",
+                    (follow["id"],),
+                ).fetchall()
+                auto = [[r["season"], r["episode"]] for r in rows]
+            except Exception:
+                auto = []
+            if auto:
+                conn.execute(
+                    "UPDATE episodes SET watched=1 WHERE follow_id=? AND watched=0",
+                    (follow["id"],),
+                )
+                save_watch_snapshot(conn, uid, "tv", follow["id"], auto)
+                for sn in sorted({int(s) for s, _e in auto if s is not None}):
+                    conn.execute(
+                        "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
+                        (uid, "tv", follow["id"], sn, now_ts),
+                    )
+            conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
+        else:  # movie
+            if int(follow["watched"] or 0) != 1:
+                conn.execute("UPDATE followed SET watched=1 WHERE id=?", (follow["id"],))
+                save_watch_snapshot(conn, uid, "movie", follow["id"], ["1"])
+            conn.execute(
+                "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?) WHERE id=?",
+                (watched, now_ts, follow["id"]),
+            )
     else:
-        conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
+        # Geri taşıma: yalnız otomatik işaretlenen bölümleri izlenmemişe çevir.
+        if media_type == "tv":
+            try:
+                snap = pop_watch_snapshot(conn, uid, "tv", follow["id"])
+            except Exception:
+                snap = None
+            if snap:
+                try:
+                    for s, e in snap:
+                        conn.execute(
+                            "UPDATE episodes SET watched=0, watched_at=NULL WHERE follow_id=? AND season=? AND episode=?",
+                            (follow["id"], s, e),
+                        )
+                except Exception:
+                    pass
+            conn.execute(
+                "DELETE FROM watch_marks WHERE user_id=? AND kind='tv' AND ref_id=?",
+                (uid, follow["id"]),
+            )
+            conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
+        else:
+            try:
+                snap = pop_watch_snapshot(conn, uid, "movie", follow["id"])
+            except Exception:
+                snap = None
+            if snap and "1" in snap:
+                conn.execute("UPDATE followed SET watched=0, watched_at=NULL WHERE id=?", (follow["id"],))
+            conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
     bump()
@@ -796,12 +1016,13 @@ def season_watch():
                 except (ValueError, OSError, OverflowError):
                     pass
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at) "
-            "VALUES (?, ?, ?, ?, ?, ?) "
+            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at, runtime) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(follow_id, season, episode) "
-            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date",
+            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date, runtime=excluded.runtime",
             (follow["id"], season, ep_num, air_date, watched,
-             int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None),
+             int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
+             ep.get("runtime")),
         )
         count += 1
     conn.commit()
@@ -1076,3 +1297,107 @@ def details():
     d["cast"] = cst
     d["directors"] = credits.get("directors") or []
     return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
+
+
+# ---- İzleme geçmişi (history) ----
+_DOC_GENRE_WORDS = {
+    "documentary", "documentaries", "belgesel", "doku", "dokus",
+    "documentaire", "documentaires", "documental", "documentales",
+    "documentario", "documentari", "документальный", "доку",
+    "وثائقي", "وثائقيات", "documentário", "documentários",
+    "dokument", "dokumenty", "ドキュメンタリー", "다큐멘터리", "纪录片",
+}
+
+
+def _is_doc_genres(genres):
+    if not genres:
+        return False
+    for g in genres:
+        if str(g or "").strip().lower() in _DOC_GENRE_WORDS:
+            return True
+    return False
+
+
+@followed_bp.route("/api/history")
+def watch_history():
+    """İzleme geçmişi: tv+bölümler, filmler, anime bölümleri (watched_at dolu olanlar).
+    kind: shows | movies | docs | anime. ts epoch, azalan."""
+    uid = _uid()
+    conn = get_db()
+    items = []
+    try:
+        rows = conn.execute(
+            """SELECT f.title, f.media_type, f.genres, e.season, e.episode, e.watched_at AS ts
+               FROM episodes e JOIN followed f ON f.id=e.follow_id
+               WHERE f.user_id=? AND e.watched=1 AND e.watched_at IS NOT NULL""",
+            (uid,),
+        ).fetchall()
+        for r in rows:
+            items.append({
+                "ts": r["ts"],
+                "kind": "docs" if _is_doc_genres(_safe_json_list(r["genres"])) else "shows",
+                "title": r["title"] or "",
+                "season": r["season"],
+                "episode": r["episode"],
+            })
+        rows = conn.execute(
+            """SELECT title, genres, watched_at AS ts FROM followed
+               WHERE user_id=? AND media_type='movie' AND watched=1 AND watched_at IS NOT NULL""",
+            (uid,),
+        ).fetchall()
+        for r in rows:
+            items.append({
+                "ts": r["ts"],
+                "kind": "docs" if _is_doc_genres(_safe_json_list(r["genres"])) else "movies",
+                "title": r["title"] or "",
+                "season": None,
+                "episode": None,
+            })
+        rows = conn.execute(
+            """SELECT a.title, ae.episode, ae.watched_at AS ts
+               FROM anime_episodes ae JOIN anime a ON a.id=ae.anime_id
+               WHERE a.user_id=? AND ae.watched=1 AND ae.watched_at IS NOT NULL""",
+            (uid,),
+        ).fetchall()
+        for r in rows:
+            items.append({
+                "ts": r["ts"],
+                "kind": "anime",
+                "title": r["title"] or "",
+                "season": None,
+                "episode": r["episode"],
+            })
+        rows = conn.execute(
+            """SELECT wm.marked_at AS ts, wm.season, f.title, f.genres
+               FROM watch_marks wm JOIN followed f ON f.id=wm.ref_id
+               WHERE wm.user_id=? AND wm.kind='tv'""",
+            (uid,),
+        ).fetchall()
+        for r in rows:
+            items.append({
+                "ts": r["ts"],
+                "kind": "docs" if _is_doc_genres(_safe_json_list(r["genres"])) else "shows",
+                "title": r["title"] or "",
+                "season": r["season"],
+                "episode": None,
+                "marked": True,
+            })
+        rows = conn.execute(
+            """SELECT wm.marked_at AS ts, a.title
+               FROM watch_marks wm JOIN anime a ON a.id=wm.ref_id
+               WHERE wm.user_id=? AND wm.kind='anime'""",
+            (uid,),
+        ).fetchall()
+        for r in rows:
+            items.append({
+                "ts": r["ts"],
+                "kind": "anime",
+                "title": r["title"] or "",
+                "season": None,
+                "episode": None,
+                "marked": True,
+            })
+    finally:
+        conn.close()
+    items.sort(key=lambda x: x["ts"] or 0, reverse=True)
+    return jsonify({"items": items})

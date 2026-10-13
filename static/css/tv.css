@@ -1,4 +1,16 @@
 /* tv.css — Android TV (html.is-tv / html.tv-mode) */
+/* TV ölçek çarpanı: tüm TV görünümü değerleri calc(<değer> * var(--tv-scale)) ile küçültülür. */
+html.is-tv, html.tv-mode {
+  --tv-scale: 0.8;
+  --tv-card-scale: 0.42rem;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+html.is-tv *, html.tv-mode * {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
 @media (hover: hover) {
   html.is-tv .card:hover, html.tv-mode .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
   html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn, html.is-tv .card:hover .defer-btn, html.tv-mode .card:hover .defer-btn { display:flex; }
@@ -8,7 +20,7 @@ html.is-tv .modal-overlay, html.tv-mode .modal-overlay { top:0; left:0; right:0;
 
 html.is-tv .modal-overlay .modal, html.tv-mode .modal-overlay .modal,
 html.is-tv #releases-modal > .modal, html.tv-mode #releases-modal > .modal {
-  max-height: 92%;
+  max-height: calc(92% * var(--tv-scale));
   height: auto;
 }
 
@@ -43,21 +55,21 @@ html.is-tv .hidden-by-modal, html.tv-mode .hidden-by-modal { display:none !impor
 
 html.is-tv .tabs-group .tab, html.tv-mode .tabs-group .tab {
   display: inline-flex; align-items: center; justify-content: center;
-  line-height: 1; height: 34px; padding: 7px 13px; border-width: 1px; vertical-align: middle;
-  font-size: 0.78rem;
+  line-height: 1; height: calc(34px * var(--tv-scale)); padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale)); border-width: 1px; vertical-align: middle;
+  font-size: calc(0.78rem * var(--tv-scale));
 }
 
 html.is-tv #tab-settings, html.tv-mode #tab-settings { top: 0; }
 
 html.is-tv .utils-tabs-group #tab-search, html.tv-mode .utils-tabs-group #tab-search {
-  padding: 7px 13px;
+  padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale));
 }
 
-html.is-tv .logo, html.tv-mode .logo { font-size: 0.95rem; }
+html.is-tv .logo, html.tv-mode .logo { font-size: calc(0.95rem * var(--tv-scale)); }
 
 html.is-tv .logo-title, html.tv-mode .logo-title { white-space: nowrap; }
 
-html.is-tv .logo-img, html.tv-mode .logo-img { width: 34px; height: 34px; padding: calc(8px * 34 / 96); border-radius: calc(12px * 34 / 96); box-sizing: border-box; image-rendering: -webkit-optimize-contrast; }
+html.is-tv .logo-img, html.tv-mode .logo-img { width: calc(34px * var(--tv-scale)); height: calc(34px * var(--tv-scale)); padding: calc(calc(8px * 34 / 96) * var(--tv-scale)); border-radius: calc(12px * 34 / 96); box-sizing: border-box; image-rendering: -webkit-optimize-contrast; }
 
 html.is-tv .logo-img { content: url("/static/images/nextep_tv_logo.png"); }
 
@@ -89,97 +101,103 @@ html.is-tv .card:focus-within, html.tv-mode .card:focus-within {
   box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-html.is-tv .notif-menu, html.tv-mode .notif-menu { max-height: 340px; }
+html.is-tv .notif-menu, html.tv-mode .notif-menu { max-height: calc(340px * var(--tv-scale)); }
 
-html.is-tv .notif-list, html.tv-mode .notif-list { max-height: 300px; }
+html.is-tv .notif-list, html.tv-mode .notif-list { max-height: calc(300px * var(--tv-scale)); }
 
-html.is-tv .fav-list, html.tv-mode .fav-list { max-height: 340px; }
+html.is-tv .fav-list, html.tv-mode .fav-list { max-height: calc(340px * var(--tv-scale)); }
 
-html.is-tv .person-grid, html.tv-mode .person-grid { max-height: 400px; }
+html.is-tv .person-grid, html.tv-mode .person-grid { max-height: calc(400px * var(--tv-scale)); }
 
 /* Picker çift-kaydırma: iç grid'ler kendi kaydırıcısını kapatır, tek kaydırıcı
    modal-body kalır — odaklanınca scrollIntoView iki kabı birden oynatıp
    bir satır fazla kaydırmaz */
 html.is-tv .picker-grid, html.tv-mode .picker-grid { max-height: none; overflow-y: visible; }
 
-html.is-tv .backup-ssh-textarea, html.tv-mode .backup-ssh-textarea { max-height: 220px; }
+html.is-tv .backup-ssh-textarea, html.tv-mode .backup-ssh-textarea { max-height: calc(220px * var(--tv-scale)); }
 
-html.is-tv .poster-grid, html.tv-mode .poster-grid { gap: 12.6px; }
+html.is-tv .poster-grid, html.tv-mode .poster-grid { gap: calc(12.6px * var(--tv-scale)); }
 
-html.is-tv .poster-grid .card, html.tv-mode .poster-grid .card { width: 119px; }
+html.is-tv .poster-grid .card, html.tv-mode .poster-grid .card { width: calc(119px * var(--tv-scale)); }
 
 html.is-tv .card, html.tv-mode .card { border-radius: 8.4px; }
 
-html.is-tv .badge-watched, html.tv-mode .badge-watched { right: 5.6px; bottom: 5.6px; width: 21px; height: 21px; }
+html.is-tv .badge-watched, html.tv-mode .badge-watched { right: calc(5.6px * var(--tv-scale)); bottom: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .badge-watched svg, html.tv-mode .badge-watched svg { width: 9.8px; height: 9.8px; }
+html.is-tv .badge-watched svg, html.tv-mode .badge-watched svg { width: calc(9.8px * var(--tv-scale)); height: calc(9.8px * var(--tv-scale)); }
 
-html.is-tv .card .remove, html.tv-mode .card .remove { top: 5.6px; right: 5.6px; width: 21px; height: 21px; font-size: 0.77rem; }
+html.is-tv .card .remove, html.tv-mode .card .remove { top: calc(5.6px * var(--tv-scale)); right: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); font-size: calc(0.77rem * var(--tv-scale)); }
 
-html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn { top: 5.6px; left: 5.6px; width: 21px; height: 21px; }
+html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn { top: calc(5.6px * var(--tv-scale)); left: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .card .hide-btn, html.tv-mode .card .hide-btn { top: 5.6px; left: 5.6px; width: 21px; height: 21px; }
+html.is-tv .card .hide-btn, html.tv-mode .card .hide-btn { top: calc(5.6px * var(--tv-scale)); left: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .card .hide-btn i, html.tv-mode .card .hide-btn i { font-size: 0.595rem; }
+html.is-tv .card .hide-btn i, html.tv-mode .card .hide-btn i { font-size: calc(0.595rem * var(--tv-scale)); }
 
-html.is-tv .card .move-btn, html.tv-mode .card .move-btn, html.is-tv .card .move-back-btn, html.tv-mode .card .move-back-btn { top: 5.6px; width: 21px; height: 21px; }
+html.is-tv .card .move-btn, html.tv-mode .card .move-btn, html.is-tv .card .move-back-btn, html.tv-mode .card .move-back-btn { top: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .card .move-btn i, html.tv-mode .card .move-btn i, html.is-tv .card .move-back-btn i, html.tv-mode .card .move-back-btn i { font-size: 0.595rem; }
+html.is-tv .card .move-btn i, html.tv-mode .card .move-btn i, html.is-tv .card .move-back-btn i, html.tv-mode .card .move-back-btn i { font-size: calc(0.595rem * var(--tv-scale)); }
 
-html.is-tv .card .info-btn, html.tv-mode .card .info-btn { left: 5.6px; bottom: 5.6px; width: 21px; height: 21px; }
+html.is-tv .card .info-btn, html.tv-mode .card .info-btn { left: calc(5.6px * var(--tv-scale)); bottom: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .card .info-btn svg, html.tv-mode .card .info-btn svg { width: 11.2px; height: 11.2px; }
+html.is-tv .card .info-btn svg, html.tv-mode .card .info-btn svg { width: calc(11.2px * var(--tv-scale)); height: calc(11.2px * var(--tv-scale)); }
 
-html.is-tv .card .poster-wrap .defer-btn, html.tv-mode .card .poster-wrap .defer-btn { left: 50%; transform: translateX(-50%); bottom: 5.6px; width: 21px; height: 21px; }
+html.is-tv .card .poster-wrap .defer-btn, html.tv-mode .card .poster-wrap .defer-btn { left: 50%; transform: translateX(-50%); bottom: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
 
-html.is-tv .card .poster-wrap .defer-btn svg, html.tv-mode .card .poster-wrap .defer-btn svg { width: 11.2px; height: 11.2px; }
+html.is-tv .card .poster-wrap .defer-btn svg, html.tv-mode .card .poster-wrap .defer-btn svg { width: calc(11.2px * var(--tv-scale)); height: calc(11.2px * var(--tv-scale)); }
 
-html.is-tv .card .info, html.tv-mode .card .info { padding: 7px 8.4px; }
+html.is-tv .card .info, html.tv-mode .card .info { padding: calc(7px * var(--tv-scale)) calc(8.4px * var(--tv-scale)); }
 
-html.is-tv .card .info .title, html.tv-mode .card .info .title { font-size: 0.63rem; line-height: 0.91; min-height: 1.82em; margin-bottom: 2.8px; }
+html.is-tv .card .info .title, html.tv-mode .card .info .title { font-size: 0.53rem; line-height: 0.91; min-height: 1.82em; margin-bottom: 2.8px; }
 
-html.is-tv .card .info .meta, html.tv-mode .card .info .meta { font-size: 0.56rem; }
+html.is-tv .card .info .meta, html.tv-mode .card .info .meta { font-size: var(--tv-card-scale); }
 
-html.is-tv .card .info .meta .badge, html.tv-mode .card .info .meta .badge { font-size: 0.49rem; padding: 0.7px 5.6px; border-radius: 699.3px; margin: 0 1.4px 2.8px 0; border-width: 0.7px; }
+html.is-tv .card .info .meta .badge, html.tv-mode .card .info .meta .badge { display: inline-flex; align-items: center; justify-content: center; line-height: 1; vertical-align: middle; font-size: var(--tv-card-scale); padding: 0.7px 5.6px; border-radius: 699.3px; margin: 0 1.4px 0 0; border-width: 0.7px; }
 
 html.is-tv .badge-platform, html.tv-mode .badge-platform { max-width: 63px; }
 
-html.is-tv .card .calendar-btn svg, html.tv-mode .card .calendar-btn svg { width: 11.2px; height: 11.2px; }
+html.is-tv .card .calendar-btn svg, html.tv-mode .card .calendar-btn svg { width: calc(11.2px * var(--tv-scale)); height: calc(11.2px * var(--tv-scale)); }
 
-html.is-tv .card .info .meta .badge.badge-platform, html.tv-mode .card .info .meta .badge.badge-platform { display: block; width: fit-content; margin: 2.8px auto 0 auto; max-width: 63px; }
+html.is-tv .card .info .meta .badge.badge-platform, html.tv-mode .card .info .meta .badge.badge-platform { display: inline-flex; align-items: center; justify-content: center; line-height: 1; vertical-align: middle; width: fit-content; margin: 0 auto; max-width: 63px; }
 
-html.is-tv .card .info .meta .next-ep, html.tv-mode .card .info .meta .next-ep { font-size: 0.525rem; margin-top: 2.1px; gap: 2.8px; }
+html.is-tv .card .info .meta .next-ep, html.tv-mode .card .info .meta .next-ep { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; font-size: var(--tv-card-scale); gap: 2.8px; }
 
-html.is-tv .card .info .meta .next-ep .next-ep-days, html.tv-mode .card .info .meta .next-ep .next-ep-days { font-size: 0.476rem; padding: 0.7px 4.2px; min-width: 11.2px; line-height: 0.98; border-width: 0.7px; }
+html.is-tv .card .info .meta .next-ep .next-ep-days, html.tv-mode .card .info .meta .next-ep .next-ep-days { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; font-size: var(--tv-card-scale); padding: 0; width: 13px; height: 13px; min-width: 13px; line-height: 1; border-width: 0.7px; }
+
+html.is-tv .card .info .meta .next-ep .ep-count-badge, html.tv-mode .card .info .meta .next-ep .ep-count-badge { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; font-size: var(--tv-card-scale); padding: 0 3px; height: 13px; min-width: 13px; line-height: 1; border-width: 0.7px; }
 
 html.is-tv .card .info .meta .next-ep.anime-ep, html.tv-mode .card .info .meta .next-ep.anime-ep { gap: 2.8px; }
 
-html.is-tv .season-line, html.tv-mode .season-line { margin-top: 2.8px; min-height: 12.6px; gap: 2.8px; }
+html.is-tv .season-line, html.tv-mode .season-line { display: inline-flex; align-items: center; justify-content: center; min-height: calc(12.6px * var(--tv-scale)); gap: calc(2.8px * var(--tv-scale)); }
 
-html.is-tv .season-count-badge, html.tv-mode .season-count-badge, html.is-tv .episode-count, html.tv-mode .episode-count { font-size: 0.49rem; padding: 0.7px 5.6px; }
+html.is-tv .season-count-badge, html.tv-mode .season-count-badge, html.is-tv .episode-count, html.tv-mode .episode-count { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; font-size: var(--tv-card-scale); padding: 0.7px 5.6px; line-height: 1; border-width: 0.7px; }
 
-/* Arama + çoklu arama modalı sonuç kartları (yalnız modal, film hariç):
-   tip+puan / platform / sezon / bölüm / statü / tarih, tüm satır araları 3px,
-   sezon+bölüm+platform 0.7rem. */
+/* Satır şeması TV: sabit satırlar (eski akış kuralları burada nötralize edilir). */
+html.is-tv .card .info .meta, html.tv-mode .card .info .meta { gap: 3px; }
+html.is-tv .card .info .meta .meta-row, html.tv-mode .card .info .meta .meta-row { min-height: 1.7em; gap: calc(4.2px * var(--tv-scale)); }
+html.is-tv .card .info .meta .meta-row .next-ep, html.tv-mode .card .info .meta .meta-row .next-ep { margin-top: 0; }
+html.is-tv .hidden-tile .meta-row, html.tv-mode .hidden-tile .meta-row { min-height: 1.5em; }
+
+/* Arama + çoklu arama modalı sonuç kartları (yalnız modal, film hariç) */
 html.is-tv #search-results-modal .card.search-stacked .info .meta .badge, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge,
 html.is-tv #search-results-modal .card.search-stacked .season-count-badge, html.tv-mode #search-results-modal .card.search-stacked .season-count-badge,
-html.is-tv #search-results-modal .card.search-stacked .season-line .episode-count, html.tv-mode #search-results-modal .card.search-stacked .season-line .episode-count { font-size: 0.7rem; }
+html.is-tv #search-results-modal .card.search-stacked .episode-count, html.tv-mode #search-results-modal .card.search-stacked .episode-count { font-size: var(--tv-card-scale); }
 html.is-tv #search-results-modal .card.search-stacked .info .meta .badge, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge { margin-bottom: 3px; }
 html.is-tv #search-results-modal .card.search-stacked .info .meta .badge.badge-platform, html.tv-mode #search-results-modal .card.search-stacked .info .meta .badge.badge-platform { margin-top: 0; }
-html.is-tv #search-results-modal .card.search-stacked .season-line, html.tv-mode #search-results-modal .card.search-stacked .season-line { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 3px; min-height: 0; }
-html.is-tv #search-results-modal .card.search-stacked .season-line .episode-count, html.tv-mode #search-results-modal .card.search-stacked .season-line .episode-count { margin-left: 0; }
+html.is-tv #search-results-modal .card.search-stacked .season-line, html.tv-mode #search-results-modal .card.search-stacked .season-line { display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--tv-scale)); margin-top: calc(3px * var(--tv-scale)); min-height: 0; }
+html.is-tv #search-results-modal .card.search-stacked .episode-count, html.tv-mode #search-results-modal .card.search-stacked .episode-count { margin-left: 0; }
 html.is-tv #search-results-modal .card.search-stacked .info .meta .next-ep, html.tv-mode #search-results-modal .card.search-stacked .info .meta .next-ep { margin-top: 3px; }
 /* TV: kişi/yönetmen filmografi kartlarında sezon üstte, bölüm altta */
-html.is-tv #person-modal .card .season-line.season-row, html.tv-mode #person-modal .card .season-line.season-row, html.is-tv #director-modal .card .season-line.season-row, html.tv-mode #director-modal .card .season-line.season-row { display: flex; flex-direction: column; align-items: center; gap: 3px; margin-top: 3px; min-height: 0; }
-html.is-tv #person-modal .card .season-line .episode-count, html.tv-mode #person-modal .card .season-line .episode-count, html.is-tv #director-modal .card .season-line .episode-count, html.tv-mode #director-modal .card .season-line .episode-count { margin-left: 0; }
+html.is-tv #person-modal .card .season-line.season-row, html.tv-mode #person-modal .card .season-line.season-row, html.is-tv #director-modal .card .season-line.season-row, html.tv-mode #director-modal .card .season-line.season-row { display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--tv-scale)); margin-top: calc(3px * var(--tv-scale)); min-height: 0; }
+html.is-tv #person-modal .card .episode-count, html.tv-mode #person-modal .card .episode-count, html.is-tv #director-modal .card .episode-count, html.tv-mode #director-modal .card .episode-count { margin-left: 0; }
 /* Kişi/yönetmen filmografi kartları: arama kartı rozetlerinin aynısı */
 html.is-tv #person-modal .card .info .meta .badge, html.tv-mode #person-modal .card .info .meta .badge, html.is-tv #director-modal .card .info .meta .badge, html.tv-mode #director-modal .card .info .meta .badge,
 html.is-tv #person-modal .card .season-count-badge, html.tv-mode #person-modal .card .season-count-badge, html.is-tv #director-modal .card .season-count-badge, html.tv-mode #director-modal .card .season-count-badge,
-html.is-tv #person-modal .card .season-line .episode-count, html.tv-mode #person-modal .card .season-line .episode-count, html.is-tv #director-modal .card .season-line .episode-count, html.tv-mode #director-modal .card .season-line .episode-count { font-size: 0.7rem; }
+html.is-tv #person-modal .card .episode-count, html.tv-mode #person-modal .card .episode-count, html.is-tv #director-modal .card .episode-count, html.tv-mode #director-modal .card .episode-count { font-size: var(--tv-card-scale); }
 html.is-tv #person-modal .card .info .meta .badge, html.tv-mode #person-modal .card .info .meta .badge { margin-bottom: 3px; }
 html.is-tv #person-modal .card .info .meta .next-ep, html.tv-mode #person-modal .card .info .meta .next-ep { margin-top: 3px; }
 
-html.is-tv .no-poster, html.tv-mode .no-poster { font-size: 1.4rem; }
+html.is-tv .no-poster, html.tv-mode .no-poster { font-size: calc(1.4rem * var(--tv-scale)); }
 
 html.is-tv .section-refresh:focus, html.tv-mode .section-refresh:focus, html.is-tv .section-hide:focus, html.tv-mode .section-hide:focus, html.is-tv .section-search:focus, html.tv-mode .section-search:focus, html.is-tv .section-filter:focus, html.tv-mode .section-filter:focus, html.is-tv .section-move-up:focus, html.tv-mode .section-move-up:focus, html.is-tv .section-move-down:focus, html.tv-mode .section-move-down:focus { outline: 1px solid #f97316; outline-offset: 1px; }
 
@@ -190,8 +208,8 @@ html.is-tv nav, html.tv-mode nav {
   display: grid !important;
   grid-template-columns: 1fr auto 1fr !important;
   grid-template-areas: none !important;
-  gap: 12px !important;
-  padding: 16px 24px !important;
+  gap: calc(12px * var(--tv-scale)) !important;
+  padding: calc(16px * var(--tv-scale)) calc(24px * var(--tv-scale)) !important;
   align-items: center !important;
 }
 html.is-tv .media-tabs-group, html.tv-mode .media-tabs-group {
@@ -228,7 +246,7 @@ html.tv-mode #tab-search span {
   display: none !important;
 }
 
-/* Takvim bugün vurgusu: TV'de de mavi+bold kesin görünsün (web ile birebir, !important WebView override'ına karşı) */
+/* Takvim bugün vurgusu */
 html.is-tv .releases-table td.date-today, html.tv-mode .releases-table td.date-today {
   color: #6f9ec9 !important;
   font-weight: 700 !important;
@@ -239,16 +257,16 @@ html.is-tv .releases-table tr.today-release .episode-name, html.tv-mode .release
   font-weight: 700 !important;
 }
 
-/* Picker D-pad odağı: turuncu çerçeve (hover deseniyle birebir) */
+/* Picker D-pad odağı */
 html.is-tv .picker-item:focus, html.tv-mode .picker-item:focus,
 html.is-tv .picker-item:focus-visible, html.tv-mode .picker-item:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
   border-color: #f97316 !important;
   background: rgba(249, 115, 22, 0.15) !important;
 }
 
-/* Ara butonları D-pad odağı: navbar medya buton hover'ıyla aynı */
+/* Ara butonları D-pad odağı */
 html.is-tv #normal-search-btn:focus, html.tv-mode #normal-search-btn:focus,
 html.is-tv #normal-search-btn:focus-visible, html.tv-mode #normal-search-btn:focus-visible,
 html.is-tv #search-btn:focus, html.tv-mode #search-btn:focus,
@@ -257,13 +275,12 @@ html.is-tv #search-btn:focus-visible, html.tv-mode #search-btn:focus-visible {
   outline-offset: 1px;
 }
 
-/* Arama seçici D-pad odağı: sistem turuncusu (beyaz varsayılan halka yerine) */
+/* Arama seçici D-pad odağı */
 html.is-tv .media-toggle button:focus, html.tv-mode .media-toggle button:focus,
 html.is-tv .media-toggle button:focus-visible, html.tv-mode .media-toggle button:focus-visible {
   outline: 1px solid #f97316;
   outline-offset: 1px;
 }
-/* Filtre tag'leri kimlik renklerini korur, 1px işaret outline'dan gelir (border kimlik renginde) */
 html.is-tv .filter-add-btn:focus, html.tv-mode .filter-add-btn:focus,
 html.is-tv .filter-add-btn:focus-visible, html.tv-mode .filter-add-btn:focus-visible {
   outline: 1px solid #f97316;
@@ -312,27 +329,24 @@ html.is-tv .chip-x:focus-visible, html.tv-mode .chip-x:focus-visible {
   border-radius: 4px;
 }
 
-/* Sort menü satır odağı: 1px turuncu halka */
+/* Sort menü satır odağı */
 html.is-tv .sort-item:focus, html.tv-mode .sort-item:focus,
 html.is-tv .sort-item:focus-visible, html.tv-mode .sort-item:focus-visible {
   outline: 1px solid #f97316;
   outline-offset: 1px;
 }
 
-/* Modal başlık butonları (X/takvim/refresh) odak çerçevesi: dikdörtgen +
-   yuvarlak köşe (refresh butonuyla birebir, radius 4px) */
+/* Modal başlık butonları odak çerçevesi */
 html.is-tv .modal-close, html.tv-mode .modal-close {
   border-radius: 4px;
 }
 
-/* Modal X kapatma odağı: 1px turuncu halka (jenerik 2px listesinden ayrı) */
 html.is-tv .modal-close:focus, html.tv-mode .modal-close:focus,
 html.is-tv .modal-close:focus-visible, html.tv-mode .modal-close:focus-visible {
   outline: 1px solid #f97316;
   outline-offset: 2px;
 }
 
-/* Arama sonuçları filtre butonu odağı: 1px turuncu halka + 4px yuvarlak (modal-close ile birebir) */
 html.is-tv #search-filter-btn, html.tv-mode #search-filter-btn,
 html.is-tv #results-search-btn, html.tv-mode #results-search-btn {
   border-radius: 4px;
@@ -347,7 +361,7 @@ html.is-tv #results-search-btn:focus-visible, html.tv-mode #results-search-btn:f
   border-radius: 4px;
 }
 
-/* Bölüm başlık butonları + gizlenenler ara/X: aynı dikdörtgen-yuvarlak çerçeve */
+/* Bölüm başlık butonları + gizlenenler ara/X */
 html.is-tv .section-refresh, html.tv-mode .section-refresh,
 html.is-tv .section-hide, html.tv-mode .section-hide,
 html.is-tv .section-search, html.tv-mode .section-search,
@@ -358,8 +372,7 @@ html.is-tv .hidden-header-btn, html.tv-mode .hidden-header-btn {
   border-radius: 4px;
 }
 
-/* Jenerik TV odak halkası: beyaz varsayılan halka yerine sistem turuncusu.
-   Kimlik renkleri/zeminler korunur, yalnız outline gelir. */
+/* Jenerik TV odak halkası */
 html.is-tv .watch-btn:focus, html.tv-mode .watch-btn:focus,
 html.is-tv .watch-btn:focus-visible, html.tv-mode .watch-btn:focus-visible,
 html.is-tv .uw-watch:focus, html.tv-mode .uw-watch:focus,
@@ -395,32 +408,31 @@ html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,
 html.is-tv .notif-item:focus-visible, html.tv-mode .notif-item:focus-visible,
 html.is-tv .hidden-header-btn:focus, html.tv-mode .hidden-header-btn:focus,
 html.is-tv .hidden-header-btn:focus-visible, html.tv-mode .hidden-header-btn:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
 }
 
 /* Izlendi-sor paneli Evet/Hayir butonlari fokus halkasi */
 html.is-tv .ask-btn:focus, html.tv-mode .ask-btn:focus,
 html.is-tv .ask-btn:focus-visible, html.tv-mode .ask-btn:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
 }
 
-/* TV login: unutma butonu metin genisliginde + kayit odagi yesil (desktop hover deseni) +
-   login varken navbar gizli (grid !important ezer) + modal dikey ortali */
+/* TV login */
 html.is-tv #login-forgot, html.tv-mode #login-forgot {
   align-self: center;
 }
 html.is-tv #login-forgot:focus, html.tv-mode #login-forgot:focus,
 html.is-tv #login-forgot:focus-visible, html.tv-mode #login-forgot:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
   color: #fff !important;
   border-radius: 4px;
 }
 html.is-tv #login-register:focus, html.tv-mode #login-register:focus,
 html.is-tv #login-register:focus-visible, html.tv-mode #login-register:focus-visible {
-  outline: 2px solid #22c55e;
+  outline: 1px solid #22c55e;
   outline-offset: 2px;
   background: rgba(34,197,94,0.3) !important;
   border-color: #22c55e !important;
@@ -428,7 +440,7 @@ html.is-tv #login-register:focus-visible, html.tv-mode #login-register:focus-vis
 }
 html.is-tv #login-reset-go:focus, html.tv-mode #login-reset-go:focus,
 html.is-tv #login-reset-go:focus-visible, html.tv-mode #login-reset-go:focus-visible {
-  outline: 2px solid #006fe6;
+  outline: 1px solid #006fe6;
   outline-offset: 2px;
   background: rgba(0,111,230,0.3) !important;
   border-color: #006fe6 !important;
@@ -440,8 +452,6 @@ html.is-tv body.logged-out nav, html.tv-mode body.logged-out nav {
 html.is-tv #view-login.active, html.tv-mode #view-login.active {
   min-height: 100vh;
 }
-/* vh WebView'da bozuk cozulebildiginden gercek ortalama position:fixed ile
-   (inset viewport-olculudur, vh birimi kullanmaz); dar ekranda ic kaydirma */
 html.is-tv #view-login.active, html.tv-mode #view-login.active {
   position: fixed;
   inset: 0;
@@ -449,82 +459,80 @@ html.is-tv #view-login.active, html.tv-mode #view-login.active {
   overflow-y: auto;
 }
 
-/* Bildirim odağı = desktop hover deseni, daha belirgin zemin (%30) */
+/* Bildirim odağı */
 html.is-tv .notif-item:focus, html.tv-mode .notif-item:focus,
 html.is-tv .notif-item:focus-visible, html.tv-mode .notif-item:focus-visible {
   outline: none;
   background: rgba(249,115,22,0.3);
 }
 
-/* Login gözleri TV odağında turuncu halka (tabindex=-1 olsa da programatik odakta görünsün) */
+/* Login gözleri TV odağında */
 html.is-tv .pw-eye:focus, html.tv-mode .pw-eye:focus,
 html.is-tv .pw-eye:focus-visible, html.tv-mode .pw-eye:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
   color: #fff !important;
   border-radius: 6px;
 }
 
-/* TV login Çıkış butonu: yalnız TV'de görünür (desktop/mobilde display:none aynen),
-   3 buton .login-btns .tab flex:1 ile eşit genişlikte; normalde base gri,
-   yalnız odakta kırmızı çerçeve+zemin */
+/* TV login Çıkış butonu */
 html.is-tv #login-exit, html.tv-mode #login-exit {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
 }
-/* Reset modunda satırda yalnız Dön + Değiştir (Çıkış gizli). */
 html.is-tv .login-frame.reset-mode #login-exit, html.tv-mode .login-frame.reset-mode #login-exit {
   display: none !important;
 }
 html.is-tv #login-exit:focus, html.tv-mode #login-exit:focus,
 html.is-tv #login-exit:focus-visible, html.tv-mode #login-exit:focus-visible {
-  outline: 2px solid #ef4444;
+  outline: 1px solid #ef4444;
   outline-offset: 2px;
   border-color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.3) !important;
   color: #fff !important;
 }
 
-/* Göz SVG'si her zeminde görünür: blok + currentColor mirası */
+/* Göz SVG'si */
 html.is-tv .pw-eye svg, html.tv-mode .pw-eye svg {
-  width: 16px;
-  height: 16px;
+  width: calc(16px * var(--tv-scale));
+  height: calc(16px * var(--tv-scale));
   display: block;
 }
 
-/* Login dil secici TV odagi: turuncu halka (buton + liste satirlari) */
+/* Login dil secici TV odagi */
 html.is-tv #login-lang-btn:focus, html.tv-mode #login-lang-btn:focus,
 html.is-tv #login-lang-btn:focus-visible, html.tv-mode #login-lang-btn:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: 2px;
   color: #fff !important;
 }
 html.is-tv #login-lang-list .provider-cell:focus, html.tv-mode #login-lang-list .provider-cell:focus,
 html.is-tv #login-lang-list .provider-cell:focus-visible, html.tv-mode #login-lang-list .provider-cell:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 1px solid #f97316;
   outline-offset: -2px;
   background: #262a36 !important;
   color: #fff !important;
 }
 
-/* Gizlenenler modal kartlari: desktop hidden-tile aynasi, TV kart olceginde.
-   Rozet + puan / yayinci / statu TV normal kartla birebir okunur. */
-html.is-tv .hidden-tile, html.tv-mode .hidden-tile { width: 119px; }
+/* Gizlenenler modal kartlari */
+html.is-tv .hidden-tile, html.tv-mode .hidden-tile { width: calc(119px * var(--tv-scale)); }
 html.is-tv .hidden-name, html.tv-mode .hidden-name { font-size: 0.63rem; }
-html.is-tv .hidden-meta, html.tv-mode .hidden-meta { font-size: 0.56rem; }
+html.is-tv .hidden-meta, html.tv-mode .hidden-meta { font-size: var(--tv-card-scale); }
 html.is-tv .hidden-meta-row .badge, html.tv-mode .hidden-meta-row .badge,
 html.is-tv .hidden-meta-row .badge-score, html.tv-mode .hidden-meta-row .badge-score {
-  font-size: 0.49rem;
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  font-size: var(--tv-card-scale);
   padding: 0.7px 5.6px;
 }
 html.is-tv .hidden-meta .badge-platform, html.tv-mode .hidden-meta .badge-platform {
-  font-size: 0.49rem;
+  display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  font-size: var(--tv-card-scale);
   padding: 0.7px 5.6px;
   max-width: 63px;
 }
-html.is-tv .hidden-meta .next-ep, html.tv-mode .hidden-meta .next-ep { font-size: 0.525rem; }
-html.is-tv .hidden-meta .next-ep .next-ep-days, html.tv-mode .hidden-meta .next-ep .next-ep-days { font-size: 0.476rem; }
+html.is-tv .hidden-meta .next-ep, html.tv-mode .hidden-meta .next-ep { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; font-size: var(--tv-card-scale); }
+html.is-tv .hidden-meta .next-ep .next-ep-days, html.tv-mode .hidden-meta .next-ep .next-ep-days { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; font-size: var(--tv-card-scale); }
 html.is-tv .hidden-tile:focus, html.tv-mode .hidden-tile:focus,
 html.is-tv .hidden-tile:focus-visible, html.tv-mode .hidden-tile:focus-visible,
 html.is-tv .hidden-restore:focus, html.tv-mode .hidden-restore:focus,
@@ -532,8 +540,7 @@ html.is-tv .hidden-restore:focus-visible, html.tv-mode .hidden-restore:focus-vis
   outline: 1px solid #f97316;
   outline-offset: 1px;
 }
-/* TV hidden-modal: baslik butonlari + filtre menusu fokus cerceveleri de 1px
-   (jenerik 2px TV halkasini bu modalda ezer; diger modallar etkilenmez) */
+/* TV hidden-modal fokus cerceveleri */
 html.is-tv #hidden-modal .hidden-header-btn:focus, html.tv-mode #hidden-modal .hidden-header-btn:focus,
 html.is-tv #hidden-modal .hidden-header-btn:focus-visible, html.tv-mode #hidden-modal .hidden-header-btn:focus-visible,
 html.is-tv #hidden-modal #hidden-close:focus, html.tv-mode #hidden-modal #hidden-close:focus,
@@ -543,14 +550,12 @@ html.is-tv #hidden-modal #hidden-sort-menu .sort-item:focus-visible, html.tv-mod
   outline: 1px solid #f97316;
   outline-offset: 1px;
 }
-/* TV takvim modali: TARİH basligi 30px sola (12 baz + 60 ekstra = merkez 30px kayar).
-   Mobil/desktop kurallari TV'yi haric tuttugu icin onlar etkilenmez. */
+/* TV takvim modali: TARİH basligi padding */
 html.is-tv #releases-modal .releases-table thead th:last-child, html.tv-mode #releases-modal .releases-table thead th:last-child {
   text-align: center;
-  padding-right: 72px;
+  padding-right: calc(72px * var(--tv-scale));
 }
-/* TV takvim modali: ozet (i) butonu fokus 1px + 4px round.
-   Baz outline:none'i ezer; watch-btn zaten jenerik 1px halkada. */
+/* TV takvim modali: ozet (i) butonu fokus */
 html.is-tv #releases-modal .episode-info-btn:focus, html.tv-mode #releases-modal .episode-info-btn:focus,
 html.is-tv #releases-modal .episode-info-btn:focus-visible, html.tv-mode #releases-modal .episode-info-btn:focus-visible {
   outline: 1px solid #f97316;
@@ -558,36 +563,33 @@ html.is-tv #releases-modal .episode-info-btn:focus-visible, html.tv-mode #releas
   border-radius: 4px;
 }
 
-/* TV bolum arama kutulari (.rec-search-input): hidden-modal arama kutusu
-   (#hidden-search-input) aynasi — TV'de UA beyazi dusmemesi icin.
-   Konum absolute kalir (bolum basligi duzeni), gorsel hidden ile birebir:
-   normalde koyu gri cerceve #2a2f3d, odakta turuncu. */
+/* TV bolum arama kutulari */
 html.is-tv .rec-search-input, html.tv-mode .rec-search-input {
   display: none;
   position: absolute;
-  right: 172px;
+  right: calc(172px * var(--tv-scale));
   top: 40%;
   transform: translateY(-50%);
-  width: 230px;
+  width: calc(230px * var(--tv-scale));
   max-width: 100%;
   z-index: 30;
   background: #1b1f2a;
   border: 1px solid #2a2f3d;
   border-radius: 8px;
   color: #e8eaf0;
-  padding: 6px 8px;
-  font-size: 0.78rem;
+  padding: calc(6px * var(--tv-scale)) calc(8px * var(--tv-scale));
+  font-size: calc(0.78rem * var(--tv-scale));
   outline: none;
 }
 html.is-tv #view-dizi .rec-search-input, html.tv-mode #view-dizi .rec-search-input,
 html.is-tv #view-film .rec-search-input, html.tv-mode #view-film .rec-search-input,
 html.is-tv #view-belgesel .rec-search-input, html.tv-mode #view-belgesel .rec-search-input,
 html.is-tv #view-anime .rec-search-input, html.tv-mode #view-anime .rec-search-input {
-  right: 74px;
+  right: calc(62px * var(--tv-scale));
 }
 html.is-tv #view-unwatched .rec-search-input, html.tv-mode #view-unwatched .rec-search-input,
 html.is-tv #view-watched .rec-search-input, html.tv-mode #view-watched .rec-search-input {
-  right: 112px;
+  right: calc(112px * var(--tv-scale));
 }
 html.is-tv .rec-search-input::placeholder, html.tv-mode .rec-search-input::placeholder {
   color: #6b7180;
@@ -599,3 +601,394 @@ html.is-tv .rec-search-input:focus, html.tv-mode .rec-search-input:focus {
   border-color: #f97316;
 }
 
+
+/* Oneriler beslemesi (feed) pulldown odak halkasi */
+html.is-tv .feed-select:focus, html.tv-mode .feed-select:focus,
+html.is-tv .feed-select:focus-visible, html.tv-mode .feed-select:focus-visible,
+html.is-tv .feed-combo .provider-cell:focus, html.tv-mode .feed-combo .provider-cell:focus,
+html.is-tv .feed-combo .provider-cell:focus-visible, html.tv-mode .feed-combo .provider-cell:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+}
+
+/* Oneriler besleme pulldown'lari */
+html.is-tv #view-recommend .feed-select, html.tv-mode #view-recommend .feed-select {
+  height: calc(34px * var(--tv-scale));
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: calc(0.78rem * var(--tv-scale));
+  line-height: 1;
+}
+html.is-tv #view-recommend .feed-combo .provider-cell, html.tv-mode #view-recommend .feed-combo .provider-cell {
+  font-size: calc(0.78rem * var(--tv-scale));
+}
+
+/* ======================================================================
+   B) Base (style.css) TV görünümü ölçeklenmiş override'ları (×var(--tv-scale))
+   ====================================================================== */
+
+/* Navbar */
+html.is-tv .logo, html.tv-mode .logo { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .logo-sub, html.tv-mode .logo-sub { font-size: calc(0.6rem * var(--tv-scale)); }
+html.is-tv .tabs, html.tv-mode .tabs { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .history-letter, html.tv-mode .history-letter { font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .notif-badge, html.tv-mode .notif-badge { top: calc(-6px * var(--tv-scale)); right: calc(-6px * var(--tv-scale)); font-size: calc(0.65rem * var(--tv-scale)); padding: calc(1px * var(--tv-scale)) calc(5px * var(--tv-scale)); min-width: calc(16px * var(--tv-scale)); }
+
+/* Ana içerik */
+html.is-tv main, html.tv-mode main { max-width: calc(1200px * var(--tv-scale)); padding: calc(24px * var(--tv-scale)); }
+html.is-tv .empty, html.tv-mode .empty { padding: calc(80px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .empty p, html.tv-mode .empty p { margin-bottom: calc(6px * var(--tv-scale)); }
+
+/* Sort menü (takip/öneri/kişi/yönetmen/gizlenen arama sıralama) */
+html.is-tv .sort-menu, html.tv-mode .sort-menu { top: calc(100% + (8px * var(--tv-scale))); min-width: calc(200px * var(--tv-scale)); padding: calc(6px * var(--tv-scale)); }
+html.is-tv .sort-item, html.tv-mode .sort-item { gap: calc(10px * var(--tv-scale)); padding: calc(9px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .sort-item i, html.tv-mode .sort-item i { width: calc(16px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+
+/* Medya toggle butonları */
+html.is-tv .media-toggle, html.tv-mode .media-toggle { gap: calc(8px * var(--tv-scale)); margin-bottom: calc(14px * var(--tv-scale)); }
+html.is-tv .media-toggle button, html.tv-mode .media-toggle button { display: inline-flex; align-items: center; justify-content: center; line-height: 1; height: calc(34px * var(--tv-scale)); padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale)); font-size: calc(0.78rem * var(--tv-scale)); }
+
+/* Filtre çipleri + ekleme butonları */
+html.is-tv .filter-chips, html.tv-mode .filter-chips { gap: calc(5px * var(--tv-scale)); margin-bottom: calc(12px * var(--tv-scale)); }
+html.is-tv .chip, html.tv-mode .chip { gap: calc(4px * var(--tv-scale)); padding: calc(2px * var(--tv-scale)) calc(8px * var(--tv-scale)); font-size: calc(0.72rem * var(--tv-scale)); }
+html.is-tv .chip-x, html.tv-mode .chip-x { width: calc(14px * var(--tv-scale)); height: calc(14px * var(--tv-scale)); font-size: calc(0.65rem * var(--tv-scale)); }
+html.is-tv .filter-add-row, html.tv-mode .filter-add-row { gap: calc(8px * var(--tv-scale)); margin-bottom: calc(12px * var(--tv-scale)); }
+html.is-tv .filter-add-btn, html.tv-mode .filter-add-btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; height: calc(34px * var(--tv-scale)); padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale)); font-size: calc(0.78rem * var(--tv-scale)); }
+
+/* Ayarlar menü pulldown (navbar) */
+html.is-tv .settings-menu, html.tv-mode .settings-menu { top: calc(100% + (8px * var(--tv-scale))); padding: calc(4px * var(--tv-scale)); }
+html.is-tv .settings-menu-item, html.tv-mode .settings-menu-item { gap: calc(10px * var(--tv-scale)); padding: calc(9px * var(--tv-scale)) calc(6px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .settings-menu-item i, html.tv-mode .settings-menu-item i { width: calc(16px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+
+/* Bildirim merkezi pulldown */
+html.is-tv .notif-menu, html.tv-mode .notif-menu { top: calc(100% + (8px * var(--tv-scale))); min-width: calc(360px * var(--tv-scale)); max-width: calc(380px * var(--tv-scale)); }
+html.is-tv .notif-header, html.tv-mode .notif-header { padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .notif-header-btn, html.tv-mode .notif-header-btn { width: calc(28px * var(--tv-scale)); height: calc(28px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .notif-empty, html.tv-mode .notif-empty { padding: calc(24px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .notif-item, html.tv-mode .notif-item { gap: calc(10px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); }
+html.is-tv .notif-thumb, html.tv-mode .notif-thumb { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
+html.is-tv .notif-thumb-fallback, html.tv-mode .notif-thumb-fallback { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
+
+/* İzlendi-sor paneli */
+html.is-tv .watched-ask-header, html.tv-mode .watched-ask-header { gap: calc(8px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .ask-poster-img, html.tv-mode .ask-poster-img { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
+html.is-tv .ask-poster-fallback, html.tv-mode .ask-poster-fallback { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); font-size: calc(1.2rem * var(--tv-scale)); }
+html.is-tv .ask-content, html.tv-mode .ask-content { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .ask-msg, html.tv-mode .ask-msg { font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .ask-actions, html.tv-mode .ask-actions { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .ask-btn, html.tv-mode .ask-btn { padding: calc(2px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .ask-mark, html.tv-mode .ask-mark { width: calc(22px * var(--tv-scale)); height: calc(22px * var(--tv-scale)); }
+
+/* Favoriler (fav-listing) listesi */
+html.is-tv .fav-list, html.tv-mode .fav-list { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .fav-empty, html.tv-mode .fav-empty { padding: calc(30px * var(--tv-scale)) calc(20px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .fav-item, html.tv-mode .fav-item { gap: calc(10px * var(--tv-scale)); width: calc((100% - (8px * var(--tv-scale))) / 2); padding: calc(8px * var(--tv-scale)) calc(12px * var(--tv-scale)); }
+
+/* Öneriler beslemesi (feed) */
+html.is-tv .feed-bar, html.tv-mode .feed-bar { gap: calc(12px * var(--tv-scale)); margin: calc(6px * var(--tv-scale)) 0 calc(18px * var(--tv-scale)); }
+html.is-tv .feed-combo, html.tv-mode .feed-combo { width: calc(165px * var(--tv-scale)); }
+html.is-tv .feed-select, html.tv-mode .feed-select { padding: calc(12px * var(--tv-scale)) calc(30px * var(--tv-scale)) calc(12px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); background-position: right calc(10px * var(--tv-scale)) center; background-size: calc(14px * var(--tv-scale)); }
+html.is-tv #view-recommend .feed-select, html.tv-mode #view-recommend .feed-select { padding-top: calc(8px * var(--tv-scale)); padding-bottom: calc(8px * var(--tv-scale)); }
+html.is-tv .feed-sched-name, html.tv-mode .feed-sched-name { font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .feed-sched-day .feed-select, html.tv-mode .feed-sched-day .feed-select { padding: 0 calc(30px * var(--tv-scale)) 0 calc(10px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); height: calc(34px * var(--tv-scale)); background-position: right calc(10px * var(--tv-scale)) center; background-size: calc(14px * var(--tv-scale)); }
+html.is-tv .feed-sched-time input, html.tv-mode .feed-sched-time input { height: calc(34px * var(--tv-scale)); }
+html.is-tv .feed-schedule-field, html.tv-mode .feed-schedule-field { gap: calc(6px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .feed-schedule-toggle, html.tv-mode .feed-schedule-toggle { gap: calc(8px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .feed-schedule-body, html.tv-mode .feed-schedule-body { gap: calc(10px * var(--tv-scale)); padding: calc(12px * var(--tv-scale)); }
+html.is-tv .feed-sched-row, html.tv-mode .feed-sched-row { grid-template-columns: 1fr calc(150px * var(--tv-scale)) calc(120px * var(--tv-scale)); gap: calc(8px * var(--tv-scale)); }
+
+/* Sağlayıcı (provider) combo/list + login dil listesi */
+html.is-tv .provider-list, html.tv-mode .provider-list { top: calc(100% + (4px * var(--tv-scale))); padding: calc(8px * var(--tv-scale)); max-height: calc(260px * var(--tv-scale)); }
+html.is-tv .provider-cell, html.tv-mode .provider-cell { padding: calc(8px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv #login-lang-list .provider-cell, html.tv-mode #login-lang-list .provider-cell { font-size: calc(0.7rem * var(--tv-scale)); padding: calc(6px * var(--tv-scale)) calc(10px * var(--tv-scale)); }
+
+/* Login ekranı */
+html.is-tv .login-frame, html.tv-mode .login-frame { max-width: calc(480px * var(--tv-scale)); width: min(calc(480px * var(--tv-scale)), calc(92vw * var(--tv-scale))); padding: calc(28px * var(--tv-scale)) calc(32px * var(--tv-scale)) calc(24px * var(--tv-scale)); gap: calc(10px * var(--tv-scale)); }
+html.is-tv .login-frame h2, html.tv-mode .login-frame h2 { margin: 0 0 calc(8px * var(--tv-scale)); }
+html.is-tv .login-frame input, html.tv-mode .login-frame input { padding: calc(12px * var(--tv-scale)); font-size: calc(1rem * var(--tv-scale)); }
+html.is-tv .login-hint, html.tv-mode .login-hint { font-size: calc(0.7rem * var(--tv-scale)); margin: calc(-4px * var(--tv-scale)) 0 calc(4px * var(--tv-scale)); }
+html.is-tv .login-btns, html.tv-mode .login-btns { gap: calc(10px * var(--tv-scale)); margin-top: calc(6px * var(--tv-scale)); }
+html.is-tv .login-btns .tab, html.tv-mode .login-btns .tab { padding: calc(8px * var(--tv-scale)) calc(16px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .login-link, html.tv-mode .login-link { font-size: calc(0.8rem * var(--tv-scale)); margin-top: calc(4px * var(--tv-scale)); }
+html.is-tv #login-lang-wrap, html.tv-mode #login-lang-wrap { top: calc(10px * var(--tv-scale)); right: calc(10px * var(--tv-scale)); }
+html.is-tv #login-lang-btn, html.tv-mode #login-lang-btn { padding: calc(6px * var(--tv-scale)); }
+html.is-tv #login-lang-list, html.tv-mode #login-lang-list { min-width: calc(150px * var(--tv-scale)); max-height: calc(260px * var(--tv-scale)); }
+html.is-tv .pw-eye, html.tv-mode .pw-eye { right: calc(6px * var(--tv-scale)); padding: calc(8px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+
+/* Modal ailesi — genişlikler */
+html.is-tv .modal-overlay, html.tv-mode .modal-overlay { padding: calc(20px * var(--tv-scale)); }
+html.is-tv .modal, html.tv-mode .modal { max-width: calc(560px * var(--tv-scale)); }
+html.is-tv .details-modal, html.tv-mode .details-modal { max-width: calc(800px * var(--tv-scale)); }
+html.is-tv .person-modal, html.tv-mode .person-modal { width: calc(800px * var(--tv-scale)); max-width: min(calc(800px * var(--tv-scale)), calc(95vw * var(--tv-scale))); }
+html.is-tv #person-modal .person-modal, html.tv-mode #person-modal .person-modal,
+html.is-tv #director-modal .person-modal, html.tv-mode #director-modal .person-modal { max-width: calc(1000px * var(--tv-scale)); }
+html.is-tv .picker-modal, html.tv-mode .picker-modal { width: calc(560px * var(--tv-scale)); max-width: min(calc(560px * var(--tv-scale)), calc(95vw * var(--tv-scale))); }
+html.is-tv .unwatched-modal, html.tv-mode .unwatched-modal { width: calc(560px * var(--tv-scale)); max-width: min(calc(560px * var(--tv-scale)), calc(95vw * var(--tv-scale))); }
+html.is-tv .value-modal, html.tv-mode .value-modal { width: calc(420px * var(--tv-scale)); max-width: min(calc(420px * var(--tv-scale)), calc(95vw * var(--tv-scale))); }
+html.is-tv .hidden-modal, html.tv-mode .hidden-modal { max-width: calc(660px * var(--tv-scale)); }
+html.is-tv .stats-modal, html.tv-mode .stats-modal { max-width: calc(660px * var(--tv-scale)); }
+html.is-tv .history-modal, html.tv-mode .history-modal { max-width: calc(720px * var(--tv-scale)); }
+html.is-tv .confirm-modal, html.tv-mode .confirm-modal { max-width: calc(380px * var(--tv-scale)); }
+html.is-tv .episode-info-modal, html.tv-mode .episode-info-modal { max-width: calc(520px * var(--tv-scale)); }
+html.is-tv .settings-modal, html.tv-mode .settings-modal { max-width: calc(480px * var(--tv-scale)); }
+html.is-tv #settings-thirdparty-modal .settings-modal, html.tv-mode #settings-thirdparty-modal .settings-modal { max-width: calc(560px * var(--tv-scale)); }
+html.is-tv .results-modal, html.tv-mode .results-modal { max-width: calc(1000px * var(--tv-scale)); }
+
+/* Modal gövde/başlık/footer */
+html.is-tv .modal-header, html.tv-mode .modal-header { padding: calc(16px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .modal-header h3, html.tv-mode .modal-header h3 { font-size: calc(1.05rem * var(--tv-scale)); padding-right: calc(8px * var(--tv-scale)); }
+html.is-tv .modal-close, html.tv-mode .modal-close { font-size: calc(1.6rem * var(--tv-scale)); }
+html.is-tv .modal-body, html.tv-mode .modal-body { padding: calc(16px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .modal-footer, html.tv-mode .modal-footer { padding: calc(12px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .modal-footer .btn, html.tv-mode .modal-footer .btn { padding: calc(9px * var(--tv-scale)) calc(22px * var(--tv-scale)); }
+html.is-tv .modal-footer .btn + .btn, html.tv-mode .modal-footer .btn + .btn { margin-left: calc(10px * var(--tv-scale)); }
+html.is-tv #details-calendar, html.tv-mode #details-calendar { font-size: calc(1rem * var(--tv-scale)); padding: calc(4px * var(--tv-scale)); }
+html.is-tv #details-refresh, html.tv-mode #details-refresh { font-size: calc(1rem * var(--tv-scale)); padding: calc(4px * var(--tv-scale)); }
+html.is-tv .details-header-actions, html.tv-mode .details-header-actions { gap: calc(8px * var(--tv-scale)); }
+
+/* Butonlar */
+html.is-tv .btn, html.tv-mode .btn { padding: calc(11px * var(--tv-scale)) calc(20px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .confirm-text, html.tv-mode .confirm-text { font-size: calc(0.95rem * var(--tv-scale)); margin: 0 0 calc(16px * var(--tv-scale)); }
+html.is-tv .confirm-actions, html.tv-mode .confirm-actions { gap: calc(10px * var(--tv-scale)); }
+html.is-tv .confirm-actions .btn, html.tv-mode .confirm-actions .btn { padding: calc(7px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .msg, html.tv-mode .msg { margin-top: calc(8px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+
+/* Detay modalı */
+html.is-tv .details-wrap, html.tv-mode .details-wrap { gap: calc(14px * var(--tv-scale)); }
+html.is-tv .details-poster-col, html.tv-mode .details-poster-col { gap: calc(12px * var(--tv-scale)); width: calc(220px * var(--tv-scale)); }
+html.is-tv .details-poster, html.tv-mode .details-poster { width: calc(220px * var(--tv-scale)); height: calc(330px * var(--tv-scale)); }
+html.is-tv .details-main, html.tv-mode .details-main { gap: calc(10px * var(--tv-scale)); }
+html.is-tv .details-tagline, html.tv-mode .details-tagline { font-size: calc(0.92rem * var(--tv-scale)); }
+html.is-tv .details-meta, html.tv-mode .details-meta { gap: calc(6px * var(--tv-scale)); }
+html.is-tv .detail-badge, html.tv-mode .detail-badge { padding: calc(3px * var(--tv-scale)) calc(10px * var(--tv-scale)); font-size: calc(0.75rem * var(--tv-scale)); }
+html.is-tv .genre-tags, html.tv-mode .genre-tags { gap: calc(6px * var(--tv-scale)); margin-top: calc(8px * var(--tv-scale)); }
+html.is-tv .details-rating, html.tv-mode .details-rating { font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .details-votes, html.tv-mode .details-votes { font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .details-overview, html.tv-mode .details-overview { font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .detail-calendar-btn, html.tv-mode .detail-calendar-btn { margin-top: calc(24px * var(--tv-scale)); padding: calc(7px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .details-cast-list, html.tv-mode .details-cast-list { gap: calc(10px * var(--tv-scale)); }
+html.is-tv .cast-item, html.tv-mode .cast-item { gap: calc(10px * var(--tv-scale)); padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); }
+html.is-tv .details-section-title, html.tv-mode .details-section-title { font-size: calc(0.85rem * var(--tv-scale)); margin: calc(14px * var(--tv-scale)) 0 calc(10px * var(--tv-scale)); padding-bottom: calc(6px * var(--tv-scale)); }
+html.is-tv .cast-avatar, html.tv-mode .cast-avatar, html.is-tv .cast-avatar-fallback, html.tv-mode .cast-avatar-fallback { width: calc(42px * var(--tv-scale)); height: calc(42px * var(--tv-scale)); }
+
+/* Kişi / yönetmen / picker / value */
+html.is-tv .person-grid, html.tv-mode .person-grid { gap: calc(18px * var(--tv-scale)); padding: calc(16px * var(--tv-scale)) calc(20px * var(--tv-scale)); margin: calc(-16px * var(--tv-scale)) calc(-20px * var(--tv-scale)); }
+html.is-tv .person-grid .card, html.tv-mode .person-grid .card { width: calc(170px * var(--tv-scale)); }
+html.is-tv .picker-grid, html.tv-mode .picker-grid { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .picker-item, html.tv-mode .picker-item { gap: calc(6px * var(--tv-scale)); padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); }
+html.is-tv .picker-name, html.tv-mode .picker-name { font-size: calc(0.82rem * var(--tv-scale)); }
+html.is-tv .picker-check, html.tv-mode .picker-check { width: calc(18px * var(--tv-scale)); height: calc(18px * var(--tv-scale)); font-size: calc(0.75rem * var(--tv-scale)); }
+html.is-tv .picker-section, html.tv-mode .picker-section { padding: calc(16px * var(--tv-scale)) calc(18px * var(--tv-scale)); margin-bottom: calc(16px * var(--tv-scale)); }
+html.is-tv .picker-section-title, html.tv-mode .picker-section-title { font-size: calc(0.8rem * var(--tv-scale)); margin-bottom: calc(8px * var(--tv-scale)); }
+html.is-tv .picker-free, html.tv-mode .picker-free { padding: 0 0 calc(12px * var(--tv-scale)); }
+html.is-tv .picker-free input, html.tv-mode .picker-free input, html.is-tv .value-body input, html.tv-mode .value-body input { padding: calc(10px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .picker-empty, html.tv-mode .picker-empty { padding: calc(30px * var(--tv-scale)) calc(20px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .value-body, html.tv-mode .value-body { padding: calc(20px * var(--tv-scale)); }
+html.is-tv .actor-grid .picker-item, html.tv-mode .actor-grid .picker-item { width: calc((100% - (16px * var(--tv-scale))) / 3); }
+html.is-tv .genre-grid .picker-item, html.tv-mode .genre-grid .picker-item { width: calc((100% - (8px * var(--tv-scale))) / 2); }
+
+/* Bölüm başlıkları + aksiyon butonları */
+html.is-tv .unwatched-section-title, html.tv-mode .unwatched-section-title { font-size: calc(1rem * var(--tv-scale)); margin: 0 0 calc(14px * var(--tv-scale)); padding-bottom: calc(8px * var(--tv-scale)); gap: calc(8px * var(--tv-scale)); }
+html.is-tv .section-summary, html.tv-mode .section-summary { font-size: calc(0.7rem * var(--tv-scale)); margin: calc(-6px * var(--tv-scale)) 0 calc(14px * var(--tv-scale)); padding: 0 calc(2px * var(--tv-scale)); }
+html.is-tv .section-refresh, html.tv-mode .section-refresh { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); right: calc(82px * var(--tv-scale)); }
+html.is-tv .section-hide, html.tv-mode .section-hide { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); right: calc(52px * var(--tv-scale)); }
+html.is-tv .section-search, html.tv-mode .section-search { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .section-filter, html.tv-mode .section-filter { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .section-move-up, html.tv-mode .section-move-up, html.is-tv .section-move-down, html.tv-mode .section-move-down { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .section-move-down, html.tv-mode .section-move-down { right: calc(22px * var(--tv-scale)); }
+html.is-tv .section-sort-wrap, html.tv-mode .section-sort-wrap { right: calc(112px * var(--tv-scale)); }
+html.is-tv #view-dizi .section-search, html.tv-mode #view-dizi .section-search,
+html.is-tv #view-film .section-search, html.tv-mode #view-film .section-search,
+html.is-tv #view-belgesel .section-search, html.tv-mode #view-belgesel .section-search,
+html.is-tv #view-anime .section-search, html.tv-mode #view-anime .section-search { right: calc(30px * var(--tv-scale)); }
+html.is-tv #view-dizi .follow-sort-wrap, html.tv-mode #view-dizi .follow-sort-wrap,
+html.is-tv #view-film .follow-sort-wrap, html.tv-mode #view-film .follow-sort-wrap,
+html.is-tv #view-belgesel .follow-sort-wrap, html.tv-mode #view-belgesel .follow-sort-wrap,
+html.is-tv #view-anime .follow-sort-wrap, html.tv-mode #view-anime .follow-sort-wrap { right: 0; }
+html.is-tv #view-dizi .unwatched-section-title, html.tv-mode #view-dizi .unwatched-section-title,
+html.is-tv #view-film .unwatched-section-title, html.tv-mode #view-film .unwatched-section-title,
+html.is-tv #view-belgesel .unwatched-section-title, html.tv-mode #view-belgesel .unwatched-section-title,
+html.is-tv #view-anime .unwatched-section-title, html.tv-mode #view-anime .unwatched-section-title { padding-right: calc(62px * var(--tv-scale)); }
+html.is-tv #view-unwatched .unwatched-section-title, html.tv-mode #view-unwatched .unwatched-section-title,
+html.is-tv #view-watched .unwatched-section-title, html.tv-mode #view-watched .unwatched-section-title { padding-right: calc(112px * var(--tv-scale)); }
+html.is-tv #view-unwatched .section-search, html.tv-mode #view-unwatched .section-search,
+html.is-tv #view-watched .section-search, html.tv-mode #view-watched .section-search { right: calc(82px * var(--tv-scale)); }
+html.is-tv #view-unwatched .follow-sort-wrap, html.tv-mode #view-unwatched .follow-sort-wrap,
+html.is-tv #view-watched .follow-sort-wrap, html.tv-mode #view-watched .follow-sort-wrap { right: calc(52px * var(--tv-scale)); }
+html.is-tv #view-recommend .unwatched-section-title, html.tv-mode #view-recommend .unwatched-section-title { padding-right: calc(196px * var(--tv-scale)); }
+/* Satır/kart geçiş ikonu ofsetleri (TV) */
+html.is-tv #view-dizi .section-view-toggle, html.tv-mode #view-dizi .section-view-toggle,
+html.is-tv #view-film .section-view-toggle, html.tv-mode #view-film .section-view-toggle,
+html.is-tv #view-belgesel .section-view-toggle, html.tv-mode #view-belgesel .section-view-toggle,
+html.is-tv #view-anime .section-view-toggle, html.tv-mode #view-anime .section-view-toggle { right: 0; }
+html.is-tv #view-dizi .section-search, html.tv-mode #view-dizi .section-search,
+html.is-tv #view-film .section-search, html.tv-mode #view-film .section-search,
+html.is-tv #view-belgesel .section-search, html.tv-mode #view-belgesel .section-search,
+html.is-tv #view-anime .section-search, html.tv-mode #view-anime .section-search { right: calc(60px * var(--tv-scale)); }
+html.is-tv #view-dizi .follow-sort-wrap, html.tv-mode #view-dizi .follow-sort-wrap,
+html.is-tv #view-film .follow-sort-wrap, html.tv-mode #view-film .follow-sort-wrap,
+html.is-tv #view-belgesel .follow-sort-wrap, html.tv-mode #view-belgesel .follow-sort-wrap,
+html.is-tv #view-anime .follow-sort-wrap, html.tv-mode #view-anime .follow-sort-wrap { right: calc(30px * var(--tv-scale)); }
+html.is-tv #view-dizi .unwatched-section-title, html.tv-mode #view-dizi .unwatched-section-title,
+html.is-tv #view-film .unwatched-section-title, html.tv-mode #view-film .unwatched-section-title,
+html.is-tv #view-belgesel .unwatched-section-title, html.tv-mode #view-belgesel .unwatched-section-title,
+html.is-tv #view-anime .unwatched-section-title, html.tv-mode #view-anime .unwatched-section-title { padding-right: calc(92px * var(--tv-scale)); }
+html.is-tv #view-unwatched .section-view-toggle, html.tv-mode #view-unwatched .section-view-toggle,
+html.is-tv #view-watched .section-view-toggle, html.tv-mode #view-watched .section-view-toggle { right: calc(52px * var(--tv-scale)); }
+html.is-tv #view-unwatched .section-search, html.tv-mode #view-unwatched .section-search,
+html.is-tv #view-watched .section-search, html.tv-mode #view-watched .section-search { right: calc(112px * var(--tv-scale)); }
+html.is-tv #view-unwatched .follow-sort-wrap, html.tv-mode #view-unwatched .follow-sort-wrap,
+html.is-tv #view-watched .follow-sort-wrap, html.tv-mode #view-watched .follow-sort-wrap { right: calc(82px * var(--tv-scale)); }
+html.is-tv #view-unwatched .unwatched-section-title, html.tv-mode #view-unwatched .unwatched-section-title,
+html.is-tv #view-watched .unwatched-section-title, html.tv-mode #view-watched .unwatched-section-title { padding-right: calc(142px * var(--tv-scale)); }
+html.is-tv #view-recommend .unwatched-section-title .section-view-toggle, html.tv-mode #view-recommend .unwatched-section-title .section-view-toggle { right: calc(112px * var(--tv-scale)); }
+html.is-tv #view-recommend .unwatched-section-title .section-search, html.tv-mode #view-recommend .unwatched-section-title .section-search { right: calc(172px * var(--tv-scale)); }
+html.is-tv #view-recommend .unwatched-section-title .section-sort-wrap, html.tv-mode #view-recommend .unwatched-section-title .section-sort-wrap { right: calc(142px * var(--tv-scale)); }
+/* Satır modu (TV) */
+html.is-tv .wrow-poster, html.tv-mode .wrow-poster { width: calc(60px * var(--tv-scale)); }
+html.is-tv .poster-grid.row-mode, html.tv-mode .poster-grid.row-mode { font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-search, html.tv-mode #view-recommend #feed-header .section-search { right: calc(90px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-sort-wrap, html.tv-mode #view-recommend #feed-header .section-sort-wrap { right: calc(60px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-refresh, html.tv-mode #view-recommend #feed-header .section-refresh { right: calc(30px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-view-toggle, html.tv-mode #view-recommend #feed-header .section-view-toggle { right: calc(60px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-sort-wrap, html.tv-mode #view-recommend #feed-header .section-sort-wrap { right: calc(90px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .section-search, html.tv-mode #view-recommend #feed-header .section-search { right: calc(120px * var(--tv-scale)); }
+html.is-tv #view-recommend #feed-header .rec-search-input, html.tv-mode #view-recommend #feed-header .rec-search-input { right: calc(150px * var(--tv-scale)); }
+html.is-tv #view-recommend .rec-search-input, html.tv-mode #view-recommend .rec-search-input { right: calc(120px * var(--tv-scale)); }
+html.is-tv #view-dizi > div, html.tv-mode #view-dizi > div, html.is-tv #view-film > div, html.tv-mode #view-film > div, html.is-tv #view-belgesel > div, html.tv-mode #view-belgesel > div, html.is-tv #view-anime > div, html.tv-mode #view-anime > div { margin-bottom: calc(24px * var(--tv-scale)); }
+html.is-tv #view-unwatched > div, html.tv-mode #view-unwatched > div, html.is-tv #view-watched > div, html.tv-mode #view-watched > div, html.is-tv #view-recommend > div, html.tv-mode #view-recommend > div { margin-bottom: calc(24px * var(--tv-scale)); }
+
+/* Takvim tablosu + sezon kutuları */
+html.is-tv .releases-table, html.tv-mode .releases-table { font-size: calc(0.95rem * var(--tv-scale)); }
+html.is-tv .releases-table th, html.tv-mode .releases-table th, html.is-tv .releases-table td, html.tv-mode .releases-table td { padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); }
+html.is-tv .releases-table thead th, html.tv-mode .releases-table thead th { font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .releases-table .episode-label, html.tv-mode .releases-table .episode-label { min-height: 0; }
+html.is-tv .releases-table .episode-name, html.tv-mode .releases-table .episode-name { font-size: calc(0.7rem * var(--tv-scale)); margin-top: calc(2px * var(--tv-scale)); }
+html.is-tv .releases-table th:last-child, html.tv-mode .releases-table th:last-child, html.is-tv .releases-table td:last-child, html.tv-mode .releases-table td:last-child { font-size: calc(0.82rem * var(--tv-scale)); }
+html.is-tv .season-box, html.tv-mode .season-box { margin-bottom: calc(14px * var(--tv-scale)); }
+html.is-tv .season-box-title, html.tv-mode .season-box-title { padding: calc(10px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.95rem * var(--tv-scale)); gap: calc(10px * var(--tv-scale)); }
+html.is-tv .season-box-title .season-actions, html.tv-mode .season-box-title .season-actions { gap: calc(6px * var(--tv-scale)); }
+html.is-tv .season-name, html.tv-mode .season-name { font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .season-progress, html.tv-mode .season-progress { height: calc(14px * var(--tv-scale)); }
+html.is-tv .season-progress-text, html.tv-mode .season-progress-text { font-size: calc(0.7rem * var(--tv-scale)); }
+html.is-tv .season-watch-all, html.tv-mode .season-watch-all { width: calc(28px * var(--tv-scale)); height: calc(28px * var(--tv-scale)); }
+html.is-tv .season-clear-all, html.tv-mode .season-clear-all { width: calc(28px * var(--tv-scale)); height: calc(28px * var(--tv-scale)); }
+html.is-tv .releases-table .watch-btn, html.tv-mode .releases-table .watch-btn { width: calc(24px * var(--tv-scale)); height: calc(24px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); margin-right: calc(8px * var(--tv-scale)); }
+html.is-tv .episode-cell, html.tv-mode .episode-cell { width: calc(100% - (36px * var(--tv-scale))); }
+html.is-tv .episode-date-wrap, html.tv-mode .episode-date-wrap { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .episode-info-btn, html.tv-mode .episode-info-btn { padding: calc(4px * var(--tv-scale)); }
+html.is-tv .episode-info-btn svg, html.tv-mode .episode-info-btn svg, html.is-tv .episode-info-icon svg, html.tv-mode .episode-info-icon svg { width: calc(16px * var(--tv-scale)); height: calc(16px * var(--tv-scale)); }
+html.is-tv .episode-info-overview, html.tv-mode .episode-info-overview { margin: 0 0 calc(14px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .episode-info-meta, html.tv-mode .episode-info-meta { gap: calc(8px * var(--tv-scale)); padding-top: calc(12px * var(--tv-scale)); }
+html.is-tv .episode-info-row, html.tv-mode .episode-info-row { gap: calc(8px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+
+/* Toast / tooltip */
+html.is-tv .toast, html.tv-mode .toast { bottom: calc(24px * var(--tv-scale)); padding: calc(12px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .app-tip, html.tv-mode .app-tip { padding: calc(6px * var(--tv-scale)) calc(10px * var(--tv-scale)); font-size: calc(0.75rem * var(--tv-scale)); max-width: calc(280px * var(--tv-scale)); }
+
+/* Gizlenenler modal başlık + unhide */
+html.is-tv .hidden-header-btn, html.tv-mode .hidden-header-btn { width: calc(30px * var(--tv-scale)); height: calc(30px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
+html.is-tv .hidden-modal .hidden-header-actions .modal-close, html.tv-mode .hidden-modal .hidden-header-actions .modal-close { width: calc(30px * var(--tv-scale)); height: calc(30px * var(--tv-scale)); }
+html.is-tv #hidden-list, html.tv-mode #hidden-list { gap: calc(14px * var(--tv-scale)); }
+html.is-tv .hidden-restore, html.tv-mode .hidden-restore { top: calc(6px * var(--tv-scale)); left: calc(6px * var(--tv-scale)); width: calc(24px * var(--tv-scale)); height: calc(24px * var(--tv-scale)); }
+html.is-tv .hidden-restore i, html.tv-mode .hidden-restore i { font-size: calc(0.72rem * var(--tv-scale)); }
+html.is-tv .hidden-name, html.tv-mode .hidden-name { padding: 8px 8px 4px; min-height: calc(2.5em + 12px); }
+html.is-tv .hidden-meta, html.tv-mode .hidden-meta { gap: calc(2px * var(--tv-scale)); padding: 0 calc(8px * var(--tv-scale)) calc(8px * var(--tv-scale)); }
+html.is-tv .hidden-meta-row, html.tv-mode .hidden-meta-row { gap: calc(4px * var(--tv-scale)); margin-bottom: calc(3px * var(--tv-scale)); }
+html.is-tv .hidden-meta-row .badge, html.tv-mode .hidden-meta-row .badge { padding: 0.7px 5.6px; }
+html.is-tv .hidden-meta .badge-platform, html.tv-mode .hidden-meta .badge-platform { padding: 0.7px 5.6px; }
+html.is-tv .hidden-meta .next-ep .next-ep-days, html.tv-mode .hidden-meta .next-ep .next-ep-days { padding: 1px 4px; min-width: 19px; }
+
+/* İstatistik modalı */
+html.is-tv #stats-list, html.tv-mode #stats-list { gap: calc(12px * var(--tv-scale)); padding: calc(16px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .stats-loading, html.tv-mode .stats-loading { padding: calc(12px * var(--tv-scale)); }
+html.is-tv .stats-box, html.tv-mode .stats-box { gap: calc(6px * var(--tv-scale)); padding: calc(14px * var(--tv-scale)) calc(12px * var(--tv-scale)); }
+html.is-tv .stats-box-head, html.tv-mode .stats-box-head { font-size: calc(0.85rem * var(--tv-scale)); margin-bottom: calc(4px * var(--tv-scale)); }
+html.is-tv .stats-box-line, html.tv-mode .stats-box-line { font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .stats-kinds, html.tv-mode .stats-kinds, html.is-tv .stats-grid, html.tv-mode .stats-grid { gap: calc(12px * var(--tv-scale)); margin-top: calc(12px * var(--tv-scale)); }
+html.is-tv .stats-box.stats-mini, html.tv-mode .stats-box.stats-mini { padding: calc(12px * var(--tv-scale)); }
+html.is-tv .genre-row, html.tv-mode .genre-row { margin: calc(3px * var(--tv-scale)) 0; }
+html.is-tv .g-sep, html.tv-mode .g-sep { padding: 0 calc(4px * var(--tv-scale)); }
+html.is-tv .stats-mini .stats-box-line, html.tv-mode .stats-mini .stats-box-line { font-size: calc(0.78rem * var(--tv-scale)); }
+html.is-tv .stats-mini .stats-box-lines, html.tv-mode .stats-mini .stats-box-lines { gap: calc(2px * var(--tv-scale)); }
+
+/* İzleme geçmişi modalı */
+html.is-tv .history-body, html.tv-mode .history-body { gap: calc(12px * var(--tv-scale)); }
+html.is-tv .history-controls, html.tv-mode .history-controls { gap: calc(12px * var(--tv-scale)); }
+html.is-tv .history-num-box, html.tv-mode .history-num-box { gap: calc(4px * var(--tv-scale)); }
+html.is-tv .history-num-label, html.tv-mode .history-num-label { font-size: calc(0.7rem * var(--tv-scale)); }
+html.is-tv .history-num-row, html.tv-mode .history-num-row { gap: calc(2px * var(--tv-scale)); }
+html.is-tv .history-arrow, html.tv-mode .history-arrow { padding: calc(6px * var(--tv-scale)) calc(7px * var(--tv-scale)); font-size: calc(0.75rem * var(--tv-scale)); }
+html.is-tv .history-num-row input, html.tv-mode .history-num-row input { width: calc(70px * var(--tv-scale)); padding: calc(8px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .history-cal-wrap, html.tv-mode .history-cal-wrap { padding: calc(10px * var(--tv-scale)); }
+html.is-tv .history-cal, html.tv-mode .history-cal { gap: calc(6px * var(--tv-scale)); }
+html.is-tv .history-cell, html.tv-mode .history-cell { padding: calc(4px * var(--tv-scale)) calc(2px * var(--tv-scale)); gap: calc(4px * var(--tv-scale)); }
+html.is-tv .history-cell-day, html.tv-mode .history-cell-day { font-size: calc(0.8rem * var(--tv-scale)); }
+html.is-tv .history-badge, html.tv-mode .history-badge { min-width: calc(22px * var(--tv-scale)); height: calc(22px * var(--tv-scale)); font-size: calc(0.72rem * var(--tv-scale)); padding: 0 calc(4px * var(--tv-scale)); }
+html.is-tv .history-tooltip, html.tv-mode .history-tooltip { padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); min-width: calc(220px * var(--tv-scale)); max-width: calc(340px * var(--tv-scale)); }
+html.is-tv .history-tip-row, html.tv-mode .history-tip-row { font-size: calc(0.72rem * var(--tv-scale)); padding: calc(2px * var(--tv-scale)) 0; }
+html.is-tv .history-marked-badge, html.tv-mode .history-marked-badge { width: calc(15px * var(--tv-scale)); height: calc(15px * var(--tv-scale)); }
+html.is-tv .history-marked-badge svg, html.tv-mode .history-marked-badge svg { width: calc(8px * var(--tv-scale)); height: calc(8px * var(--tv-scale)); }
+html.is-tv .history-actions, html.tv-mode .history-actions { gap: calc(10px * var(--tv-scale)); }
+html.is-tv .history-export-btn, html.tv-mode .history-export-btn { padding: calc(7px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
+
+/* Arama çubuğu (arama görünümü) */
+html.is-tv .search-area, html.tv-mode .search-area { margin-top: calc(24px * var(--tv-scale)); margin-bottom: calc(18px * var(--tv-scale)); }
+html.is-tv .search-bar input, html.tv-mode .search-bar input { height: calc(34px * var(--tv-scale)); padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale)); font-size: calc(0.78rem * var(--tv-scale)); line-height: 1; }
+html.is-tv .search-bar button, html.tv-mode .search-bar button { padding: 0 calc(26px * var(--tv-scale)); }
+html.is-tv #hidden-search-input, html.tv-mode #hidden-search-input,
+html.is-tv #results-search-input, html.tv-mode #results-search-input,
+html.is-tv #person-search-input, html.tv-mode #person-search-input,
+html.is-tv #director-search-input, html.tv-mode #director-search-input { width: calc(230px * var(--tv-scale)); padding: calc(6px * var(--tv-scale)) calc(8px * var(--tv-scale)); font-size: calc(0.78rem * var(--tv-scale)); }
+
+/* History + Stats modal D-pad odak halkasi */
+html.is-tv .history-cell.has:focus, html.tv-mode .history-cell.has:focus,
+html.is-tv .stats-box:focus, html.tv-mode .stats-box:focus { outline: 1px solid #f97316; outline-offset: 1px; }
+
+/* History izlenen popup — TV: satır bölünmez, genişlik en uzun text'e göre (vh/vw yok) */
+html.is-tv .history-tooltip, html.tv-mode .history-tooltip {
+  width: max-content;
+  min-width: calc(200px * var(--tv-scale));
+  max-width: calc(720px * var(--tv-scale));
+  max-height: calc(380px * var(--tv-scale));
+  overflow-y: auto;
+  overflow-x: auto;
+  font-size: calc(0.72rem * var(--tv-scale));
+  line-height: 1.4;
+  padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale));
+  white-space: nowrap;
+  z-index: 40;
+}
+html.is-tv .history-tip-row, html.tv-mode .history-tip-row {
+  font-size: calc(0.7rem * var(--tv-scale));
+  white-space: nowrap;
+}
+html.is-tv .history-tip-row:focus, html.tv-mode .history-tip-row:focus {
+  outline: 1px solid #f97316;
+  outline-offset: -1px;
+  background: #262a36;
+  border-radius: 4px;
+}
+
+/* Arama: view-search + sonuç modalı — 0.8 ölçek (radius hariç) */
+html.is-tv .search-card, html.tv-mode .search-card { max-width: calc(800px * var(--tv-scale)); padding: calc(24px * var(--tv-scale)) calc(28px * var(--tv-scale)); }
+html.is-tv .search-card-header, html.tv-mode .search-card-header { margin-bottom: calc(18px * var(--tv-scale)); }
+html.is-tv #view-search h2, html.tv-mode #view-search h2 { font-size: calc(1.05rem * var(--tv-scale)); margin: 0; }
+html.is-tv .search-block-title, html.tv-mode .search-block-title { font-size: calc(0.9rem * var(--tv-scale)); margin: 0 0 calc(12px * var(--tv-scale)); }
+html.is-tv .search-action-btn, html.tv-mode .search-action-btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; min-height: calc(34px * var(--tv-scale)); min-width: 0; padding: calc(7px * var(--tv-scale)) calc(13px * var(--tv-scale)); font-size: calc(0.78rem * var(--tv-scale)); }
+html.is-tv .combo-search-row, html.tv-mode .combo-search-row { margin-top: calc(12px * var(--tv-scale)); }
+html.is-tv #view-search .poster-grid, html.tv-mode #view-search .poster-grid { gap: calc(12px * var(--tv-scale)); }
+html.is-tv #view-search .poster-grid .card, html.tv-mode #view-search .poster-grid .card { width: calc(132px * var(--tv-scale)); }
+html.is-tv .results-modal .modal-header, html.tv-mode .results-modal .modal-header { gap: calc(6px * var(--tv-scale)); }
+
+/* Kişi/yönetmen modal başlık boşlukları — 0.8 ölçek (radius'suz) */
+html.is-tv #person-modal .modal-header, html.tv-mode #person-modal .modal-header,
+html.is-tv #director-modal .modal-header, html.tv-mode #director-modal .modal-header { gap: calc(6px * var(--tv-scale)); }
+html.is-tv #person-modal #person-search-btn, html.tv-mode #person-modal #person-search-btn,
+html.is-tv #director-modal #director-search-btn, html.tv-mode #director-modal #director-search-btn { margin-right: calc(-6px * var(--tv-scale)); }
+
+/* Ara & Ekle 0.8 tamamlama — search-area/search-block/search-bar (radius'suz) */
+html.is-tv .search-area, html.tv-mode .search-area { gap: calc(22px * var(--tv-scale)); }
+html.is-tv .search-block, html.tv-mode .search-block { padding: calc(18px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
+html.is-tv .search-bar, html.tv-mode .search-bar { gap: calc(10px * var(--tv-scale)); margin-bottom: calc(24px * var(--tv-scale)); }
+html.is-tv .search-bar button, html.tv-mode .search-bar button { font-size: calc(1.1rem * var(--tv-scale)); }

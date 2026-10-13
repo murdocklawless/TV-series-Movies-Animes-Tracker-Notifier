@@ -9,15 +9,15 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=506";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=520";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
-  posterHTML, scoreTag, platformTag, typeLabel, formatDate,
+  posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
-  canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr,
-} from "./utils.js?v=506";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=507";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=506";
+  canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr, isDocItem,
+} from "./utils.js?v=516";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=518";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=517";
 
 let currentDetails = null;
 
@@ -517,28 +517,43 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModals();
 });
 
+// Bilgi modalı statü rozeti rengi: duruma göre sınıf (Returning→yeşil, Ended→gri,
+// Canceled→kırmızı, diğer/yakında→amber).
+function statusColorClass(status) {
+  const s = (status || "").trim().toUpperCase();
+  if (s === "CANCELED" || s === "CANCELLED") return "db-status-canceled";
+  if (s === "ENDED" || s === "FINISHED") return "db-status-ended";
+  if (s === "RETURNING SERIES" || s === "RELEASING") return "db-status-returning";
+  return "db-status-upcoming";
+}
+
 function renderTmdbDetails(data, title, highlightGenre) {
   let html = '<div class="details-wrap">';
   html += '<div class="details-poster-col">';
   if (data.poster_path) {
     html += `<img class="details-poster" src="${data.poster_local || IMAGE_BASE + data.poster_path}" alt="${data.title}" />`;
   }
-  const badges = [];
-  if (data.media_type === "tv") {
-    badges.push(t("type_tv"));
-    if (data.number_of_seasons) badges.push(t("seasons", { n: data.number_of_seasons }));
-    if (data.number_of_episodes) badges.push(t("episodes", { n: data.number_of_episodes }));
-    if (data.status) badges.push(tvStatusLabel(data.status));
-    if (data.first_air_date) badges.push(formatDate(data.first_air_date).text);
+  const isTv = data.media_type === "tv";
+  const isDoc = isDocItem(data);
+  const typeCls = isDoc ? "belgesel" : (isTv ? "tv" : "movie");
+  const typeLbl = isDoc ? t("type_doc") : (isTv ? t("type_tv") : t("type_movie"));
+  let typeBadges = `<span class="detail-badge db-type db-${typeCls}">${typeLbl}</span>`;
+  if (isTv && data.number_of_seasons) typeBadges += `<span class="detail-badge db-season">${t("seasons", { n: data.number_of_seasons })}</span>`;
+  if (isTv && data.number_of_episodes) typeBadges += `<span class="detail-badge db-episode">${t("episodes", { n: data.number_of_episodes })}</span>`;
+
+  let dateRow = "";
+  if (isTv) {
+    if (data.first_air_date) dateRow = `<span class="detail-badge db-date">${t("release_date")}: ${formatDate(data.first_air_date).text}</span>`;
   } else {
-    badges.push(t("type_movie"));
-    if (data.release_date) badges.push(formatDate(data.release_date).text);
+    if (data.release_date) dateRow = `<span class="detail-badge db-date">${t("movie_release_date")}: ${formatDate(data.release_date).text}</span>`;
+    if (data.runtime) dateRow += `<span class="detail-badge db-runtime">${fmtRuntime(data.runtime)}</span>`;
   }
-  if (data.runtime) badges.push(fmtRuntime(data.runtime));
+  const statusRow = isTv && data.status ? `<span class="detail-badge db-status ${statusColorClass(data.status)}">${tvStatusLabel(data.status)}</span>` : "";
+
   html += '<div class="details-meta">';
-  badges.forEach((b) => {
-    html += `<span class="detail-badge">${b}</span>`;
-  });
+  html += `<div class="details-meta-row dmr-types">${typeBadges}</div>`;
+  if (dateRow) html += `<div class="details-meta-row dmr-date">${dateRow}</div>`;
+  if (statusRow) html += `<div class="details-meta-row dmr-status">${statusRow}</div>`;
   html += "</div>";
   if (data.genres && data.genres.length) {
     html += '<div class="genre-tags">';
@@ -607,16 +622,15 @@ function renderAnimeDetails(data) {
   let html = '<div class="details-wrap">';
   html += '<div class="details-poster-col">';
   if (data.cover_url || data.poster_local) html += `<img class="details-poster" src="${data.poster_local || data.cover_url}" alt="${data.title}" />`;
-  const badges = [];
-  badges.push(t("tab_anime"));
-  if (data.format) badges.push(data.format);
-  if (data.status) badges.push(animeStatusLabel(data.status));
-  if (data.episodes) badges.push(t("episodes", { n: data.episodes }));
-  if (data.duration) badges.push(fmtRuntime(data.duration));
-  if (data.start_date) badges.push(String(data.start_date));
-  if (data.studios && data.studios.length) badges.push(data.studios.join(", "));
+  let typeBadges = `<span class="detail-badge db-type db-anime">${t("tab_anime")}</span>`;
+  if (data.format) typeBadges += `<span class="detail-badge">${data.format}</span>`;
+  if (data.episodes) typeBadges += `<span class="detail-badge db-episode">${t("episodes", { n: data.episodes })}</span>`;
+  const dateRow = data.start_date ? `<span class="detail-badge db-date">${t("release_date")}: ${data.start_date}</span>` : "";
+  const statusRow = data.status ? `<span class="detail-badge db-status ${statusColorClass(data.status)}">${animeStatusLabel(data.status)}</span>` : "";
   html += '<div class="details-meta">';
-  badges.forEach((b) => { html += `<span class="detail-badge">${b}</span>`; });
+  html += `<div class="details-meta-row dmr-types">${typeBadges}</div>`;
+  if (dateRow) html += `<div class="details-meta-row dmr-date">${dateRow}</div>`;
+  if (statusRow) html += `<div class="details-meta-row dmr-status">${statusRow}</div>`;
   html += "</div>";
   if (data.genres && data.genres.length) {
     html += '<div class="genre-tags">';
@@ -669,7 +683,7 @@ function bindAnimeDetailsEvents() {
   });
 }
 
-async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre) {
+async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre, restrictCalendar) {
   currentDetails = { kind: "tmdb", mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre };
   const modal = document.getElementById("details-modal");
   const body = document.getElementById("details-body");
@@ -678,10 +692,19 @@ async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightP
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
   calBtn.style.display = "flex";
-  calBtn.onclick = () => {
-    closeDetails();
-    openReleases(mediaType, tmdbId, title);
-  };
+  const disabled = !!restrictCalendar;
+  calBtn.disabled = disabled;
+  calBtn.classList.toggle("disabled", disabled);
+  calBtn.dataset.tip = disabled ? t("calendar_follow_hint") : t("calendar_title");
+  calBtn.dataset.i18nTitle = disabled ? "calendar_follow_hint" : "calendar_title";
+  if (disabled) {
+    calBtn.onclick = null;
+  } else {
+    calBtn.onclick = () => {
+      closeDetails();
+      openReleases(mediaType, tmdbId, title);
+    };
+  }
 
   try {
     const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}&lang=${encodeURIComponent(state.currentLang)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}`);
@@ -809,14 +832,7 @@ document.getElementById("person-modal").onclick = (e) => {
   if (e.target === e.currentTarget) document.getElementById("person-modal").style.display = "none";
 };
 
-/* Filmografi modalı (kişi/yönetmen) rozet slotları: arama kartlarındaki desenin
-   aynısı (search.js'e dokunulmaz, yerel kopya). */
-const CRED_SLOT_NET = `<span class="badge badge-platform slot-empty" aria-hidden="true">–</span>`;
-const CRED_SLOT_SEASON = `<span class="season-count-badge slot-empty" aria-hidden="true">–</span>`;
-const CRED_SLOT_EP = `<span class="episode-count slot-empty" aria-hidden="true">–</span>`;
-const CRED_SLOT_STATUS = `<div class="next-ep muted slot-empty" aria-hidden="true">&nbsp;</div>`;
-const CRED_SLOT_SCORE = `<span class="badge badge-score slot-empty" aria-hidden="true">–</span>`;
-const CRED_SLOT_DATE = `<div class="next-ep muted slot-empty" aria-hidden="true">&nbsp;</div>`;
+/* Filmografi kartları arama kartlarındaki sade şemayı (tip·puan / statü) kullanır. */
 /* Filmografi sıralama durumu: arama metni modal-açılışlık, sıralama+yön global hatırlamalı. */
 const CREDITS_DEFAULT_DIR = { alpha: "asc", score: "desc", vision: "desc", upcoming: "asc" };
 let creditsSort = "alpha";
@@ -1039,20 +1055,20 @@ function _buildCreditsGrid(data, modal) {
       div.dataset.sortScore = String(Number(item.vote_average) || 0);
       div.dataset.sortDate = item.release_date || "";
     } catch (_) {}
+    const status = cardDateLine(item.media_type, item);
     div.innerHTML = `
       ${posterHTML(item.poster_path, item.title, false, undefined, undefined, true)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
-          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
-          ${scoreTag(item.vote_average) || CRED_SLOT_SCORE}
-          ${item.media_type === "tv" ? `<div class="mrow-net">${platformTag(item.networks) || CRED_SLOT_NET}</div>` : `<div class="mrow-net">${CRED_SLOT_NET}</div>`}
-          ${item.media_type === "tv" ? `<div class="season-line season-row">${item.number_of_seasons ? `<span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>` : CRED_SLOT_SEASON} ${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : CRED_SLOT_EP}</div>` : `<div class="season-line season-row">${CRED_SLOT_SEASON} ${CRED_SLOT_EP}</div>`}
-          ${item.media_type === "tv" ? (item.status ? `<div class="next-ep muted">${tvStatusLabel(item.status)}</div>` : CRED_SLOT_STATUS) : CRED_SLOT_STATUS}
-          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : CRED_SLOT_DATE}
+          ${resultCardRows({
+            type: `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`,
+            score: scoreTag(item.vote_average),
+            status,
+          })}
         </div>
       </div>
-      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ``}
+      ${item.media_type === "tv" ? `<button class="calendar-btn" disabled data-tip="${t("calendar_follow_hint")}">${CALENDAR_SVG}</button>` : ``}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
     `;
     div.querySelector(".remove").onclick = async (e) => {
@@ -1067,10 +1083,10 @@ function _buildCreditsGrid(data, modal) {
       if (r.ok) { loadFollowed(item.media_type === "tv" ? "dizi" : "film"); switchView(item.media_type === "tv" ? "dizi" : "film"); modal.style.display = "none"; }
     };
     const calBtn = div.querySelector(".calendar-btn");
-    if (calBtn) calBtn.onclick = (e) => { e.stopPropagation(); openReleases(item.media_type, item.tmdb_id, item.title); };
+    if (calBtn && !calBtn.disabled) calBtn.onclick = (e) => { e.stopPropagation(); openReleases(item.media_type, item.tmdb_id, item.title); };
     const infoBtnP = div.querySelector(".info-btn");
     if (infoBtnP) infoBtnP.onclick = (e) => { e.stopPropagation(); div.click(); };
-    div.onclick = () => { openDetails(item.media_type, item.tmdb_id, item.title); modal.style.display = "none"; };
+    div.onclick = () => { openDetails(item.media_type, item.tmdb_id, item.title, undefined, undefined, undefined, true); modal.style.display = "none"; };
     grid.appendChild(div);
     applyTitleHint(div);
   });
@@ -1118,10 +1134,10 @@ async function openUnwatchedModal(item, isAnime) {
       const lockedCls = isUnwatched && !isFirst ? " locked" : "";
       const watchedCls = !isUnwatched ? " watched" : "";
       const tip = isUnwatched && !isFirst
-        ? ` data-tip="${t("unwatched_tooltip", { ep: item.isAnime ? `EP ${firstUnwatched.episode}` : `S${String(firstUnwatched.season).padStart(2, "0")}E${String(firstUnwatched.episode).padStart(2, "0")}` })}"`
+          ? ` data-tip="${t("unwatched_tooltip", { ep: item.isAnime ? `EP${firstUnwatched.episode}` : `S${String(firstUnwatched.season).padStart(2, "0")}E${String(firstUnwatched.episode).padStart(2, "0")}` })}"`
         : "";
       const label = isAnime
-        ? `${t("col_episode")} ${it.episode}`
+        ? `${it.episode} ${t("col_episode")}`
         : t("season_ep", { s: it.season, e: it.episode });
       const epName = it.episode_name
         ? `<div class="episode-name">${it.episode_name}</div>`
@@ -1198,7 +1214,7 @@ document.getElementById("unwatched-modal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) document.getElementById("unwatched-modal").style.display = "none";
 });
 
-async function openAnimeDetails(dbId, anilistId, title) {
+async function openAnimeDetails(dbId, anilistId, title, restrictCalendar) {
   currentDetails = { kind: "anime", dbId, anilistId, title };
   const modal = document.getElementById("details-modal");
   const body = document.getElementById("details-body");
@@ -1206,14 +1222,19 @@ async function openAnimeDetails(dbId, anilistId, title) {
   document.getElementById("details-title").textContent = title || "";
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
-  if (dbId) {
-    calBtn.style.display = "flex";
+  const disabled = !!restrictCalendar || !dbId;
+  calBtn.style.display = "flex";
+  calBtn.disabled = disabled;
+  calBtn.classList.toggle("disabled", disabled);
+  calBtn.dataset.tip = disabled ? t("calendar_follow_hint") : t("calendar_title");
+  calBtn.dataset.i18nTitle = disabled ? "calendar_follow_hint" : "calendar_title";
+  if (disabled) {
+    calBtn.onclick = null;
+  } else {
     calBtn.onclick = () => {
       closeDetails();
       openAnimeSchedule(dbId, title);
     };
-  } else {
-    calBtn.style.display = "none";
   }
 
   try {
@@ -1296,7 +1317,7 @@ async function openAnimeSchedule(id, title) {
         const btnDisabled = !selectable ? " disabled" : "";
         const watchedCls = it.watched ? " watched" : "";
         const todayCls = cls === "date-today" ? " today-release" : "";
-        html += `<tr class="${watchedCls}${todayCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-g="0" data-i="${i}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}"><span class="episode-date-wrap"><span class="episode-date-text">${dateText}</span><button class="episode-info-btn" data-g="0" data-i="${i}" data-e="${it.episode}" data-tip="${t("info_title")}" data-i18n-title="info_title">${INFO_SVG}</button></span></td></tr>`;
+        html += `<tr class="${watchedCls}${todayCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-g="0" data-i="${i}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${it.episode} ${t("col_episode")}</span></td><td class="${cls}"><span class="episode-date-wrap"><span class="episode-date-text">${dateText}</span><button class="episode-info-btn" data-g="0" data-i="${i}" data-e="${it.episode}" data-tip="${t("info_title")}" data-i18n-title="info_title">${INFO_SVG}</button></span></td></tr>`;
       });
       html += "</tbody></table></div>";
       body.innerHTML = html;

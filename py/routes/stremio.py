@@ -667,6 +667,25 @@ def _ask_message(kind, title, season, episode, uid, is_doc=False):
 
 def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False):
     """ask_before_watched ON iken watched_ask bildirimi olusturur (poster/thumbs dahil)."""
+    # Tarihten bagimsiz dedupe: ayni oge icin bekleyen (resolved=0) veya onaylanmis
+    # (resolved=1) ask varsa tekrar uretme. Yalniz 'Hayir' (resolved=2) sonrasi
+    # yeniden sorulabilir. Ayni oturumda gelen mükerrer sinyaller boylece engellenir.
+    try:
+        conn = get_db()
+        try:
+            dup = conn.execute(
+                "SELECT id FROM notifications WHERE type='watched_ask' AND user_id=? AND media_type=? "
+                "AND IFNULL(tmdb_id,-1)=IFNULL(?,-1) AND IFNULL(anilist_id,-1)=IFNULL(?,-1) "
+                "AND IFNULL(season,-1)=IFNULL(?,-1) AND IFNULL(episode,-1)=IFNULL(?,-1) "
+                "AND COALESCE(resolved,0)<>2 LIMIT 1",
+                (uid, kind, tmdb_id, anilist_id, season, episode),
+            ).fetchone()
+        finally:
+            conn.close()
+        if dup:
+            return dup["id"]
+    except Exception as e:
+        print(f"[stremio] ask dedupe hata: {e}", flush=True)
     try:
         import datetime as _dt
         from notification import create_notification

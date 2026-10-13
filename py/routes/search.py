@@ -50,17 +50,6 @@ def search():
 
 
 def _build_search_item(item, media_type):
-    num_seasons = None
-    num_episodes = None
-    networks = []
-    status = ""
-    if media_type == "tv":
-        detail = tmdb_request(f"/tv/{item.get('id')}")
-        if detail:
-            num_seasons = detail.get("number_of_seasons")
-            num_episodes = detail.get("number_of_episodes")
-            networks = [n.get("name") for n in (detail.get("networks") or []) if n.get("name")]
-            status = detail.get("status") or ""
     return {
         "tmdb_id": item.get("id"),
         "media_type": media_type,
@@ -69,10 +58,10 @@ def _build_search_item(item, media_type):
         "release_date": item.get("release_date") or item.get("first_air_date"),
         "vote_average": item.get("vote_average") or 0,
         "overview": item.get("overview"),
-        "number_of_seasons": num_seasons,
-        "number_of_episodes": num_episodes,
-        "networks": networks,
-        "status": status,
+        "number_of_seasons": None,
+        "number_of_episodes": None,
+        "networks": [],
+        "status": "",
     }
 
 

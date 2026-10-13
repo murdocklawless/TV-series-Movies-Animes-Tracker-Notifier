@@ -115,6 +115,10 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
     width: 120px;
   }
 
+  html:not(.is-tv):not(.tv-mode) .wrow-poster {
+    width: 60px;
+  }
+
   html:not(.is-tv):not(.tv-mode) .person-grid .card {
     width: 120px;
   }
@@ -135,7 +139,7 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
   }
 
   html:not(.is-tv):not(.tv-mode) .card .info .title {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
   }
 
   html:not(.is-tv):not(.tv-mode) .settings-actions {
@@ -339,5 +343,19 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
     border-radius: 10px;
     font-size: 1rem;
     box-sizing: border-box;
+  }
+}
+
+/* Oneriler besleme pulldown'lari: navbar medya butonu (30x30 ikon) ile ayni
+   yukseklik + font (<=1366px, TV haric) */
+@media (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-select {
+    height: 30px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.8rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-combo .provider-cell {
+    font-size: 0.8rem;
   }
 }

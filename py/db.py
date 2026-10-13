@@ -102,6 +102,32 @@ def init_db():
         conn.execute("ALTER TABLE episodes ADD COLUMN air_time INTEGER")
     if "watched_at" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN watched_at INTEGER")
+    if "runtime" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN runtime INTEGER")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS watched_snapshot (
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            ident INTEGER NOT NULL,
+            payload TEXT,
+            PRIMARY KEY(user_id, kind, ident)
+        )"""
+    )
+    # Toplu "izlendi olarak isaretle" kayitlari (yapim/sezon bazli). Bolumlere
+    # watched_at yazilmaz; izleme gecmisi bu tablodan "isaretlendi" satiri uretir.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS watch_marks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL DEFAULT 1,
+            kind TEXT NOT NULL,
+            ref_id INTEGER NOT NULL,
+            season INTEGER,
+            marked_at INTEGER NOT NULL
+        )"""
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_watch_marks_user ON watch_marks(user_id, kind, ref_id)"
+    )
     conn.execute(
         """CREATE TABLE IF NOT EXISTS cast (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,6 +278,14 @@ def init_db():
             status TEXT,
             ts REAL NOT NULL,
             PRIMARY KEY(kind, id)
+        )"""
+    )
+    # Oneriler beslemesi (feed): secilen medya+kaynak ham aday havuzu (haftalik tazelenir)
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS feed_cache (
+            key TEXT PRIMARY KEY,
+            payload TEXT NOT NULL,
+            ts REAL NOT NULL
         )"""
     )
     # Favori oyuncu/tur liste cache'i (actor limitsiz, genre 30; guncellik fp=today)

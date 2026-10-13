@@ -205,6 +205,16 @@ nav > .nav-tabs-scroll {
   cursor: not-allowed;
 }
 
+/* History (H) button harfi: ? ve % ikonlariyla ayni boy/kalinlik */
+.history-letter {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1;
+  vertical-align: middle;
+  font-family: inherit;
+}
+
 /* Medya ikonları: masaüstünde metin buton devam eder, ikon gizli */
 .media-tab-icon,
 .media-toggle-icon {
@@ -262,6 +272,16 @@ nav > .nav-tabs-scroll {
     position: relative;
     top: -1px;
     min-width: 48px;
+  }
+
+  #tab-stats {
+    position: relative;
+    top: -1px;
+  }
+
+  #tab-history {
+    position: relative;
+    top: -1px;
   }
 }
 
@@ -384,7 +404,7 @@ main {
 
 .card .info .title {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   line-height: 1.3;
   min-height: 2.6em;
   margin-bottom: 4px;
@@ -395,7 +415,7 @@ main {
 }
 
 .card .info .meta {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: #8b90a0;
   /* 3 haneli gün rozeti (örn. 296) tek satıra sığsın: kart içinden 8px geri kazan */
   margin: 0 -4px;
@@ -410,7 +430,7 @@ main {
   display: inline-block;
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 600;
   padding: 1px 8px;
   border-radius: 999px;
@@ -466,23 +486,27 @@ main {
 
 .card .info .meta .next-ep {
   color: #22c55e;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   font-weight: 600;
   margin-top: 3px;
 }
 
 .card .info .meta .next-ep .next-ep-days {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
   font-weight: 600;
-  font-size: 0.68rem;
-  border-radius: 999px;
+  font-size: 0.58rem;
+  border-radius: 50%;
   border: 1px solid rgba(34, 197, 94, 0.4);
-  padding: 1px 4px;
+  width: 19px;
+  height: 19px;
   min-width: 19px;
-  text-align: center;
-  line-height: 1.4;
+  padding: 0;
+  line-height: 1;
 }
 
 .card .info .meta .next-ep.anime-ep {
@@ -504,9 +528,9 @@ main {
 }
 
 .season-count-badge,
-.season-line .episode-count {
+.episode-count {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 600;
   padding: 1px 8px;
   border-radius: 999px;
@@ -519,7 +543,7 @@ main {
   border: 1px solid rgba(20, 184, 166, 0.4);
 }
 
-.season-line .episode-count {
+.episode-count {
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
   border: 1px solid rgba(139, 92, 246, 0.4);
@@ -538,12 +562,12 @@ main {
   visibility: hidden;
 }
 /* Desktop dizilimi (601px+; mobil mobil.css'ten, TV tv.css'ten gelir):
-   tüm satır araları 3px, tüm rozetler 0.7rem. */
+   tüm satır araları 3px, tüm rozetler 0.6rem. */
 @media (min-width: 601px) {
   #search-results-modal .card.search-stacked .info .meta .badge,
   #search-results-modal .card.search-stacked .season-count-badge,
-  #search-results-modal .card.search-stacked .season-line .episode-count {
-    font-size: 0.7rem;
+  #search-results-modal .card.search-stacked .episode-count {
+    font-size: 0.6rem;
   }
   #search-results-modal .card.search-stacked .info .meta .badge {
     margin-bottom: 3px;
@@ -566,7 +590,7 @@ main {
     align-items: center;
     gap: 4px;
   }
-  #search-results-modal .card.search-stacked .season-line .episode-count {
+  #search-results-modal .card.search-stacked .episode-count {
     margin-left: 0;
   }
   /* Kişi/yönetmen filmografi kartları: arama kartı rozet diziliminin aynısı */
@@ -574,9 +598,9 @@ main {
   #director-modal .card .info .meta .badge,
   #person-modal .card .season-count-badge,
   #director-modal .card .season-count-badge,
-  #person-modal .card .season-line .episode-count,
-  #director-modal .card .season-line .episode-count {
-    font-size: 0.7rem;
+  #person-modal .card .episode-count,
+  #director-modal .card .episode-count {
+    font-size: 0.6rem;
   }
   #person-modal .card .info .meta .badge,
   #director-modal .card .info .meta .badge {
@@ -603,8 +627,8 @@ main {
     margin-top: 3px;
     min-height: 0;
   }
-  #person-modal .card .season-line .episode-count,
-  #director-modal .card .season-line .episode-count {
+  #person-modal .card .episode-count,
+  #director-modal .card .episode-count {
     margin-left: 0;
   }
 }
@@ -622,6 +646,68 @@ main {
 .card .info .meta .next-ep.today {
   color: #60a5fa;
   font-weight: 700;
+}
+
+/* ————— Poster altı satır şeması —————
+   isim(2 satır) + tür+puan / yayıncı / sezon-bölüm / statü (+ bölüm sayısı).
+   Her satır sabit yükseklik; eksik bilgi görünmez yer tutucu (slot-empty) → kartlar hizalı. */
+.card .info .meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 3px;
+  margin: 0;
+}
+
+.card .info .meta .meta-row,
+.hidden-tile .meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 1.7em;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.card .info .meta .meta-row .badge {
+  margin-bottom: 0;
+}
+
+.card .info .meta .meta-row .badge.badge-platform {
+  margin: 0 auto;
+}
+
+.card .info .meta .meta-row .next-ep,
+.card .info .meta .meta-row .season-line {
+  margin-top: 0;
+}
+
+.card .info .meta .slot-empty,
+.hidden-tile .slot-empty {
+  visibility: hidden;
+}
+
+.results-modal .card .info .meta {
+  white-space: normal;
+  overflow: visible;
+}
+
+.hidden-tile .meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 8px;
+  font-size: 0.55rem;
+  color: #8b90a0;
+}
+
+.hidden-tile .meta-row .badge,
+.hidden-tile .meta-row .next-ep {
+  font-size: 0.55rem;
 }
 
 .card .remove {
@@ -1765,8 +1851,6 @@ input:-webkit-autofill:focus {
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
 }
 .ask-mark-yes {
   color: #22c55e;
@@ -3850,6 +3934,20 @@ input:-webkit-autofill:focus {
   gap: 8px;
 }
 
+/* Bölüm özeti: dotted çizginin altında, solda — sayı | bölüm | izlenmiş/izlenmemiş saat */
+.section-summary {
+  text-align: left;
+  color: #F97316;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.4;
+  margin: -6px 0 14px;
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .section-refresh {
   background: transparent;
   border: none;
@@ -3903,6 +4001,16 @@ input:-webkit-autofill:focus {
 
 .section-hide:hover {
   color: #FFFFFF;
+}
+
+.section-hide:disabled {
+  opacity: 0.38;
+  cursor: default;
+  color: #6b7280;
+}
+
+.section-hide:disabled:hover {
+  color: #6b7280;
 }
 
 /* Öneri bölüm başlığı: arama / filtre / refresh / gizlenen / taşı okları (sağ küme, 30px eşit aralık; ↑↓ arası hariç) */
@@ -3971,7 +4079,7 @@ input:-webkit-autofill:focus {
 #view-belgesel .unwatched-section-title,
 #view-anime .unwatched-section-title {
   justify-content: flex-start;
-  padding-right: 74px;
+  padding-right: 62px;
 }
 
 #view-dizi .unwatched-section-title > span,
@@ -3992,21 +4100,21 @@ input:-webkit-autofill:focus {
 #view-film .section-search,
 #view-belgesel .section-search,
 #view-anime .section-search {
-  right: 42px;
+  right: 30px;
 }
 
 #view-dizi .follow-sort-wrap,
 #view-film .follow-sort-wrap,
 #view-belgesel .follow-sort-wrap,
 #view-anime .follow-sort-wrap {
-  right: 12px;
+  right: 0;
 }
 
 #view-dizi .rec-search-input,
 #view-film .rec-search-input,
 #view-belgesel .rec-search-input,
 #view-anime .rec-search-input {
-  right: 74px;
+  right: 62px;
 }
 
 #view-dizi > div,
@@ -4168,8 +4276,26 @@ html:not(.is-tv):not(.tv-mode) .rec-search-input {
   padding: 0;
 }
 
-.unwatched-card .next-ep.unwatched-count {
-  color: #f97316;
+.card .info .meta .next-ep.ep-count-line {
+  color: #14b8a6;
+  font-weight: 600;
+}
+
+.card .info .meta .next-ep .ep-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: rgba(20, 184, 166, 0.15);
+  color: #14b8a6;
+  font-weight: 600;
+  font-size: 0.58rem;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  height: 19px;
+  min-width: 19px;
+  padding: 0 5px;
+  line-height: 1;
 }
 
 .releases-table .watch-btn.on {
@@ -4248,6 +4374,121 @@ html:not(.is-tv):not(.tv-mode) .rec-search-input {
 /* Gizlenen öneriler modalı (Faz 18) */
 .hidden-modal {
   max-width: 660px;
+}
+
+/* İstatistik modalı: her tür kendi statik kutusunda, Toplam en altta */
+.stats-modal {
+  max-width: 660px;
+}
+
+#stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+  align-items: stretch;
+  overflow-y: auto;
+}
+
+.stats-loading {
+  text-align: center;
+  padding: 12px;
+  color: #8b90a0;
+}
+
+.stats-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  border: 1px solid #2a2f3d;
+  border-radius: 12px;
+  padding: 14px 12px;
+}
+
+.stats-box-head {
+  color: #F97316;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.stats-box-line {
+  color: #e8eaf0;
+  font-size: 0.8rem;
+}
+
+/* İstatistik modalı genişletmesi: tür kutuları + genel/dağılım 2 sütun grid + bar */
+.stats-kinds {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+.stats-box.stats-mini {
+  padding: 12px;
+  justify-content: center;
+}
+.stats-box.stats-top {
+  justify-content: flex-start;
+}
+.stats-box.stats-barbig .stats-box-line {
+  font-size: 0.8rem;
+}
+.stats-box-lines .stats-box-line {
+  display: flex;
+  align-items: center;
+}
+.genre-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin: 3px 0;
+}
+.g-name {
+  text-align: right;
+  white-space: nowrap;
+  color: #aab;
+}
+.g-sep {
+  color: #f97316;
+  padding: 0 4px;
+}
+.g-time {
+  text-align: left;
+  white-space: nowrap;
+}
+.stats-box.stats-barbig .genre-row {
+  font-size: 0.8rem;
+}
+.stats-kinds > .stats-box:last-child,
+.stats-grid > .stats-box:last-child {
+  grid-column: 1 / -1;
+}
+.stats-mini .stats-box-line {
+  text-align: left;
+  font-size: 0.78rem;
+  word-break: break-word;
+}
+.stats-mini .stats-box-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+@media (max-width: 600px) {
+  .stats-kinds,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hidden-header-actions {
@@ -4391,10 +4632,11 @@ html:not(.is-tv):not(.tv-mode) .rec-search-input {
   font-weight: 600;
   font-size: 0.58rem;
   line-height: 1.25;
-  min-height: 2.5em;
+  min-height: calc(2.5em + 12px);
   /* Iki satira kadar goster, tasma halinde ellipsis */
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: normal;
@@ -4435,7 +4677,7 @@ html:not(.is-tv):not(.tv-mode) .rec-search-input {
   width: 100%;
   overflow: visible;
   white-space: nowrap;
-  margin-bottom: 3px;
+  margin-bottom: 0;
 }
 .hidden-meta-status {
   display: flex;
@@ -4679,6 +4921,177 @@ select#s-email-provider.email-lit {
   background: #f97316;
   color: #fff;
   font-weight: 600;
+}
+
+/* Oneriler beslemesi (feed): ortalanmis iki pulldown + tek izgara (ayarlar
+   dil/tmdb dili pulldown stiliyle birebir). */
+.rec-legacy { display: none !important; }
+.feed-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 6px 0 18px;
+}
+.feed-combo {
+  width: 165px;
+  min-width: 0;
+  max-width: none;
+}
+.feed-select {
+  width: 100%;
+  padding: 12px 30px 12px 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #171a23;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  color-scheme: dark;
+  cursor: pointer;
+  outline: none;
+}
+.feed-select:hover,
+.feed-select:focus {
+  border-color: #f97316;
+  background-color: rgba(249, 115, 22, 0.3);
+}
+.feed-select option {
+  background: #171a23;
+  color: #fff;
+}
+
+/* Masaustu: feed pulldown metin/icerik rengi = navbar buton metin rengi (#aab).
+   Secili/vurgu durumlari (.selected/.hl) kendi renklerini korur. */
+@media (min-width: 1367px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-select { color: #aab; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-select option { color: #aab; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .feed-combo .provider-cell:not(.selected):not(.hl) { color: #aab; }
+}
+
+/* Feed basligi: 4 kontrol yatay cizginin en sagina yanasik; arama input'u
+   simgenin hemen solunda kalir (>=601px; mobilde mevcut sag dayali konum korunur). */
+#view-recommend #feed-header .section-search    { right: 90px; }
+#view-recommend #feed-header .section-sort-wrap { right: 60px; }
+#view-recommend #feed-header .section-refresh   { right: 30px; }
+#view-recommend #feed-header .section-hide      { right: 0; }
+#view-recommend #feed-header .rec-sort-menu     { left: auto; right: 0; transform: none; }
+@media (min-width: 601px) {
+  #view-recommend #feed-header .rec-search-input { right: 120px; }
+}
+/* Feed başlığı: kart/satır geçiş ikonu filtre ile refresh arasında */
+#view-recommend #feed-header .section-view-toggle { right: 60px; }
+#view-recommend #feed-header .section-sort-wrap { right: 90px; }
+#view-recommend #feed-header .section-search { right: 120px; }
+@media (min-width: 601px) {
+  #view-recommend #feed-header .rec-search-input { right: 150px; }
+}
+
+/* Feed pulldown'lari (>=601px): navbar medya butonu (.tab) yuksekligi ~36px
+   (padding 8px dikey; font zaten 0.95rem). */
+#view-recommend .feed-select { padding-top: 8px; padding-bottom: 8px; }
+
+/* Feed haftalik zamanlama akordeonu (Guncelleme Saatleri modalinda altta) */
+.feed-schedule-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  font-weight: 500;
+  color: #aab;
+  font-size: 0.9rem;
+}
+.feed-schedule-block {
+  border: 1px solid #2a2f3d;
+  border-radius: 10px;
+  overflow: visible;
+  background: #151821;
+}
+.feed-schedule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: #171a23;
+  border: none;
+  border-top-left-radius: 9px;
+  border-top-right-radius: 9px;
+  color: #e5e9f0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+}
+.feed-schedule-toggle i {
+  transition: transform 0.2s ease;
+}
+.feed-schedule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+.feed-sched-row {
+  display: grid;
+  grid-template-columns: 1fr 150px 120px;
+  gap: 8px;
+  align-items: center;
+}
+.feed-sched-name {
+  font-size: 0.85rem;
+  color: #cfd3dd;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-sched-day {
+  min-width: 0;
+}
+.feed-sched-day .feed-select {
+  padding: 0 30px 0 10px;
+  font-size: 0.85rem;
+  height: 34px;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #171a23;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+.feed-sched-time {
+  min-width: 0;
+}
+.feed-sched-time input {
+  width: 100%;
+  height: 34px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.feed-sched-time .time-list {
+  left: 0;
+  right: 0;
+  width: auto;
+  gap: 1ch;
+}
+.feed-sched-time .time-col {
+  flex: 1 1 0;
+}
+.feed-sched-time .time-cell {
+  padding: 3px 6px;
 }
 
 /* dil listesi 14 satir: modal JS ile uzudugu icin tamami sigar */
@@ -5238,3 +5651,436 @@ body.logged-out main { padding: 0; }
     top: calc(100% + 11px);
   }
 }
+
+/* Sonuç kartları (arama/çoklu arama/kişi/yönetmen/favoriler): "tip·puan" satırının
+   hemen altında "Vizyon/Yayın Tarihi" satırı — satır arası boşluk yok. Boş satırlar
+   görünmez yer tutucu olarak kalır (kart yükseklikleri hizalı). */
+#search-results-modal .card .info .meta,
+#person-modal .card .info .meta,
+#director-modal .card .info .meta,
+#fav-listing-modal .card .info .meta {
+  gap: 0 !important;
+}
+#search-results-modal .card .info .meta .meta-row .badge,
+#person-modal .card .info .meta .meta-row .badge,
+#director-modal .card .info .meta .meta-row .badge,
+#fav-listing-modal .card .info .meta .meta-row .badge {
+  margin-bottom: 0 !important;
+}
+#search-results-modal .card .info .meta .meta-row .next-ep,
+#person-modal .card .info .meta .meta-row .next-ep,
+#director-modal .card .info .meta .meta-row .next-ep,
+#fav-listing-modal .card .info .meta .meta-row .next-ep {
+  margin-top: 0 !important;
+}
+
+/* Bilgi modalı etiket satır yapısı: tip(+sezon/bölüm) · [boşluk] · tarih(+süre) ·
+   statü · [boşluk] · türler. */
+.details-meta {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.details-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+.details-meta-row + .details-meta-row { margin-top: 8px; }
+.details-meta .db-type.db-tv { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: rgba(59, 130, 246, 0.4); }
+.details-meta .db-type.db-movie { background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.4); }
+.details-meta .db-type.db-belgesel { background: rgba(141, 219, 7, 0.15); color: #d9f99d; border-color: rgba(141, 219, 7, 0.4); }
+.details-meta .db-type.db-anime { background: rgba(236, 72, 153, 0.15); color: #f472b6; border-color: rgba(236, 72, 153, 0.4); }
+.details-meta .db-season { background: rgba(20, 184, 166, 0.15); color: #14b8a6; border-color: rgba(20, 184, 166, 0.4); }
+.details-meta .db-episode { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4); }
+.details-meta .db-date { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
+.details-meta .db-status-returning { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.4); }
+.details-meta .db-status-ended { background: rgba(148, 163, 184, 0.18); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.4); }
+.details-meta .db-status-canceled { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
+
+/* İzleme Geçmişi modalı: yıl/ay/gün kutuları + takvim + rozet + tooltip + export */
+.history-modal {
+  max-width: 720px;
+}
+.history-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.history-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: center;
+}
+.history-num-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.history-num-label {
+  font-size: 0.7rem;
+  color: #8b90a0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.history-num-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.history-arrow {
+  background: none;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 6px 7px;
+  font-size: 0.75rem;
+  line-height: 1;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+.history-arrow:hover {
+  color: #f97316;
+}
+.history-num-row input {
+  width: 70px;
+  text-align: center;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 4px;
+  font-size: 0.8rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.history-num-row input:hover,
+.history-num-row input:focus {
+  border-color: #f97316;
+}
+.history-cal-wrap {
+  position: relative;
+  background: #171a23;
+  border: 1px solid #262a36;
+  border-radius: 12px;
+  padding: 10px;
+}
+.history-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.history-cell {
+  aspect-ratio: 1;
+  background: #1e2230;
+  border: 1px solid #262a36;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 2px;
+  box-sizing: border-box;
+  gap: 4px;
+}
+.history-cell:hover {
+  border-color: #f97316;
+}
+.history-cell.has {
+  border: 1px dotted #f97316;
+}
+.history-cell.blank {
+  background: transparent;
+  border: none;
+}
+.history-cell.selected {
+  outline: 2px solid #f97316;
+  outline-offset: -2px;
+}
+.history-cell-day {
+  color: #e8eaf0;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.history-cell.has .history-cell-day {
+  color: #fff;
+}
+.history-badge {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0c0f16;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 0 4px;
+  box-sizing: border-box;
+  margin-top: auto;
+}
+.history-tooltip {
+  position: absolute;
+  z-index: 60;
+  background: #1e2230;
+  border: 1px solid #3a4050;
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  min-width: 220px;
+  max-width: 340px;
+  pointer-events: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+.history-tip-row {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  padding: 2px 0;
+}
+.history-tip-row + .history-tip-row {
+  border-top: 1px dotted #f97316;
+  margin-top: 2px;
+  padding-top: 4px;
+}
+.history-tip-row.marked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.history-tip-marked-text {
+  color: #9ca3af;
+  font-style: italic;
+}
+.history-marked-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+.history-marked-badge svg {
+  width: 8px;
+  height: 8px;
+  stroke-width: 3;
+}
+.history-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.history-export-btn {
+  background: transparent;
+  border: 1px solid #2a2f3d;
+  color: #e8eaf0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.history-export-btn:hover {
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #fff;
+}
+.details-meta .db-status-upcoming { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border-color: rgba(251, 191, 36, 0.4); }
+
+/* Takvim erişimi kısıtlı (takip edilmeden): tablo butonu görünür ama soluk.
+   pointer-events bırakılır ki data-tip tooltip'i hover'da gösterilebilsin. */
+#details-calendar:disabled,
+#details-calendar.disabled,
+.calendar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Satır/Kart görünümü geçişi (rowview.js) ===== */
+.section-view-toggle {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  position: absolute;
+  transform: translateY(-50%);
+  top: 40%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+.section-view-toggle:hover { color: #FFFFFF; }
+.section-view-toggle:focus,
+.section-view-toggle:focus-visible { outline: 1px solid #f97316; outline-offset: 1px; border-radius: 4px; }
+
+/* Dizi/Film/Belgesel/Anime: toggle en sağda, filtre onun solunda */
+#view-dizi .section-view-toggle,
+#view-film .section-view-toggle,
+#view-belgesel .section-view-toggle,
+#view-anime .section-view-toggle { right: 0; }
+#view-dizi .section-search, #view-film .section-search,
+#view-belgesel .section-search, #view-anime .section-search { right: 60px; }
+#view-dizi .follow-sort-wrap, #view-film .follow-sort-wrap,
+#view-belgesel .follow-sort-wrap, #view-anime .follow-sort-wrap { right: 30px; }
+#view-dizi .rec-search-input, #view-film .rec-search-input,
+#view-belgesel .rec-search-input, #view-anime .rec-search-input { right: 92px; }
+#view-dizi .unwatched-section-title, #view-film .unwatched-section-title,
+#view-belgesel .unwatched-section-title, #view-anime .unwatched-section-title { padding-right: 92px; }
+
+/* İzlenmiş/İzlenmemiş: toggle filtrenin sağında, taşı okları en sağda kalır */
+#view-unwatched .section-view-toggle,
+#view-watched .section-view-toggle { right: 52px; }
+#view-unwatched .section-search, #view-watched .section-search { right: 112px; }
+#view-unwatched .follow-sort-wrap, #view-watched .follow-sort-wrap { right: 82px; }
+#view-unwatched .rec-search-input, #view-watched .rec-search-input { right: 142px; }
+#view-unwatched .unwatched-section-title,
+#view-watched .unwatched-section-title { padding-right: 142px; }
+
+/* Öneri bölümleri: toggle filtrenin sağında */
+#view-recommend .unwatched-section-title .section-view-toggle { right: 112px; }
+#view-recommend .unwatched-section-title .section-search { right: 172px; }
+#view-recommend .unwatched-section-title .section-sort-wrap { right: 142px; }
+#view-recommend .unwatched-section-title { padding-right: 196px; }
+
+/* Satır düzeni — dinamik (auto) sütunlar: display:table */
+.row-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.poster-grid.row-mode { display: table; width: 100%; table-layout: auto; font-size: 0.8rem; }
+.poster-grid.row-mode .card {
+  display: table-row;
+  background: transparent;
+  border: none;
+  padding: 0;
+  overflow: visible;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.poster-grid.row-mode .card:hover { transform: none !important; box-shadow: none !important; }
+.poster-grid.row-mode .card.wrow-has-preview { z-index: 50; }
+.poster-grid.row-mode .card .poster-wrap { display: none; }
+.poster-grid.row-mode .card .info { display: contents; }
+/* Hücreler */
+.poster-grid.row-mode .wcell {
+  display: table-cell;
+  vertical-align: bottom;
+  white-space: nowrap;
+  padding: 6px 0;
+  border-bottom: 1px solid #262a36;
+  color: #8b90a0;
+  font-size: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+.poster-grid.row-mode .wcell + .wcell:not(.wc-spacer):not(.wc-actions)::before { content: "|"; color: #f97316; margin: 0 8px; font-weight: 400; }
+.poster-grid.row-mode .wcell.is-empty::before { content: none; }
+.poster-grid.row-mode .wcell.wc-spacer { width: 100%; border-bottom: none; padding: 0; }
+.poster-grid.row-mode .wc-title { color: #e8eaf0; }
+.poster-grid.row-mode .wc-title .wclip { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poster-grid.row-mode .wtype-tv { color: #60a5fa; }
+.poster-grid.row-mode .wtype-movie { color: #22c55e; }
+.poster-grid.row-mode .wtype-anime { color: #f472b6; }
+.poster-grid.row-mode .wtype-doc { color: #d9f99d; }
+.poster-grid.row-mode .wc-score { color: #f97316; }
+.poster-grid.row-mode .wc-net { color: #d4a017; }
+.poster-grid.row-mode .wc-season { color: #14b8a6; }
+.poster-grid.row-mode .wc-episode { color: #a78bfa; }
+.poster-grid.row-mode .wc-status { color: #22c55e; }
+.poster-grid.row-mode .wc-count { color: #14b8a6; }
+.poster-grid.row-mode .wc-date, .poster-grid.row-mode .wc-mid { color: #8b90a0; }
+/* Aksiyonlar: tek hücre, sağa hizalı, metin boyutunda ikonlar */
+.poster-grid.row-mode .wcell.wc-actions {
+  width: 100%;
+  text-align: right;
+  white-space: nowrap;
+  padding: 0;
+  border-bottom: 1px solid #262a36;
+  vertical-align: middle;
+}
+.poster-grid.row-mode .wc-actions > button {
+  display: inline-flex !important;
+  position: static;
+  transform: none;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.7em;
+  height: 1.7em;
+  min-width: 0;
+  margin: -0.45em 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  border-radius: 50%;
+  vertical-align: middle;
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 1;
+}
+.poster-grid.row-mode .wc-asep {
+  display: inline-flex;
+  align-items: center;
+  color: #f97316;
+  margin: 0 7px;
+  font-size: 1em;
+  font-weight: 400;
+  vertical-align: middle;
+}
+.poster-grid.row-mode .wc-slot-empty {
+  display: inline-flex;
+  width: 1.7em;
+  height: 1.7em;
+  margin: -0.45em 0;
+  visibility: hidden;
+  vertical-align: middle;
+}
+.poster-grid.row-mode .wc-actions > .calendar-btn { color: #7dd3fc; }
+.poster-grid.row-mode .wc-actions > .move-btn,
+.poster-grid.row-mode .wc-actions > .move-back-btn { color: #e879f9; }
+.poster-grid.row-mode .wc-actions > .hide-btn { color: #f87171; }
+.poster-grid.row-mode .wc-actions > .remove { color: #ff5f57; }
+.poster-grid.row-mode .wc-actions > .calendar-btn svg { width: 1em; height: 1em; }
+.poster-grid.row-mode .wc-actions > .move-btn i,
+.poster-grid.row-mode .wc-actions > .move-back-btn i,
+.poster-grid.row-mode .wc-actions > .hide-btn i { font-size: 1em; }
+/* Odak çerçevesi (TV/klavye) */
+.poster-grid.row-mode .card .wc-title:focus,
+.poster-grid.row-mode .card .wc-title:focus-visible,
+.poster-grid.row-mode .wc-actions > button:focus {
+  outline: 1px solid #f97316;
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+/* Poster önizlemesi (~%50) */
+.wrow-poster {
+  position: fixed;
+  transform: translateY(-50%);
+  width: 85px;
+  aspect-ratio: 2/3;
+  border: 1px solid #3a4050;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #171a23;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  pointer-events: none;
+}
+.wrow-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -1,9 +1,9 @@
 // asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
-import { t, errText } from "./i18n.js?v=513";
-import { escAttr, toast, CHECK_SVG } from "./utils.js";
-import { closeMenu as closeNotifMenu } from "./notification.js?v=517";
-import { openAskClearConfirm } from "./components.js?v=508";
+import { t, errText } from "./i18n.js?v=520";
+import { escAttr, toast, CHECK_SVG } from "./utils.js?v=516";
+import { closeMenu as closeNotifMenu } from "./notification.js?v=527";
+import { openAskClearConfirm } from "./components.js?v=519";
 
 let askEnabled = true;
 let askTimer = null;
@@ -63,7 +63,7 @@ function stopAskPolling() {
 function startAskPolling() {
   stopAskPolling();
   fetchAskCount();
-  askTimer = setInterval(fetchAskCount, 60000);
+  askTimer = setInterval(fetchAskCount, 30000);
 }
 
 function applyAskBeforeWatchedUi() {
@@ -206,6 +206,14 @@ function init() {
   window.addEventListener("resize", () => {
     if (askMenuOpen()) alignAskMenu();
   });
+  // Sekmeye donunce/odaklaninca rozeti (ve acik panel listesini) aninda tazele
+  const refreshOnReturn = () => {
+    if (document.hidden || !askEnabled) return;
+    fetchAskCount();
+    if (askMenuOpen()) fetchAskList();
+  };
+  document.addEventListener("visibilitychange", refreshOnReturn);
+  window.addEventListener("focus", refreshOnReturn);
   refreshAskEnabled();
 }
 

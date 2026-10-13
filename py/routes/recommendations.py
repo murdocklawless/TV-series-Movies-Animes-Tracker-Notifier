@@ -19,8 +19,9 @@ from recommendations import (
 )
 from tmdb import get_tmdb_info, get_tmdb_cast, get_tmdb_credits, save_details, tmdb_request
 from anilist import anilist_detail, _anime_title, _anime_cover, save_anime_details, anilist_schedule
-from scheduler import sync_episodes
+from scheduler import sync_episodes, save_watch_snapshot
 from poster_store import download_tmdb_poster_with_sizes
+from feed import generate_feed, feed_last_run, feed_next_run, FEED_SOURCES
 
 recommendations_bp = Blueprint("recommendations", __name__)
 
@@ -103,14 +104,43 @@ def recommendations():
     return cached_response(payload, not any_miss)
 
 
+@recommendations_bp.route("/api/recommendations/feed")
+def recommendations_feed():
+    """Secilen medya + kaynak icin 18 kartlik besleme (takipte/izlenmis ve
+    gizlenenler dislanir). media=dizi|film|belgesel|anime, source=FEED_SOURCES."""
+    media = (request.args.get("media") or "dizi").strip()
+    source = (request.args.get("source") or "trend").strip()
+    if media not in _MEDIA_KINDS or media == "all":
+        return jsonify({"error": "Gecersiz media parametresi"}), 400
+    if source not in FEED_SOURCES:
+        return jsonify({"error": "Gecersiz source parametresi"}), 400
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+    conn = get_db()
+    try:
+        items = generate_feed(conn, media, source, user_id=_uid(), force=refresh)
+    finally:
+        conn.close()
+    return jsonify({
+        "media": media,
+        "source": source,
+        "items": items,
+        "updated_at": feed_last_run(source),
+        "next_update": feed_next_run(source),
+    })
+
+
 @recommendations_bp.route("/api/recommendations/hide", methods=["POST"])
 def rec_hide():
     """'Bir daha gösterme': öneriyi kalıcı olarak gizler + payload'dan cerrahi
     çıkarır. Body: {tmdb_id+media_type} veya {anilist_id} (+title, poster_path,
     vote_average/score, release_date, networks, studios, tv_status)."""
     body = request.get_json(silent=True) or {}
-    if body.get("kind") == "docs" and body.get("tmdb_id"):
-        kind, ident = "docs", body.get("tmdb_id")
+    kind, ident = None, None
+    kind_hint = body.get("kind")
+    if kind_hint in ("shows", "movies", "docs") and body.get("tmdb_id"):
+        kind, ident = kind_hint, body.get("tmdb_id")
+    elif kind_hint == "anime" and body.get("anilist_id"):
+        kind, ident = "anime", body.get("anilist_id")
     elif body.get("anilist_id"):
         kind, ident = "anime", body.get("anilist_id")
     else:
@@ -201,6 +231,20 @@ def rec_move_watched():
                         "ON CONFLICT(anime_id, episode) DO UPDATE SET air_at=excluded.air_at",
                         (anime_db_id, node.get("episode"), node.get("airingAt")),
                     )
+            try:
+                _arows = conn.execute(
+                    "SELECT episode FROM anime_episodes WHERE anime_id=? AND watched=0", (anime_db_id,)
+                ).fetchall()
+                _auto = [r["episode"] for r in _arows]
+            except Exception:
+                _auto = []
+            if _auto:
+                save_watch_snapshot(conn, uid, "anime", anime_db_id, _auto)
+                import time as _t
+                conn.execute(
+                    "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
+                    (uid, "anime", anime_db_id, None, int(_t.time())),
+                )
             conn.execute("UPDATE anime_episodes SET watched=1 WHERE anime_id=?", (anime_db_id,))
             conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (anime_db_id,))
         else:
@@ -252,10 +296,29 @@ def rec_move_watched():
                     nf = conn.execute("SELECT * FROM followed WHERE id=?", (follow_id,)).fetchone()
                     sync_episodes(conn, nf)
             if media_type == "movie":
+                _f = conn.execute("SELECT watched FROM followed WHERE id=?", (follow_id,)).fetchone()
+                _fw = int(_f["watched"] or 0) if _f else 0
+                if _fw != 1:
+                    save_watch_snapshot(conn, uid, "movie", follow_id, ["1"])
                 conn.execute("UPDATE followed SET watched=1, in_watched=1 WHERE id=?", (follow_id,))
             else:
                 import time as _t
-                conn.execute("UPDATE episodes SET watched=1, watched_at=? WHERE follow_id=?", (int(_t.time()), follow_id,))
+                try:
+                    _trows = conn.execute(
+                        "SELECT season, episode FROM episodes WHERE follow_id=? AND watched=0", (follow_id,)
+                    ).fetchall()
+                    _tauto = [[r["season"], r["episode"]] for r in _trows]
+                except Exception:
+                    _tauto = []
+                if _tauto:
+                    save_watch_snapshot(conn, uid, "tv", follow_id, _tauto)
+                    _now = int(_t.time())
+                    for sn in sorted({int(s) for s, _e in _tauto if s is not None}):
+                        conn.execute(
+                            "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
+                            (uid, "tv", follow_id, sn, _now),
+                        )
+                conn.execute("UPDATE episodes SET watched=1 WHERE follow_id=? AND watched=0", (follow_id,))
                 conn.execute("UPDATE followed SET in_watched=1 WHERE id=?", (follow_id,))
         if body.get("anilist_id"):
             rec_kind, ident = "anime", body.get("anilist_id")

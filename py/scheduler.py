@@ -357,11 +357,15 @@ def _fetch_show_bundle(tmdb_id, extra_titles=()):
     return {"seasons": seasons, "tvmaze_times": tvmaze_times}
 
 
-def _write_episodes(conn, follow_id, bundle):
-    """Bölüm satırlarını tek follow_id'ye yazar. Upsert yalnız tarih/saat/ad
-    yazar — watched/notified dahil kullanıcı verilerine DOKUNULMAZ."""
+def _write_episodes(conn, follow, bundle):
+    """Bölüm satırlarını tek follow_id'ye yazar. Upsert yalnız tarih/saat/ad/süre
+    yazar — watched/notified dahil kullanıcı verilerine DOKUNULMAZ.
+    Per-bölüm runtime kaydedilir; show runtime NULL ise ilk mevcut bölüm
+    süresi ile doldurulur (COALESCE fallback'i için)."""
+    follow_id = follow["id"]
     seasons = bundle.get("seasons") or {}
     tvmaze_times = bundle.get("tvmaze_times")
+    hint = None
     for season_number, season_data in seasons.items():
         for ep in season_data.get("episodes", []):
             ep_num = ep.get("episode_number")
@@ -369,6 +373,9 @@ def _write_episodes(conn, follow_id, bundle):
             if not air_date:
                 continue
             ep_name = ep.get("name") or ""
+            ep_runtime = ep.get("runtime")
+            if ep_runtime:
+                hint = hint or ep_runtime
             air_time = None
             if tvmaze_times is not None:
                 air_time = tvmaze_times.get((season_number, ep_num))
@@ -380,12 +387,48 @@ def _write_episodes(conn, follow_id, bundle):
                 except (ValueError, OSError, OverflowError):
                     air_date = ep.get("air_date")
             conn.execute(
-                "INSERT INTO episodes (follow_id, season, episode, air_date, air_time, name) "
-                "VALUES (?, ?, ?, ?, ?, ?) "
+                "INSERT INTO episodes (follow_id, season, episode, air_date, air_time, name, runtime) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(follow_id, season, episode) "
-                "DO UPDATE SET air_date=excluded.air_date, air_time=excluded.air_time, name=excluded.name",
-                (follow_id, season_number, ep_num, air_date, air_time, ep_name),
+                "DO UPDATE SET air_date=excluded.air_date, air_time=excluded.air_time, "
+                "name=excluded.name, runtime=excluded.runtime",
+                (follow_id, season_number, ep_num, air_date, air_time, ep_name, ep_runtime),
             )
+    try:
+        cur_rt = follow["runtime"] if ("runtime" in follow.keys()) else None
+    except Exception:
+        cur_rt = None
+    if hint and not cur_rt:
+        try:
+            conn.execute("UPDATE followed SET runtime=? WHERE id=? AND runtime IS NULL", (hint, follow_id))
+        except Exception:
+            pass
+
+
+def save_watch_snapshot(conn, uid, kind, ident, payload_items):
+    """Taşınırken otomatik işaretlenen bölümlerin kaydı (geri taşımada restore)."""
+    conn.execute(
+        "INSERT OR REPLACE INTO watched_snapshot (user_id, kind, ident, payload) VALUES (?, ?, ?, ?)",
+        (uid, kind, ident, json.dumps(payload_items)),
+    )
+
+
+def pop_watch_snapshot(conn, uid, kind, ident):
+    """Snapshot'ı okuyup siler; kayıt yoksa None döner."""
+    row = conn.execute(
+        "SELECT payload FROM watched_snapshot WHERE user_id=? AND kind=? AND ident=?",
+        (uid, kind, ident),
+    ).fetchone()
+    if row is None:
+        return None
+    conn.execute(
+        "DELETE FROM watched_snapshot WHERE user_id=? AND kind=? AND ident=?",
+        (uid, kind, ident),
+    )
+    try:
+        return json.loads(row["payload"])
+    except (ValueError, TypeError):
+        return None
 
 
 def sync_episodes(conn, follow):
@@ -398,7 +441,7 @@ def sync_episodes(conn, follow):
         return
     if not bundle:
         return
-    _write_episodes(conn, follow["id"], bundle)
+    _write_episodes(conn, follow, bundle)
     conn.commit()
 
 
@@ -421,7 +464,7 @@ def sync_episodes_multi(conn, follows):
             continue
         for r in rows:
             try:
-                _write_episodes(conn, r["id"], bundle)
+                _write_episodes(conn, r, bundle)
             except Exception:
                 continue
     conn.commit()
@@ -1084,6 +1127,16 @@ def refresh_recommendations_job():
         print("rec refresh failed:", e, flush=True)
 
 
+def feed_refresh_job(source):
+    """Oneriler beslemesi: bir kaynagin ham cache'lerini tazeler (fail-soft)."""
+    try:
+        from feed import refresh_feed_source
+        refresh_feed_source(source)
+        print(f"feed refresh tamam ({source})", flush=True)
+    except Exception as e:
+        print(f"feed refresh failed ({source}): {e}", flush=True)
+
+
 def refresh_fav_listings_job():
     """Favori oyuncu/tur listelerini guncelle (fail-soft, rec_hour ile ayni saatte)."""
     try:
@@ -1398,7 +1451,7 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
-    # Öneriler: bağımsız saat (rec_hour), yoksa data_hour+15 fallback
+    # Öneriler bölümü rotasyonu kaldırıldı (yerini feed aldı); rec_hour yalnız fav için.
     rec_raw = get_setting("rec_hour")
     if rec_raw:
         rec_h, rec_m = parse_notify_hour(rec_raw)
@@ -1408,15 +1461,6 @@ def schedule_releases():
         rec_m = total_min % 60
     if SCHEDULER.get_job("rec_refresh"):
         SCHEDULER.remove_job("rec_refresh")
-    SCHEDULER.add_job(
-        refresh_recommendations_job,
-        "cron",
-        hour=rec_h,
-        minute=rec_m,
-        timezone=tz,
-        id="rec_refresh",
-        misfire_grace_time=3600,
-    )
     if SCHEDULER.get_job("fav_refresh"):
         SCHEDULER.remove_job("fav_refresh")
     SCHEDULER.add_job(
@@ -1428,6 +1472,33 @@ def schedule_releases():
         id="fav_refresh",
         misfire_grace_time=3600,
     )
+
+    # Öneriler beslemesi (feed): kaynak başına haftalık gün + saat
+    try:
+        from feed import get_feed_schedule
+        feed_sched = get_feed_schedule()
+    except Exception:
+        feed_sched = {}
+    for _src, _cfg in feed_sched.items():
+        _jid = f"feed_refresh_{_src}"
+        if SCHEDULER.get_job(_jid):
+            SCHEDULER.remove_job(_jid)
+        try:
+            _fh, _fm = parse_notify_hour((_cfg or {}).get("time") or "04:00")
+            SCHEDULER.add_job(
+                feed_refresh_job,
+                "cron",
+                day_of_week=int((_cfg or {}).get("dow", 0)) % 7,
+                hour=_fh,
+                minute=_fm,
+                timezone=tz,
+                args=[_src],
+                id=_jid,
+                misfire_grace_time=3600,
+            )
+        except Exception:
+            pass
+
 
     # Faz 32c: kisisel Bildirim Saati — uye basina tek cron, tam dakikasinda.
     # Eski global job'lar (release_check/notification_check/anime_check/ticker) emekli.
@@ -1539,6 +1610,11 @@ def schedule_releases():
         pass
     try:
         print("next fav refresh:", SCHEDULER.get_job("fav_refresh").next_run_time, flush=True)
+    except Exception:
+        pass
+    try:
+        _fjobs = sorted(j.id for j in SCHEDULER.get_jobs() if (j.id or "").startswith("feed_refresh_"))
+        print(f"feed refresh jobs ({len(_fjobs)}):", _fjobs, flush=True)
     except Exception:
         pass
     try:
