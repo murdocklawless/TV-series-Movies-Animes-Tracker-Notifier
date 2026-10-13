@@ -10,8 +10,8 @@ import "./notification.js?v=527";
 import "./asks.js?v=528";
 import "./stats.js?v=535";
   import "./history.js?v=542";
-  import "./tv.js?v=521";
-  import "./rowview.js?v=8";
+  import "./tv.js?v=522";
+  import "./rowview.js?v=10";
 import { bootAuth } from "./auth.js?v=515";
 
 // ---- Ba�lang�� g�r�n�m� (son se�ilen sekmeyi geri y�kle) ----

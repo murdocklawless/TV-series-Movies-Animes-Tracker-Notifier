@@ -411,7 +411,7 @@ function rectT(el){ return rectOf(el).top; }
 
 const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-stats,#tab-history,#tab-search,#tab-settings,#tab-exit,#search-close';
 const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn,.defer-btn';
-const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
+const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-view-toggle, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
 function isCard(el){ return !!(el && el.classList && el.classList.contains('card')); }
 function cardButtons(card){

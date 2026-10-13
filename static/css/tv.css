@@ -845,7 +845,7 @@ html.is-tv #view-recommend .unwatched-section-title .section-view-toggle, html.t
 html.is-tv #view-recommend .unwatched-section-title .section-search, html.tv-mode #view-recommend .unwatched-section-title .section-search { right: calc(172px * var(--tv-scale)); }
 html.is-tv #view-recommend .unwatched-section-title .section-sort-wrap, html.tv-mode #view-recommend .unwatched-section-title .section-sort-wrap { right: calc(142px * var(--tv-scale)); }
 /* Satır modu (TV) */
-html.is-tv .wrow-poster, html.tv-mode .wrow-poster { width: calc(60px * var(--tv-scale)); }
+html.is-tv .wrow-poster, html.tv-mode .wrow-poster { width: calc(83px * var(--tv-scale)); }
 html.is-tv .poster-grid.row-mode, html.tv-mode .poster-grid.row-mode { font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .poster-grid.row-mode .wrow-days, html.tv-mode .poster-grid.row-mode .wrow-days { font-size: calc(0.6rem * var(--tv-scale)); }
 html.is-tv #view-recommend #feed-header .section-search, html.tv-mode #view-recommend #feed-header .section-search { right: calc(90px * var(--tv-scale)); }

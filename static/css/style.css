@@ -5972,7 +5972,10 @@ body.logged-out main { padding: 0; }
   transform: none !important;
   box-shadow: none !important;
 }
-.poster-grid.row-mode .card:hover { transform: none !important; box-shadow: none !important; }
+.poster-grid.row-mode .card:hover,
+.poster-grid.row-mode .card:focus-within { background: #171a23; transform: none !important; box-shadow: none !important; }
+.poster-grid.row-mode .card:hover .wcell,
+.poster-grid.row-mode .card:focus-within .wcell { background: #171a23; }
 .poster-grid.row-mode .card.wrow-has-preview { z-index: 50; }
 .poster-grid.row-mode .card .poster-wrap { display: none; }
 .poster-grid.row-mode .card .info { display: contents; }
@@ -5992,6 +5995,14 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wcell.is-empty::before { content: none; }
 .poster-grid.row-mode .wcell.wc-spacer { width: 100%; border-bottom: none; padding: 0; }
 .poster-grid.row-mode .wc-title { color: #e8eaf0; }
+/* .title sinifi (arama icin) platformlarin kart-basligi kurallarini tetiklemesin:
+   satir fontu/line-height'i ile ayni olsun (mobil/tablet/TV kucultmesini ezer) */
+.poster-grid.row-mode .card .info .wc-title.title {
+  font-size: inherit;
+  line-height: inherit;
+  min-height: 0;
+  margin: 0;
+}
 .poster-grid.row-mode .wc-title .wclip { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .poster-grid.row-mode .wtype-tv { color: #60a5fa; }
 .poster-grid.row-mode .wtype-movie { color: #22c55e; }
@@ -6081,13 +6092,16 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-actions > .remove { color: #ff5f57; }
 .poster-grid.row-mode .wc-actions > .defer-btn { color: #f87171; }
 .poster-grid.row-mode .wc-actions > .defer-btn.active { color: #22c55e; }
+.poster-grid.row-mode .wc-actions > .info-btn { color: #e879f9; }
 .poster-grid.row-mode .wc-actions > .calendar-btn svg,
-.poster-grid.row-mode .wc-actions > .defer-btn svg { width: 1em; height: 1em; }
+.poster-grid.row-mode .wc-actions > .defer-btn svg,
+.poster-grid.row-mode .wc-actions > .info-btn svg { width: 1em; height: 1em; }
 .poster-grid.row-mode .wc-actions > .move-btn i,
 .poster-grid.row-mode .wc-actions > .move-back-btn i,
 .poster-grid.row-mode .wc-actions > .hide-btn i { font-size: 1em; }
 /* Hover (kart ile birebir) */
 .poster-grid.row-mode .wc-actions > .calendar-btn:hover { color: #bae6fd; }
+.poster-grid.row-mode .wc-actions > .info-btn:hover { color: #f0abfc; }
 .poster-grid.row-mode .wc-actions > .move-btn:hover,
 .poster-grid.row-mode .wc-actions > .move-back-btn:hover { color: #f0abfc; }
 .poster-grid.row-mode .wc-actions > .hide-btn:hover { color: #fca5a5; }
@@ -6106,7 +6120,7 @@ body.logged-out main { padding: 0; }
 .wrow-poster {
   position: fixed;
   transform: translateY(-50%);
-  width: 85px;
+  width: 120px;
   aspect-ratio: 2/3;
   border: 1px solid #3a4050;
   border-radius: 4px;

@@ -116,7 +116,7 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
   }
 
   html:not(.is-tv):not(.tv-mode) .wrow-poster {
-    width: 60px;
+    width: 84px;
   }
 
   html:not(.is-tv):not(.tv-mode) .person-grid .card {

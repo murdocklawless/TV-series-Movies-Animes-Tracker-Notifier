@@ -10,7 +10,7 @@ const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" st
 const ROW_TOOLTIP = { tr: "Satır görünümü", en: "Row view", de: "Zeilenansicht", fr: "Vue lignes", es: "Vista de filas", it: "Vista righe", ru: "Список", ar: "عرض الصفوف", pt: "Vista em linhas", nl: "Rijenweergave", pl: "Widok wierszy", ja: "行表示", ko: "행 보기", zh: "列表视图" };
 const CARD_TOOLTIP = { tr: "Kart görünümü", en: "Card view", de: "Kartenansicht", fr: "Vue cartes", es: "Vista de tarjetas", it: "Vista schede", ru: "Сетка", ar: "عرض البطاقات", pt: "Vista em cartões", nl: "Kaartweergave", pl: "Widok kart", ja: "カード表示", ko: "카드 보기", zh: "卡片视图" };
 
-const BTN_SEL = ".calendar-btn, .move-btn, .move-back-btn, .hide-btn, .remove, .defer-btn";
+const BTN_SEL = ".calendar-btn, .info-btn, .move-btn, .move-back-btn, .hide-btn, .remove, .defer-btn";
 const hoverFine = !!(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches);
 
 function tr(map) {
@@ -139,7 +139,8 @@ function keptKeys(datas, kind) {
 
 // ---- Satır modu: orijinale dön / yeniden kur -----------------------------------
 function cardButtons(card) {
-  return Array.from(card.querySelectorAll(BTN_SEL));
+  const tv = isTvMode();
+  return Array.from(card.querySelectorAll(BTN_SEL)).filter((b) => tv || !b.classList.contains("info-btn"));
 }
 function restoreCard(card) {
   const info = card.querySelector(".info");
@@ -177,13 +178,14 @@ function buildCard(card, kind, d, kept, section) {
   if (title) { try { if (isTvMode()) title.tabIndex = 0; } catch (_) {} }
 }
 
-const SLOT_SEL = { calendar: ".calendar-btn", defer: ".defer-btn", move: ".move-btn, .move-back-btn", hide: ".hide-btn", remove: ".remove" };
+const SLOT_SEL = { calendar: ".calendar-btn", info: ".info-btn", defer: ".defer-btn", move: ".move-btn, .move-back-btn", hide: ".hide-btn", remove: ".remove" };
 function slotKeysFor(kind, section) {
   const s = (section || "").toLowerCase();
-  if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return ["move", "hide", "remove"];
-  if (s.startsWith("watched")) return ["calendar", "move"];
-  if (s.startsWith("unwatched")) return ["calendar"];
-  return ["calendar", "defer", "move", "remove"];
+  const tv = isTvMode();
+  if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return tv ? ["info", "move", "hide", "remove"] : ["move", "hide", "remove"];
+  if (s.startsWith("watched")) return tv ? ["calendar", "info", "move"] : ["calendar", "move"];
+  if (s.startsWith("unwatched")) return tv ? ["calendar", "info"] : ["calendar"];
+  return tv ? ["calendar", "info", "defer", "move", "remove"] : ["calendar", "defer", "move", "remove"];
 }
 
 // Yatay kaydırma yalnız satır alanında olsun diye bölüm wrap'ine sınıf eklenir
