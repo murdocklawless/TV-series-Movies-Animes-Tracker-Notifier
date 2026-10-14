@@ -2298,6 +2298,14 @@ function tagCardStats(div, item, kind, min) {
   } catch (_) {}
 }
 
+function rowSectionWrap(grid) {
+  try {
+    const w = grid && grid.closest ? grid.closest('div[id$="-wrap"]') : null;
+    if (w) return w;
+  } catch (_) {}
+  return grid ? grid.parentElement : null;
+}
+
 function ensureSectionSummary(wrap) {
   if (!wrap) return null;
   let s = null;
@@ -2307,7 +2315,9 @@ function ensureSectionSummary(wrap) {
     s.className = "section-summary";
     try {
       const h2 = wrap.querySelector(":scope > h2.unwatched-section-title");
-      const grid = wrap.querySelector(":scope > .poster-grid");
+      let grid = null;
+      try { grid = wrap.querySelector(":scope > .poster-grid"); } catch (_) { grid = null; }
+      if (!grid) grid = wrap.querySelector(".poster-grid");
       if (h2 && grid) h2.after(s);
       else if (grid) grid.before(s);
       else wrap.appendChild(s);
@@ -2318,7 +2328,7 @@ function ensureSectionSummary(wrap) {
 
 function renderSectionSummary(grid) {
   if (!grid) return;
-  const wrap = grid.parentElement;
+  const wrap = rowSectionWrap(grid);
   if (wrap && wrap.closest && wrap.closest("#view-recommend")) return;
   const summary = ensureSectionSummary(wrap);
   if (!summary) return;
@@ -2362,7 +2372,7 @@ function refreshSectionAfterCardRemove(sectionKey, grid) {
   try { applyFollowSectionState(sectionKey); } catch (_) {}
   try { updateFollowSectionControls(sectionKey); } catch (_) {}
   renderSectionSummary(grid);
-  const wrap = grid.parentElement;
+  const wrap = rowSectionWrap(grid);
   if (wrap) wrap.style.display = grid.querySelector(".card") ? "" : "none";
   const viewId = followSectionView[sectionKey] || "";
   if (viewId) {

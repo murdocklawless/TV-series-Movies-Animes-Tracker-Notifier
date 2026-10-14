@@ -641,7 +641,20 @@ function gridMove(dir){
       }
     }
   }
-  if (target) focusEl(target);
+  if (target) focusEl(rowTitleOf(target));
+}
+
+// Satır-mod ızgarada varış odağı kart div'ine değil satır başlığına verilir
+// (kart-div odağı tüm-satır çerçevesi gösterip ilk okta başlığa dönüyordu;
+// varışla gezinme aynı hedefte birleşir). Diğer hedefler aynen döner.
+function rowTitleOf(el){
+  try{
+    if (el && el.classList && el.classList.contains("card") && el.closest && el.closest(".poster-grid.row-mode")){
+      const t = el.querySelector(".wc-title");
+      if (t){ try{ t.tabIndex = 0; }catch(_){} return t; }
+    }
+  }catch(_){}
+  return el;
 }
 
 function enterButtonMode(card){
@@ -1306,16 +1319,24 @@ document.addEventListener("keydown", (e)=>{
     const liveDir = resolveLiveCard(buttonMode.card);
     if (liveDir) buttonMode.card = liveDir;
     const btns = cardButtons(buttonMode.card);
-    if (!btns.length){ exitButtonMode(); return; }
-    if (dir === 'left'){
-      buttonMode.idx = (buttonMode.idx - 1 + btns.length) % btns.length;
-    } else if (dir === 'right'){
-      buttonMode.idx = (buttonMode.idx + 1) % btns.length;
-    } else if (dir === 'up' || dir === 'down'){
-      buttonMode.idx = (buttonMode.idx + 1) % btns.length;
+    try { buttonMode.idx = btns.length ? (buttonMode.idx % btns.length) : 0; } catch(_){}
+    // Buton modu yalnız kendi kartındayken + yalnız sağ/sol okla sürer.
+    // Odak başka yere gittiyse (başlık/navbar/farklı bölüm) ya da alt/üst
+    // ok basıldıysa moddan çıkılır, ızgara akışına (gridMove) düşülür.
+    // (Eskiden tüm oklar kilitli kartın butonlarında dönüyordu.)
+    const bAe = document.activeElement;
+    const inside = !!(bAe && (bAe === buttonMode.card || btns.indexOf(bAe) !== -1 ||
+      (bAe.closest && buttonMode.card.contains && buttonMode.card.contains(bAe))));
+    if (btns.length && inside && (dir === 'left' || dir === 'right')){
+      buttonMode.idx = dir === 'left'
+        ? (buttonMode.idx - 1 + btns.length) % btns.length
+        : (buttonMode.idx + 1) % btns.length;
+      focusEl(btns[buttonMode.idx]);
+      return;
     }
-    focusEl(btns[buttonMode.idx]);
-    return;
+    // Sessiz çık (odak oynatılmaz): akış gridMove'a düşer, mevcut odaktan sürer.
+    // (exitButtonMode odağı eski karta çekerdi; burada istenmez.)
+    buttonMode = null;
   }
   if (handleSearchViewNav(e, dir)) return;
   if (handleLoginViewNav(e, dir)) return;

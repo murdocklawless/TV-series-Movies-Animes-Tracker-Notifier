@@ -5924,10 +5924,13 @@ body.logged-out main { padding: 0; }
   align-items: center;
   justify-content: center;
   transition: color 0.15s ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .section-view-toggle:hover { color: #FFFFFF; }
-.section-view-toggle:focus,
+.section-view-toggle:focus:not(:focus-visible) { outline: none; }
 .section-view-toggle:focus-visible { outline: 1px solid #f97316; outline-offset: 1px; border-radius: 4px; }
+.section-view-toggle:active { outline: none; -webkit-tap-highlight-color: transparent; }
 
 /* Dizi/Film/Belgesel/Anime: toggle en sağda, filtre onun solunda */
 #view-dizi .section-view-toggle,
@@ -5959,9 +5962,14 @@ body.logged-out main { padding: 0; }
 #view-recommend .unwatched-section-title { padding-right: 196px; }
 
 /* Satır düzeni — dinamik (auto) sütunlar: display:table */
-.row-xscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Kaydırma yalnız tablo iç sargısındadır (div.row-hscroll, rowview.js sarar);
+   başlık + arama kutusu + özet dışarıda kalır, kırpılmaz. */
+.row-xscroll { overflow: visible; }
+.row-hscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 .row-xscroll > .unwatched-section-title,
-.row-xscroll > .section-summary { position: sticky; left: 0; z-index: 3; }
+.row-xscroll > .section-summary { position: sticky; left: 0; }
+.row-xscroll > .unwatched-section-title { z-index: 5; }
+.row-xscroll > .section-summary { z-index: 1; }
 .poster-grid.row-mode { display: table; width: 100%; table-layout: auto; font-size: 0.8rem; }
 .poster-grid.row-mode .card {
   display: table-row;
@@ -6108,19 +6116,31 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-actions > .remove:hover { color: #fca5a5; }
 .poster-grid.row-mode .wc-actions > .defer-btn:hover { color: #fca5a5; }
 .poster-grid.row-mode .wc-actions > .defer-btn.active:hover { color: #86efac; }
-/* Odak çerçevesi (TV/klavye) */
+/* Odak çerçevesi (TV/klavye), gezici tek halka:
+   - İsim hücresi: hücre-içi halka (negatif offset), kaydırma kabı kesemez. 4px.
+   - Butonlar: eski hali (daireyi sarar). */
 .poster-grid.row-mode .card .wc-title:focus,
-.poster-grid.row-mode .card .wc-title:focus-visible,
-.poster-grid.row-mode .wc-actions > button:focus {
+.poster-grid.row-mode .card .wc-title:focus-visible {
+  outline: 1px solid #f97316;
+  outline-offset: -2px;
+  box-shadow: none;
+  border-radius: 4px;
+}
+.poster-grid.row-mode .wc-actions > button:focus,
+.poster-grid.row-mode .wc-actions > button:focus-visible {
   outline: 1px solid #f97316;
   outline-offset: 1px;
   border-radius: 4px;
 }
-/* Poster önizlemesi (~%50) */
+/* Poster önizlemesi: ekran ortasında, min(720px, 92vh) */
 .wrow-poster {
   position: fixed;
-  transform: translateY(-50%);
-  width: 120px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: min(720px, 92vh);
+  width: auto;
+  max-width: 94vw;
   aspect-ratio: 2/3;
   border: 1px solid #3a4050;
   border-radius: 4px;

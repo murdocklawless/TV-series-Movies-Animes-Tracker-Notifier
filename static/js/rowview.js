@@ -188,12 +188,37 @@ function slotKeysFor(kind, section) {
   return tv ? ["calendar", "info", "defer", "move", "remove"] : ["calendar", "defer", "move", "remove"];
 }
 
-// Yatay kaydırma yalnız satır alanında olsun diye bölüm wrap'ine sınıf eklenir
-// (grid.parentElement DEĞİŞMEZ → views.js renderSectionSummary bozulmaz).
+// Bölüm sargısı: grid'in id'si -wrap ile biten en yakın div atası
+// (grid satır modunda iç sargıya alınsa bile değişmez).
+function sectionWrap(grid) {
+  try {
+    const w = grid && grid.closest ? grid.closest('div[id$="-wrap"]') : null;
+    if (w) return w;
+  } catch (_) {}
+  return grid ? grid.parentElement : null;
+}
+
+// Yatay kaydırma yalnız satır tablosunda olur: grid iç sargıya (div.row-hscroll)
+// alınır; başlık + arama kutusu + özet dışarıda kalır, kırpılmaz.
+// (grid.parentElement değişir → views.js sargıyı sectionWrap ile bulur.)
 function setXScroll(grid, on) {
-  const wrap = grid.parentElement;
-  if (!wrap) return;
-  wrap.classList.toggle("row-xscroll", !!on);
+  if (!grid) return;
+  try {
+    const wrap = sectionWrap(grid);
+    if (wrap) wrap.classList.toggle("row-xscroll", !!on);
+    const p = grid.parentElement;
+    const inner = p && p.classList && p.classList.contains("row-hscroll") ? p : null;
+    if (on && !inner && wrap) {
+      const box = document.createElement("div");
+      box.className = "row-hscroll";
+      wrap.insertBefore(box, grid);
+      box.appendChild(grid);
+    } else if (!on && inner) {
+      const outer = inner.parentElement;
+      if (outer) outer.insertBefore(grid, inner);
+      inner.remove();
+    }
+  } catch (_) {}
 }
 
 function enhance(grid, on) {
@@ -223,22 +248,43 @@ let previewOwner = null;
 function posterSrc(card) {
   const img = card.querySelector(".poster-wrap img");
   if (!img) return "";
-  return img.currentSrc || img.src || "";
+  // Önizleme büyük açılır: srcset'in en büyük adayı (yerel w500) kullanılır;
+  // kartta görünen w185 büyütülünce flu oluyordu.
+  try {
+    const cands = (img.getAttribute("srcset") || "").split(",")
+      .map((s) => s.trim().split(/\s+/)[0]).filter(Boolean);
+    if (cands.length) return cands[cands.length - 1];
+  } catch (_) {}
+  const s = img.currentSrc || img.src || "";
+  return s.indexOf("image.tmdb.org") !== -1 ? s.replace("/w185", "/w500") : s;
 }
 function showPreview(card) {
   const src = posterSrc(card);
   if (!src) return;
   if (previewOwner === card && previewEl) return;
   hidePreview();
+  const img = card.querySelector(".poster-wrap img");
+  const fb = img ? (img.currentSrc || img.src || "") : "";
   const el = document.createElement("div");
   el.className = "wrow-poster";
-  el.innerHTML = `<img alt="" src="${src}" />`;
+  el.innerHTML = `<img alt="" src="${src}" data-fb="${fb}" onerror="if(this.dataset.fb&&this.src!==this.dataset.fb){this.src=this.dataset.fb;}" />`;
   document.body.appendChild(el);
-  try {
-    const r = card.getBoundingClientRect();
-    el.style.left = Math.round(r.left + 8) + "px";
-    el.style.top = Math.round(r.top + r.height / 2) + "px";
-  } catch (_) {}
+  // Konum/boyut CSS'tedir (ekran ortası, min(720px, 92vh)); TV'de ise eski
+  // WebView uyumu için piksel geometri inline yazılır (min/aspect'e bağlı kalmaz).
+  if (isTvMode()) {
+    try {
+      const vw = window.innerWidth || 1280, vh = window.innerHeight || 720;
+      let h = Math.min(720, Math.floor(vh * 0.92));
+      let w = Math.floor(h * 2 / 3);
+      const maxW = Math.floor(vw * 0.94);
+      if (w > maxW) { w = maxW; h = Math.floor(w * 3 / 2); }
+      el.style.left = Math.round((vw - w) / 2) + "px";
+      el.style.top = Math.round((vh - h) / 2) + "px";
+      el.style.width = w + "px";
+      el.style.height = h + "px";
+      el.style.transform = "none";
+    } catch (_) {}
+  }
   card.classList.add("wrow-has-preview");
   el.addEventListener("mouseleave", hidePreview);
   previewEl = el;
@@ -326,7 +372,9 @@ function initSections() {
     const sortWrap = h2.querySelector(".section-sort-wrap");
     if (!filter || !sortWrap) return;
     const parent = h2.parentElement;
-    const grid = parent ? parent.querySelector(":scope > .poster-grid") : null;
+    let grid = null;
+    try { grid = parent ? parent.querySelector(":scope > .poster-grid") : null; } catch (_) { grid = null; }
+    if (!grid && parent) grid = parent.querySelector(".poster-grid");
     if (!grid) return;
     const section = filter.dataset.section || grid.id;
     const btn = makeToggle(section, grid);
@@ -368,6 +416,88 @@ function rowFocusables(card) {
 }
 function firstTitle(card) { return card ? card.querySelector(".wc-title") : null; }
 
+// Görünümdeki bölümlerin ızgaraları (DOM sırası): yalnız görünür + kartı olanlar.
+function sectionGrids() {
+  const out = [];
+  try {
+    const view = document.querySelector(".view.active") || document;
+    const wraps = view.querySelectorAll('div[id$="-wrap"]');
+    wraps.forEach((w) => {
+      if (!isVisible(w)) return;
+      const grid = w.querySelector(".poster-grid");
+      if (!grid || !isVisible(grid)) return;
+      const cards = Array.from(grid.children).filter((c) => c && c.classList && c.classList.contains("card"));
+      if (!cards.some(isVisible)) return;
+      out.push({ grid: grid, rowMode: grid.classList.contains("row-mode") });
+    });
+  } catch (_) {}
+  return out;
+}
+
+// Izgaranın ilk odağı: satırsa ilk satır başlığı, kartsa ilk kart.
+// Odaklananı görünür alana kaydırır (tv.js focusEl kaydırma mantığı).
+function focusGridFirst(grid, rowMode) {
+  try {
+    let el = null;
+    if (rowMode) {
+      const cards = rowCards(grid).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+      el = cards.length ? firstTitle(cards[0]) : null;
+    } else {
+      const cards = Array.from(grid.querySelectorAll(":scope > .card")).filter(isVisible);
+      el = cards.slice().sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0] || cards[0] || null;
+      if (el) { try { el.tabIndex = 0; } catch (_) {} }
+    }
+    if (!el) return false;
+    focusNoScroll(el);
+    ensureVisible(el);
+    return true;
+  } catch (_) { return false; }
+}
+
+// Satır tablosunun bölüm başlığındaki arama butonu (TV D-pad: ilk satırdan
+// yukarı çıkış). Arama yoksa/kilitliyse ilk görünür başlık butonu; o da
+// yoksa null (tv.js gridMove devralır).
+function sectionSearchButton(grid) {
+  try {
+    const wrap = sectionWrap(grid);
+    const h2 = wrap ? wrap.querySelector(":scope > h2.unwatched-section-title") : null;
+    if (!h2) return null;
+    const search = h2.querySelector(".section-search");
+    if (search && !search.disabled && isVisible(search)) return search;
+    const btns = h2.querySelectorAll(".section-view-toggle, .section-filter, .section-refresh, .section-hide, .section-move-up, .section-move-down");
+    for (const b of btns) { if (b && !b.disabled && isVisible(b)) return b; }
+  } catch (_) {}
+  return null;
+}
+
+// Odaklanan öğe ekran dışındaysa sayfayı kaydır: navbar altı ile ekran
+// altı arasında tutar (tv.js focusEl kaydırma mantığı). Zaten görünürdeyse
+// hiçbir şey yapmaz.
+function ensureVisible(el) {
+  try {
+    if (!el) return;
+    const nav = document.querySelector("nav");
+    const navBottom = nav ? nav.getBoundingClientRect().bottom : 60;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const curY = window.pageYOffset || document.documentElement.scrollTop || 0;
+    let y = curY;
+    if (r.top < navBottom) y = curY + r.top - navBottom - 6;
+    if (r.bottom > vh - 10) y = Math.max(y, curY + r.bottom - vh + 10);
+    if (y !== curY) window.scrollTo(0, Math.max(0, y));
+  } catch (_) {}
+  // Yatay: odak iç satır kaydırıcının (div.row-hscroll) dışında kaldıysa
+  // en-yakın kenara getir (satır başlığı sola kayınca çerçeve kayboluyordu).
+  try {
+    const box = el.closest ? el.closest(".row-hscroll") : null;
+    if (box) {
+      const b = el.getBoundingClientRect(), c = box.getBoundingClientRect();
+      if (b.left < c.left) box.scrollLeft -= (c.left - b.left);
+      else if (b.right > c.right) box.scrollLeft += (b.right - c.right);
+    }
+  } catch (_) {}
+}
+
 function onTvKey(e) {
   if (!isTvMode()) return;
   const ae = document.activeElement;
@@ -401,12 +531,33 @@ function onTvKey(e) {
     focusNoScroll(focusables[ni]);
     return;
   }
-  e.preventDefault(); e.stopImmediatePropagation();
   const ri = cards.indexOf(card);
+  if (dir === "up" && ri <= 0) {
+    // İlk satırdan yukarı: bölüm arama butonuna çık (döngüden çıkış).
+    // Başlık butonu yoksa dokunulmaz → tv.js gridMove navbar akışını sürdürür.
+    const btn = sectionSearchButton(grid);
+    if (!btn) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    focusNoScroll(btn);
+    ensureVisible(btn);
+    return;
+  }
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (dir === "down" && ri >= cards.length - 1) {
+    // En alt satırdan aşağı: sonraki bölüme; son bölümse en üst bölüme sar.
+    // (Tek bölümlük görünümde bölüm içi sarma korunur.)
+    const list = sectionGrids();
+    const gi = list.findIndex((s) => s.grid === grid);
+    for (let k = 1; k <= list.length; k++) {
+      const s = list[(gi + k + list.length) % list.length];
+      if (!s || s.grid === grid) continue;
+      if (focusGridFirst(s.grid, s.rowMode)) return;
+    }
+  }
   const step = dir === "down" ? 1 : -1;
   const ti = (ri + step + cards.length) % cards.length;
   const tt = firstTitle(cards[ti]);
-  if (tt) focusNoScroll(tt);
+  if (tt) { focusNoScroll(tt); ensureVisible(tt); }
 }
 
 function init() {

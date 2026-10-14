@@ -707,8 +707,8 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title { padding-right: 171px; }
-  /* Satır görünümü: mobil poster önizleme boyutu (kart posterinin ~%25'i) */
-  html:not(.is-tv):not(.tv-mode) .wrow-poster { width: calc((100vw - 16px) * 0.7 / 3); }
+  /* Satır posteri mobilde daha küçük: genişlik 300px (oran 2/3 korunur) */
+  html:not(.is-tv):not(.tv-mode) .wrow-poster { height: auto; width: min(300px, 86vw); }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-title .wclip { max-width: 30ch; }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-actions::before { content: "|"; color: #f97316; margin: 0 8px; font-weight: 400; }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-actions > button {

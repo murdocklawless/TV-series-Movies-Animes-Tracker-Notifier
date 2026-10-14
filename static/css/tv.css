@@ -94,7 +94,9 @@ html.is-tv #tab-exit:focus-visible, html.tv-mode #tab-exit:focus-visible {
 
 html.is-tv #tab-settings, html.tv-mode #tab-settings { display: none !important; }
 
-html.is-tv .card:focus-within, html.tv-mode .card:focus-within {
+/* Kart odağı (TV, yalnız kart görünümü): satır kartları hariç — satırda
+   gezici isim/buton halkası + zemin yeter, tüm-satır kutu istenmiyor. */
+html.is-tv .poster-grid:not(.row-mode) .card:focus-within, html.tv-mode .poster-grid:not(.row-mode) .card:focus-within {
   outline: 1px solid #f97316;
   outline-offset: 1px;
   border-color: #f97316 !important;
@@ -844,10 +846,11 @@ html.is-tv #view-watched .unwatched-section-title, html.tv-mode #view-watched .u
 html.is-tv #view-recommend .unwatched-section-title .section-view-toggle, html.tv-mode #view-recommend .unwatched-section-title .section-view-toggle { right: calc(112px * var(--tv-scale)); }
 html.is-tv #view-recommend .unwatched-section-title .section-search, html.tv-mode #view-recommend .unwatched-section-title .section-search { right: calc(172px * var(--tv-scale)); }
 html.is-tv #view-recommend .unwatched-section-title .section-sort-wrap, html.tv-mode #view-recommend .unwatched-section-title .section-sort-wrap { right: calc(142px * var(--tv-scale)); }
-/* Satır modu (TV) */
-html.is-tv .wrow-poster, html.tv-mode .wrow-poster { width: calc(83px * var(--tv-scale)); }
+/* Satır modu (TV): poster taban kuraldandır (ortada, min(720px, 92vh)) */
 html.is-tv .poster-grid.row-mode, html.tv-mode .poster-grid.row-mode { font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .poster-grid.row-mode .wrow-days, html.tv-mode .poster-grid.row-mode .wrow-days { font-size: calc(0.6rem * var(--tv-scale)); }
+/* Satır odağı (TV): gezici tek halka taban kuraldandır (turuncu, 2px radius).
+   Tüm-satır çerçeve ve tekil-halka baskılama kaldırıldı. */
 html.is-tv #view-recommend #feed-header .section-search, html.tv-mode #view-recommend #feed-header .section-search { right: calc(90px * var(--tv-scale)); }
 html.is-tv #view-recommend #feed-header .section-sort-wrap, html.tv-mode #view-recommend #feed-header .section-sort-wrap { right: calc(60px * var(--tv-scale)); }
 html.is-tv #view-recommend #feed-header .section-refresh, html.tv-mode #view-recommend #feed-header .section-refresh { right: calc(30px * var(--tv-scale)); }

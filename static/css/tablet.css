@@ -115,9 +115,7 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
     width: 120px;
   }
 
-  html:not(.is-tv):not(.tv-mode) .wrow-poster {
-    width: 84px;
-  }
+  /* Satır posteri taban kuraldandır (ortada, min(720px, 92vh)) */
 
   html:not(.is-tv):not(.tv-mode) .person-grid .card {
     width: 120px;
