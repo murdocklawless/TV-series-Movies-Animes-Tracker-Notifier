@@ -198,6 +198,12 @@ def _run_user_notifications(uid):
         check_anime_notifications(user_id=uid)
     except Exception as e:
         print(f"user_notif anime uid={uid} failed: {e}", flush=True)
+    # dizi+film+belgesel+anime: tampona birikenler tek ozet mailde gonderilir.
+    try:
+        from notifications import flush_email_digest
+        flush_email_digest(uid)
+    except Exception as e:
+        print(f"user_notif digest uid={uid} failed: {e}", flush=True)
 
 
 def _user_job_id(uid):
@@ -579,13 +585,15 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
         if card is None:
             # status renk haritasi (discord embed ile ayni)
             cmap = {
-                "status_ended": "#22c55e", "anime_finished": "#22c55e", "movie_today": "#22c55e",
+                "status_ended": "#22c55e", "anime_finished": "#22c55e",
                 "status_canceled": "#ef4444", "anime_cancelled": "#ef4444",
                 "status_pilot": "#60a5fa", "season_planned": "#60a5fa", "movie_rescheduled": "#60a5fa", "anime_episodes": "#60a5fa",
                 "status_returning": "#f97316", "season_production": "#f97316", "season_upcoming": "#f97316",
-                "episode_today": "#f97316", "season_start": "#f97316", "anime_episode_today": "#f97316",
+                "season_start": "#f97316",
                 "unwatched_bulk": "#f97316", "anime_unwatched_bulk": "#f97316",
                 "vote_threshold": "#22c55e", "networks_changed": "#d4a017", "anime_hiatus": "#f59e0b", "anime_releasing": "#22c55e",
+                # bugun yayinda/vizyonda: kart mavisi
+                "episode_today": "#60a5fa", "anime_episode_today": "#60a5fa", "movie_today": "#60a5fa",
             }
             _base_color = type_name[4:] if type_name.startswith("doc_") else type_name
             eff_color = status_color or cmap.get(type_name) or cmap.get(_base_color, "#22c55e")
@@ -601,8 +609,9 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
                 card = None
         # dış kanal push'u — tek noktadan tüm kanallar (telegram+ntfy+discord+e-posta).
         # Faz 32c: tum tipler ayni kisisel akistan gecer; ayri push yolu yok.
+        # E-posta tampona tutulur; kosu sonunda tek ozet mail atilir.
         from notifications import notify_all
-        notify_all(message, remote_url, card=card, user_id=uid)
+        notify_all(message, remote_url, card=card, user_id=uid, hold_email=True)
     except Exception as e:
         print(f"notif create failed {type_name} {title}: {e}")
 
@@ -757,7 +766,7 @@ def check_notifications(user_id=None):
             prev = snap.get(key)
             cur = m["networks"]
             if prev and prev != cur and cur:
-                _notif_create(m["title"], f"{m['title']} platform bilgisi güncellendi", _doc_type(is_doc, "networks_changed"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
+                _notif_create(m["title"], f"{m['title']} Platform bilgisi güncellendi", _doc_type(is_doc, "networks_changed"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
             snap[key] = cur
             from db import set_setting
             _sset(uid, "notif_network_snapshot", json.dumps(snap))

@@ -108,7 +108,7 @@ function cellSpecs(d, kind) {
   const detail = (d.season || d.episode) ? [d.season, d.episode].filter(Boolean).join(" · ") : d.mid;
   const detailDays = (d.season || d.episode) ? "" : d.midDays;
   const map = {
-    title: { cls: "wc-title title", html: `<span class="wclip" title="${esc(d.title)}">${esc(d.title)}</span>` },
+    title: { cls: "wc-title title" + ((d.statusToday || d.midToday) ? " today" : ""), html: `<span class="wclip" title="${esc(d.title)}">${esc(d.title)}</span>` },
     type: { cls: "wc-type " + d.typeCls, html: esc(d.type) },
     score: { cls: "wc-score", html: esc(d.score) },
     net: { cls: "wc-net", html: esc(d.net) },

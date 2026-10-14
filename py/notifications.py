@@ -113,32 +113,14 @@ def ntfy_topic_clean(topic):
 
 
 def send_ntfy(text, poster_url=None, user_id=None):
+    """Yalnız metin push'u (resim eklenmez: bazı istemcilerde tutarsız görünüyordu).
+    poster_url parametresi imza uyumu için durur."""
     if _uget(user_id, "ntfy_enabled") == "0":
         return False
     topic = ntfy_topic_clean(_uget(user_id, "ntfy_topic"))
     if not topic:
         return False
     try:
-        if poster_url:
-            img = requests.get(poster_url, timeout=20)
-            if img.status_code == 200:
-                content_type = img.headers.get("Content-Type", "image/jpeg")
-                r = requests.post(
-                    f"https://ntfy.sh/{topic}",
-                    data=img.content,
-                    headers={
-                        "Content-Type": content_type,
-                        "X-ntfy-filename": "poster.jpg",
-                    },
-                    timeout=30,
-                )
-                # Ek ile birlikte metni de ayrı bir bildirim olarak gönder
-                requests.post(
-                    f"https://ntfy.sh/{topic}",
-                    data=text.encode("utf-8"),
-                    timeout=15,
-                )
-                return r.status_code == 200
         r = requests.post(
             f"https://ntfy.sh/{topic}",
             data=text.encode("utf-8"),
@@ -313,11 +295,19 @@ def _send_brevo(text, poster_url=None, api_key=None, email_from=None, email_to=N
         return False
 
 
-_EMAIL_DIGEST_BUFFER = []
+_EMAIL_DIGEST_BUFFER = {}
 
 
-def buffer_email_notification(card, fallback_text):
-    """E-postayi aninda gondermek yerine gunluk ozet icin tampona ekler."""
+def _digest_uid(user_id):
+    try:
+        return int(user_id or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def buffer_email_notification(card, fallback_text, user_id=None):
+    """E-postayi aninda gondermek yerine kullanici-bazli tampona ekler.
+    Kosu sonunda flush_email_digest ile tek ozet mail atilir."""
     if not isinstance(card, dict) or not card.get("title"):
         card = {
             "title": (fallback_text or "")[:80],
@@ -328,16 +318,16 @@ def buffer_email_notification(card, fallback_text):
             "status_line": "",
             "status_color": "#60a5fa",
         }
-    _EMAIL_DIGEST_BUFFER.append(card)
+    _EMAIL_DIGEST_BUFFER.setdefault(_digest_uid(user_id), []).append(card)
 
 
-def flush_email_digest():
-    """Tampondaki tum kartlari tek ozet maili olarak gonderir."""
-    cards = list(_EMAIL_DIGEST_BUFFER)
-    _EMAIL_DIGEST_BUFFER.clear()
+def flush_email_digest(user_id=None):
+    """Tampondaki tum kartlari tek ozet maili olarak gonderir (o kullaniciya)."""
+    uid = _digest_uid(user_id)
+    cards = list(_EMAIL_DIGEST_BUFFER.pop(uid, []))
     if not cards:
         return False
-    return send_digest_email(cards)
+    return send_digest_email(cards, user_id=uid)
 
 
 NEXT_EP_LOGO_URL = "https://i.postimg.cc/V65HfXNK/nextep_mail_notification_logo.png"
@@ -346,9 +336,10 @@ NEXT_EP_LOGO_URL = "https://i.postimg.cc/V65HfXNK/nextep_mail_notification_logo.
 def _email_digest_html(cards):
     """Gunluk ozet maili: #0f1117 zemin, logo, baslik ve kartlar arasi noktali turuncu ayirici."""
     count_pill = (
-        '<span style="display:inline-block; background:rgba(34,197,94,0.15); '
-        'color:#22c55e; font-weight:600; font-size:11px; border-radius:999px; '
-        'border:1px solid rgba(34,197,94,0.4); padding:1px 8px; '
+        '<span style="display:inline-block; min-width:22px; height:22px; '
+        'line-height:22px; padding:0 5px; text-align:center; box-sizing:border-box; '
+        'background:rgba(34,197,94,0.15); color:#22c55e; font-weight:700; '
+        'font-size:12px; border-radius:50%; border:1px solid rgba(34,197,94,0.4); '
         'vertical-align:middle; margin-left:6px;">' + str(len(cards)) + "</span>"
     )
     header_text = t("email_header_digest", count=count_pill)
@@ -400,14 +391,13 @@ def send_digest_email(cards, user_id=None):
     if not email_from or not email_to:
         return False
     subject = t("email_subject_digest", count=len(cards))
-    text_lines = [subject, ""]
-    for i, c in enumerate(cards, 1):
-        line = str(c.get("title") or "")
-        sl = str(c.get("status_line") or "").strip()
-        if sl:
-            line += " - " + sl
-        text_lines.append("%d. %s" % (i, line))
-    text_body = "\n".join(text_lines)
+    # Konu-yanı açıklama (snippet): tek akış, numarasız, konu tekrarı yok.
+    text_bits = []
+    for c in cards:
+        bit = (str(c.get("title") or "").strip() + " " + str(c.get("status_line") or "").strip()).strip()
+        if bit:
+            text_bits.append(bit)
+    text_body = " - ".join(text_bits)
     html_body = _email_digest_html(cards)
     try:
         if provider == "brevo":
@@ -539,7 +529,7 @@ def notify_all(text, poster_url=None, card=None, hold_email=False, user_id=None)
     if send_discord(text, poster_url, card=card, user_id=user_id):
         ok = True
     if hold_email:
-        buffer_email_notification(card, text)
+        buffer_email_notification(card, text, user_id=user_id)
         ok = True
     elif send_email(text, poster_url, card=card, user_id=user_id):
         ok = True

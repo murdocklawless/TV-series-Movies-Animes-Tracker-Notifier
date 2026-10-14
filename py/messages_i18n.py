@@ -121,7 +121,7 @@ TEMPLATES = {
         "zh": "{title} 上映日期变更：{prev} → {cur}",
     },
     "networks_changed": {
-        "tr": "{title} platform bilgisi güncellendi",
+        "tr": "{title} Platform bilgisi güncellendi",
         "en": "{title} platform info updated",
         "de": "{title} Plattforminfos aktualisiert",
         "fr": "{title} infos plateforme mises à jour",
@@ -374,7 +374,7 @@ TEMPLATES = {
     },
     # --- e-posta cercevesi ---
     "email_subject_digest": {
-        "tr": "Günlük Bildirim Özeti ({count})", "en": "Daily Notification Summary ({count})",
+        "tr": "NextEp Bildirimi ({count})", "en": "Daily Notification Summary ({count})",
         "de": "Tägliche Benachrichtigungsübersicht ({count})", "fr": "Résumé quotidien des notifications ({count})",
         "es": "Resumen diario de notificaciones ({count})", "it": "Riepilogo giornaliero notifiche ({count})",
         "ru": "Ежедневная сводка уведомлений ({count})", "ar": "ملخص إشعارات اليوم ({count})",
