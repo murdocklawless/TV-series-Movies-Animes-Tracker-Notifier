@@ -76,9 +76,11 @@ function extract(card) {
   const statusEl = info.querySelector(".mrow-status");
   const st = isEmptySlot(statusEl) ? { text: "", days: "" } : splitDays(statusEl);
   out.status = st.text; out.statusDays = st.days;
+  out.statusToday = !!(statusEl && (statusEl.classList.contains("today") || statusEl.querySelector(".today")));
   const midEl = info.querySelector(".mrow-mid");
   const md = isEmptySlot(midEl) ? { text: "", days: "" } : splitDays(midEl);
   out.mid = md.text; out.midDays = md.days;
+  out.midToday = !!(midEl && (midEl.classList.contains("today") || midEl.querySelector(".today")));
   const line = info.querySelector(".ep-count-line");
   const badge = line ? line.querySelector(".ep-count-badge") : null;
   if (badge) {
@@ -102,6 +104,7 @@ function gridKind(grid, section) {
 function cellSpecs(d, kind) {
   const status = d.status || ((d.season || d.episode) ? "" : d.mid);
   const statusDays = d.status ? d.statusDays : ((d.season || d.episode) ? "" : d.midDays);
+  const statusToday = !!(d.statusToday || (!d.status && !(d.season || d.episode) && d.midToday));
   const detail = (d.season || d.episode) ? [d.season, d.episode].filter(Boolean).join(" · ") : d.mid;
   const detailDays = (d.season || d.episode) ? "" : d.midDays;
   const map = {
@@ -111,10 +114,10 @@ function cellSpecs(d, kind) {
     net: { cls: "wc-net", html: esc(d.net) },
     season: { cls: "wc-season", html: esc(d.season) },
     episode: { cls: "wc-episode", html: esc(d.episode) },
-    status: { cls: "wc-status", html: esc(status) + daysHTML(statusDays) },
+    status: { cls: "wc-status" + (statusToday ? " today" : ""), html: esc(status) + daysHTML(statusDays) },
     count: { cls: "wc-count", html: esc(d.count) },
-    date: { cls: "wc-date", html: esc(d.mid) + daysHTML(d.midDays) },
-    detail: { cls: "wc-mid", html: esc(detail) + daysHTML(detailDays) },
+    date: { cls: "wc-date" + (d.midToday ? " today" : ""), html: esc(d.mid) + daysHTML(d.midDays) },
+    detail: { cls: "wc-mid" + (d.midToday ? " today" : ""), html: esc(detail) + daysHTML(detailDays) },
   };
   const order = {
     tv: ["title", "type", "score", "net", "season", "episode", "status", "count"],

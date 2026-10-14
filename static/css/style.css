@@ -6023,6 +6023,8 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-status { color: #22c55e; }
 .poster-grid.row-mode .wc-count { color: #14b8a6; }
 .poster-grid.row-mode .wc-date, .poster-grid.row-mode .wc-mid { color: #8b90a0; }
+/* Satırda bugün yayında: karttaki .next-ep.today mavisi (kalın değil) */
+.poster-grid.row-mode .wcell.today { color: #60a5fa; }
 /* Geri sayım rozeti: karttaki .next-ep-days ile aynı, boyut satır butonlarıyla (1.7em) */
 .poster-grid.row-mode .wrow-days {
   display: inline-flex;
