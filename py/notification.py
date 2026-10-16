@@ -274,12 +274,30 @@ def count_asks():
     return jsonify({"count": c})
 
 
+def _ask_ts(row):
+    """Ask kaydindaki izleme zamani: bildirimde gosterilen an (notifications.created_at).
+
+    Onay tiklama anini DEGIL, sinyalin geldigi (bildirim metninde de yazan) saati
+    dondurur. Eksik/bozuksa simdi'ye duser.
+    """
+    try:
+        t = int(row["created_at"] or 0)
+    except Exception:
+        t = 0
+    return t if t > 0 else int(time.time())
+
+
 def _mark_ask_watched(row):
-    """Izlendi-sor onayi: medya tipine gore watched=1 yazar. commit'li."""
+    """Izlendi-sor onayi: medya tipine gore watched=1 yazar. commit'li.
+
+    watched_at her zaman ask (bildirim) zamanindan alinir; boylece "Evet"e
+    gunler sonra basilsa da izleme gecmisi/siralamasi sinyal saatini gosterir.
+    """
     conn = get_db()
     uid = row["user_id"]
     media = (row["media_type"] or "").lower()
     season, episode = row["season"], row["episode"]
+    ts = _ask_ts(row)
     try:
         if media == "anime":
             anilist_id = row["anilist_id"]
@@ -289,17 +307,20 @@ def _mark_ask_watched(row):
             if not arow:
                 return None
             if episode is None:
+                # anime filmi: satir bazli bolum yok -> yalniz yapim izlendi
                 conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (arow["id"],))
             else:
                 conn.execute(
-                    "INSERT INTO anime_episodes (anime_id, episode, watched) VALUES (?,?,1) "
-                    "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1",
-                    (arow["id"], episode),
+                    "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at) VALUES (?,?,1,?) "
+                    "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
+                    (arow["id"], episode, ts),
                 )
         elif media == "movie":
+            # mevcut saat varsa (dogrudan isaretleme) korunur, yoksa ask zamani yazilir
             conn.execute(
-                "UPDATE followed SET watched=1, in_watched=1 WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
-                (uid, row["tmdb_id"]),
+                "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?) "
+                "WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
+                (ts, uid, row["tmdb_id"]),
             )
         else:  # tv
             frow = conn.execute(
@@ -307,13 +328,13 @@ def _mark_ask_watched(row):
                 (uid, row["tmdb_id"]),
             ).fetchone()
             if frow and season is not None and episode is not None:
-                import time as _t
                 conn.execute(
                     "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) VALUES (?,?,?,1,?) "
                     "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
-                    (frow["id"], season, episode, int(_t.time())),
+                    (frow["id"], season, episode, ts),
                 )
         conn.commit()
+        print(f"[asks] onay: watched_at=ask zamani ({ts}) media={media} s{season} e{episode}", flush=True)
         return True
     except Exception as e:
         print(f"[asks] watched yazma hata: {e}", flush=True)

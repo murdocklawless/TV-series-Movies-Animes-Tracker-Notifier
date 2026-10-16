@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.73 - 17/10/2026-02:30
+### TR
+- **Düzeltme (izleme saati):** "İzlendi mi?" bildiriminde **Evet**'e basıldığında izleme saati artık **bildirimde yazan saat** (sinyalin geldiği an) olarak kaydedilir; eskiden butona basıldığın an yazılıyordu (22:46'daki bildirime 00:51'de basınca izleme geçmişi 00:51 görünüyordu).
+- Aynı düzeltme **film/belgesel film** ve **anime** onaylarını da kapsar: bu iki türde `watched_at` hiç yazılmıyordu, bu yüzden onaylanan film/anime kayıtları izleme geçmişinde hiç görünmüyordu; artık bildirim zamanıyla görünürler.
+- Film onayında mevcut (doğrudan işaretlemeden gelen) zaman varsa korunur (`COALESCE`), üzerine yazılmaz. Ask zamanı yoksa (bozuk/0) onay anına düşülür.
+- **Veri onarımı:** geçmişte onaylanmış 15 tv kaydı (1 NULL + 14 "tıklama anı") bildirim saatine çekildi (The Witcher S3E4: `17.10 00:51` → `16.10 22:46`). Onarım yedek + dry-run ile yapıldı; film/anime tarafında düzeltilecek kayıt yoktu.
+### EN
+- **Fix (watched time):** answering **Yes** to the "Did you watch it?" ask now records the watched time as **the time shown in the notification** (the moment the signal arrived); previously it used the moment you clicked (approving a 22:46 notification at 00:51 stored 00:51 in the watch history).
+- The same fix covers **movie/documentary** and **anime** approvals: those never wrote `watched_at` at all, so approved movies/anime were missing from the watch history; they now appear with the notification time.
+- For movies an existing time (from a direct mark) is preserved (`COALESCE`) instead of being overwritten. If the ask time is missing/invalid the approval moment is used as a fallback.
+- **Data repair:** 15 previously approved tv rows (1 NULL + 14 click-time) were set to the notification time (The Witcher S3E4: `17.10 00:51` → `16.10 22:46`), done with a backup + dry-run; nothing needed fixing on the movie/anime side.
+
 ## 1.72 - 17/10/2026-01:47
 ### TR
 - **Root kapısı:** "Sunucuya Kur"/"Onar" (Stremio + Uzak Bağlantı), "Peer Ekle" ve "Tüneli Kaldır" butonları artık **root yetkisi doğrulanmadan çalışmıyor**; kapalı butonun üzerine gelince neden görünür (kart bağlıysa "Sunucuya bağlısınız", değilse "Sunucu bağlantısı yapılandırılmamış veya root kullanıcısı ile giriş yapılmamış").
