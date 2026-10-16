@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=522";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=517";
-import { activateUtilityTab } from "./views.js?v=521";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=521";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=523";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=518";
+import { activateUtilityTab } from "./views.js?v=522";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=522";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=522");
+      const { errText: _err } = await import("./i18n.js?v=523");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=517");
-    const { openDetails } = await import("./components.js?v=521");
-    const { loadFollowed } = await import("./views.js?v=521");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=518");
+    const { openDetails } = await import("./components.js?v=522");
+    const { loadFollowed } = await import("./views.js?v=522");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=522");
+        const { t: _t } = await import("./i18n.js?v=523");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=530").then((m) => {
+  import("./notification.js?v=531").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2146,7 +2146,7 @@ let tpAskBeforeWatched = true;
 let tpVpsOpen = false;
 let tpRemoteOpen = false;
 let vpsProfile = null;
-let vpsGate = { configured: false, connected: false, everConnected: false };
+let vpsGate = { configured: false, connected: false, everConnected: false, rootReady: false, rootVerified: false, loginUser: "" };
 let vpsAuth = "key";
 let vpsSecretMasked = false;
 let remoteJobTimer = null;
@@ -2197,12 +2197,13 @@ async function renderThirdPartyApps(opts = {}) {
       const vj = await vs.json();
       if (vs.ok && vj && vj.ok) {
         vpsProfile = vj;
-        vpsGate = { configured: !!vj.configured, connected: !!(vj.connected && vj.configured), everConnected: !!vj.everConnected };
+        vpsGate = { configured: !!vj.configured, connected: !!(vj.connected && vj.configured), everConnected: !!vj.everConnected,
+                    rootReady: !!vj.rootReady, rootVerified: !!vj.rootVerified, loginUser: vj.loginUser || vj.username || "" };
         vpsAuth = vj.auth_type === "password" ? "password" : "key";
       }
     } catch (_) {
       vpsProfile = null;
-      vpsGate = { configured: false, connected: false };
+      vpsGate = { configured: false, connected: false, rootReady: false, rootVerified: false, loginUser: "" };
     }
     vpsHtml = renderVpsSection();
   }
@@ -2230,8 +2231,11 @@ const thirdPartyAppRenderers = {
   stremio: (app) => {
     const _note = tpStatusNote(app);
     const _watch = tpWatchDetail(app);
-    const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
+    const rootOk = vpsRootReady();
+    const cardDisabled = tpIsAdmin && !rootOk;
     const stremioInstalled = !!(vpsProfile && vpsProfile.stremioInstalled);
+    const installBtnDisabled = !(tpIsAdmin && rootOk && vpsGate.connected && (!stremioInstalled || !app.tunnelOk));
+    const tunnelRemoveDisabled = !rootOk;
     const stremioInstallLabel = app.installUrl ? `
         <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
           <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
@@ -2275,9 +2279,9 @@ const thirdPartyAppRenderers = {
           ${stremioInstallLabel}
         </div>` : "")}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
-          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected && (!stremioInstalled || !app.tunnelOk) ? "" : "disabled aria-disabled=\"true\""}>${stremioInstalled && !app.tunnelOk ? t("stremio_install_repair") : t("install_on_vps")}</button>
+          ${vpsBtnOrTip(`<button id="tp-stremio-install" class="tab"${installBtnDisabled ? " disabled aria-disabled=\"true\"" : ""}>${stremioInstalled && !app.tunnelOk ? t("stremio_install_repair") : t("install_on_vps")}</button>`, installBtnDisabled, app.status === "connected")}
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
-          ${tpIsAdmin && app.tunnelInstalled ? `<button id="tp-stremio-tunnel-remove" class="tab" data-i18n="tunnel_remove_btn">${t("tunnel_remove_btn")}</button>` : ""}
+          ${tpIsAdmin && app.tunnelInstalled ? vpsBtnOrTip(`<button id="tp-stremio-tunnel-remove" class="tab" data-i18n="tunnel_remove_btn"${tunnelRemoveDisabled ? " disabled aria-disabled=\"true\"" : ""}>${t("tunnel_remove_btn")}</button>`, tunnelRemoveDisabled, app.status === "connected") : ""}
           ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
         ${tpIsAdmin ? `<pre id="tp-stremio-joblog" class="tp-joblog" style="display:none"></pre>` : ""}
@@ -2289,9 +2293,10 @@ const thirdPartyAppRenderers = {
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
     const gate = vpsGate.connected;
-    const cardDisabled = tpIsAdmin && !vpsGate.everConnected;
-    const installDisabled = (!gate || !!app.installed) ? "disabled aria-disabled=\"true\"" : "";
-    const installBtn = `<button id="tp-remote-install" class="tab" ${installDisabled}>${t("install_on_vps")}</button>`;
+    const rootOk = vpsRootReady();
+    const cardDisabled = tpIsAdmin && !rootOk;
+    const installOff = !gate || !rootOk || !!app.installed;
+    const installBtn = vpsBtnOrTip(`<button id="tp-remote-install" class="tab"${installOff ? " disabled aria-disabled=\"true\"" : ""}>${t("install_on_vps")}</button>`, installOff, isConn);
     let actionBtn = "";
     if (isConn) {
       actionBtn = `<button id="tp-remote-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>`;
@@ -2315,7 +2320,7 @@ const thirdPartyAppRenderers = {
         <div class="test-row" style="justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
           ${installBtn}
           ${actionBtn}
-          <button id="tp-peer-add" class="tab" ${gate ? "" : "disabled aria-disabled=\"true\""}>${t("peer_add")}</button>
+          ${vpsBtnOrTip(`<button id="tp-peer-add" class="tab"${(gate && rootOk) ? "" : " disabled aria-disabled=\"true\""}>${t("peer_add")}</button>`, !(gate && rootOk), isConn)}
         </div>
         <pre id="tp-remote-joblog" class="tp-joblog" style="display:none"></pre>
         <div class="tp-sub-box" id="tp-peer-box">
@@ -2560,6 +2565,29 @@ function setTpAccordion(which) {
   });
 }
 
+// Root kapisi: "Sunucuya Kur"/"Onar"/"Peer Ekle"/"Tuneli Kaldir" ancak root
+// yetkisi dogrulanmissa calisir. root ile giris dogrudan root sayilir; root
+// disi kullanicida Test Et (sudo -n) dogrulamasi sart.
+function vpsRootReady() {
+  if (!vpsGate || !vpsGate.configured || !vpsGate.connected) return false;
+  if (typeof vpsGate.rootReady === "boolean") return !!vpsGate.rootReady;
+  return !!(vpsGate.rootVerified || (vpsGate.loginUser || "root") === "root");
+}
+
+// Disabled "Sunucuya Kur" ipucu: kart bagliysa "Sunucuya baglisiniz", degilse
+// "yapilandirilmamis veya root ile giris yapilmamis". Stremio "Hazir" durumu
+// bagli SAYILMAZ (karar A) -> ikinci mesaj gosterilir.
+function vpsInstallTip(cardConnected) {
+  if (cardConnected && vpsRootReady()) return t("vps_btn_tip_connected");
+  return t("vps_btn_tip_no_root");
+}
+
+// Disabled buton olay almaz -> ipucu sarmalayiciya konur.
+function vpsBtnOrTip(html, disabled, cardConnected) {
+  if (!disabled) return html;
+  return `<span class="btn-tip" data-tip="${escAttr(vpsInstallTip(!!cardConnected))}">${html}</span>`;
+}
+
 function vpsStoredPass(mode) {
   const p = vpsProfile || {};
   if (mode === "key") return !!(p.sudoHasSecret);
@@ -2575,6 +2603,29 @@ function renderVpsSection() {
   const showKey = vpsAuth === "key";
   const uname = p.username || "root";
   const isRoot = String(uname).trim().toLowerCase() === "root";
+  // "Kiminle bagliyim + root yetkim var mi" rozeti (K2)
+  const loginUser = String(p.loginUser || uname || "root");
+  const connOk = !!p.configured && !!p.connected;
+  const rootVerified = !!p.rootVerified || loginUser === "root";
+  const reasonCode = String(p.lastReason || "");
+  let rootCls = "tp-not-connected";
+  let rootTxt = "—";
+  if (connOk && rootVerified && loginUser === "root") {
+    rootCls = "tp-connected";
+    rootTxt = t("vps_root_direct");
+  } else if (connOk && rootVerified) {
+    rootCls = "tp-connected";
+    rootTxt = t("vps_root_via_sudo", { user: loginUser });
+  } else if (connOk || reasonCode.indexOf("sudo") === 0) {
+    rootTxt = t("vps_root_missing", { user: loginUser });
+  }
+  const rootReasonKey = {
+    "sudo-pass-required": "vps_sudo_required",
+    "sudo-wrong-pass": "vps_sudo_wrong",
+    "sudo-not-allowed": "vps_sudo_denied",
+    "sudo-bootstrap-failed": "vps_sudo_denied",
+  }[reasonCode];
+  const rootReasonTxt = rootReasonKey ? t(rootReasonKey) : "";
   const passStored = vpsStoredPass(vpsAuth);
   const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "••••••••" : "");
   const passLabel = showKey ? t("vps_sudo_pass") : t("vps_auth_pass");
@@ -2590,6 +2641,11 @@ function renderVpsSection() {
         <span class="notify-name">${escAttr(t("vps_last_test"))}</span>
         <span id="vps-last-test" class="tp-last-signal">${escAttr(lastTs)}</span>
       </div>
+      <div class="tp-status-row">
+        <span class="notify-name">${escAttr(t("vps_login_user"))}</span>
+        <span id="vps-root-value" class="tp-status-value ${rootCls}">${escAttr(rootTxt)}</span>
+      </div>
+      ${rootReasonTxt ? `<div class="tp-frame-note">${escAttr(rootReasonTxt)}</div>` : ""}
       <div class="tp-sub-box">
         <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
@@ -2623,7 +2679,7 @@ function renderVpsSection() {
         </div>
       </div>
       <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
-        <button id="vps-test" class="tab" disabled aria-disabled="true">${escAttr(t("vps_test"))}</button>
+        <span class="btn-tip" id="vps-test-tip"><button id="vps-test" class="tab" disabled aria-disabled="true">${escAttr(t("vps_test"))}</button></span>
         ${p.everConnected ? `<button id="vps-server-change" class="tab" data-i18n="server_change_btn">${escAttr(t("server_change_btn"))}</button>` : ""}
       </div>
     </div>
@@ -2665,7 +2721,10 @@ function updateVpsTestGate() {
     const tip = st.reason === "host" ? t("vps_need_host")
       : st.reason === "key" ? t("vps_need_key")
         : st.reason === "pass" ? t("vps_need_pass") : "";
-    if (tip) btn.setAttribute("data-tip", tip); else btn.removeAttribute("data-tip");
+    // disabled buton olay almaz: ipucu sarmalayiciya yazilir (varsa)
+    const tipHost = document.getElementById("vps-test-tip") || btn;
+    if (tip) tipHost.setAttribute("data-tip", tip); else tipHost.removeAttribute("data-tip");
+    if (tipHost !== btn) btn.removeAttribute("data-tip");
   }
   const userEl = document.getElementById("vps-user");
   const isRoot = (((userEl && userEl.value) || "root").trim().toLowerCase() === "root");
@@ -3205,7 +3264,7 @@ function vpsServerChange() {
       if (!r.ok) throw new Error(errText(j.error) || j.error || "reset");
       toast(t("server_changed"));
       vpsProfile = null;
-      vpsGate = { configured: false, connected: false, everConnected: false };
+      vpsGate = { configured: false, connected: false, everConnected: false, rootReady: false, rootVerified: false, loginUser: "" };
       renderThirdPartyApps({ silent: true });
     } catch (e) {
       toast(errText((e && e.message) || "") || t("error"), true);

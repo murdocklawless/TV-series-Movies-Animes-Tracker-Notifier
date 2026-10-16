@@ -3616,6 +3616,13 @@ input:-webkit-autofill:focus {
   opacity: 0.55;
   cursor: not-allowed;
 }
+/* Disabled butonlar olay almaz -> ipucu (data-tip) sarmalayiciya konur. */
+.btn-tip {
+  display: inline-flex;
+}
+.btn-tip > button[disabled] {
+  pointer-events: none;
+}
 .tp-card-disabled .notif-type-head {
   cursor: not-allowed;
 }

@@ -1,18 +1,18 @@
 // Faz 4: tracker.js � giri� noktas�. T�m mant�k mod�llere b�l�nd�; bu dosya
 // mod�lleri ba�lar, ba�lang�� y�klemelerini yapar ve genel (global) olaylar� kurar.
-window.__NX_BUILD = "491";
+window.__NX_BUILD = "492";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang, t } from "./i18n.js?v=522";
-import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=521";
-import { closeResultsModal } from "./search.js?v=519";
-import "./settings.js?v=536";
-import "./notification.js?v=530";
-import "./asks.js?v=531";
-import "./stats.js?v=536";
-  import "./history.js?v=543";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=523";
+import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=522";
+import { closeResultsModal } from "./search.js?v=520";
+import "./settings.js?v=537";
+import "./notification.js?v=531";
+import "./asks.js?v=532";
+import "./stats.js?v=537";
+  import "./history.js?v=544";
   import "./tv.js?v=525";
-  import "./rowview.js?v=12";
-import { bootAuth } from "./auth.js?v=517";
+  import "./rowview.js?v=13";
+import { bootAuth } from "./auth.js?v=518";
 
 // ---- Ba�lang�� g�r�n�m� (son se�ilen sekmeyi geri y�kle) ----
 // Faz 30: oturum yoksa auth.js giri� ekran�n� g�sterir; uygulama

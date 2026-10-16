@@ -310,13 +310,103 @@ def _bootstrap_sudoers(profile, secret, password):
     return False, (out or "").strip()[-300:]
 
 
-def _store_test_state(connected, ts, nopass):
-    """TEST sonucunu ayarlara + sudo_nopasswd bayragina yazar (fail-soft)."""
+def _store_root_state(login_user="", effective_user="", root_verified=0, reason=""):
+    """Hangi kullanici ile bagliyiz + root yetkisi dogrulandi mi (fail-soft).
+
+    vps_login_user     : SSH girisi yapilan kullanici (profilden)
+    vps_effective_user : komutlarin gercekte kostugu kullanici ("root" ya da "")
+    vps_root_verified  : "1" -> root yetkisi (dogrudan ya da sudo ile) dogrulandi
+    vps_last_reason    : son basarisizligin nedeni (sudo-pass-required vb.)
+    """
+    try:
+        set_setting("vps_login_user", str(login_user or ""))
+        set_setting("vps_effective_user", str(effective_user or ""))
+        set_setting("vps_root_verified", "1" if root_verified else "0")
+        set_setting("vps_last_reason", str(reason or ""))
+    except Exception:
+        pass
+
+
+def _reset_root_state():
+    """Profil/parola degisti -> eski dogrulama bayat, sifirla."""
+    _store_root_state("", "", 0, "")
+
+
+def _get_root_state():
+    """Kalici kullanici/root durumu (fail-soft; eksikse bos doner)."""
+    out = {"login_user": "", "effective_user": "", "root_verified": False, "last_reason": ""}
+    try:
+        out["login_user"] = get_setting("vps_login_user") or ""
+        out["effective_user"] = get_setting("vps_effective_user") or ""
+        out["root_verified"] = (get_setting("vps_root_verified") or "") == "1"
+        out["last_reason"] = get_setting("vps_last_reason") or ""
+    except Exception:
+        pass
+    return out
+
+
+def _root_ready(profile=None):
+    """Bu profille root yetkisi kullanilabilir mi?
+
+    root ile giris dogrudan root sayilir (yukseltme gerekmez). root disi
+    kullanicida Test Et / preflight ile dogrulanmis olmasi sart.
+    """
+    try:
+        p = profile or _get_profile()
+        if (p.get("username") or "root") == "root":
+            return True
+        return bool(_get_root_state().get("root_verified"))
+    except Exception:
+        return False
+
+
+def _preflight_root(profile, secret):
+    """Is oncesi CANLI kontrol: SSH kullanicisi + sudo -n ile root olunabiliyor mu?
+
+    Donus: (ok, login_user, detail). Sonuc `vps_root_verified` olarak saklanir;
+    basarisizsa bayrak 0'a cekilir (bayat "root var" izlenimi kalmasin).
+    """
+    user = (profile.get("username") or "root").strip() or "root"
+    try:
+        if user == "root":
+            rc, out = _ssh_exec(profile, secret, "id -un; id -u", timeout=25)
+            lines = [l.strip() for l in (out or "").splitlines() if l.strip()]
+            login = lines[0] if lines else ""
+            uid = lines[1] if len(lines) > 1 else ""
+            ok = rc == 0 and uid == "0"
+        else:
+            rc, out = _ssh_exec(profile, secret,
+                                "id -un; id -u; sudo -n id -un 2>&1", timeout=30)
+            lines = [l.strip() for l in (out or "").splitlines() if l.strip()]
+            login = lines[0] if lines else ""
+            eff = lines[-1] if lines else ""
+            ok = rc == 0 and eff == "root"
+        detail = "" if ok else (out or "").strip()[:300]
+    except Exception as e:
+        _store_root_state(user, "", 0, "preflight-failed")
+        return False, user, str(e)[:300]
+    login = login or user
+    _store_root_state(login, "root" if ok else "", 1 if ok else 0,
+                      "" if ok else "preflight-failed")
+    return ok, login, detail
+
+
+def _store_test_state(connected, ts, nopass, login_user=None, effective_user=None,
+                      root_verified=None, reason=None):
+    """TEST sonucunu ayarlara + sudo_nopasswd bayragina yazar (fail-soft).
+
+    login_user/effective_user/root_verified/reason verilirse "hangi kullanici ile
+    bagliyim, root yetkim var mi" bilgisi de kalicilastirilir (None = dokunma).
+    """
     try:
         set_setting("vps_status_connected", "1" if connected else "0")
         set_setting("vps_last_test_ts", str(ts))
     except Exception:
         pass
+    if not (login_user is None and effective_user is None
+            and root_verified is None and reason is None):
+        _store_root_state(login_user or "", effective_user or "",
+                          1 if root_verified else 0, reason or "")
     try:
         conn = get_db()
         try:
@@ -397,12 +487,21 @@ def _run_wg_job(job_id):
         _job_append(job_id, "ABORT:no-vps-link")
         _job_finish(job_id, "aborted", "ABORT:no-vps-link")
         return
+    # Root yetkisi ise BASLAMADAN canli dogrulanir (bayat "bagli" bayragi yetmez).
+    okr, ruser, rdet = _preflight_root(profile, secret)
+    if not okr:
+        _job_step(job_id, "profile", "fail")
+        _job_append(job_id, "kullanici: " + ruser + " -> root YOK")
+        _job_append(job_id, "ABORT:root-yetkisi-yok" + ((" - " + rdet) if rdet else ""))
+        _job_finish(job_id, "aborted", "ABORT:root-yetkisi-yok")
+        return
     if os.path.exists("/etc/wireguard/nextep.conf"):
         _job_step(job_id, "profile", "ok")
         _job_append(job_id, "ABORT:already-installed (Pi tüneli mevcut)")
         _job_finish(job_id, "aborted", "ABORT:already-installed")
         return
     _job_step(job_id, "profile", "ok")
+    _job_append(job_id, "kullanici: " + ruser + " -> root OK")
     log = _job_logger(job_id)
     vrun = _mk_vps_run(profile, secret)
     _job_step(job_id, "webserver", "run", "VPS'te WireGuard kuruluyor (soru yok, otomatik)...")
@@ -494,6 +593,14 @@ def _run_stremio_job(job_id, params):
         _job_append(job_id, "ABORT:no-vps-link")
         _job_finish(job_id, "aborted", "ABORT:no-vps-link")
         return
+    # Root yetkisi ise BASLAMADAN canli dogrulanir (bayat "bagli" bayragi yetmez).
+    okr, ruser, rdet = _preflight_root(profile, secret)
+    if not okr:
+        _job_step(job_id, "profile", "fail")
+        _job_append(job_id, "kullanici: " + ruser + " -> root YOK")
+        _job_append(job_id, "ABORT:root-yetkisi-yok" + ((" - " + rdet) if rdet else ""))
+        _job_finish(job_id, "aborted", "ABORT:root-yetkisi-yok")
+        return
     if profile.get("auth_type") != "key":
         _job_step(job_id, "profile", "fail")
         _job_append(job_id, "ABORT:no-key-for-tunnel (ters tünel için anahtar kimlik doğrulaması gerekli)")
@@ -512,6 +619,7 @@ def _run_stremio_job(job_id, params):
     port = vps_install.read_pi_port()
     backend = str(params.get("backend") or "").strip() or f"127.0.0.1:{port}"
     _job_step(job_id, "profile", "ok")
+    _job_append(job_id, "kullanici: " + ruser + " -> root OK")
     log = _job_logger(job_id)
     vrun = _mk_vps_run(profile, secret)
 
@@ -806,7 +914,8 @@ def remote_reset():
                 pass
             for key in ("vps_status_connected", "vps_ever_connected", "vps_last_test_ts",
                         "stremio_vps_installed", "tp_base_url", "stremio_web_server",
-                        "remote_last_handshake"):
+                        "remote_last_handshake", "vps_login_user", "vps_effective_user",
+                        "vps_root_verified", "vps_last_reason"):
                 conn.execute("DELETE FROM settings WHERE key=?", (key,))
             conn.commit()
         finally:
@@ -914,6 +1023,8 @@ def remote_peers_add():
         linked = False
     if not linked:
         return jsonify({"error": "no-vps-link"}), 400
+    if not _root_ready(profile):
+        return jsonify({"error": "root-required"}), 400
     body = request.get_json(silent=True) or {}
     name = str(body.get("name") or "").strip()[:64]
     pi_text = _pi_wg_conf()
@@ -1116,6 +1227,8 @@ def remote_peers_patch(num):
             linked = False
         if not linked:
             return jsonify({"error": "no-vps-link"}), 400
+        if not _root_ready(profile):
+            return jsonify({"error": "root-required"}), 400
         pci = _parse_pi_conf(_pi_wg_conf())
         pi_pub = _pi_pubkey(pci.get("pi_priv", ""))
         try:
@@ -1201,6 +1314,8 @@ def remote_peers_delete(num):
         linked = False
     if not linked:
         return jsonify({"error": "no-vps-link"}), 400
+    if not _root_ready(profile):
+        return jsonify({"error": "root-required"}), 400
     pci = _parse_pi_conf(_pi_wg_conf())
     pi_pub = _pi_pubkey(pci.get("pi_priv", ""))
     try:
@@ -1277,12 +1392,20 @@ def remote_vps_status():
         web_server = get_setting("stremio_web_server") or ""
     except Exception:
         web_server = ""
+    rs = _get_root_state()
+    login_user = rs["login_user"] or p["username"]
+    root_verified = bool(rs["root_verified"]) or p["username"] == "root"
     return jsonify({"ok": True, "configured": configured, "connected": connected and configured,
                     "everConnected": ever_connected,
                     "lastTestTs": last_ts, "host": p["host"], "port": p["port"],
                     "username": p["username"], "auth_type": p["auth_type"],
                     "sudoHasSecret": bool(p.get("sudo_has_secret")),
                     "sudoNopasswd": bool(p.get("sudo_nopasswd")),
+                    "loginUser": login_user,
+                    "effectiveUser": rs["effective_user"] or ("root" if p["username"] == "root" else ""),
+                    "rootVerified": root_verified,
+                    "rootReady": bool(connected and configured and root_verified),
+                    "lastReason": rs["last_reason"],
                     "fingerprint": p["fingerprint"], "stremioInstalled": stremio_installed,
                     "tunnelInstalled": tunnel_installed, "tunnelActive": tunnel_active,
                     "webServer": web_server})
@@ -1337,6 +1460,10 @@ def remote_profile_save():
     keep_nopass = 1 if (old.get("sudo_nopasswd") and old.get("username") == username
                         and old.get("host") == host and bool(old_sudo_secret) == bool(sudo_secret)
                         and username != "root") else 0
+    # Root dogrulamasi da yalnizca ayni host + kullanici + kimlik icin gecerli.
+    keep_root = (old.get("host") == host and old.get("username") == username
+                 and (old.get("auth_type") or "key") == auth_type
+                 and old_secret == secret and old_sudo_secret == sudo_secret)
     try:
         conn = get_db()
         try:
@@ -1357,6 +1484,8 @@ def remote_profile_save():
                 pass
     except Exception as e:
         return jsonify({"error": f"db_failed: {str(e)[:200]}"}), 500
+    if not keep_root:
+        _reset_root_state()
     out = {"ok": True, "configured": bool(host and secret and username),
            "sudo_configured": bool(sudo_secret), "username": username,
            "key_format": detect_key_format(secret) if auth_type == "key" else None}
@@ -1376,7 +1505,7 @@ def remote_test():
                         "detail": "host/kullanici/secret eksik"}), 200
     ts = int(time.time())
     if p["auth_type"] == "password" and not shutil.which("sshpass"):
-        _store_test_state(0, ts, 0)
+        _store_test_state(0, ts, 0, p["username"], "", 0, "no-sshpass")
         return jsonify({"ok": True, "connected": False, "reason": "no-sshpass",
                         "detail": "parola auth icin VPS/Pi uzerinde sshpass gerekli",
                         "lastTestTs": ts}), 200
@@ -1384,7 +1513,7 @@ def remote_test():
         # 1) SSH girisi: parola modunda login parolasi, key modunda anahtar.
         rc, out = _ssh_exec(p, secret, "echo REMOTE-OK; id -u; hostname", timeout=20)
         if rc != 0 or "REMOTE-OK" not in (out or ""):
-            _store_test_state(0, ts, 0)
+            _store_test_state(0, ts, 0, p["username"], "", 0, "ssh-failed")
             return jsonify({"ok": True, "connected": False, "reason": "ssh-failed",
                             "detail": (out or "").strip()[:500], "lastTestTs": ts}), 200
         uid = ""
@@ -1404,7 +1533,8 @@ def remote_test():
             else:
                 pw = _sudo_login_secret(p, secret, sudo_secret)
                 if not pw:
-                    _store_test_state(0, ts, 0)
+                    _store_test_state(0, ts, 0, p["username"], p["username"], 0,
+                                      "sudo-pass-required")
                     return jsonify({"ok": True, "connected": False, "reason": "sudo-pass-required",
                                     "detail": "root disi kullanici icin sudo parolasi gerekli",
                                     "lastTestTs": ts}), 200
@@ -1412,20 +1542,20 @@ def remote_test():
                 _rc_c, out_c = _ssh_exec(p, secret, "sudo -S -p '' true 2>&1 && echo SUDO-PASS-OK",
                                          input_text=pw + "\n", timeout=20)
                 if "SUDO-PASS-OK" not in (out_c or ""):
-                    _store_test_state(0, ts, 0)
                     reason = "sudo-not-allowed" if _sudo_denied(out_c) else "sudo-wrong-pass"
+                    _store_test_state(0, ts, 0, p["username"], p["username"], 0, reason)
                     return jsonify({"ok": True, "connected": False, "reason": reason,
                                     "detail": (out_c or "").strip()[:300],
                                     "lastTestTs": ts}), 200
                 okb, detb = _bootstrap_sudoers(p, secret, pw)
                 if not okb:
-                    _store_test_state(0, ts, 0)
                     reason = "sudo-not-allowed" if _sudo_denied(detb) else "sudo-bootstrap-failed"
+                    _store_test_state(0, ts, 0, p["username"], p["username"], 0, reason)
                     return jsonify({"ok": True, "connected": False, "reason": reason,
                                     "detail": detb, "lastTestTs": ts}), 200
                 nopass = 1
         # 4) root yetkisi dogrulandi: isaretleri yaz.
-        _store_test_state(1, ts, nopass)
+        _store_test_state(1, ts, nopass, p["username"], "root", 1, "")
         # TOFU bilgi: fingerprint (fail-soft)
         fp = ""
         try:
@@ -1457,9 +1587,11 @@ def remote_test():
         return jsonify({"ok": True, "connected": True, "lastTestTs": ts,
                         "remoteHost": (out or "").strip().splitlines()[-1][:100] if out else "",
                         "fingerprint": fp, "username": p["username"],
+                        "loginUser": p["username"], "effectiveUser": "root",
+                        "rootVerified": True,
                         "sudo": bool(sudo_used), "sudoNopasswd": bool(nopass)})
     except subprocess.TimeoutExpired:
-        _store_test_state(0, ts, 0)
+        _store_test_state(0, ts, 0, p["username"], "", 0, "timeout")
         return jsonify({"ok": True, "connected": False, "reason": "timeout",
                         "lastTestTs": ts}), 200
     except Exception as e:

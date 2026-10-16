@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.72 - 17/10/2026-01:47
+### TR
+- **Root kapısı:** "Sunucuya Kur"/"Onar" (Stremio + Uzak Bağlantı), "Peer Ekle" ve "Tüneli Kaldır" butonları artık **root yetkisi doğrulanmadan çalışmıyor**; kapalı butonun üzerine gelince neden görünür (kart bağlıysa "Sunucuya bağlısınız", değilse "Sunucu bağlantısı yapılandırılmamış veya root kullanıcısı ile giriş yapılmamış").
+- Sunucu Bağlantı Ayarları'na **"Kullanıcı / root yetkisi"** satırı eklendi: `root (doğrudan)`, `<kullanıcı> → root (sudo ile)` ya da `<kullanıcı> — root yetkisi yok` + son hata nedeni (yanlış sudo parolası vb.).
+- **Durum kalıcı:** `vps_login_user`, `vps_effective_user`, `vps_root_verified`, `vps_last_reason` saklanır; `/api/remote/vps-status` bunları (`loginUser`, `effectiveUser`, `rootVerified`, `rootReady`, `lastReason`) döner. Profil (host/kullanıcı/kimlik/parola) değişince doğrulama **sıfırlanır** (bayat "root var" izlenimi kalmaz); "Sunucu Değiştir" de bu alanları temizler.
+- **İş başında canlı kontrol (preflight):** kurulum işleri başlamadan önce SSH ile `id -un` + `sudo -n id -un` çalıştırılır; log'a `kullanıcı: <user> -> root OK` / `root YOK` yazılır. Bayat `connected=1` durumu bu kontrolle yakalanır; başarısızsa iş `ABORT:root-yetkisi-yok` ile durur ve `vps_root_verified` 0'a çekilir.
+- Peer uçları (ekle/durdur/sil) root doğrulanmamışsa `root-required` döner (arayüzde ikinci mesaj görünür).
+- Stremio kartındaki **"Hazır"** durumu **bağlı sayılmaz**; ipucu bu durumda ikinci mesajı gösterir.
+- `disabled` butonlar fare olayı almadığı için ipucu `<span class="btn-tip">` sarmalayıcısına taşındı; `Test Et` butonunun tooltip'i de aynı şekilde düzeltildi.
+- 6 yeni çeviri anahtarı x 14 dil (`vps_login_user`, `vps_root_direct`, `vps_root_via_sudo`, `vps_root_missing`, `vps_btn_tip_connected`, `vps_btn_tip_no_root`) + `root-required` hata eşlemesi. Zincir bump: i18n 523, utils/auth 518, views/components 522, search 520, notification 531, asks 532, settings/stats 537, history 544, rowview 13, `nextep.js?v=561` (`__NX_BUILD` 492), `style.css?v=588`.
+### EN
+- **Root gate:** "Install on Server"/"Repair" (Stremio + Remote Connection), "Add Peer" and "Remove Tunnel" no longer work unless root access is verified; hovering a disabled button explains why ("You are connected to the server" when the card is connected, otherwise "Server connection is not configured or you are not logged in as root").
+- Server Connection Settings gained a **"User / root access"** row: `root (direct)`, `<user> → root (via sudo)`, or `<user> — no root access` plus the last failure reason (wrong sudo password, etc.).
+- **Persisted state:** `vps_login_user`, `vps_effective_user`, `vps_root_verified`, `vps_last_reason` are stored; `/api/remote/vps-status` returns them (`loginUser`, `effectiveUser`, `rootVerified`, `rootReady`, `lastReason`). Changing the profile (host/user/credentials/password) **resets** the verification (no stale "root is fine" state); "Change Server" clears them as well.
+- **Live preflight before work:** install jobs run `id -un` + `sudo -n id -un` over SSH first and log `kullanıcı: <user> -> root OK` / `root YOK`. A stale `connected=1` flag is caught here; on failure the job aborts with `ABORT:root-yetkisi-yok` and the flag is set back to 0.
+- Peer endpoints (add/suspend/delete) return `root-required` when root is not verified (the UI shows the second message).
+- Stremio's **"Ready"** state does **not** count as connected; the tooltip shows the second message in that case.
+- Disabled buttons receive no mouse events, so tooltips moved to a `<span class="btn-tip">` wrapper; the `Test` button tooltip was fixed the same way.
+- 6 new translation keys x 14 languages (`vps_login_user`, `vps_root_direct`, `vps_root_via_sudo`, `vps_root_missing`, `vps_btn_tip_connected`, `vps_btn_tip_no_root`) plus a `root-required` error mapping. Chain bump: i18n 523, utils/auth 518, views/components 522, search 520, notification 531, asks 532, settings/stats 537, history 544, rowview 13, `nextep.js?v=561` (`__NX_BUILD` 492), `style.css?v=588`.
+
 ## 1.71 - 17/10/2026-00:45
 ### TR
 - Sunucu Bağlantı Ayarları → Kimlik Doğrulama: SSH Key alanının üzerine **Kullanıcı Adı** ve **Parola** girişleri eklendi (tek ortak alan çifti, Key ve Parola modlarının ikisinde de görünür).
