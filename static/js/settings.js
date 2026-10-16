@@ -1,9 +1,9 @@
-﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
+// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=520";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=521";
 import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=516";
 import { activateUtilityTab } from "./views.js?v=518";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm } from "./components.js?v=519";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=520";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=520");
+      const { errText: _err } = await import("./i18n.js?v=521");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1041,7 +1041,7 @@ async function openFavListing(kind, ident, title) {
       return;
     }
     const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=516");
-    const { openDetails } = await import("./components.js?v=519");
+    const { openDetails } = await import("./components.js?v=520");
     const { loadFollowed } = await import("./views.js?v=518");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=520");
+        const { t: _t } = await import("./i18n.js?v=521");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=527").then((m) => {
+  import("./notification.js?v=528").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2258,9 +2258,10 @@ const thirdPartyAppRenderers = {
           </label>` : ""}
           ${stremioInstallLabel}
         </div>` : "")}
-        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
-          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected && !stremioInstalled ? "" : "disabled aria-disabled=\"true\""}>${t("install_on_vps")}</button>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="tp-stremio-install" class="tab" ${tpIsAdmin && vpsGate.connected && (!stremioInstalled || !app.tunnelOk) ? "" : "disabled aria-disabled=\"true\""}>${stremioInstalled && !app.tunnelOk ? t("stremio_install_repair") : t("install_on_vps")}</button>
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
+          ${tpIsAdmin && app.tunnelInstalled ? `<button id="tp-stremio-tunnel-remove" class="tab" data-i18n="tunnel_remove_btn">${t("tunnel_remove_btn")}</button>` : ""}
           ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
         ${tpIsAdmin ? `<pre id="tp-stremio-joblog" class="tp-joblog" style="display:none"></pre>` : ""}
@@ -2596,8 +2597,9 @@ function renderVpsSection() {
           </label>
         </div>
       </div>
-      <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+      <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
         <button id="vps-test" class="tab">${escAttr(t("vps_test"))}</button>
+        ${p.everConnected ? `<button id="vps-server-change" class="tab" data-i18n="server_change_btn">${escAttr(t("server_change_btn"))}</button>` : ""}
       </div>
     </div>
   </div>`;
@@ -2770,7 +2772,7 @@ function pollRemoteJob(jobId, logEl) {
       const r = await fetch("/api/remote/jobs/" + jobId, { cache: "no-store" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "job");
-      if (logEl) { logEl.style.display = "block"; logEl.textContent = j.log || ""; }
+      if (logEl) { logEl.style.display = "block"; logEl.textContent = stripSteps(j.log || ""); }
       if (j.status === "running") {
         remoteJobTimer = setTimeout(tick, 1500);
       } else {
@@ -2898,6 +2900,201 @@ async function remotePeerDownload(num, file) {
   } catch (_) {}
 }
 
+// ---------------------------------------------------------------------------
+// Stremio "Sunucuya Kur" sihirbazi (adanmis modal; tek ekranda secim + adimlar + terminal)
+// ---------------------------------------------------------------------------
+const SI_STEP_ORDER = ["profile", "detect", "webserver", "landing", "tunnel", "verify"];
+const SI_SERVERS = ["caddy", "nginx", "apache2"];
+let siState = null;
+let siJobId = null;
+let siTimer = null;
+
+function stripSteps(text) {
+  return (text || "")
+    .split("\n")
+    .filter((l) => !/^\s*STEP:[a-z0-9-]+:(run|ok|fail)\s*$/.test(l))
+    .join("\n");
+}
+
+function siStepLabel(name) {
+  return t("step_" + name.replace(/-/g, "_"));
+}
+
+function siRenderSteps(steps) {
+  const el = document.getElementById("si-steps");
+  if (!el) return;
+  el.innerHTML = SI_STEP_ORDER.map((n) => {
+    const st = (steps && steps[n]) || "idle";
+    const icon = st === "ok" ? "✔" : st === "fail" ? "✕" : st === "run" ? "…" : "○";
+    return `<li class="si-step si-step-${st}"><span class="si-step-icon">${icon}</span><span>${siStepLabel(n)}</span></li>`;
+  }).join("");
+}
+
+function siParseLog(text) {
+  const steps = {};
+  const term = [];
+  (text || "").split("\n").forEach((line) => {
+    const m = /^\s*STEP:([a-z0-9-]+):(run|ok|fail)\s*$/.exec(line);
+    if (m) { steps[m[1]] = m[2]; return; }
+    term.push(line);
+  });
+  return { steps, term: term.join("\n") };
+}
+
+function siRenderWs(det) {
+  const list = document.getElementById("si-ws-list");
+  const note = document.getElementById("si-ws-note");
+  if (!list) return;
+  const opts = det.options || [];
+  const enabled = (s) => opts.indexOf(s) >= 0;
+  let chosen = "";
+  if (det.saved && enabled(det.saved)) chosen = det.saved;
+  else if (det.server && enabled(det.server)) chosen = det.server;
+  else chosen = opts[0] || "";
+  siState = Object.assign({}, det, { chosen });
+  list.innerHTML = SI_SERVERS.map((s) => {
+    const on = enabled(s);
+    const rec = on && !det.server && s === "caddy";
+    const label = `${s}${rec ? ` <span class="si-rec">${t("stremio_install_recommended")}</span>` : ""}`;
+    return `<button type="button" class="tab si-ws-opt${chosen === s ? " active" : ""}" data-ws="${s}" ${on ? "" : "disabled aria-disabled=\"true\""}>${label}</button>`;
+  }).join("");
+  list.querySelectorAll(".si-ws-opt").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (b.disabled) return;
+      siState.chosen = b.getAttribute("data-ws");
+      list.querySelectorAll(".si-ws-opt").forEach((x) => x.classList.toggle("active", x === b));
+    });
+  });
+  if (note) {
+    if (det.blocked) {
+      note.textContent = t("stremio_install_blocked_text", { owner: det.blockedOwner || "?" });
+      note.className = "si-note si-note-warn";
+    } else if (det.server) {
+      note.textContent = t("stremio_install_continue_existing", { server: det.server });
+      note.className = "si-note";
+    } else {
+      note.textContent = t("stremio_install_port_free");
+      note.className = "si-note";
+    }
+  }
+}
+
+async function openInstallWizard() {
+  siJobId = null;
+  clearTimeout(siTimer);
+  let det = null;
+  try {
+    const r = await fetch("/api/remote/web-servers", { cache: "no-store" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "web-servers");
+    det = j;
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+    return;
+  }
+  siRenderWs(det);
+  siRenderSteps({});
+  const term = document.getElementById("si-term");
+  if (term) { term.textContent = ""; term.style.display = "none"; }
+  const tog = document.getElementById("si-term-toggle");
+  if (tog) tog.classList.remove("active");
+  const start = document.getElementById("si-start");
+  if (start) {
+    start.textContent = (det.installed && !det.tunnelActive)
+      ? t("stremio_install_repair") : t("stremio_install_start");
+    start.disabled = !!det.blocked || !(det.options && det.options.length);
+    start.onclick = siStart;
+  }
+  openStremioInstallModal();
+}
+
+async function siStart() {
+  if (!siState || !siState.chosen) { toast(t("stremio_install_pick_server"), true); return; }
+  const domain = (tpBaseUrl || "").replace(/^https?:\/\//i, "").split("/")[0].trim();
+  if (!domain) { toast(t("stremio_install_no_domain"), true); return; }
+  const start = document.getElementById("si-start");
+  if (start) { start.disabled = true; start.classList.add("loading"); }
+  siRenderSteps({});
+  const term = document.getElementById("si-term");
+  if (term) term.textContent = t("job_started") + "\n";
+  try {
+    const r = await fetch("/api/remote/jobs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "stremio", params: { domain, web_server: siState.chosen } }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(errText(j.error) || j.error || "job");
+    siJobId = j.job_id;
+    siPoll();
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+    if (start) { start.disabled = false; start.classList.remove("loading"); }
+  }
+}
+
+function siPoll() {
+  clearTimeout(siTimer);
+  const tick = async () => {
+    try {
+      const r = await fetch("/api/remote/jobs/" + siJobId, { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "job");
+      const p = siParseLog(j.log || "");
+      siRenderSteps(p.steps);
+      const term = document.getElementById("si-term");
+      if (term) term.textContent = p.term;
+      if (j.status === "running") {
+        siTimer = setTimeout(tick, 1500);
+      } else {
+        const start = document.getElementById("si-start");
+        if (start) { start.disabled = false; start.classList.remove("loading"); }
+        const ok = j.status === "success";
+        toast(ok ? t("job_success") : t("job_failed"), !ok);
+        renderThirdPartyApps();
+        const st = document.getElementById("si-start");
+        if (st) st.textContent = t("stremio_install_start");
+      }
+    } catch (_) {
+      siTimer = setTimeout(tick, 2500);
+    }
+  };
+  tick();
+}
+
+function stremioTunnelRemove() {
+  openStremioTunnelRemoveConfirm(t("tunnel_remove_confirm"), async () => {
+    try {
+      const r = await fetch("/api/remote/tunnel/remove", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(errText(j.error) || j.error || "remove");
+      toast(t("tunnel_removed"));
+      renderThirdPartyApps();
+    } catch (e) {
+      toast(errText((e && e.message) || "") || t("error"), true);
+    }
+  });
+}
+
+function vpsServerChange() {
+  openRemoteResetConfirm(t("server_change_confirm"), async () => {
+    try {
+      const r = await fetch("/api/remote/reset", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(errText(j.error) || j.error || "reset");
+      toast(t("server_changed"));
+      vpsProfile = null;
+      vpsGate = { configured: false, connected: false, everConnected: false };
+      renderThirdPartyApps();
+    } catch (e) {
+      toast(errText((e && e.message) || "") || t("error"), true);
+    }
+  });
+}
+
 function bindVpsRemoteEvents() {
   const testBtn = document.getElementById("vps-test");
   if (testBtn) testBtn.addEventListener("click", testVpsConnection);
@@ -2927,7 +3124,21 @@ function bindVpsRemoteEvents() {
   const peerAdd = document.getElementById("tp-peer-add");
   if (peerAdd) peerAdd.addEventListener("click", addRemotePeer);
   const stremioInstall = document.getElementById("tp-stremio-install");
-  if (stremioInstall) stremioInstall.addEventListener("click", () => startRemoteJob("stremio", { domain: (tpBaseUrl || "").replace(/^https?:\/\//i, "").split("/")[0] }));
+  if (stremioInstall) stremioInstall.addEventListener("click", () => openInstallWizard());
+  const tunnelRemove = document.getElementById("tp-stremio-tunnel-remove");
+  if (tunnelRemove) tunnelRemove.addEventListener("click", stremioTunnelRemove);
+  const serverChange = document.getElementById("vps-server-change");
+  if (serverChange) serverChange.addEventListener("click", vpsServerChange);
+  const termToggle = document.getElementById("si-term-toggle");
+  if (termToggle) {
+    termToggle.addEventListener("click", () => {
+      const term = document.getElementById("si-term");
+      if (!term) return;
+      const show = term.style.display === "none";
+      term.style.display = show ? "block" : "none";
+      termToggle.classList.toggle("active", show);
+    });
+  }
   renderRemotePeers();
 }
 

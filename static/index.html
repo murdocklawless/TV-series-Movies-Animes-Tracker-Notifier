@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=585" />
+  <link rel="stylesheet" href="/static/css/style.css?v=586" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=510" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=536" />
   <link rel="stylesheet" href="/static/css/tv.css?v=549" />
@@ -1202,6 +1202,64 @@
         <p class="confirm-text"></p>
         <div class="confirm-actions">
           <button class="btn confirm-danger" data-i18n="peer_delete_yes">Evet, Sil</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stremio "Sunucuya Kur" sihirbazi (adanmis modal — ortak confirm YASAK) -->
+  <div id="stremio-install-modal" class="modal-overlay" style="display:none">
+    <div class="modal install-wizard-modal">
+      <div class="modal-header">
+        <h3 data-i18n="stremio_install_title">Sunucuya Kur</h3>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="si-block" id="si-ws-block">
+          <div class="si-label" data-i18n="stremio_install_web_title">Web sunucusu</div>
+          <div class="si-ws-list" id="si-ws-list"></div>
+          <div class="si-note" id="si-ws-note"></div>
+        </div>
+        <div class="si-block">
+          <div class="si-label" data-i18n="stremio_install_steps_title">Kurulum</div>
+          <ol class="si-steps" id="si-steps"></ol>
+        </div>
+        <button class="tab si-term-toggle" id="si-term-toggle" data-i18n="stremio_install_terminal">Terminal çıktısı</button>
+        <pre id="si-term" class="tp-joblog" style="display:none"></pre>
+        <div class="confirm-actions si-actions">
+          <button class="btn" id="si-start" data-i18n="stremio_install_start">Kur</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ters tunel kill-switch (adanmis confirm) -->
+  <div id="stremio-tunnel-remove-modal" class="modal-overlay" style="display:none">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <h3 data-i18n="tunnel_remove_title">Ters Tüneli Kaldır</h3>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button class="btn confirm-danger" data-i18n="tunnel_remove_yes">Evet, Kaldır</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sunucu Degistir (adanmis confirm) -->
+  <div id="remote-reset-modal" class="modal-overlay" style="display:none">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <h3 data-i18n="server_change_title">Sunucu Değiştir</h3>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button class="btn confirm-danger" data-i18n="server_change_yes">Evet, Sıfırla</button>
         </div>
       </div>
     </div>

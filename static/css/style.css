@@ -6153,3 +6153,53 @@ body.logged-out main { padding: 0; }
   pointer-events: none;
 }
 .wrow-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---------------------------------------------------------------------------
+   Stremio "Sunucuya Kur" sihirbazi (adanmis modal)
+   --------------------------------------------------------------------------- */
+.install-wizard-modal {
+  width: 640px;
+  max-width: 94vw;
+}
+.install-wizard-modal .modal-body { text-align: left; }
+.si-block { margin: 10px 0 14px; }
+.si-label {
+  font-size: .78rem;
+  opacity: .8;
+  margin-bottom: 6px;
+  display: block;
+}
+.si-ws-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.si-ws-opt { flex: 1 1 120px; }
+.si-rec {
+  font-size: .68rem;
+  opacity: .75;
+  margin-left: 4px;
+}
+.si-note { font-size: .74rem; opacity: .85; margin-top: 8px; line-height: 1.5; }
+.si-note-warn { color: #ff9a9a; opacity: 1; }
+.si-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.si-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+  opacity: .7;
+}
+.si-step-icon { width: 1.1em; text-align: center; }
+.si-step-run { opacity: 1; }
+.si-step-run .si-step-icon { color: #6fb3ff; }
+.si-step-ok { opacity: 1; }
+.si-step-ok .si-step-icon { color: #4caf50; }
+.si-step-fail { opacity: 1; }
+.si-step-fail .si-step-icon { color: #ff5c5c; }
+.si-term-toggle { width: auto; margin-top: 6px; }
+.si-actions { margin-top: 12px; }
+#si-term { max-height: 260px; }

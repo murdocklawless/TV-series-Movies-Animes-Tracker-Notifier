@@ -23,6 +23,7 @@ from flask import Blueprint, jsonify, request, Response
 from db import get_db, get_setting, set_setting
 from crypto_util import encrypt_secret, decrypt_secret
 from auth import get_current_user
+import vps_install
 
 remote_bp = Blueprint("remote", __name__)
 
@@ -192,11 +193,6 @@ def _vps_run(profile, secret, remote_cmd, input_text=None, timeout=600):
         _ssh_cleanup(key_file)
 
 
-def _local_script(name):
-    from config import BASE_DIR
-    return os.path.join(BASE_DIR, "sh", name)
-
-
 def _job_append(job_id, line):
     try:
         conn = get_db()
@@ -233,40 +229,58 @@ def _find_abort(output):
     return m.group(1) if m else ""
 
 
+def _job_step(job_id, name, state, human=None):
+    """Adim kaydi: terminalde gizlenen STEP satiri + istege bagli insan satiri."""
+    if human:
+        _job_append(job_id, "==> " + human)
+    _job_append(job_id, f"STEP:{name}:{state}")
+
+
+def _mk_vps_run(profile, secret):
+    """vps_install'in bekledigi vps_run(cmd, input_text, timeout) kapanisi."""
+    def run(cmd, input_text=None, timeout=600):
+        return _vps_run(profile, secret, cmd, input_text, timeout)
+    return run
+
+
+def _job_logger(job_id):
+    def log(line):
+        _job_append(job_id, str(line))
+    return log
+
+
 def _run_wg_job(job_id):
     from db import get_setting as _gs, set_setting as _ss
-    _job_append(job_id, "==> VPS profili dogrulaniyor")
+    _job_step(job_id, "profile", "run", "VPS profili dogrulaniyor")
     profile = _get_profile()
     secret = _get_secret()
     if not profile["host"] or not secret or (_gs("vps_status_connected") or "") != "1":
+        _job_step(job_id, "profile", "fail")
         _job_append(job_id, "ABORT:no-vps-link")
         _job_finish(job_id, "aborted", "ABORT:no-vps-link")
         return
     if os.path.exists("/etc/wireguard/nextep.conf"):
+        _job_step(job_id, "profile", "ok")
         _job_append(job_id, "ABORT:already-installed (Pi tüneli mevcut)")
         _job_finish(job_id, "aborted", "ABORT:already-installed")
         return
+    _job_step(job_id, "profile", "ok")
+    log = _job_logger(job_id)
+    vrun = _mk_vps_run(profile, secret)
+    _job_step(job_id, "webserver", "run", "VPS'te WireGuard kuruluyor (soru yok, otomatik)...")
     try:
-        with open(_local_script("vps_setup.sh"), "r", encoding="utf-8", errors="replace") as f:
-            script_text = f.read()
-    except Exception as e:
-        _job_append(job_id, f"HATA: yerel script okunamadi: {e}")
-        _job_finish(job_id, "aborted", "ABORT:local-script")
-        return
-    _job_append(job_id, "==> VPS'te WireGuard kuruluyor (soru yok, otomatik)...")
-    try:
-        rc, out = _vps_run(profile, secret, "bash -s -- --install-wg --auto", script_text, 600)
+        ok, err = vps_install.setup_vps_wg(vrun, log)
     except Exception as e:
         _job_append(job_id, f"HATA: VPS erisilemedi: {str(e)[:300]}")
         _job_finish(job_id, "aborted", "ABORT:ssh-failed")
         return
-    _job_append(job_id, out[-3000:])
-    if rc != 0:
-        _job_append(job_id, f"ABORT:{_find_abort(out) or 'vps-setup-failed'}")
-        _job_finish(job_id, "aborted", f"ABORT:{_find_abort(out) or 'vps-setup-failed'}")
+    if not ok:
+        _job_step(job_id, "webserver", "fail")
+        _job_append(job_id, f"ABORT:{err or 'vps-setup-failed'}")
+        _job_finish(job_id, "aborted", f"ABORT:{err or 'vps-setup-failed'}")
         return
-    # Conf'u Pi'ye indir (/root/nextep.conf), secret diske duz metin yazilmaz (VPS conf'u).
-    _job_append(job_id, "==> nextep.conf Pi'ye indiriliyor")
+    _job_step(job_id, "webserver", "ok")
+    _job_step(job_id, "landing", "run", "nextep.conf Pi'ye indiriliyor")
     try:
         rc2, conf_out = _vps_run(profile, secret, "cat /root/nextep.conf", timeout=60)
     except Exception as e:
@@ -274,11 +288,11 @@ def _run_wg_job(job_id):
         _job_finish(job_id, "aborted", "ABORT:conf-download")
         return
     if rc2 != 0 or "[Interface]" not in conf_out:
+        _job_step(job_id, "landing", "fail")
         _job_append(job_id, "ABORT:conf-download (VPS /root/nextep.conf yok)")
         _job_finish(job_id, "aborted", "ABORT:conf-download")
         return
     m_addr = re.search(r"Address\s*=\s*([0-9.]+)/", conf_out)
-    m_ep = re.search(r"Endpoint\s*=\s*(\S+)", conf_out)
     pi_addr = m_addr.group(1) if m_addr else ""
     vps_tun = (pi_addr.rsplit(".", 1)[0] + ".1") if pi_addr else ""
     try:
@@ -289,12 +303,12 @@ def _run_wg_job(job_id):
         _job_append(job_id, f"HATA: /root/nextep.conf yazilamadi: {str(e)[:200]}")
         _job_finish(job_id, "aborted", "ABORT:local-write")
         return
-    _job_append(job_id, "==> Pi istemcisi kuruluyor (nextep_remote.sh)...")
+    _job_step(job_id, "landing", "ok")
+    _job_step(job_id, "tunnel", "run", "Pi istemcisi kuruluyor (tünel istemci)...")
     try:
-        pr = subprocess.run(["bash", _local_script("nextep_remote.sh")],
-                            capture_output=True, text=True, timeout=300)
-        _job_append(job_id, (pr.stdout or "" + pr.stderr or "")[-2000:])
-        if pr.returncode != 0:
+        ok = vps_install.install_pi_wg_client(log)
+        if not ok:
+            _job_step(job_id, "tunnel", "fail")
             _job_append(job_id, "ABORT:pi-client-failed")
             _job_finish(job_id, "aborted", "ABORT:pi-client-failed")
             return
@@ -302,6 +316,7 @@ def _run_wg_job(job_id):
         _job_append(job_id, f"HATA: istemci kurulamadi: {str(e)[:200]}")
         _job_finish(job_id, "aborted", "ABORT:pi-client-failed")
         return
+    _job_step(job_id, "tunnel", "ok")
     degraded = ""
     if vps_tun:
         try:
@@ -317,11 +332,13 @@ def _run_wg_job(job_id):
                 _job_append(job_id, f"UYARI: VPS tuneline ulasilamiyor ({vps_tun}) — Pi baglaninca duzelir")
         except Exception:
             degraded = "DEGRADED:backend-unreachable"
+    _job_step(job_id, "verify", "run", "Doğrulanıyor")
     try:
         _vps_run(profile, secret, "shred -u /root/nextep.conf 2>/dev/null || rm -f /root/nextep.conf", timeout=30)
         _job_append(job_id, "==> VPS /root/nextep.conf imha edildi")
     except Exception:
         pass
+    _job_step(job_id, "verify", "fail" if degraded else "ok")
     if degraded:
         _job_finish(job_id, "degraded", degraded)
     else:
@@ -331,69 +348,127 @@ def _run_wg_job(job_id):
 
 def _run_stremio_job(job_id, params):
     from db import get_setting as _gs, set_setting as _ss
-    _job_append(job_id, "==> VPS profili dogrulaniyor")
+    _job_step(job_id, "profile", "run", "VPS profili dogrulaniyor")
     profile = _get_profile()
     secret = _get_secret()
     if not profile["host"] or not secret or (_gs("vps_status_connected") or "") != "1":
+        _job_step(job_id, "profile", "fail")
         _job_append(job_id, "ABORT:no-vps-link")
         _job_finish(job_id, "aborted", "ABORT:no-vps-link")
         return
+    if profile.get("auth_type") != "key":
+        _job_step(job_id, "profile", "fail")
+        _job_append(job_id, "ABORT:no-key-for-tunnel (ters tünel için anahtar kimlik doğrulaması gerekli)")
+        _job_finish(job_id, "aborted", "ABORT:no-key-for-tunnel")
+        return
     domain = str(params.get("domain") or "").strip().lower()
     if not domain:
+        _job_step(job_id, "profile", "fail")
         _job_append(job_id, "ABORT:no-domain")
         _job_finish(job_id, "aborted", "ABORT:no-domain")
         return
-    try:
-        with open(_local_script("vps_setup.sh"), "r", encoding="utf-8", errors="replace") as f:
-            script_text = f.read()
-    except Exception as e:
-        _job_append(job_id, f"HATA: yerel script okunamadi: {e}")
-        _job_finish(job_id, "aborted", "ABORT:local-script")
-        return
-    # Idempotent kilit: VPS'te zaten kuruluysa ikinci kurulum yok.
-    _job_append(job_id, "==> VPS durumu kontrol ediliyor")
-    try:
-        rc0, out0 = _vps_run(profile, secret, "bash -s -- --check", script_text, 120)
-        if "Stremio:    KURULU" in out0 or "Stremio: KURULU" in out0:
-            try:
-                _ss("stremio_vps_installed", "1")
-            except Exception:
-                pass
-            _job_append(job_id, "ABORT:already-installed (Stremio kurulu)")
-            _job_finish(job_id, "aborted", "ABORT:already-installed")
-            return
-    except Exception:
-        pass
-    args = ["bash", "-s", "--", "--install-stremio", "--auto", "--domain", domain]
     email = str(params.get("email") or "").strip()
     landing = str(params.get("landing") or "").strip() or "/var/www/stremio"
-    backend = str(params.get("backend") or "").strip() or "127.0.0.1:8050"
     logpath = str(params.get("logpath") or "").strip() or "/var/log/caddy/stremio-access.log"
-    if email:
-        args += ["--email", email]
-    args += ["--landing", landing, "--backend", backend, "--logpath", logpath]
-    _job_append(job_id, f"==> Stremio kuruluyor: {domain} (soru yok)...")
+    port = vps_install.read_pi_port()
+    backend = str(params.get("backend") or "").strip() or f"127.0.0.1:{port}"
+    _job_step(job_id, "profile", "ok")
+    log = _job_logger(job_id)
+    vrun = _mk_vps_run(profile, secret)
+
+    # --- web sunucusu tespiti ---
+    _job_step(job_id, "detect", "run", "Web sunucusu tespit ediliyor")
     try:
-        rc, out = _vps_run(profile, secret, " ".join(args), script_text, 600)
+        det = vps_install.detect_web(vrun)
     except Exception as e:
         _job_append(job_id, f"HATA: VPS erisilemedi: {str(e)[:300]}")
         _job_finish(job_id, "aborted", "ABORT:ssh-failed")
         return
-    _job_append(job_id, out[-3000:])
-    if rc != 0:
-        _job_append(job_id, f"ABORT:{_find_abort(out) or 'vps-setup-failed'}")
-        _job_finish(job_id, "aborted", f"ABORT:{_find_abort(out) or 'vps-setup-failed'}")
+    _job_append(job_id, f"   port sahibi: :80={det.get('http') or '-'} :443={det.get('https') or '-'}")
+    if det.get("blocked"):
+        owner = det.get("blocked_owner") or "bilinmiyor"
+        _job_step(job_id, "detect", "fail")
+        _job_append(job_id, f"ABORT:port-busy ({owner})")
+        _job_append(job_id, f"   :80/:443 portunu '{owner}' tutuyor — otomatik kurulum yapılamaz.")
+        _job_append(job_id, "   Portu elle boşaltıp tekrar deneyin:  ss -ltnp 'sport = :80'")
+        _job_finish(job_id, "aborted", f"ABORT:port-busy ({owner})")
         return
+    options = det.get("options") or list(vps_install.WEB_SERVERS)
+    _job_step(job_id, "detect", "ok")
+    chosen = str(params.get("web_server") or "").strip().lower()
+    if chosen not in options:
+        chosen = det.get("server") or options[0]
+    _job_append(job_id, f"==> Seçilen web sunucusu: {chosen}")
+
+    # --- onar yolu: kurulu ve tunel saglikli ise tekrar kurma ---
+    if (_gs("stremio_vps_installed") or "") == "1" and vps_install.tunnel_active():
+        _job_append(job_id, "ABORT:already-installed (Stremio kurulu)")
+        _job_finish(job_id, "aborted", "ABORT:already-installed")
+        return
+    if (_gs("stremio_vps_installed") or "") == "1":
+        _job_append(job_id, "==> Mevcut kurulum eksik (tünel yok) — onarım modu")
+
+    # --- web sunucusu kurulumu ---
+    _job_step(job_id, "webserver", "run", f"Web sunucusu kuruluyor ({chosen})")
+    try:
+        ok, err = vps_install.install_web_stack(vrun, log, chosen, domain, backend, landing, logpath, email)
+    except Exception as e:
+        _job_append(job_id, f"HATA: web sunucusu kurulumu: {str(e)[:300]}")
+        _job_finish(job_id, "aborted", "ABORT:ssh-failed")
+        return
+    if not ok:
+        _job_append(job_id, f"ABORT:{err or 'webserver-failed'}")
+        _job_finish(job_id, "aborted", f"ABORT:{err or 'webserver-failed'}")
+        return
+
+    # --- landing ---
+    _job_step(job_id, "landing", "run", "Landing sayfası yazılıyor")
+    ok, err = vps_install._write_landing(vrun, log, landing)
+    if not ok:
+        _job_step(job_id, "landing", "fail")
+        _job_append(job_id, "ABORT:landing-failed")
+        _job_finish(job_id, "aborted", "ABORT:landing-failed")
+        return
+    _job_step(job_id, "landing", "ok")
+
+    # --- ters tunel (autossh) ---
+    _job_step(job_id, "tunnel", "run", "Ters tünel kuruluyor (autossh)")
+    try:
+        ok, err = vps_install.install_tunnel(profile, secret, port, log)
+    except Exception as e:
+        _job_append(job_id, f"HATA: tünel kurulumu: {str(e)[:300]}")
+        _job_finish(job_id, "aborted", "ABORT:tunnel-failed")
+        return
+    if not ok:
+        _job_append(job_id, f"ABORT:{err or 'tunnel-failed'}")
+        _job_finish(job_id, "aborted", f"ABORT:{err or 'tunnel-failed'}")
+        return
+
+    # --- uctan uca dogrulama ---
+    _job_step(job_id, "verify", "run", "Uçtan uca doğrulanıyor")
     degraded = ""
-    if "backend'e ulaşılamadı" in out or "backend'e ulasilamadi" in out:
+    if not vps_install.tunnel_active():
+        degraded = "DEGRADED:tunnel-inactive"
+        _job_append(job_id, "UYARI: nextep-tunnel servisi aktif değil")
+        try:
+            pr = vps_install._pi_run(["journalctl", "-u", "nextep-tunnel", "-n", "20", "--no-pager"],
+                                     timeout=30)
+            _job_append(job_id, ((pr.stdout or "") + (pr.stderr or ""))[-2000:])
+        except Exception:
+            pass
+    https_ok = vps_install._https_test(vrun, log, domain)
+    if not https_ok and not degraded:
         degraded = "DEGRADED:backend-unreachable"
+    _job_step(job_id, "verify", "fail" if degraded else "ok")
+
     try:
         _ss("stremio_vps_installed", "1")
         _ss("tp_base_url", f"https://{domain}")
+        _ss("stremio_web_server", chosen)
     except Exception:
         pass
     if degraded:
-        _job_append(job_id, "UYARI: backend'e ulasilamiyor — Pi tüneli acilinca duzelir")
+        _job_append(job_id, "UYARI: kurulum doğrulanamadı — logları kontrol edin")
         _job_finish(job_id, "degraded", degraded)
     else:
         _job_finish(job_id, "success", "SUCCESS")
@@ -419,8 +494,9 @@ def remote_jobs_create():
     if kind == "wg" and os.path.exists("/etc/wireguard/nextep.conf"):
         return jsonify({"error": "already-installed"}), 400
     if kind == "stremio":
+        # Onarim yolu: kurulu gorunuyor ama ters tunel yoksa yeniden kurmaya izin ver.
         try:
-            if (get_setting("stremio_vps_installed") or "") == "1":
+            if (get_setting("stremio_vps_installed") or "") == "1" and vps_install.tunnel_active():
                 return jsonify({"error": "already-installed"}), 400
         except Exception:
             pass
@@ -507,6 +583,102 @@ def remote_connect():
     except Exception as e:
         return jsonify({"error": f"tunnel-up-failed: {str(e)[:200]}"}), 500
     return jsonify({"ok": True})
+
+
+@remote_bp.route("/api/remote/web-servers", methods=["GET"])
+def remote_web_servers():
+    """Web sunucusu tespiti + secim secenekleri (kurmaz, yalniz bakar)."""
+    denied = _require_admin()
+    if denied:
+        return denied
+    p = _get_profile()
+    secret = _get_secret()
+    if not p["host"] or not secret or (get_setting("vps_status_connected") or "") != "1":
+        return jsonify({"error": "no-vps-link"}), 400
+    try:
+        vrun = _mk_vps_run(p, secret)
+        det = vps_install.detect_web(vrun)
+    except Exception as e:
+        return jsonify({"error": f"ssh-failed: {str(e)[:200]}"}), 500
+    try:
+        saved = get_setting("stremio_web_server") or ""
+    except Exception:
+        saved = ""
+    return jsonify({
+        "ok": True,
+        "http": det.get("http") or "",
+        "https": det.get("https") or "",
+        "owner": det.get("owner") or "",
+        "server": det.get("server") or "",
+        "options": det.get("options") or [],
+        "blocked": bool(det.get("blocked")),
+        "blockedOwner": det.get("blocked_owner") or "",
+        "saved": saved,
+        "tunnelInstalled": vps_install.tunnel_installed(),
+        "tunnelActive": vps_install.tunnel_active(),
+        "installed": (get_setting("stremio_vps_installed") or "") == "1",
+    })
+
+
+@remote_bp.route("/api/remote/tunnel/remove", methods=["POST"])
+def remote_tunnel_remove():
+    """Kill-switch: ters tunel unit'i + kimlikleri kaldirir (web sunucusuna dokunmaz)."""
+    denied = _require_admin()
+    if denied:
+        return denied
+    lines = []
+    try:
+        vps_install.remove_tunnel(lambda t: lines.append(str(t)))
+    except Exception as e:
+        return jsonify({"error": f"tunnel-remove-failed: {str(e)[:200]}"}), 500
+    return jsonify({"ok": True, "log": lines[-4000:]})
+
+
+@remote_bp.route("/api/remote/reset", methods=["POST"])
+def remote_reset():
+    """Sunucu Degistir: Pi izlerini + profil/secret/DB durumunu sifirlar."""
+    denied = _require_admin()
+    if denied:
+        return denied
+    lines = []
+    try:
+        vps_install.teardown_local(lambda t: lines.append(str(t)))
+    except Exception as e:
+        lines.append(f"UYARI: yerel temizlik: {str(e)[:200]}")
+    # VPS tarafi: yalnizca nexus yonetimli WG arayuzu kaldirilir (varsa).
+    try:
+        p = _get_profile()
+        secret = _get_secret()
+        if p["host"] and secret:
+            vps_install.teardown_vps(_mk_vps_run(p, secret), lambda t: lines.append(str(t)))
+    except Exception as e:
+        lines.append(f"UYARI: VPS temizligi: {str(e)[:200]}")
+    try:
+        conn = get_db()
+        try:
+            conn.execute("DELETE FROM vps_hosts")
+            try:
+                conn.execute("DELETE FROM wg_peers")
+            except Exception:
+                pass
+            try:
+                conn.execute("DELETE FROM remote_jobs")
+            except Exception:
+                pass
+            for key in ("vps_status_connected", "vps_ever_connected", "vps_last_test_ts",
+                        "stremio_vps_installed", "tp_base_url", "stremio_web_server",
+                        "remote_last_handshake"):
+                conn.execute("DELETE FROM settings WHERE key=?", (key,))
+            conn.commit()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        lines.append("==> Profil, sirlar ve durum sifirlandi")
+    except Exception as e:
+        return jsonify({"error": f"db_failed: {str(e)[:200]}"}), 500
+    return jsonify({"ok": True, "log": lines[-4000:]})
 
 
 # ---------------------------------------------------------------------------
@@ -956,11 +1128,23 @@ def remote_vps_status():
         stremio_installed = (get_setting("stremio_vps_installed") or "") == "1" or bool(get_setting("tp_base_url") or "")
     except Exception:
         stremio_installed = False
+    try:
+        tunnel_installed = vps_install.tunnel_installed()
+        tunnel_active = vps_install.tunnel_active()
+    except Exception:
+        tunnel_installed = False
+        tunnel_active = False
+    try:
+        web_server = get_setting("stremio_web_server") or ""
+    except Exception:
+        web_server = ""
     return jsonify({"ok": True, "configured": configured, "connected": connected and configured,
                     "everConnected": ever_connected,
                     "lastTestTs": last_ts, "host": p["host"], "port": p["port"],
                     "username": p["username"], "auth_type": p["auth_type"],
-                    "fingerprint": p["fingerprint"], "stremioInstalled": stremio_installed})
+                    "fingerprint": p["fingerprint"], "stremioInstalled": stremio_installed,
+                    "tunnelInstalled": tunnel_installed, "tunnelActive": tunnel_active,
+                    "webServer": web_server})
 
 
 @remote_bp.route("/api/remote/profile", methods=["POST"])
@@ -1113,7 +1297,7 @@ def remote_test():
 
 @remote_bp.route("/api/remote/check", methods=["GET"])
 def remote_check():
-    """VPS genis --check: vps_setup.sh stdin'den akitilir (VPS'te dosya sart degil)."""
+    """VPS genis kontrol (yalniz Python, sh/vps_setup.sh cagrilmaz)."""
     denied = _require_admin()
     if denied:
         return denied
@@ -1122,46 +1306,26 @@ def remote_check():
     if not p["host"] or not secret:
         return jsonify({"error": "no-vps-link"}), 400
     try:
-        from config import BASE_DIR
-        script = os.path.join(BASE_DIR, "sh", "vps_setup.sh")
-        with open(script, "r", encoding="utf-8", errors="replace") as f:
-            script_text = f.read()
-    except Exception as e:
-        return jsonify({"error": f"local-script-missing: {str(e)[:200]}"}), 500
-    key_file = None
-    try:
-        cmd = _ssh_base(p["host"], p["port"], p["username"])
-        if p["auth_type"] == "key":
-            kfd, key_file = tempfile.mkstemp(prefix="vps_key_")
-            os.close(kfd)
-            with open(key_file, "w") as kf:
-                kf.write(secret if secret.endswith("\n") else secret + "\n")
-            os.chmod(key_file, 0o600)
-            cmd.extend(["-i", key_file])
-        else:
-            if not shutil.which("sshpass"):
-                return jsonify({"error": "no-sshpass"}), 400
-            cmd = ["sshpass", "-p", secret] + cmd
-        cmd.extend([f"{p['username']}@{p['host']}", "bash -s -- --check"])
-        proc = subprocess.run(cmd, input=script_text, capture_output=True, text=True, timeout=60)
-        out = (proc.stdout or "") + (proc.stderr or "")
-        parsed = {"caddy": "unknown", "stremio": "unknown", "wireguard": "unknown"}
-        for line in out.splitlines():
-            ls = line.strip()
-            if ls.startswith("Caddy:"):
-                parsed["caddy"] = "KURULU" if "KURULU" in ls else "EKSİK"
-            elif ls.startswith("Stremio:"):
-                parsed["stremio"] = "KURULU" if "KURULU" in ls else "EKSİK"
-            elif ls.startswith("WireGuard:"):
-                parsed["wireguard"] = ls.split(":", 1)[1].strip()[:120]
-        return jsonify({"ok": proc.returncode == 0, "parsed": parsed, "raw": out[-4000:]})
-    except subprocess.TimeoutExpired:
-        return jsonify({"error": "timeout"}), 504
+        vrun = _mk_vps_run(p, secret)
+        chk = vps_install.check_vps(vrun)
     except Exception as e:
         return jsonify({"error": f"check_failed: {str(e)[:300]}"}), 500
-    finally:
-        if key_file and os.path.exists(key_file):
-            try:
-                os.remove(key_file)
-            except Exception:
-                pass
+    web = chk.get("web") or {}
+    parsed = {
+        "caddy": "KURULU" if chk.get("caddy") else "EKSIK",
+        "stremio": "KURULU" if chk.get("stremio") else "EKSIK",
+        "wireguard": chk.get("wg") or "yok",
+    }
+    raw_lines = [
+        f"Caddy: {'KURULU' if chk.get('caddy') else 'EKSIK'}",
+        f"Stremio: {'KURULU' if chk.get('stremio') else 'EKSIK'}",
+        f"WireGuard: {chk.get('wg') or 'yok'}",
+        f"Web sunucusu: {web.get('owner') or '-'} (:80={web.get('http') or '-'} :443={web.get('https') or '-'})",
+    ]
+    return jsonify({"ok": True, "parsed": parsed, "raw": "\n".join(raw_lines),
+                    "web": {"owner": web.get("owner") or "",
+                            "http": web.get("http") or "",
+                            "https": web.get("https") or "",
+                            "options": web.get("options") or [],
+                            "blocked": bool(web.get("blocked")),
+                            "blockedOwner": web.get("blocked_owner") or ""}})

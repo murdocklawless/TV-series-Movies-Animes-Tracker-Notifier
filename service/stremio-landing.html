@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NextEp Watch Sync — Stremio Addon</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1117;
+    color: #e6e6e6;
+    min-height: 100vh;
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px 24px;
+    background: #171a23;
+    border-bottom: 1px solid #262a36;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo { font-size: 1.3rem; font-weight: 700; color: #f97316; display: flex; align-items: center; gap: 8px; }
+  .lang-wrap { position: relative; display: inline-block; }
+  .tab {
+    background: transparent;
+    border: 1px solid #2a2f3d;
+    color: #aab;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+  }
+  .tab:hover { background: rgba(249, 115, 22, 0.3); border-color: #f97316; color: #fff; }
+  .sort-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    background: #1e2230;
+    border: 1px solid #3a4050;
+    border-radius: 10px;
+    padding: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 20;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  .sort-menu.open { display: block; }
+  .sort-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #c8cdd8;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .sort-item:hover { background: rgba(249, 115, 22, 0.3); border-color: #f97316; color: #c8cdd8; }
+  .sort-item.active { background: rgba(249, 115, 22, 0.3); border-color: #f97316; color: #c8cdd8; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { color: #f97316; font-size: 1.9rem; margin-bottom: 8px; }
+  .tagline { color: #c9cedb; font-size: 1.05rem; line-height: 1.6; margin-bottom: 32px; }
+  h2 { color: #e6e6e6; font-size: 1.25rem; margin: 28px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #262a36; }
+  ul.feat { list-style: none; padding: 0; }
+  ul.feat li { position: relative; padding-left: 22px; margin: 10px 0; color: #c9cedb; font-size: 0.95rem; line-height: 1.6; }
+  ul.feat li::before { content: "▪"; position: absolute; left: 4px; top: 0; color: #f97316; font-size: 0.8rem; }
+  [dir="rtl"] ul.feat li { padding-left: 0; padding-right: 22px; }
+  [dir="rtl"] ul.feat li::before { left: auto; right: 4px; }
+  ol.steps { list-style: none; padding: 0; counter-reset: st; }
+  ol.steps li { counter-increment: st; margin: 10px 0; padding-left: 34px; position: relative; color: #c9cedb; font-size: 0.95rem; line-height: 1.6; }
+  ol.steps li::before {
+    content: counter(st); position: absolute; left: 0; top: 1px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: #262a36; color: #f97316; font-weight: 700; font-size: 0.8rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  [dir="rtl"] ol.steps li { padding-left: 0; padding-right: 34px; }
+  [dir="rtl"] ol.steps li::before { left: auto; right: 0; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo"><i class="fa-solid fa-clapperboard"></i><span>NextEp Watch Sync</span></div>
+  <div class="lang-wrap">
+    <button class="tab" id="lang-btn" aria-haspopup="true"><i class="fa-solid fa-globe"></i><span id="lang-name">English</span><i class="fa-solid fa-caret-down"></i></button>
+    <div class="sort-menu" id="lang-menu" role="menu"></div>
+  </div>
+</nav>
+<main>
+  <h1>NextEp Watch Sync</h1>
+  <p class="tagline" id="lp-tagline"></p>
+  <h2 id="lp-what-t"></h2>
+  <ul class="feat" id="lp-what"></ul>
+  <h2 id="lp-install-t"></h2>
+  <ol class="steps" id="lp-install"></ol>
+  <h2 id="lp-notes-t"></h2>
+  <ul class="feat" id="lp-notes"></ul>
+</main>
+<script>
+var LANGS = [
+  ["tr","Türkçe"],["en","English"],["de","Deutsch"],["fr","Français"],
+  ["es","Español"],["it","Italiano"],["ru","Русский"],["ar","العربية"],
+  ["pt","Português"],["nl","Nederlands"],["pl","Polski"],["ja","日本語"],
+  ["ko","한국어"],["zh","中文"]
+];
+var COUNTRY_LANG = {
+  "TR":"tr",
+  "US":"en","CA":"en","GB":"en","IE":"en","AU":"en","NZ":"en",
+  "DE":"de","AT":"de","CH":"de",
+  "FR":"fr",
+  "ES":"es","MX":"es","AR":"es","CL":"es","CO":"es","PE":"es","VE":"es","UY":"es","PY":"es","BO":"es","EC":"es","CR":"es","PA":"es","DO":"es","GT":"es","HN":"es","SV":"es","NI":"es","CU":"es",
+  "IT":"it",
+  "RU":"ru","UA":"ru","BY":"ru","KZ":"ru",
+  "SA":"ar","EG":"ar","DZ":"ar","MA":"ar","TN":"ar","LY":"ar","SD":"ar","IQ":"ar","JO":"ar","LB":"ar","SY":"ar","YE":"ar","KW":"ar","QA":"ar","BH":"ar","OM":"ar","MR":"ar",
+  "BR":"pt","PT":"pt","AO":"pt","MZ":"pt",
+  "NL":"nl","BE":"nl",
+  "PL":"pl",
+  "JP":"ja",
+  "KR":"ko",
+  "CN":"zh","TW":"zh","HK":"zh","SG":"zh"
+};
+var LP = {
+tr: {
+  tagline: "Stremio'da izlediğin dizi, film, belgesel ve animeleri Nextep'te otomatik izlendi olarak işaretler.",
+  what: "Ne işe yarar?",
+  w: [
+    "Tek yönlü çalışır: Stremio → Nextep. Stremio'da bir şey oynattığında Nextep'e sinyal gider; tersi olmaz.",
+    "Açılış anında kaydeder: Bölümü ya da filmi açtığın anda izlendi sayılır, sonuna kadar izlemen gerekmez. (Açıp kapatmak da izlendi sayılır.)",
+    "Takipte olmayanı otomatik ekler: Listende olmayan bir şeyi Stremio'da açarsan önce takibe eklenir, sonra izlendi işaretlenir. Eksik bölümler İzlenmemiş'te görünür.",
+    "Kaynak bağımsızdır: Torrentio, Comet, MediaFusion, Cinemeta… hangi katalog ya da oynatıcıyı kullanırsan kullan, sinyal aynı kapıdan girer. Bunların kurulu olması gerekmez.",
+    "Hesabına kurulur, her cihazına gelir: Bir kez kurarsın; aynı hesapla girişli TV, telefon ve PC eklentiyi otomatik alır. Eklenti görünmez çalışır; oynatmayı yavaşlatmaz, Stremio'yu bozmaz."
+  ],
+  install: "Kurulum",
+  s: [
+    "Kurulum linkini al: Nextep → Ayarlar → Third Party Apps → Stremio → kurulum linkini Kopyala butonuyla kopyala. (Link sana özeldir, kimseyle paylaşma.)",
+    "Stremio eklenti sayfasına git: Telefonda veya bilgisayarda stremio.com/addons adresini aç ve Stremio hesabına giriş yap (TV'dekiyle aynı hesap olmalı).",
+    "Linki yapıştır ve kur: Kopyaladığın linki kutuya yapıştır → Kur / Install düğmesine bas.",
+    "İlk sinyali gönder: Stremio'da herhangi bir dizi ya da film aç. Nextep'teki Stremio satırında durum “Bağlı” olur — kurulum tamamdır.",
+    "TV'ye gelmediyse: Stremio'yu kapatıp aç → Eklentiler → Sync Addons. Hâlâ gelmediyse çıkış yapıp yeniden giriş yap."
+  ],
+  notes: "Önemli notlar",
+  n: [
+    "Geri alma yakalanamaz: İzlenmeyene çevirmeyi eklenti göremez (tek yön). Geri alma Nextep arayüzünden yapılır.",
+    "Bağlantı yenileme: Nextep'te “UUID yenile”ye basarsan eski link ölür — Stremio'da eklentiyi kaldırıp yeni linkle yeniden kurman gerekir.",
+    "Bağlantıyı kesme: Nextep → Third Party Apps → Stremio → Bağlantıyı kes. Eklenti dursa bile yazma durur.",
+    "Kaldırma: Stremio → Eklentilerim → eklentinin menüsünden Kaldır. Geride veri kalmaz.",
+    "Harici oynatıcı: VLC/mpv gibi harici oynatıcıya gönderilen içerik yakalanamaz; Stremio'nun kendi oynatıcısını kullan.",
+    "Gizlilik: Eklenti yalnızca “şu açıldı” sinyalini taşır; izleme geçmişin Nextep'ten başka yere gitmez."
+  ]
+},
+en: {
+  tagline: "Automatically marks the TV shows, movies, documentaries and anime you play in Stremio as watched in NextEp.",
+  what: "What does it do?",
+  w: [
+    "One-way sync: Stremio → NextEp. When you play something in Stremio, a signal goes to NextEp; never the other way.",
+    "Records the moment you press play: an episode or movie counts as watched as soon as you open it — no need to watch to the end. (Opening and closing also counts.)",
+    "Auto-tracks the untracked: if you open something in Stremio that isn't on your list, it is tracked first, then marked watched. Missing episodes show up under Unwatched.",
+    "Source independent: Torrentio, Comet, MediaFusion, Cinemeta… whichever catalog or player you use, the signal enters through the same door. None of them need to be installed.",
+    "Installed on your account, on all your devices: install once; the TV, phone and PC signed in with the same account get the addon automatically. The addon runs invisibly — it never slows down or breaks Stremio."
+  ],
+  install: "Installation",
+  s: [
+    "Get your install link: Nextep → Settings → Third Party Apps → Stremio → copy the install link with the Copy button. (The link is personal — don't share it.)",
+    "Go to the Stremio addons page: on your phone or computer, open stremio.com/addons and sign in to your Stremio account (it must be the same account as on your TV).",
+    "Paste and install: paste the copied link into the box → press Install.",
+    "Send the first signal: play any show or movie in Stremio. The Stremio row in Nextep flips to “Connected” — setup is complete.",
+    "If it doesn't reach your TV: close and reopen Stremio → Addons → Sync Addons. If it still doesn't appear, sign out and sign back in."
+  ],
+  notes: "Important notes",
+  n: [
+    "Un-watching can't be caught: the addon cannot see items marked unwatched (one way). Unmark them from the Nextep interface.",
+    "Refreshing the connection: if you press “Refresh UUID” in Nextep, the old link dies — remove the addon in Stremio and reinstall it with the new link.",
+    "Disconnecting: Nextep → Third Party Apps → Stremio → Disconnect. Writing stops even if the addon stays installed.",
+    "Removal: Stremio → My Addons → Remove from the addon's menu. Nothing is left behind.",
+    "External players: content sent to an external player such as VLC/mpv can't be caught; use Stremio's own player.",
+    "Privacy: the addon only carries a “this was opened” signal; your watch history goes nowhere but Nextep."
+  ]
+},
+de: {
+  tagline: "Markiert Serien, Filme, Dokus und Anime, die du in Stremio abspielst, automatisch als gesehen in NextEp.",
+  what: "Was kann es?",
+  w: [
+    "Einweg-Sync: Stremio → NextEp. Wenn du etwas in Stremio abspielst, geht ein Signal an NextEp — niemals umgekehrt.",
+    "Zählt ab dem Start: Eine Folge oder ein Film gilt als gesehen, sobald du sie oder ihn öffnest — du musst nicht bis zum Ende schauen. (Öffnen und Schließen zählt auch.)",
+    "Fügt Unbekanntes automatisch hinzu: Öffnest du in Stremio etwas, das nicht auf deiner Liste steht, wird es erst getrackt, dann als gesehen markiert. Fehlende Folgen erscheinen unter Ungesehen.",
+    "Quellenunabhängig: Torrentio, Comet, MediaFusion, Cinemeta … egal welchen Katalog oder Player du nutzt, das Signal kommt durch dieselbe Tür. Nichts davon muss installiert sein.",
+    "Einmal installieren, überall nutzen: Einmal installieren; TV, Handy und PC mit demselben Konto erhalten das Addon automatisch. Das Addon läuft unsichtbar — es bremst Stremio nicht aus und macht nichts kaputt."
+  ],
+  install: "Installation",
+  s: [
+    "Installationslink holen: Nextep → Einstellungen → Third Party Apps → Stremio → Link mit der Kopieren-Schaltfläche kopieren. (Der Link ist persönlich — nicht teilen.)",
+    "Addons-Seite öffnen: Öffne auf Handy oder PC stremio.com/addons und melde dich bei deinem Stremio-Konto an (dasselbe Konto wie auf dem TV).",
+    "Einfügen und installieren: Link ins Feld einfügen → auf Installieren drücken.",
+    "Erstes Signal senden: Spiele eine beliebige Serie oder einen Film in Stremio ab. Die Stremio-Zeile in Nextep wechselt auf „Verbunden“ — fertig.",
+    "Falls es nicht auf dem TV ankommt: Stremio schließen und neu öffnen → Addons → Sync Addons. Falls immer noch nichts, ab- und wieder anmelden."
+  ],
+  notes: "Wichtige Hinweise",
+  n: [
+    "Zurücksetzen wird nicht erkannt: Das Addon sieht nicht, wenn etwas auf ungesehen zurückgesetzt wird (Einweg). Das geht nur über die Nextep-Oberfläche.",
+    "Verbindung erneuern: Wer in Nextep auf „UUID erneuern“ drückt, tötet den alten Link — Addon in Stremio entfernen und mit dem neuen Link neu installieren.",
+    "Trennen: Nextep → Third Party Apps → Stremio → Trennen. Das Schreiben stoppt, auch wenn das Addon installiert bleibt.",
+    "Entfernen: Stremio → Meine Addons → im Menü des Addons auf Entfernen. Es bleibt nichts zurück.",
+    "Externe Player: Inhalte an externe Player wie VLC/mpv werden nicht erkannt; nutze Stremios eigenen Player.",
+    "Datenschutz: Das Addon überträgt nur ein „wurde geöffnet“-Signal; dein Verlauf geht nirgendwohin außer zu Nextep."
+  ]
+},
+fr: {
+  tagline: "Marque automatiquement comme vus dans NextEp les séries, films, documentaires et anime que tu lis dans Stremio.",
+  what: "À quoi ça sert ?",
+  w: [
+    "Synchro à sens unique : Stremio → NextEp. Quand tu lis quelque chose dans Stremio, un signal part vers NextEp ; jamais l'inverse.",
+    "Enregistré dès la lecture : un épisode ou un film compte comme vu dès que tu l'ouvres — pas besoin d'aller jusqu'au bout. (Ouvrir puis fermer compte aussi.)",
+    "Ajout automatique des inconnus : si tu ouvres dans Stremio quelque chose qui n'est pas dans ta liste, c'est d'abord suivi, puis marqué vu. Les épisodes manquants apparaissent dans Non vus.",
+    "Indépendant des sources : Torrentio, Comet, MediaFusion, Cinemeta… quel que soit le catalogue ou le lecteur utilisé, le signal entre par la même porte. Aucun n'a besoin d'être installé.",
+    "Installé sur ton compte, sur tous tes appareils : installe une fois ; la TV, le téléphone et le PC connectés au même compte reçoivent l'addon automatiquement. L'addon tourne invisiblement — il ne ralentit ni ne casse Stremio."
+  ],
+  install: "Installation",
+  s: [
+    "Récupère ton lien : Nextep → Paramètres → Third Party Apps → Stremio → copie le lien avec le bouton Copier. (Le lien est personnel — ne le partage pas.)",
+    "Va sur la page des addons : sur téléphone ou PC, ouvre stremio.com/addons et connecte-toi à ton compte Stremio (le même que sur ta TV).",
+    "Colle et installe : colle le lien dans le champ → appuie sur Installer.",
+    "Envoie le premier signal : lis n'importe quelle série ou film dans Stremio. La ligne Stremio dans Nextep passe à « Connecté » — c'est terminé.",
+    "Si ça n'arrive pas sur ta TV : ferme puis rouvre Stremio → Extensions → Sync Addons. Sinon, déconnecte-toi puis reconnecte-toi."
+  ],
+  notes: "Notes importantes",
+  n: [
+    "Le « non vu » n'est pas détecté : l'addon ne voit pas quand quelque chose repasse en non vu (sens unique). Fais-le depuis l'interface Nextep.",
+    "Renouveler la connexion : si tu appuies sur « Régénérer l'UUID » dans Nextep, l'ancien lien meurt — supprime l'addon dans Stremio et réinstalle-le avec le nouveau lien.",
+    "Déconnexion : Nextep → Third Party Apps → Stremio → Déconnecter. L'écriture s'arrête même si l'addon reste installé.",
+    "Suppression : Stremio → Mes extensions → Supprimer dans le menu de l'extension. Il ne reste rien.",
+    "Lecteurs externes : le contenu envoyé vers un lecteur externe comme VLC/mpv n'est pas détecté ; utilise le lecteur intégré de Stremio.",
+    "Confidentialité : l'addon ne transporte qu'un signal « ceci a été ouvert » ; ton historique ne va nulle part ailleurs que vers Nextep."
+  ]
+},
+es: {
+  tagline: "Marca automáticamente como vistos en NextEp las series, películas, documentales y anime que reproduces en Stremio.",
+  what: "¿Para qué sirve?",
+  w: [
+    "Sincronización unidireccional: Stremio → NextEp. Cuando reproduces algo en Stremio, una señal va a NextEp; nunca al revés.",
+    "Registra al darle a reproducir: un episodio o película cuenta como visto en cuanto lo abres, sin verlo hasta el final. (Abrir y cerrar también cuenta.)",
+    "Añade lo desconocido automáticamente: si abres en Stremio algo que no está en tu lista, primero se sigue y luego se marca visto. Los episodios pendientes aparecen en No vistos.",
+    "Independiente de la fuente: Torrentio, Comet, MediaFusion, Cinemeta… uses el catálogo o reproductor que uses, la señal entra por la misma puerta. No hace falta tenerlos instalados.",
+    "Instalado en tu cuenta, en todos tus dispositivos: instala una vez; la TV, el teléfono y el PC con la misma cuenta reciben el addon automáticamente. Funciona de forma invisible: no ralentiza ni rompe Stremio."
+  ],
+  install: "Instalación",
+  s: [
+    "Consigue tu enlace: Nextep → Ajustes → Third Party Apps → Stremio → copia el enlace con el botón Copiar. (El enlace es personal, no lo compartas.)",
+    "Ve a la página de addons: en el teléfono o PC abre stremio.com/addons e inicia sesión en tu cuenta de Stremio (la misma que en tu TV).",
+    "Pega e instala: pega el enlace en el cuadro → pulsa Instalar.",
+    "Envía la primera señal: reproduce cualquier serie o película en Stremio. La fila de Stremio en Nextep pasa a «Conectado» — listo.",
+    "Si no llega a tu TV: cierra y abre Stremio → Addons → Sync Addons. Si sigue sin aparecer, cierra sesión y vuelve a entrar."
+  ],
+  notes: "Notas importantes",
+  n: [
+    "El «no visto» no se detecta: el addon no ve cuando algo vuelve a no visto (unidireccional). Hazlo desde la interfaz de Nextep.",
+    "Renovar la conexión: si pulsas «Regenerar UUID» en Nextep, el enlace viejo muere; elimina el addon en Stremio y reinstálalo con el nuevo enlace.",
+    "Desconectar: Nextep → Third Party Apps → Stremio → Desconectar. La escritura se detiene aunque el addon siga instalado.",
+    "Eliminar: Stremio → Mis addons → Eliminar en el menú del addon. No queda nada.",
+    "Reproductores externos: lo enviado a un reproductor externo como VLC/mpv no se detecta; usa el reproductor propio de Stremio.",
+    "Privacidad: el addon solo lleva una señal de «esto se abrió»; tu historial no va a ningún sitio salvo a Nextep."
+  ]
+},
+it: {
+  tagline: "Segna automaticamente come visti in NextEp le serie, i film, i documentari e gli anime che riproduci in Stremio.",
+  what: "A cosa serve?",
+  w: [
+    "Sincronizzazione unidirezionale: Stremio → NextEp. Quando riproduci qualcosa in Stremio, un segnale va a NextEp; mai il contrario.",
+    "Registra all'avvio: un episodio o un film conta come visto appena lo apri, senza arrivare alla fine. (Aprire e chiudere conta comunque.)",
+    "Aggiunge da solo gli sconosciuti: se apri in Stremio qualcosa che non è nella tua lista, viene prima seguito e poi segnato come visto. Gli episodi mancanti compaiono in Da vedere.",
+    "Indipendente dalle fonti: Torrentio, Comet, MediaFusion, Cinemeta… qualunque catalogo o player usi, il segnale entra dalla stessa porta. Non serve averli installati.",
+    "Installato sul tuo account, su tutti i dispositivi: installa una volta; TV, telefono e PC con lo stesso account ricevono l'addon automaticamente. Gira invisibile: non rallenta né rompe Stremio."
+  ],
+  install: "Installazione",
+  s: [
+    "Prendi il tuo link: Nextep → Impostazioni → Third Party Apps → Stremio → copia il link col pulsante Copia. (Il link è personale, non condividerlo.)",
+    "Vai alla pagina degli addon: su telefono o PC apri stremio.com/addons e accedi al tuo account Stremio (lo stesso della TV).",
+    "Incolla e installa: incolla il link nel campo → premi Installa.",
+    "Invia il primo segnale: riproduci una serie o un film qualsiasi in Stremio. La riga Stremio in Nextep passa a «Connesso» — fatto.",
+    "Se non arriva sulla TV: chiudi e riapri Stremio → Addon → Sync Addons. Se ancora nulla, esci e rientra."
+  ],
+  notes: "Note importanti",
+  n: [
+    "Il «non visto» non viene rilevato: l'addon non vede quando qualcosa torna non visto (senso unico). Fallo dall'interfaccia Nextep.",
+    "Rinnovo connessione: se premi «Rigenera UUID» in Nextep, il vecchio link muore — rimuovi l'addon in Stremio e reinstallalo col nuovo link.",
+    "Disconnessione: Nextep → Third Party Apps → Stremio → Disconnetti. La scrittura si ferma anche se l'addon resta installato.",
+    "Rimozione: Stremio → I miei addon → Rimuovi dal menu dell'addon. Non resta nulla.",
+    "Player esterni: ciò che va a un player esterno come VLC/mpv non viene rilevato; usa il player integrato di Stremio.",
+    "Privacy: l'addon trasporta solo un segnale «questo è stato aperto»; la tua cronologia non va da nessun'altra parte che a Nextep."
+  ]
+},
+ru: {
+  tagline: "Автоматически отмечает как просмотренные в NextEp сериалы, фильмы, документальные и аниме, которые ты смотришь в Stremio.",
+  what: "Зачем это нужно?",
+  w: [
+    "Односторонняя синхронизация: Stremio → NextEp. Когда ты что-то запускаешь в Stremio, сигнал уходит в NextEp; обратно — никогда.",
+    "Фиксирует в момент запуска: эпизод или фильм считается просмотренным сразу при открытии — досматривать до конца не нужно. (Открыть и закрыть — тоже считается.)",
+    "Сам добавляет неизвестное: открыл в Stremio то, чего нет в списке, — сначала оно встанет на отслеживание, потом отметится просмотренным. Недостающие эпизоды появятся в «Непросмотренном».",
+    "Не зависит от источников: Torrentio, Comet, MediaFusion, Cinemeta… каким бы каталогом или плеером ты ни пользовался, сигнал входит в одну дверь. Устанавливать их не нужно.",
+    "Ставится на аккаунт — появляется на всех устройствах: установи один раз; ТВ, телефон и ПК с тем же аккаунтом получат аддон автоматически. Аддон работает невидимо — не тормозит и не ломает Stremio."
+  ],
+  install: "Установка",
+  s: [
+    "Возьми свою ссылку: Nextep → Настройки → Third Party Apps → Stremio → скопируй ссылку кнопкой «Копировать». (Ссылка личная — никому не давай.)",
+    "Открой страницу аддонов: на телефоне или ПК открой stremio.com/addons и войди в свой аккаунт Stremio (тот же, что на ТВ).",
+    "Вставь и установи: вставь ссылку в поле → нажми «Установить».",
+    "Отправь первый сигнал: запусти любой сериал или фильм в Stremio. Строка Stremio в Nextep станет «Подключено» — готово.",
+    "Если на ТВ не пришло: закрой и открой Stremio → Аддоны → Sync Addons. Если всё равно нет — выйди из аккаунта и войди снова."
+  ],
+  notes: "Важные замечания",
+  n: [
+    "Снятие отметки не отслеживается: аддон не видит, когда что-то снова стало непросмотренным (односторонняя связь). Делай это в интерфейсе Nextep.",
+    "Обновление подключения: нажмёшь «Обновить UUID» в Nextep — старая ссылка умрёт: удали аддон в Stremio и установи заново по новой ссылке.",
+    "Отключение: Nextep → Third Party Apps → Stremio → «Отключить». Запись остановится, даже если аддон останется.",
+    "Удаление: Stremio → Мои аддоны → «Удалить» в меню аддона. Ничего не останется.",
+    "Внешние плееры: отправленное во внешний плеер вроде VLC/mpv не фиксируется; используй встроенный плеер Stremio.",
+    "Приватность: аддон несёт только сигнал «это открыли»; твоя история просмотров идёт только в NextEp."
+  ]
+},
+ar: {
+  tagline: "يُعلِّم تلقائيًا كمشاهَد في NextEp المسلسلات والأفلام والوثائقيات والأنمي التي تشغّلها في Stremio.",
+  what: "ما فائدته؟",
+  w: [
+    "مزامنة باتجاه واحد: من Stremio إلى NextEp. عندما تشغّل شيئًا في Stremio تذهب إشارة إلى NextEp، ولا يحدث العكس أبدًا.",
+    "يُسجَّل لحظة التشغيل: تُحتسب الحلقة أو الفيلم كمشاهَد بمجرد فتحها، ولا حاجة للمشاهدة حتى النهاية. (الفتح ثم الإغلاق يُحتسب أيضًا.)",
+    "يضيف المجهول تلقائيًا: إذا فتحت في Stremio شيئًا ليس في قائمتك، يُضاف إلى المتابعة أولًا ثم يُعلَّم كمشاهَد. تظهر الحلقات الناقصة في «غير المشاهَد».",
+    "مستقل عن المصادر: Torrentio وComet وMediaFusion وCinemeta… أيًّا كان الكتالوج أو المشغّل الذي تستخدمه، تدخل الإشارة من الباب نفسه. ولا حاجة لتثبيت أيٍّ منها.",
+    "يُثبَّت على حسابك فيصل إلى كل أجهزتك: ثبِّته مرة واحدة؛ التلفاز والهاتف والحاسوب المسجَّلة بالحساب نفسه تحصل على الإضافة تلقائيًا. تعمل الإضافة بخفاء — لا تُبطئ Stremio ولا تُعطّله."
+  ],
+  install: "التثبيت",
+  s: [
+    "احصل على رابطك: في Nextep افتح الإعدادات ثم Third Party Apps ثم Stremio ثم انسخ رابط التثبيت بزر النسخ. (الرابط شخصي — لا تشاركه.)",
+    "افتح صفحة الإضافات: على الهاتف أو الحاسوب افتح stremio.com/addons وسجّل الدخول إلى حساب Stremio الخاص بك (يجب أن يكون الحساب نفسه الموجود على التلفاز).",
+    "الصق وثبِّت: الصق الرابط المنسوخ في المربع ثم اضغط تثبيت.",
+    "أرسل الإشارة الأولى: شغّل أي مسلسل أو فيلم في Stremio. سيتحول سطر Stremio في Nextep إلى «متصل» — اكتمل الإعداد.",
+    "إذا لم يصل إلى التلفاز: أغلق Stremio وأعد فتحه ثم الإضافات ثم Sync Addons. إذا لم يظهر بعد، سجّل الخروج ثم سجّل الدخول مجددًا."
+  ],
+  notes: "ملاحظات مهمة",
+  n: [
+    "إلغاء المشاهدة لا يُرصد: لا ترى الإضافة عندما يعود شيء إلى غير مشاهَد (اتجاه واحد). افعل ذلك من واجهة Nextep.",
+    "تجديد الاتصال: إذا ضغطت «تجديد UUID» في Nextep مات الرابط القديم — احذف الإضافة في Stremio وأعد تثبيتها بالرابط الجديد.",
+    "قطع الاتصال: في Nextep افتح الإعدادات ثم Third Party Apps ثم Stremio ثم قطع الاتصال. تتوقف الكتابة حتى لو بقيت الإضافة مثبّتة.",
+    "الحذف: في Stremio افتح إضافاتي ثم حذف من قائمة الإضافة. لا يبقى أي أثر.",
+    "المشغّلات الخارجية: المحتوى المُرسَل إلى مشغّل خارجي مثل VLC/mpv لا يُرصد؛ استخدم مشغّل Stremio المدمج.",
+    "الخصوصية: لا تحمل الإضافة سوى إشارة «تم فتح هذا»؛ سجل مشاهدتك لا يذهب إلى أي مكان سوى Nextep."
+  ]
+},
+pt: {
+  tagline: "Marca automaticamente como vistos no NextEp as séries, filmes, documentários e anime que reproduzes no Stremio.",
+  what: "Para que serve?",
+  w: [
+    "Sincronização unidirecional: Stremio → NextEp. Quando reproduzes algo no Stremio, um sinal vai para o NextEp; nunca o contrário.",
+    "Regista no momento em que carregas em reproduzir: um episódio ou filme conta como visto assim que o abres, sem precisar ver até ao fim. (Abrir e fechar também conta.)",
+    "Adiciona o desconhecido sozinho: se abrires no Stremio algo que não está na tua lista, primeiro passa a ser seguido e depois é marcado como visto. Os episódios em falta aparecem em Não vistos.",
+    "Independente da fonte: Torrentio, Comet, MediaFusion, Cinemeta… uses o catálogo ou leitor que usares, o sinal entra pela mesma porta. Não precisas de ter nenhum instalado.",
+    "Instalado na tua conta, em todos os teus dispositivos: instala uma vez; a TV, o telemóvel e o PC com a mesma conta recebem o addon automaticamente. Funciona de forma invisível: não atrasa nem estraga o Stremio."
+  ],
+  install: "Instalação",
+  s: [
+    "Obtém o teu link: Nextep → Definições → Third Party Apps → Stremio → copia o link com o botão Copiar. (O link é pessoal, não o partilhes.)",
+    "Vai à página de addons: no telemóvel ou PC abre stremio.com/addons e inicia sessão na tua conta Stremio (tem de ser a mesma da tua TV).",
+    "Cola e instala: cola o link na caixa → prime Instalar.",
+    "Envia o primeiro sinal: reproduz qualquer série ou filme no Stremio. A linha do Stremio no Nextep passa a «Ligado» — está pronto.",
+    "Se não chegar à TV: fecha e abre o Stremio → Addons → Sync Addons. Se mesmo assim nada, termina sessão e entra de novo."
+  ],
+  notes: "Notas importantes",
+  n: [
+    "O «não visto» não é detetado: o addon não vê quando algo volta a não visto (sentido único). Faz isso na interface do Nextep.",
+    "Renovar a ligação: se carregares em «Regenerar UUID» no Nextep, o link antigo morre — remove o addon no Stremio e reinstala-o com o novo link.",
+    "Desligar: Nextep → Third Party Apps → Stremio → Desligar. A escrita para mesmo que o addon fique instalado.",
+    "Remover: Stremio → Os meus addons → Remover no menu do addon. Não fica nada.",
+    "Leitores externos: o conteúdo enviado para um leitor externo como VLC/mpv não é detetado; usa o leitor próprio do Stremio.",
+    "Privacidade: o addon só transporta um sinal de «isto foi aberto»; o teu histórico não vai para mais lado nenhum além do Nextep."
+  ]
+},
+nl: {
+  tagline: "Markeert automatisch als bekeken in NextEp de series, films, documentaires en anime die je in Stremio afspeelt.",
+  what: "Wat doet het?",
+  w: [
+    "Eénrichtingssync: Stremio → NextEp. Als je iets in Stremio afspeelt, gaat er een signaal naar NextEp; nooit andersom.",
+    "Registreert zodra je op play drukt: een aflevering of film telt als bekeken zodra je hem opent — je hoeft niet tot het einde te kijken. (Openen en sluiten telt ook.)",
+    "Voegt onbekende titels automatisch toe: open je in Stremio iets dat niet op je lijst staat, dan wordt het eerst gevolgd en daarna als bekeken gemarkeerd. Missende afleveringen verschijnen bij Ongekeken.",
+    "Brononafhankelijk: Torrentio, Comet, MediaFusion, Cinemeta… welke catalogus of speler je ook gebruikt, het signaal komt door dezelfde deur binnen. Niets daarvan hoeft geïnstalleerd te zijn.",
+    "Geïnstalleerd op je account, op al je apparaten: één keer installeren; tv, telefoon en pc met hetzelfde account krijgen de addon automatisch. De addon draait onzichtbaar — hij vertraagt of breekt Stremio niet."
+  ],
+  install: "Installatie",
+  s: [
+    "Pak je installatielink: Nextep → Instellingen → Third Party Apps → Stremio → kopieer de link met de knop Kopiëren. (De link is persoonlijk — deel hem niet.)",
+    "Ga naar de addon-pagina: open op telefoon of pc stremio.com/addons en log in op je Stremio-account (hetzelfde account als op je tv).",
+    "Plakken en installeren: plak de link in het vak → druk op Installeren.",
+    "Stuur het eerste signaal: speel een serie of film af in Stremio. De Stremio-regel in Nextep springt op «Verbonden» — klaar.",
+    "Komt het niet op je tv aan: sluit Stremio en open opnieuw → Add-ons → Sync Addons. Nog steeds niets? Log uit en weer in."
+  ],
+  notes: "Belangrijke opmerkingen",
+  n: [
+    "Terugzetten naar onbekeken wordt niet gezien: de addon ziet niet wanneer iets weer onbekeken wordt (één richting). Doe dat vanuit de Nextep-interface.",
+    "Verbinding vernieuwen: druk je in Nextep op «UUID vernieuwen», dan sterft de oude link — verwijder de addon in Stremio en installeer opnieuw met de nieuwe link.",
+    "Verbreken: Nextep → Third Party Apps → Stremio → Verbreken. Het schrijven stopt, ook als de addon geïnstalleerd blijft.",
+    "Verwijderen: Stremio → Mijn add-ons → Verwijderen in het menu van de addon. Er blijft niets achter.",
+    "Externe spelers: content naar een externe speler zoals VLC/mpv wordt niet gezien; gebruik de eigen speler van Stremio.",
+    "Privacy: de addon draagt alleen een signaal «dit is geopend»; je kijkgeschiedenis gaat nergens heen behalve naar NextEp."
+  ]
+},
+pl: {
+  tagline: "Automatycznie oznacza jako obejrzane w NextEp seriale, filmy, dokumenty i anime, które odtwarzasz w Stremio.",
+  what: "Do czego to służy?",
+  w: [
+    "Synchronizacja jednokierunkowa: Stremio → NextEp. Gdy coś odtwarzasz w Stremio, sygnał idzie do NextEp; nigdy odwrotnie.",
+    "Zapisuje w momencie startu: odcinek lub film liczy się jako obejrzany, gdy tylko go otworzysz — nie musisz oglądać do końca. (Otwarcie i zamknięcie też się liczy.)",
+    "Sam dodaje nieznane: otworzysz w Stremio coś spoza listy — najpierw trafi na obserwowane, potem zostanie oznaczone jako obejrzane. Brakujące odcinki pojawią się w Nieobejrzanych.",
+    "Niezależne od źródeł: Torrentio, Comet, MediaFusion, Cinemeta… z jakiego katalogu czy odtwarzacza korzystasz, sygnał wchodzi tymi samymi drzwiami. Nic z tego nie musi być zainstalowane.",
+    "Instalowane na koncie — trafia na wszystkie urządzenia: zainstaluj raz; TV, telefon i PC z tym samym kontem dostaną dodatek automatycznie. Dodatek działa niewidzialnie — nie spowalnia ani nie psuje Stremio."
+  ],
+  install: "Instalacja",
+  s: [
+    "Weź swój link: Nextep → Ustawienia → Third Party Apps → Stremio → skopiuj link przyciskiem Kopiuj. (Link jest osobisty — nikomu go nie dawaj.)",
+    "Otwórz stronę dodatków: na telefonie lub PC otwórz stremio.com/addons i zaloguj się na konto Stremio (to samo co na TV).",
+    "Wklej i zainstaluj: wklej link w pole → naciśnij Instaluj.",
+    "Wyślij pierwszy sygnał: odtwórz dowolny serial lub film w Stremio. Wiersz Stremio w Nextep zmieni się na „Połączono” — gotowe.",
+    "Jeśli nie dotarło na TV: zamknij i otwórz Stremio → Dodatki → Sync Addons. Jeśli nadal nic — wyloguj się i zaloguj ponownie."
+  ],
+  notes: "Ważne uwagi",
+  n: [
+    "Cofnięcie do nieobejrzanych nie jest wykrywane: dodatek nie widzi, gdy coś wraca do nieobejrzanych (jeden kierunek). Rób to w interfejsie Nextep.",
+    "Odświeżenie połączenia: naciśniesz „Odśwież UUID” w Nextep — stary link umiera: usuń dodatek w Stremio i zainstaluj ponownie nowym linkiem.",
+    "Rozłączenie: Nextep → Third Party Apps → Stremio → Rozłącz. Zapis stanie, nawet jeśli dodatek zostanie.",
+    "Usunięcie: Stremio → Moje dodatki → Usuń w menu dodatku. Nic nie zostaje.",
+    "Zewnętrzne odtwarzacze: treści wysłane do zewnętrznego odtwarzacza jak VLC/mpv nie są wykrywane; używaj wbudowanego odtwarzacza Stremio.",
+    "Prywatność: dodatek niesie tylko sygnał „to otwarto”; twoja historia nie idzie nigdzie poza NextEp."
+  ]
+},
+ja: {
+  tagline: "Stremioで再生したドラマ・映画・ドキュメンタリー・アニメを、NextEpで自動的に視聴済みにする。",
+  what: "できること",
+  w: [
+    "一方通行の同期:Stremio → NextEp。Stremioで再生するとNextEpに信号が送られる。逆方向はない。",
+    "再生開始と同時に記録:エピソードや映画は開いた時点で視聴済みになる。最後まで見る必要はない。(開いて閉じるだけでもカウントされる。)",
+    "未登録作品は自動で追加:リストにない作品をStremioで開くと、先にトラッキング登録され、次に視聴済みになる。未視聴のエピソードは「未視聴」に表示される。",
+    "ソースに依存しない:Torrentio・Comet・MediaFusion・Cinemeta…どのカタログやプレイヤーを使っても、信号は同じ入口から入る。これらをインストールする必要はない。",
+    "アカウントに紐づき全デバイスへ:一度インストールすれば、同じアカウントのTV・スマホ・PCに自動で入る。アドオンは不可視で動作し、Stremioを重くしたり壊したりしない。"
+  ],
+  install: "インストール手順",
+  s: [
+    "リンクを取得:Nextep → 設定 → Third Party Apps → Stremio → コピーボタンでリンクをコピーする。(リンクは個人専用。他人と共有しないこと。)",
+    "アドオンページを開く:スマホやPCで stremio.com/addons を開き、Stremioアカウントにログインする(TVと同じアカウントであること)。",
+    "貼り付けてインストール:コピーしたリンクを欄に貼り付け → インストールを押す。",
+    "最初の信号を送る:Stremioでドラマや映画を再生する。NextepのStremio行が「接続済み」になれば完了。",
+    "TVに届かない場合:Stremioを再起動 → アドオン → Sync Addons。それでもダメならログアウトして再ログインする。"
+  ],
+  notes: "重要な注意",
+  n: [
+    "未視聴への戻しは検知できない:アドオンは未視聴に戻されたことを検知できない(一方通行)。戻す操作はNextepの画面で行うこと。",
+    "接続の更新:Nextepで「UUIDを更新」を押すと古いリンクは無効になる。Stremio側でアドオンを削除し、新しいリンクで再インストールすること。",
+    "切断:Nextep → Third Party Apps → Stremio → 切断。アドオンが残っていても書き込みは止まる。",
+    "削除:Stremio → マイアドオン → アドオンのメニューから削除。何も残らない。",
+    "外部プレイヤー:VLC/mpvなどの外部プレイヤーに送った再生は検知できない。Stremio内蔵プレイヤーを使うこと。",
+    "プライバシー:アドオンが運ぶのは「これが開かれた」という信号のみ。視聴履歴はNextEp以外どこにも送られない。"
+  ]
+},
+ko: {
+  tagline: "Stremio에서 재생한 드라마·영화·다큐멘터리·애니메이션을 NextEp에서 자동으로 시청 완료 처리한다.",
+  what: "기능",
+  w: [
+    "단방향 동기화:Stremio → NextEp. Stremio에서 재생하면 NextEp으로 신호가 간다. 반대 방향은 없다.",
+    "재생 시작과 동시에 기록:에피소드나 영화는 여는 순간 시청 완료가 된다. 끝까지 볼 필요가 없다.(열고 닫기만 해도 카운트된다.)",
+    "미등록 작품은 자동 추가:목록에 없는 작품을 Stremio에서 열면 먼저 추적 등록된 뒤 시청 완료가 된다. 빠진 에피소드는 ‘미시청’에 표시된다.",
+    "소스에 의존하지 않음:Torrentio·Comet·MediaFusion·Cinemeta… 어떤 카탈로그나 플레이어를 써도 신호는 같은 입구로 들어온다. 이것들을 설치할 필요가 없다.",
+    "계정에 설치되어 모든 기기로:한 번 설치하면 같은 계정의 TV·휴대폰·PC에 자동으로 들어간다. 애드온은 눈에 보이지 않게 동작하며 Stremio를 느리게 하거나 고장내지 않는다."
+  ],
+  install: "설치 방법",
+  s: [
+    "링크 가져오기:Nextep → 설정 → Third Party Apps → Stremio → 복사 버튼으로 링크를 복사한다.(링크는 개인 전용이므로 공유하지 말 것.)",
+    "애드온 페이지 열기:휴대폰이나 PC에서 stremio.com/addons 를 열고 Stremio 계정으로 로그인한다(TV와 같은 계정이어야 함).",
+    "붙여넣고 설치:복사한 링크를 칸에 붙여넣고 → 설치를 누른다.",
+    "첫 신호 보내기:Stremio에서 드라마나 영화를 재생한다. Nextep의 Stremio 행이 ‘연결됨’이 되면 완료.",
+    "TV에 도착하지 않으면:Stremio를 다시 시작 → 애드온 → Sync Addons. 그래도 안 되면 로그아웃 후 다시 로그인한다."
+  ],
+  notes: "중요 사항",
+  n: [
+    "미시청으로 되돌리기는 감지 불가:애드온은 미시청으로 바뀐 것을 감지할 수 없다(단방향). 되돌리기는 Nextep 화면에서 할 것.",
+    "연결 갱신:Nextep에서 ‘UUID 갱신’을 누르면 기존 링크가 무효가 된다. Stremio에서 애드온을 삭제하고 새 링크로 다시 설치할 것.",
+    "연결 끊기:Nextep → Third Party Apps → Stremio → 연결 끊기. 애드온이 남아 있어도 쓰기는 멈춘다.",
+    "삭제:Stremio → 내 애드온 → 애드온 메뉴에서 삭제. 아무것도 남지 않는다.",
+    "외부 플레이어:VLC/mpv 같은 외부 플레이어로 보낸 재생은 감지 불가. Stremio 내장 플레이어를 사용할 것.",
+    "개인정보:애드온이 운반하는 것은 ‘이것이 열렸다’는 신호뿐이다. 시청 기록은 NextEp 외 어디에도 가지 않는다."
+  ]
+},
+zh: {
+  tagline: "自动将你在 Stremio 中播放的剧集、电影、纪录片和动漫标记为 NextEp 中的已看。",
+  what: "有什么用？",
+  w: [
+    "单向同步：Stremio → NextEp。在 Stremio 中播放内容时，会向 NextEp 发送信号；绝不会反向。",
+    "点开即记录：剧集或电影打开的瞬间即计为已看，无需看到结尾。（打开再关闭也算。）",
+    "自动收录未知内容：在 Stremio 中打开不在列表中的内容，会先加入追踪，再标记为已看。缺失的剧集会显示在“未看”中。",
+    "不依赖来源：Torrentio、Comet、MediaFusion、Cinemeta……无论使用哪个目录或播放器，信号都从同一个入口进入。无需安装其中任何一个。",
+    "安装到账号，同步所有设备：安装一次；登录同一账号的电视、手机和电脑会自动获得该插件。插件隐形运行，不会拖慢或破坏 Stremio。"
+  ],
+  install: "安装步骤",
+  s: [
+    "获取链接：Nextep → 设置 → Third Party Apps → Stremio → 用复制按钮复制安装链接。（链接是个人专用的，请勿分享。）",
+    "打开插件页面：在手机或电脑上打开 stremio.com/addons 并登录你的 Stremio 账号（必须与电视上是同一账号）。",
+    "粘贴并安装：将复制的链接粘贴到输入框 → 点击安装。",
+    "发送首次信号：在 Stremio 中播放任意剧集或电影。Nextep 中的 Stremio 行变为“已连接”即表示完成。",
+    "如果电视上没有：重启 Stremio → 插件 → Sync Addons。若仍无，请退出登录后重新登录。"
+  ],
+  notes: "重要说明",
+  n: [
+    "无法捕捉取消标记：插件看不到内容被改回未看（单向）。请在 Nextep 界面中操作。",
+    "刷新连接：在 Nextep 中点击“刷新 UUID”后旧链接即失效——请在 Stremio 中删除插件，再用新链接重新安装。",
+    "断开连接：Nextep → Third Party Apps → Stremio → 断开连接。即使插件仍在，写入也会停止。",
+    "卸载：Stremio → 我的插件 → 在插件菜单中选择删除。不留任何残留。",
+    "外部播放器：发送到 VLC/mpv 等外部播放器的内容无法捕捉；请使用 Stremio 内置播放器。",
+    "隐私：插件只传递“打开了这个”信号；你的观看记录只会去往 NextEp，不会去别处。"
+  ]
+}
+};
+function setList(el, arr) {
+  el.innerHTML = "";
+  for (var i = 0; i < arr.length; i++) {
+    var li = document.createElement("li");
+    li.textContent = arr[i];
+    el.appendChild(li);
+  }
+}
+function langName(code) {
+  for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === code) return LANGS[i][1];
+  return code;
+}
+function setLang(code) {
+  if (!LP[code]) code = "en";
+  var d = LP[code];
+  document.documentElement.lang = code;
+  document.documentElement.dir = (code === "ar") ? "rtl" : "ltr";
+  document.getElementById("lang-name").textContent = langName(code);
+  document.getElementById("lp-tagline").textContent = d.tagline;
+  document.getElementById("lp-what-t").textContent = d.what;
+  setList(document.getElementById("lp-what"), d.w);
+  document.getElementById("lp-install-t").textContent = d.install;
+  setList(document.getElementById("lp-install"), d.s);
+  document.getElementById("lp-notes-t").textContent = d.notes;
+  setList(document.getElementById("lp-notes"), d.n);
+  var items = document.querySelectorAll("#lang-menu .sort-item");
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].getAttribute("data-lang") === code) items[i].classList.add("active");
+    else items[i].classList.remove("active");
+  }
+  try { localStorage.setItem("lp_lang", code); } catch (e) {}
+}
+function buildMenu() {
+  var menu = document.getElementById("lang-menu");
+  for (var i = 0; i < LANGS.length; i++) {
+    (function(code, name) {
+      var b = document.createElement("button");
+      b.className = "sort-item";
+      b.setAttribute("data-lang", code);
+      b.setAttribute("role", "menuitem");
+      b.textContent = name;
+      b.onclick = function() { setLang(code); menu.classList.remove("open"); };
+      menu.appendChild(b);
+    })(LANGS[i][0], LANGS[i][1]);
+  }
+}
+function detectLang() {
+  return fetch("https://ipapi.co/country/", {cache: "no-store"}).then(function(r) {
+    if (!r.ok) throw 0;
+    return r.text();
+  }).then(function(t) {
+    var cc = (t || "").trim().toUpperCase();
+    return COUNTRY_LANG[cc] || "en";
+  }).catch(function() {
+    var nav = "";
+    try { nav = (navigator.language || "en").split("-")[0].toLowerCase(); } catch (e) { nav = "en"; }
+    return LP[nav] ? nav : "en";
+  });
+}
+buildMenu();
+(function init() {
+  var stored = "";
+  try { stored = localStorage.getItem("lp_lang") || ""; } catch (e) {}
+  if (stored && LP[stored]) { setLang(stored); return; }
+  setLang("en");
+  detectLang().then(function(code) { setLang(code); });
+})();
+document.getElementById("lang-btn").onclick = function(e) {
+  e.stopPropagation();
+  document.getElementById("lang-menu").classList.toggle("open");
+};
+document.addEventListener("click", function(e) {
+  var wrap = document.querySelector(".lang-wrap");
+  if (wrap && !wrap.contains(e.target)) document.getElementById("lang-menu").classList.remove("open");
+});
+</script>
+</body>
+</html>

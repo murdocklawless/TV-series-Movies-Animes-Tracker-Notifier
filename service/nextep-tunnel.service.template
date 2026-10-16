@@ -1,0 +1,26 @@
+[Unit]
+Description=NextEp Stremio ters tunel (autossh)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+# autossh kendi izleme portunu kullanmaz; ssh ServerAlive ile ayakta kalir.
+Environment=AUTOSSH_GATETIME=0
+Environment=AUTOSSH_PORT=0
+ExecStart={{AUTOSSH}} -M 0 -N \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
+    -o ExitOnForwardFailure=yes \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile={{KNOWN_HOSTS}} \
+    -o BatchMode=yes \
+    -i {{KEY}} \
+    -R 127.0.0.1:{{PORT}}:127.0.0.1:{{PORT}} \
+    -p {{VPS_PORT}} {{VPS_USER}}@{{VPS_HOST}}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

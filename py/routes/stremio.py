@@ -221,8 +221,11 @@ def _stamp_verified_ts(owner_id):
 
 
 def _tunnel_ok():
-    """Ters tunel servisi ayakta mi? Fail-soft: birim yoksa/bilinmiyorsa True
-    (yanlis alarm, gercek kesintiden kotudur)."""
+    """Ters tunel servisi ayakta mi?
+
+    Birim KURULU DEGILSE False doner (kurulmamis = saglikli degil). Boylece
+    'Stremio bagli gorunuyor ama tunnel yok' yanilgisi olmaz. Komut/izin
+    hatasinda fail-soft (True) davranisi korunur."""
     try:
         import subprocess as _sp
         p = _sp.run(
@@ -230,11 +233,21 @@ def _tunnel_ok():
             capture_output=True, text=True, timeout=8,
         )
         out = ((p.stdout or "") + (p.stderr or "")).strip().lower()
-        if "could not be found" in out or "not found" in out or "no such" in out:
-            return True
+        if "could not be found" in out or "not found" in out or "no such" in out \
+                or "inactive" in out or "failed" in out:
+            return False
         return p.returncode == 0 and out.startswith("active")
     except Exception:
         return True
+
+
+def _tunnel_installed():
+    """nextep-tunnel unit dosyasi Pi'de var mi? (kurulum gostergesi)"""
+    try:
+        import os as _os
+        return _os.path.exists("/etc/systemd/system/nextep-tunnel.service")
+    except Exception:
+        return False
 
 
 def _last_watch_detail(owner_id):
@@ -1054,6 +1067,7 @@ def _app_status(app):
         "status": "not-connected",
         "note": "not-installed",
         "tunnelOk": True,
+        "tunnelInstalled": False,
         "installed": False,
         "lastSignal": None,
         "lastWatch": None,
@@ -1074,6 +1088,7 @@ def _app_status(app):
         return base
     tunnel = _tunnel_ok()
     base["tunnelOk"] = tunnel
+    base["tunnelInstalled"] = _tunnel_installed()
     try:
         from db import get_user_setting as _gus
         mts = _gus(uid, "tp_stremio_manifest_ts")

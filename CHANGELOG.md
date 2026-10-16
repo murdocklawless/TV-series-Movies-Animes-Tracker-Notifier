@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.66 - 16/10/2026-18:15
+### TR
+- Stremio "Sunucuya Kur" artık tek sihirbaz modal: web sunucusu seçimi (Caddy/nginx/apache2) + adım listesi + katlanır salt-okunur terminal çıktısı bir arada.
+- Kurulum tamamen Python'a taşındı (`py/vps_install.py`); `sh/vps_setup.sh` ve `sh/nextep_remote.sh` artık çağrılmıyor (WireGuard hub ve Pi istemcisi dahil).
+- Sunucuda :80/:443 boşsa üç seçenek sunulur (Caddy önerilir); portu Caddy/nginx/apache2 tutuyorsa "mevcut üzerinden devam" moduna geçilir; başka bir servis tutuyorsa seçim yapılmaz, portu elle boşaltma talimatı gösterilir.
+- nginx/apache2 seçilirse site yapılandırması üretilip `certbot --nginx` / `certbot --apache` ile TLS alınır; Caddy kendi TLS'ini alır.
+- Pi→VPS ters tüneli (autossh, `nextep-tunnel.service`) şablondan üretiliyor; VPS profil anahtarı yeniden kullanılıyor (yeni anahtar/`authorized_keys` yok).
+- "Tüneli Kaldır" kill-switch ve "Sunucu Değiştir" (profil + tünel + WireGuard izlerini sıfırlar) akışları eklendi.
+- Stremio durumu artık ters tünelin kurulu/aktif olup olmadığını da bildiriyor; tünel birimi yoksa "bağlı" yanılgısı oluşmuyor (onarım modu).
+- Mevcut çalışan servisler (nginx/apache/caddy) otomatik durdurulmaz veya silinmez; yalnız kendi yönettiği bloklar elle düzenlenir.
+### EN
+- Stremio "Install on Server" is now a single wizard modal: web server selection (Caddy/nginx/apache2) + step list + collapsible read-only terminal output together.
+- Installation moved fully to Python (`py/vps_install.py`); `sh/vps_setup.sh` and `sh/nextep_remote.sh` are no longer called (WireGuard hub and Pi client included).
+- If :80/:443 are free, three options are offered (Caddy recommended); if Caddy/nginx/apache2 holds the port, it switches to "continue over existing"; if another service holds it, no selection is offered and a manual port-freeing instruction is shown.
+- When nginx/apache2 is chosen, a site config is generated and TLS is obtained via `certbot --nginx` / `certbot --apache`; Caddy obtains its own TLS.
+- The Pi→VPS reverse tunnel (autossh, `nextep-tunnel.service`) is generated from a template; the VPS profile key is reused (no new key or `authorized_keys` entry).
+- Added a "Remove Tunnel" kill-switch and a "Change Server" flow (resets profile + tunnel + WireGuard traces).
+- Stremio status now also reports whether the reverse tunnel is installed/active; no false "connected" state when the unit is missing (repair mode).
+- Existing running services (nginx/apache/caddy) are never stopped or removed automatically; only self-managed blocks are rewritten.
+
 ## 1.65 - 14/09/2026-16:46
 ### TR
 - Belgesel sekmesi eklendi (Film-Anime arası): tür-99 belgeselleri takip/izlenmemiş/izlenmiş/önerilerde ayrı bölümde toplanıyor; kartlar dizi/film kartlarıyla birebir.

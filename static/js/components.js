@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=520";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=521";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
@@ -17,7 +17,7 @@ import {
   canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr, isDocItem,
 } from "./utils.js?v=516";
 import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=518";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=517";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=518";
 
 let currentDetails = null;
 
@@ -484,6 +484,25 @@ function openAskClearConfirm(text, onYes) {
 }
 function closeStremioDisconnect() {
   document.getElementById("stremio-disconnect-modal").style.display = "none";
+}
+function openStremioInstallModal() {
+  const ov = document.getElementById("stremio-install-modal");
+  if (!ov) return;
+  const close = () => { ov.style.display = "none"; };
+  const x = ov.querySelector(".modal-close");
+  if (x) x.onclick = close;
+  ov.onclick = (e) => { if (e.target === e.currentTarget) close(); };
+  ov.style.display = "flex";
+}
+function closeStremioInstallModal() {
+  const ov = document.getElementById("stremio-install-modal");
+  if (ov) ov.style.display = "none";
+}
+function openStremioTunnelRemoveConfirm(text, onYes) {
+  wireDedicatedConfirm("stremio-tunnel-remove-modal", text, onYes);
+}
+function openRemoteResetConfirm(text, onYes) {
+  wireDedicatedConfirm("remote-reset-modal", text, onYes);
 }
 function openStremioDisconnectConfirm(text, onYes) {
   wireDedicatedConfirm("stremio-disconnect-modal", text, onYes);
@@ -1548,5 +1567,7 @@ export { openReleases, closeReleases, closeDetails, closeModals,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
          openNotifClearConfirm, openAskClearConfirm, openStremioDisconnectConfirm,
          openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,
+         openStremioInstallModal, closeStremioInstallModal,
+         openStremioTunnelRemoveConfirm, openRemoteResetConfirm,
           openDetails, toggleFavActor, toggleFavDirector, toggleFavAnimeChar, openAnimeChar, openPerson, openDirector,
          openUnwatchedModal, openAnimeDetails, openAnimeSchedule };
