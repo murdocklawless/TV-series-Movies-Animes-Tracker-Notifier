@@ -236,8 +236,14 @@ function formatDate(dateStr) {
   return { text, day };
 }
 
-function utcTodayStr() {
-  return new Date().toISOString().slice(0, 10);
+// --- Takvim "gün" karşılaştırmaları: TEK KAYNAK todayInTzStr() ---
+// Yerel gece yarısından sonra UTC hâlâ dün olabildiği için (ör. +03'te 02:20 >
+// UTC 23:20) UTC ile gün kıyaslamak dünkü bölümü "bugün" gösteriyordu. Tüm gün
+// karşılaştırmaları todayInTzStr() (backend server_today / kullanıcı dilimi) ile
+// yapılır; renk/gün kararının kaynağı ekranda GÖRÜNEN tarih (it.date) olur.
+function releaseDayStr(it) {
+  if (!it) return "";
+  return it.date || utcDayStr(it.air_time);
 }
 
 function utcDayStr(epochSec) {
@@ -247,57 +253,52 @@ function utcDayStr(epochSec) {
   return d.toISOString().slice(0, 10);
 }
 
-function utcStateStr(it) {
-  const today = utcTodayStr();
-  if (it.air_time) {
-    const day = utcDayStr(it.air_time);
-    if (!day) return "";
-    if (day < today) return "date-past";
-    if (day > today) return "date-future";
-    return "date-today";
+// Epoch -> kullanicinin (uygulama) dilimindeki gun "YYYY-MM-DD".
+// Gun karsilastirmalarinin "gun" tarafi icin UTC gunu yerine yerel gun kullanilir
+// (gece yarisi kaymasini ve 00:00-03:00 penceresindeki yanlis renkleri onler).
+function dayStrInTz(epochSec) {
+  if (!epochSec) return "";
+  const d = new Date(epochSec * 1000);
+  if (isNaN(d.getTime())) return "";
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: state.currentTz, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(d);
+    const get = (t) => parts.find((p) => p.type === t).value;
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  } catch (_) {
+    return utcDayStr(epochSec);
   }
-  if (!it.date) return "";
-  if (it.date < today) return "date-past";
-  if (it.date > today) return "date-future";
+}
+
+function dayStateStr(it) {
+  const day = releaseDayStr(it);
+  if (!day) return "";
+  const today = todayInTzStr();
+  if (day < today) return "date-past";
+  if (day > today) return "date-future";
   return "date-today";
 }
 
 function canSelectAll(it) {
-  const today = utcTodayStr();
-  if (it.air_time) {
-    const day = utcDayStr(it.air_time);
-    return !!day && day < today;
-  }
-  return !!it.date && it.date < today;
+  const day = releaseDayStr(it);
+  return !!day && day < todayInTzStr();
 }
 
 function isNewEpisode(it) {
   if (it.watched) return false;
-  if (it.air_time) {
-    const day = utcDayStr(it.air_time);
-    return !!day && day <= utcTodayStr();
-  }
-  const st = dateState(it.date);
-  return st === "date-past" || st === "date-today";
+  const day = releaseDayStr(it);
+  return !!day && day <= todayInTzStr();
 }
 
 function isNewTr(tr) {
-  const air = tr.dataset.air ? Number(tr.dataset.air) : null;
-  if (air) {
-    const day = utcDayStr(air);
-    return !!day && day <= utcTodayStr();
-  }
-  const st = dateState(tr.dataset.date);
-  return st === "date-past" || st === "date-today";
+  const day = tr.dataset.date || utcDayStr(tr.dataset.air ? Number(tr.dataset.air) : null);
+  return !!day && day <= todayInTzStr();
 }
 
 function isTodayTr(tr) {
-  const air = tr.dataset.air ? Number(tr.dataset.air) : null;
-  if (air) {
-    const day = utcDayStr(air);
-    return !!day && day === utcTodayStr();
-  }
-  return dateState(tr.dataset.date) === "date-today";
+  const day = tr.dataset.date || utcDayStr(tr.dataset.air ? Number(tr.dataset.air) : null);
+  return !!day && day === todayInTzStr();
 }
 
 function shortDate(dateStr) {
@@ -383,16 +384,7 @@ function todayInTzStr() {
 }
 
 function isReleaseToday(it) {
-  if (!it) return false;
-  if (it.air_time) {
-    const day = utcDayStr(it.air_time);
-    if (!day) return false;
-    return day === todayInTzStr();
-  }
-  if (it.date) {
-    return dateState(it.date) === "date-today";
-  }
-  return false;
+  return dayStateStr(it) === "date-today";
 }
 
 function fmtRuntime(min) {
@@ -437,7 +429,7 @@ export {
   ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG,
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
   CARD_SLOT, cardRows, resultCardRows, cardDateLine,
-  applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
+  applyTitleHint, tzLocale, formatDate, utcDayStr, dayStrInTz, dayStateStr, releaseDayStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,
   isMobile, daysUntil, daysHint, todayInTz, todayInTzStr, isReleaseToday, isToday, dateState,
   fmtRuntime, fmtScore, DOC_GENRES, parseGenres, isDocItem,

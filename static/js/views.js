@@ -4,11 +4,11 @@ import { t } from "./i18n.js?v=523";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
-  isToday, dateState, utcDayStr, utcTodayStr, isReleaseToday, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
+  dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=518";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=522";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=520";
+} from "./utils.js?v=519";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=523";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=521";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -128,8 +128,7 @@ function compareItems(a, b) {
   if (state.sortKey === "added") return bv - av;
   if (state.sortKey === "score") return (bv || 0) - (av || 0);
   if (state.sortKey === "date") {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const today = todayInTzStr();
     const aPast = !av || av < today;
     const bPast = !bv || bv < today;
     if (aPast && !bPast) return 1;
@@ -215,11 +214,11 @@ function tvStatusText(item) {
   let startedSeason = false;
   try {
     const sl = JSON.parse(item.season_list || "[]");
-    const now = new Date().toISOString().slice(0, 10);
+    const today = todayInTzStr();
     season = sl
-      .filter((s) => s.season_number && s.air_date && s.air_date >= now)
+      .filter((s) => s.season_number && s.air_date && s.air_date >= today)
       .sort((a, b) => (a.air_date || "").localeCompare(b.air_date || ""))[0];
-    startedSeason = sl.some((s) => s.air_date && s.air_date <= now);
+    startedSeason = sl.some((s) => s.air_date && s.air_date <= today);
   } catch (e) {
     season = null;
     startedSeason = false;
@@ -684,16 +683,8 @@ function unwatchedFirstLabel(item) {
 }
 
 function epochToTzDateStr(epochSec) {
-  const d = new Date(epochSec * 1000);
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: state.currentTz, year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(d);
-    const get = (t) => parts.find((p) => p.type === t).value;
-    return `${get("year")}-${get("month")}-${get("day")}`;
-  } catch (_) {
-    return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
-  }
+  // Tek kural: gun cevrimi/karsilastirmasi ortak yardimcilardan (utils.js)
+  return dayStrInTz(epochSec);
 }
 
 // İzlenmemiş kartı: sıradaki tarih bugünse "Bugün Yayında/Vizyonda", ilerideyse

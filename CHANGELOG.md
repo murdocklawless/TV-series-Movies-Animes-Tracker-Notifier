@@ -1,7 +1,19 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
-## 1.73 - 17/10/2026-02:30
+## 1.74 - 17/10/2026-02:30
+### TR
+- **Düzeltme (takvim "bugün" vurgusu):** Kart takviminde günü geçmiş bir bölümün tarihi hâlâ **bold mavi** ("bugün") görünüyordu. Neden: tarih sınıfı yerel "bugün" yerine **UTC günü** ile hesaplanıyordu; yerel gece yarısından sonraki ilk saatlerde (+03'te 00:00-03:00) UTC hâlâ önceki gün olduğu için dün yayınlanan bölüm "bugün" sayılıyordu (MobLand S02E05 vakası; 03:00'te kendiliğinden düzeliyordu).
+- Takvim/tarih karşılaştırmaları artık **tek kaynaktan** (`todayInTzStr()` = backend `server_today` / kullanıcı dilimi): `utcStateStr` yerine `dayStateStr`, yeni `releaseDayStr` + `dayStrInTz`; `canSelectAll`, `isNewEpisode`, `isNewTr`, `isTodayTr`, `isReleaseToday` aynı kurala geçti. Renk artık ekranda **görünen tarihten** (`it.date`) türetiliyor.
+- Anime takviminde tarih metni ve renk aynı yerel günden üretilir (tarayıcı dilimi kayması giderildi); `views.js`'te sezon/`next-ep` karşılaştırmaları ve `search.js` sıralama tarihi de yerel güne geçti. `utcTodayStr` kaldırıldı.
+- Yan etki (iyileşme): 00:00-03:00 arasında dünün bölümü artık "geçmiş" sayıldığı için "sezonu izlendi işaretle" de doğru çalışır; bölüm işaretleme kutusu davranışı değişmedi.
+### EN
+- **Fix (calendar "today" highlight):** in the card calendar the date of an episode whose day had passed still showed as **bold blue** ("today"). Cause: the date class compared against the **UTC day** instead of the local day; during the first hours after local midnight (00:00-03:00 at +03) UTC is still the previous day, so a yesterday episode counted as "today" (MobLand S02E05; it corrected itself at 03:00).
+- All calendar/date comparisons now come from a **single source** (`todayInTzStr()` = backend `server_today` / user timezone): `utcStateStr` → `dayStateStr`, new `releaseDayStr` + `dayStrInTz`; `canSelectAll`, `isNewEpisode`, `isNewTr`, `isTodayTr`, `isReleaseToday` follow the same rule. The colour is derived from the **displayed date** (`it.date`).
+- In the anime calendar the date text and the colour are produced from the same local day (browser-timezone drift removed); season/`next-ep` comparisons in `views.js` and the search sort date in `search.js` also moved to the local day. `utcTodayStr` removed.
+- Side effect (improvement): between 00:00-03:00 a yesterday episode is now "past", so "mark season watched" works correctly too; the per-episode checkbox behaviour is unchanged.
+
+## 1.73 - 17/10/2026-02:28
 ### TR
 - **Düzeltme (izleme saati):** "İzlendi mi?" bildiriminde **Evet**'e basıldığında izleme saati artık **bildirimde yazan saat** (sinyalin geldiği an) olarak kaydedilir; eskiden butona basıldığın an yazılıyordu (22:46'daki bildirime 00:51'de basınca izleme geçmişi 00:51 görünüyordu).
 - Aynı düzeltme **film/belgesel film** ve **anime** onaylarını da kapsar: bu iki türde `watched_at` hiç yazılmıyordu, bu yüzden onaylanan film/anime kayıtları izleme geçmişinde hiç görünmüyordu; artık bildirim zamanıyla görünürler.

@@ -3,9 +3,9 @@ import { state } from "./state.js";
 import { t, animeGenreLabel, errText } from "./i18n.js?v=523";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
-  toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine,
-} from "./utils.js?v=518";
-import { loadFollowed, loadBelgesel, loadAnime } from "./views.js?v=522";
+  toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
+} from "./utils.js?v=519";
+import { loadFollowed, loadBelgesel, loadAnime } from "./views.js?v=523";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -20,14 +20,14 @@ function setTvSearchCardAttrs(div, item){
       if (item.title) div.dataset.sortTitle = String(item.title);
       const sc = (item.vote_average !== undefined && item.vote_average !== null) ? Number(item.vote_average) : (item.score !== undefined && item.score !== null ? Number(item.score) / 10 : NaN);
       if (!isNaN(sc)) div.dataset.sortScore = String(sc);
-      const dt = (item.release_date || "") || (item.airing_at ? new Date(item.airing_at * 1000).toISOString().slice(0, 10) : "");
+      const dt = (item.release_date || "") || (item.airing_at ? dayStrInTz(item.airing_at) : "");
       if (dt) div.dataset.sortDate = String(dt);
     }
   }catch{}
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=522";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=523";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -669,7 +669,7 @@ function sitemDateISO(it) {
   if (!it) return "";
   if (it.release_date) return it.release_date;
   if (it.airing_at) {
-    try { return new Date(it.airing_at * 1000).toISOString().slice(0, 10); }
+    try { return dayStrInTz(it.airing_at); }
     catch (_) { return ""; }
   }
   return "";

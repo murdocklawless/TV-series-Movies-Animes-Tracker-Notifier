@@ -14,10 +14,10 @@ import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
-  canSelectAll, utcStateStr, utcDayStr, utcTodayStr, isNewEpisode, tzLocale, dateState, isReleaseToday, todayInTzStr, isDocItem,
-} from "./utils.js?v=518";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=522";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=520";
+  canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
+} from "./utils.js?v=519";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=523";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=521";
 
 let currentDetails = null;
 
@@ -92,9 +92,9 @@ async function openReleases(mediaType, tmdbId, title) {
         html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
         seasonItems.forEach((it, i) => {
           const f = formatDate(it.date);
-          const st = utcStateStr(it);
-          const isToday = isReleaseToday(it);
-          const dateClass = isToday ? ` class="date-today"` : (st ? ` class="${st}"` : "");
+          const st = dayStateStr(it);
+          const isToday = st === "date-today";
+          const dateClass = st ? ` class="${st}"` : "";
           const epName = it.episode_name
             ? `<div class="episode-name">${it.episode_name}</div>`
             : "";
@@ -1310,15 +1310,17 @@ async function openAnimeSchedule(id, title) {
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
+        const day = dayStrInTz(it.airing_at);   // yerel gun (tek kural)
         let dateText = "�";
         let cls = "";
         if (d && !isNaN(d.getTime())) {
           try {
-            dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+            // Tarih metni de ayni "gun" degerinden uretilir -> renk ile ekran tutarli
+            const dday = day ? new Date(day + "T00:00:00") : d;
+            dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric" }).format(dday);
           } catch (e) {
             dateText = d.toLocaleDateString();
           }
-          const day = utcDayStr(it.airing_at);
           const localT = todayInTzStr();
           if (day === localT) cls = "date-today";
           else if (day && day < localT) cls = "date-past";
