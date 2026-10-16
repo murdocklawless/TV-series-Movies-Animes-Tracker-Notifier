@@ -359,8 +359,8 @@ def _certbot(vps_run, log, server, domain, email):
     if not pkg:
         return True
     if not email:
-        log("UYARI: e-posta verilmedi — certbot kayit e-postasi olmadan calistirilamaz")
-        return False
+        log("UYARI: e-posta verilmedi — certbot e-postasiz kayit kullanilacak "
+            "(--register-unsafely-without-email)")
     rc, out = vps_run(
         f"command -v certbot >/dev/null 2>&1 || "
         f"(apt-get update && apt-get install -y certbot {pkg})", timeout=900)
@@ -368,9 +368,10 @@ def _certbot(vps_run, log, server, domain, email):
     if rc != 0:
         return False
     flag = "--nginx" if server == "nginx" else "--apache"
+    reg = f"-m '{email}'" if email else "--register-unsafely-without-email"
     rc, out = vps_run(
         f"certbot {flag} -d {domain} --non-interactive --agree-tos "
-        f"--redirect -m {email}", timeout=600)
+        f"--redirect {reg}", timeout=600)
     log(out[-2000:])
     return rc == 0
 

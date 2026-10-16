@@ -1,7 +1,7 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
-## 1.66 - 16/10/2026-18:15
+## 1.70 - 16/10/2026-18:52
 ### TR
 - Stremio "Sunucuya Kur" artık tek sihirbaz modal: web sunucusu seçimi (Caddy/nginx/apache2) + adım listesi + katlanır salt-okunur terminal çıktısı bir arada.
 - Kurulum tamamen Python'a taşındı (`py/vps_install.py`); `sh/vps_setup.sh` ve `sh/nextep_remote.sh` artık çağrılmıyor (WireGuard hub ve Pi istemcisi dahil).
@@ -11,6 +11,7 @@
 - "Tüneli Kaldır" kill-switch ve "Sunucu Değiştir" (profil + tünel + WireGuard izlerini sıfırlar) akışları eklendi.
 - Stremio durumu artık ters tünelin kurulu/aktif olup olmadığını da bildiriyor; tünel birimi yoksa "bağlı" yanılgısı oluşmuyor (onarım modu).
 - Mevcut çalışan servisler (nginx/apache/caddy) otomatik durdurulmaz veya silinmez; yalnız kendi yönettiği bloklar elle düzenlenir.
+- Let's Encrypt e-postası: sihirbaz e-posta göndermezse uygulamanın gönderen adresine (`email_from`) düşülür; o da boşsa `certbot --register-unsafely-without-email` kullanılır — nginx/apache TLS yolu artık sertifika adımında düşmüyor.
 ### EN
 - Stremio "Install on Server" is now a single wizard modal: web server selection (Caddy/nginx/apache2) + step list + collapsible read-only terminal output together.
 - Installation moved fully to Python (`py/vps_install.py`); `sh/vps_setup.sh` and `sh/nextep_remote.sh` are no longer called (WireGuard hub and Pi client included).
@@ -20,6 +21,7 @@
 - Added a "Remove Tunnel" kill-switch and a "Change Server" flow (resets profile + tunnel + WireGuard traces).
 - Stremio status now also reports whether the reverse tunnel is installed/active; no false "connected" state when the unit is missing (repair mode).
 - Existing running services (nginx/apache/caddy) are never stopped or removed automatically; only self-managed blocks are rewritten.
+- Let's Encrypt e-mail: if the wizard sends no address, the app falls back to its sender address (`email_from`); if that is empty too, `certbot --register-unsafely-without-email` is used — the nginx/apache TLS path no longer dies at the certificate step.
 
 ## 1.65 - 14/09/2026-16:46
 ### TR
