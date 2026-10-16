@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=521";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=516";
-import { activateUtilityTab } from "./views.js?v=518";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=520";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=522";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=517";
+import { activateUtilityTab } from "./views.js?v=521";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=521";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=521");
+      const { errText: _err } = await import("./i18n.js?v=522");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=516");
-    const { openDetails } = await import("./components.js?v=520");
-    const { loadFollowed } = await import("./views.js?v=518");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=517");
+    const { openDetails } = await import("./components.js?v=521");
+    const { loadFollowed } = await import("./views.js?v=521");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=521");
+        const { t: _t } = await import("./i18n.js?v=522");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=528").then((m) => {
+  import("./notification.js?v=530").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2151,10 +2151,24 @@ let vpsAuth = "key";
 let vpsSecretMasked = false;
 let remoteJobTimer = null;
 
-async function renderThirdPartyApps() {
+async function renderThirdPartyApps(opts = {}) {
   const wrap = document.getElementById("thirdparty-apps");
   if (!wrap) return;
-  wrap.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  // silent: aksiyon sonrasi yenileme -> yukleme placeholder'i basilmaz; veriler
+  // gelene kadar mevcut DOM ekranda kalir (modal bosalip yeniden kurulmus gibi
+  // gorunmez). Kaydirma konumu ve odak da korunur.
+  const silent = !!opts.silent;
+  const scroller = wrap.closest(".modal-body") || wrap.parentElement;
+  const keepScroll = silent && scroller ? scroller.scrollTop : 0;
+  const focusId = silent && document.activeElement && document.activeElement.id ? document.activeElement.id : "";
+  const restoreView = () => {
+    if (silent && scroller) scroller.scrollTop = keepScroll;
+    if (focusId) {
+      const el = document.getElementById(focusId);
+      if (el && typeof el.focus === "function") el.focus({ preventScroll: true });
+    }
+  };
+  if (!silent) wrap.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   let apps = [];
   try {
     const r = await fetch("/api/thirdparty/status", { cache: "no-store" });
@@ -2195,6 +2209,7 @@ async function renderThirdPartyApps() {
   if (!apps.length) {
     wrap.innerHTML = vpsHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
     bindThirdPartyEvents();
+    restoreView();
     return;
   }
   wrap.innerHTML = vpsHtml + apps
@@ -2208,6 +2223,7 @@ async function renderThirdPartyApps() {
     })
     .join("");
   bindThirdPartyEvents();
+  restoreView();
 }
 
 const thirdPartyAppRenderers = {
@@ -2406,7 +2422,7 @@ async function flushTpBaseUrl() {
     const ok = await saveSettingsPartial({ tp_base_url: v }, null);
     if (!ok) { baseInput.value = tpBaseUrl; return; }
     tpBaseUrl = v;
-    await renderThirdPartyApps();
+    await renderThirdPartyApps({ silent: true });
     const ni = document.getElementById("tp-base-input");
     const nh = ni && ni.closest("label").querySelector(".saved-hint");
     showSavedHint(nh);
@@ -2493,7 +2509,7 @@ function bindThirdPartyEvents() {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "refresh");
         toast(t("tp_uuid_refreshed"));
-        renderThirdPartyApps();
+        renderThirdPartyApps({ silent: true });
       } catch (e) {
         toast(errText((e && e.message) || "") || t("error"), true);
       } finally {
@@ -2514,7 +2530,7 @@ function bindThirdPartyEvents() {
           const j = await r.json();
           if (!r.ok) throw new Error(j.error || "disconnect");
           toast(t("tp_disconnected"));
-          renderThirdPartyApps();
+          renderThirdPartyApps({ silent: true });
         } catch (e) {
           toast(errText((e && e.message) || "") || t("error"), true);
         }
@@ -2544,6 +2560,12 @@ function setTpAccordion(which) {
   });
 }
 
+function vpsStoredPass(mode) {
+  const p = vpsProfile || {};
+  if (mode === "key") return !!(p.sudoHasSecret);
+  return !!(p.configured && (p.auth_type || "key") !== "key");
+}
+
 function renderVpsSection() {
   const p = vpsProfile || { host: "", port: 22, username: "root", auth_type: "key", configured: false, connected: false, lastTestTs: null, fingerprint: "" };
   const stCls = p.connected && p.configured ? "tp-connected" : "tp-not-connected";
@@ -2551,6 +2573,11 @@ function renderVpsSection() {
   const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "—";
   const hasSecret = !!p.configured;
   const showKey = vpsAuth === "key";
+  const uname = p.username || "root";
+  const isRoot = String(uname).trim().toLowerCase() === "root";
+  const passStored = vpsStoredPass(vpsAuth);
+  const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "••••••••" : "");
+  const passLabel = showKey ? t("vps_sudo_pass") : t("vps_auth_pass");
   return `
   <div class="channel-box accordion-box notif-type-box${tpVpsOpen ? " accordion-open" : ""}" id="vps-info-box">
     <div class="notif-type-head"><span class="notif-type-title"><i class="fa-solid fa-server"></i> ${escAttr(t("vps_conn_info"))}</span></div>
@@ -2577,7 +2604,13 @@ function renderVpsSection() {
           <button id="vps-auth-key" class="tab${showKey ? " active" : ""}">${escAttr(t("vps_auth_key"))}</button>
           <button id="vps-auth-pass" class="tab${showKey ? "" : " active"}">${escAttr(t("vps_auth_pass"))}</button>
         </div>
-        <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}">
+        <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
+          <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" value="${escAttr(uname)}" placeholder="root" /></div>
+        </label>
+        <label style="margin-top:6px"><span class="settings-label-head"><span id="vps-pass-label">${escAttr(passLabel)}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
+          <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${escAttr(passPlaceholder)}" data-has="${passStored ? "1" : "0"}" /></div>
+        </label>
+        <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}; margin-top:6px">
           <label>
             <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
             <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
@@ -2588,21 +2621,62 @@ function renderVpsSection() {
             <button id="vps-key-upload" class="tab">${escAttr(t("backup_upload_key"))}</button>
           </div>
         </div>
-        <div id="vps-pass-wrap" style="display:${showKey ? "none" : "block"}">
-          <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="vps-user" type="text" readonly value="root" /></div>
-          </label>
-          <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_auth_pass"))}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${hasSecret && p.auth_type === "password" ? "••••••••" : ""}" /></div>
-          </label>
-        </div>
       </div>
       <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
-        <button id="vps-test" class="tab">${escAttr(t("vps_test"))}</button>
+        <button id="vps-test" class="tab" disabled aria-disabled="true">${escAttr(t("vps_test"))}</button>
         ${p.everConnected ? `<button id="vps-server-change" class="tab" data-i18n="server_change_btn">${escAttr(t("server_change_btn"))}</button>` : ""}
       </div>
     </div>
   </div>`;
+}
+
+// Test Et kapisi: host + (key + root ise ek yok / key + root disi ise parola / parola modu ise parola)
+function vpsGateState() {
+  const hostEl = document.getElementById("vps-host");
+  if (!hostEl) return { canTest: false, reason: "host" };
+  const host = (hostEl.value || "").trim();
+  const userEl = document.getElementById("vps-user");
+  const user = ((userEl && userEl.value) || "root").trim().toLowerCase() || "root";
+  const isRoot = user === "root";
+  const keyMode = vpsAuth === "key";
+  const keyEl = document.getElementById("vps-key");
+  const keyTxt = keyEl ? (keyEl.value || "").trim() : "";
+  const keyOk = !!keyEl && (keyTxt !== "" || keyEl.getAttribute("data-has") === "1");
+  const passEl = document.getElementById("vps-pass");
+  const passTxt = passEl ? (passEl.value || "") : "";
+  const passOk = (passTxt !== "" && passTxt !== "••••••••")
+    || !!(passEl && passEl.getAttribute("data-has") === "1");
+  if (!host) return { canTest: false, reason: "host" };
+  if (keyMode) {
+    if (!keyOk) return { canTest: false, reason: "key" };
+    if (!isRoot && !passOk) return { canTest: false, reason: "pass" };
+    return { canTest: true, reason: "" };
+  }
+  if (!passOk) return { canTest: false, reason: "pass" };
+  return { canTest: true, reason: "" };
+}
+
+function updateVpsTestGate() {
+  const st = vpsGateState();
+  const btn = document.getElementById("vps-test");
+  if (btn) {
+    btn.disabled = !st.canTest;
+    btn.setAttribute("aria-disabled", st.canTest ? "false" : "true");
+    const tip = st.reason === "host" ? t("vps_need_host")
+      : st.reason === "key" ? t("vps_need_key")
+        : st.reason === "pass" ? t("vps_need_pass") : "";
+    if (tip) btn.setAttribute("data-tip", tip); else btn.removeAttribute("data-tip");
+  }
+  const userEl = document.getElementById("vps-user");
+  const isRoot = (((userEl && userEl.value) || "root").trim().toLowerCase() === "root");
+  const passEl = document.getElementById("vps-pass");
+  if (passEl) {
+    const lockPass = vpsAuth === "key" && isRoot;   // root -> parola gerekmez
+    passEl.disabled = lockPass;
+    if (lockPass && passEl.value) passEl.value = "";
+    passEl.placeholder = lockPass ? t("vps_pass_root_na")
+      : (vpsStoredPass(vpsAuth) ? "••••••••" : "");
+  }
 }
 
 const PEER_SVG = {
@@ -2622,38 +2696,57 @@ async function flushVpsProfile(hintId) {
     const host = (hostEl.value || "").trim();
     let port = 22;
     try { port = parseInt(document.getElementById("vps-port")?.value || "22", 10); } catch (_) {}
-    const username = "root";
+    const userEl = document.getElementById("vps-user");
+    const username = ((userEl && userEl.value) || "root").trim().toLowerCase() || "root";
+    const isRoot = username === "root";
+    const saved = vpsProfile || null;
     let secret = "";
+    let fieldEmpty = true;
     if (vpsAuth === "key") {
       const k = document.getElementById("vps-key");
       secret = k ? k.value.trim() : "";
+      fieldEmpty = secret === "" && (!k || k.getAttribute("data-has") !== "1");
     } else {
-      const p = document.getElementById("vps-pass");
-      secret = p ? p.value : "";
+      const pe = document.getElementById("vps-pass");
+      secret = pe ? pe.value : "";
+      fieldEmpty = (secret === "" || secret === "••••••••")
+        && (!pe || pe.getAttribute("data-has") !== "1");
     }
-    // Bilgi değişmediyse kaydetme (POST + hint yok).
-    const saved = vpsProfile || null;
+    // sudo parolasi: root'ta tutulmaz; key modunda ayri, parola modunda login parolasi.
+    let sudoSecret = null;   // null = dokunma, "" = temizle
+    if (isRoot && saved && saved.sudoHasSecret) sudoSecret = "";
+    else if (!isRoot && vpsAuth === "key") {
+      const pe = document.getElementById("vps-pass");
+      const v = pe ? pe.value : "";
+      if (v !== "" && v !== "••••••••") sudoSecret = v;
+    }
     const secretChanged = secret !== "" && secret !== "••••••••";
+    const willClear = fieldEmpty && !!(saved && saved.configured);
     const unchanged =
       !!saved &&
       host === (saved.host || "") &&
       port === (saved.port || 22) &&
       username === (saved.username || "root") &&
       vpsAuth === (saved.auth_type || "key") &&
-      !secretChanged;
+      !secretChanged && !willClear && sudoSecret === null;
     if (unchanged) return;
     const body = { host, port, username, auth_type: vpsAuth };
-    // Boş secret gönderilmez -> backend eskiyi korur; masked "••••••••" korunur.
-    if (secret !== "") body.secret = secret;
+    // Boş secret -> backend eskiyi korur; "••••••••" korunur; temizleme acikca "" ile.
+    if (secret !== "" && secret !== "••••••••") body.secret = secret;
+    else if (willClear) body.secret = "";
+    if (sudoSecret !== null) body.sudo_secret = sudoSecret;
     const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "save");
     vpsProfile = Object.assign({}, vpsProfile || {}, {
       host: body.host, port: body.port, username: body.username,
       auth_type: body.auth_type, configured: !!j.configured,
+      sudoHasSecret: !!j.sudo_configured,
     });
-    vpsGate = { configured: !!j.configured, connected: !!(vpsGate && vpsGate.connected && j.configured) };
+    vpsGate = { configured: !!j.configured, connected: !!(vpsGate && vpsGate.connected && j.configured),
+                everConnected: !!(vpsGate && vpsGate.everConnected) };
     if (hintId) showSavedHint(document.getElementById(hintId));
+    updateVpsTestGate();
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
   } finally {
@@ -2663,24 +2756,39 @@ async function flushVpsProfile(hintId) {
 
 async function testVpsConnection() {
   await flushVpsProfile();
+  // SSH testi birkac saniye surebilir: butonda bekleme geri bildirimi ver.
+  // Sonuc gelince renderThirdPartyApps butonu yeniden olusturur -> finally'de
+  // buton tekrar sorgulanip etiket geri yazilir.
   const btn = document.getElementById("vps-test");
-  if (btn) btn.disabled = true;
+  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = t("vps_test") + " …"; }
   try {
     const r = await fetch("/api/remote/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "test");
     if (j.connected) {
-      toast(t("vps_test_ok"));
+      toast(t("vps_test_ok") + (j.sudo ? " — " + t("vps_sudo_ok") : ""));
     } else {
-      const detail = j.reason ? ` (${j.reason}${j.detail ? ": " + j.detail : ""})` : "";
-      toast(t("vps_test_fail") + detail, true);
+      const reasonKey = {
+        "sudo-pass-required": "vps_sudo_required",
+        "sudo-wrong-pass": "vps_sudo_wrong",
+        "sudo-not-allowed": "vps_sudo_denied",
+        "sudo-bootstrap-failed": "vps_sudo_denied",
+      }[j.reason];
+      if (reasonKey) {
+        toast(t(reasonKey) + (j.detail ? ` (${j.detail})` : ""), true);
+      } else {
+        const detail = j.reason ? ` (${j.reason}${j.detail ? ": " + j.detail : ""})` : "";
+        toast(t("vps_test_fail") + detail, true);
+      }
     }
-    renderThirdPartyApps();
+    await renderThirdPartyApps({ silent: true });
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
-    renderThirdPartyApps();
+    await renderThirdPartyApps({ silent: true });
   } finally {
-    if (btn) btn.disabled = false;
+    const b2 = document.getElementById("vps-test");
+    if (b2) { b2.textContent = t("vps_test"); b2.removeAttribute("aria-busy"); }
+    updateVpsTestGate();
   }
 }
 
@@ -2688,13 +2796,21 @@ function bindVpsAuthToggle() {
   const kb = document.getElementById("vps-auth-key");
   const pb = document.getElementById("vps-auth-pass");
   const set = (mode) => {
+    if (vpsAuth === mode) return;
     vpsAuth = mode;
     const keyWrap = document.getElementById("vps-key-wrap");
-    const passWrap = document.getElementById("vps-pass-wrap");
     if (keyWrap) keyWrap.style.display = mode === "key" ? "block" : "none";
-    if (passWrap) passWrap.style.display = mode === "key" ? "none" : "block";
     if (kb) kb.classList.toggle("active", mode === "key");
     if (pb) pb.classList.toggle("active", mode !== "key");
+    // Parola alani iki modda farkli anlam tasir: etiket + kayitli deger sifirlanir.
+    const lbl = document.getElementById("vps-pass-label");
+    if (lbl) lbl.textContent = mode === "key" ? t("vps_sudo_pass") : t("vps_auth_pass");
+    const pe = document.getElementById("vps-pass");
+    if (pe) {
+      pe.value = "";
+      pe.setAttribute("data-has", vpsStoredPass(mode) ? "1" : "0");
+    }
+    updateVpsTestGate();
   };
   if (kb) kb.addEventListener("click", () => set("key"));
   if (pb) pb.addEventListener("click", () => set("password"));
@@ -2712,6 +2828,7 @@ function bindVpsKeyActions() {
       rd.onload = () => {
         const ta = document.getElementById("vps-key");
         if (ta) { ta.value = String(rd.result || "").trim(); ta.setAttribute("data-has", "0"); }
+        updateVpsTestGate();
       };
       rd.readAsText(f);
       fileInput.value = "";
@@ -2722,6 +2839,7 @@ function bindVpsKeyActions() {
     clearBtn.addEventListener("click", () => {
       const ta = document.getElementById("vps-key");
       if (ta) { ta.value = ""; ta.setAttribute("data-has", "0"); }
+      updateVpsTestGate();
     });
   }
 }
@@ -2732,7 +2850,7 @@ async function remoteTunnelConnect() {
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "connect");
     toast(t("remote_connected"));
-    renderThirdPartyApps();
+    renderThirdPartyApps({ silent: true });
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
   }
@@ -2745,7 +2863,7 @@ function remoteTunnelDisconnect() {
       const j = await r.json();
       if (!r.ok) throw new Error(errText(j.error) || j.error || "disconnect");
       toast(t("remote_disconnected"));
-      renderThirdPartyApps();
+      renderThirdPartyApps({ silent: true });
     } catch (e) {
       toast(errText((e && e.message) || "") || t("error"), true);
     }
@@ -2777,7 +2895,7 @@ function pollRemoteJob(jobId, logEl) {
         remoteJobTimer = setTimeout(tick, 1500);
       } else {
         toast(j.status === "success" ? t("job_success") : t("job_failed"), j.status !== "success");
-        renderThirdPartyApps();
+        renderThirdPartyApps({ silent: true });
       }
     } catch (_) {
       remoteJobTimer = setTimeout(tick, 2500);
@@ -2846,7 +2964,7 @@ async function addRemotePeer() {
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "peer");
     toast(t("peer_added"));
-    renderThirdPartyApps();
+    renderThirdPartyApps({ silent: true });
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
   }
@@ -2869,7 +2987,7 @@ async function remotePeerSuspend(num, currentSuspended) {
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "suspend");
     toast(currentSuspended ? t("peer_resumed") : t("peer_suspended"));
-    renderThirdPartyApps();
+    renderThirdPartyApps({ silent: true });
   } catch (e) {
     toast(errText((e && e.message) || "") || t("error"), true);
   }
@@ -2882,7 +3000,7 @@ function remotePeerDelete(num, file) {
       const j = await r.json();
       if (!r.ok) throw new Error(errText(j.error) || j.error || "delete");
       toast(t("peer_deleted"));
-      renderThirdPartyApps();
+      renderThirdPartyApps({ silent: true });
     } catch (e) {
       toast(errText((e && e.message) || "") || t("error"), true);
     }
@@ -3050,7 +3168,7 @@ function siPoll() {
         if (start) { start.disabled = false; start.classList.remove("loading"); }
         const ok = j.status === "success";
         toast(ok ? t("job_success") : t("job_failed"), !ok);
-        renderThirdPartyApps();
+        renderThirdPartyApps({ silent: true });
         const st = document.getElementById("si-start");
         if (st) st.textContent = t("stremio_install_start");
       }
@@ -3070,7 +3188,7 @@ function stremioTunnelRemove() {
       const j = await r.json();
       if (!r.ok) throw new Error(errText(j.error) || j.error || "remove");
       toast(t("tunnel_removed"));
-      renderThirdPartyApps();
+      renderThirdPartyApps({ silent: true });
     } catch (e) {
       toast(errText((e && e.message) || "") || t("error"), true);
     }
@@ -3088,7 +3206,7 @@ function vpsServerChange() {
       toast(t("server_changed"));
       vpsProfile = null;
       vpsGate = { configured: false, connected: false, everConnected: false };
-      renderThirdPartyApps();
+      renderThirdPartyApps({ silent: true });
     } catch (e) {
       toast(errText((e && e.message) || "") || t("error"), true);
     }
@@ -3111,10 +3229,14 @@ function bindVpsRemoteEvents() {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("blur", () => flushVpsProfile(hintId));
+    el.addEventListener("input", () => updateVpsTestGate());
+    el.addEventListener("keyup", () => updateVpsTestGate());
+    el.addEventListener("change", () => updateVpsTestGate());
     el.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && id !== "vps-key") { e.preventDefault(); el.blur(); }
     });
   });
+  updateVpsTestGate();
   const remoteInstall = document.getElementById("tp-remote-install");
   if (remoteInstall) remoteInstall.addEventListener("click", () => startRemoteJob("wg", {}));
   const remoteConnectBtn = document.getElementById("tp-remote-connect");

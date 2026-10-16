@@ -3756,6 +3756,12 @@ input:-webkit-autofill:focus {
   color: #c9cedb;
 }
 
+/* root kullanicisinda parola alani kilitli (kullanici adi root iken) */
+.tp-url-box input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .tp-url-box button {
   font-size: 0.95rem;
   padding: 8px 10px;

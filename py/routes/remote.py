@@ -10,8 +10,10 @@ Guvenlik: secret'lar encrypt_secret kasasinda, log'a yazilmaz, gecici
 keyfile 600 + is sonu silinir. Sistem ssh/scp binary'si kullanilir
 (backup_core.py deseni); yeni bagimlilik yok.
 """
+import base64
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -29,6 +31,14 @@ remote_bp = Blueprint("remote", __name__)
 
 _HOST_RE = re.compile(r"^[A-Za-z0-9._-]{1,253}$")
 _IPV4_RE = re.compile(r"^[0-9]{1,3}(\.[0-9]{1,3}){3}$")
+_USER_RE = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+_SUDOERS_DIR = "/etc/sudoers.d"
+
+
+def _sudoers_path(username):
+    """root disi kullanici icin NOPASSWD drop-in yolu."""
+    safe = re.sub(r"[^a-z0-9_-]", "", (username or "").strip().lower()) or "user"
+    return f"{_SUDOERS_DIR}/99-nextep-{safe}"
 
 
 def _is_admin():
@@ -60,6 +70,13 @@ def ensure_remote_tables():
             updated_at TEXT NOT NULL DEFAULT ''
         )"""
     )
+    # root disi kullanici icin sudo parolasi + NOPASSWD dogrulama durumu.
+    for _ddl in ("ALTER TABLE vps_hosts ADD COLUMN sudo_enc TEXT NOT NULL DEFAULT ''",
+                 "ALTER TABLE vps_hosts ADD COLUMN sudo_nopasswd INTEGER NOT NULL DEFAULT 0"):
+        try:
+            conn.execute(_ddl)
+        except Exception:
+            pass
     conn.execute(
         """CREATE TABLE IF NOT EXISTS wg_peers (
             num INTEGER PRIMARY KEY,
@@ -91,6 +108,15 @@ def ensure_remote_tables():
         pass
 
 
+def _row_get(row, key, default=""):
+    """sqlite3.Row guvenli okuma (migration eksikse varsayilan)."""
+    try:
+        v = row[key]
+    except Exception:
+        return default
+    return default if v is None else v
+
+
 def _get_profile():
     ensure_remote_tables()
     try:
@@ -104,15 +130,19 @@ def _get_profile():
                 pass
         if not row:
             return {"host": "", "port": 22, "username": "root", "auth_type": "key",
-                    "has_secret": False, "fingerprint": ""}
+                    "has_secret": False, "sudo_has_secret": False, "sudo_nopasswd": 0,
+                    "fingerprint": ""}
         return {"host": row["host"] or "", "port": int(row["port"] or 22),
                 "username": row["username"] or "root",
                 "auth_type": row["auth_type"] or "key",
                 "has_secret": bool(row["secret_enc"]),
+                "sudo_has_secret": bool(_row_get(row, "sudo_enc", "")),
+                "sudo_nopasswd": int(_row_get(row, "sudo_nopasswd", 0) or 0),
                 "fingerprint": row["fingerprint"] or ""}
     except Exception:
         return {"host": "", "port": 22, "username": "root", "auth_type": "key",
-                "has_secret": False, "fingerprint": ""}
+                "has_secret": False, "sudo_has_secret": False, "sudo_nopasswd": 0,
+                "fingerprint": ""}
 
 
 def _get_secret():
@@ -128,6 +158,27 @@ def _get_secret():
         if not row or not row["secret_enc"]:
             return ""
         return decrypt_secret(row["secret_enc"]) or ""
+    except Exception:
+        return ""
+
+
+def _get_sudo_secret():
+    """root disi kullanicinin sudo parolasi (key modunda ayri saklanir)."""
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute("SELECT sudo_enc FROM vps_hosts WHERE id=1").fetchone()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        if not row:
+            return ""
+        enc = _row_get(row, "sudo_enc", "")
+        if not enc:
+            return ""
+        return decrypt_secret(enc) or ""
     except Exception:
         return ""
 
@@ -182,7 +233,20 @@ def _ssh_cleanup(key_file):
             pass
 
 
-def _vps_run(profile, secret, remote_cmd, input_text=None, timeout=600):
+def _sudo_wrap(profile, remote_cmd):
+    """root disi kullanicida komutu sudo ile calistirir (parolasiz, -n).
+
+    Parola sorulmaz: Test Et sirasinda NOPASSWD drop-in yazilir. `sudo -n`
+    stdin'e dokunmadigi icin `cat > dosya` deseni bozulmaz.
+    """
+    user = (profile.get("username") or "root").strip() or "root"
+    if user == "root":
+        return remote_cmd
+    return "sudo -n bash -lc " + shlex.quote(remote_cmd)
+
+
+def _ssh_exec(profile, secret, remote_cmd, input_text=None, timeout=600):
+    """SSH ile tek komut (sudo sarmalamasi YOK — test/bootstrap icin)."""
     cmd, key_file, env = _ssh_session(profile, secret)
     try:
         cmd = cmd + [f"{profile['username']}@{profile['host']}", remote_cmd]
@@ -191,6 +255,80 @@ def _vps_run(profile, secret, remote_cmd, input_text=None, timeout=600):
         return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
     finally:
         _ssh_cleanup(key_file)
+
+
+def _vps_run(profile, secret, remote_cmd, input_text=None, timeout=600):
+    """Uzak komut (root disi kullanicida otomatik sudo ile)."""
+    return _ssh_exec(profile, secret, _sudo_wrap(profile, remote_cmd), input_text, timeout)
+
+
+def _sudo_login_secret(profile, secret, sudo_secret):
+    """sudo parolasi: parola modunda login parolasi, key modunda ayri secret."""
+    if (profile.get("auth_type") or "key") == "password":
+        return secret or ""
+    return sudo_secret or ""
+
+
+def _sudo_needs_password(out):
+    low = (out or "").lower()
+    return ("a password is required" in low or "a terminal is required" in low
+            or "no tty present" in low)
+
+
+def _sudo_denied(out):
+    low = (out or "").lower()
+    return ("not in the sudoers" in low or "not allowed to execute" in low
+            or "is not allowed" in low or "may not run sudo" in low)
+
+
+def _bootstrap_sudoers(profile, secret, password):
+    """Parolayi BIR KEZ kullanip NOPASSWD sudoers drop-in yazar. (ok, detail).
+
+    Parola stdin'den yalnizca `sudo -S`'e gider; dosya icerigi komut metnine
+    base64 olarak gomulur (stdin cakismasi yok).
+    """
+    user = profile["username"]
+    path = _sudoers_path(user)
+    content = f"{user} ALL=(ALL) NOPASSWD: ALL\n"
+    b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
+    inner = (f"printf %s {shlex.quote(b64)} | base64 -d > {path} && "
+             f"chown root:root {path} && chmod 440 {path} && "
+             f"visudo -cf {path} >/dev/null 2>&1 && echo SUDOERS-OK")
+    cmd = "sudo -S -p '' sh -c " + shlex.quote(inner)
+    rc, out = _ssh_exec(profile, secret, cmd, input_text=password + "\n", timeout=30)
+    if "SUDOERS-OK" in (out or ""):
+        rc2, out2 = _ssh_exec(profile, secret, "sudo -n true && echo SUDO-NOPASS-OK",
+                              timeout=20)
+        if "SUDO-NOPASS-OK" in (out2 or ""):
+            return True, ""
+    # fail-safe: yarim yazilmis drop-in birakma
+    try:
+        _ssh_exec(profile, secret, f"sudo -S -p '' rm -f {shlex.quote(path)}",
+                  input_text=password + "\n", timeout=20)
+    except Exception:
+        pass
+    return False, (out or "").strip()[-300:]
+
+
+def _store_test_state(connected, ts, nopass):
+    """TEST sonucunu ayarlara + sudo_nopasswd bayragina yazar (fail-soft)."""
+    try:
+        set_setting("vps_status_connected", "1" if connected else "0")
+        set_setting("vps_last_test_ts", str(ts))
+    except Exception:
+        pass
+    try:
+        conn = get_db()
+        try:
+            conn.execute("UPDATE vps_hosts SET sudo_nopasswd=? WHERE id=1", (int(nopass or 0),))
+            conn.commit()
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 def _job_append(job_id, line):
@@ -1143,6 +1281,8 @@ def remote_vps_status():
                     "everConnected": ever_connected,
                     "lastTestTs": last_ts, "host": p["host"], "port": p["port"],
                     "username": p["username"], "auth_type": p["auth_type"],
+                    "sudoHasSecret": bool(p.get("sudo_has_secret")),
+                    "sudoNopasswd": bool(p.get("sudo_nopasswd")),
                     "fingerprint": p["fingerprint"], "stremioInstalled": stremio_installed,
                     "tunnelInstalled": tunnel_installed, "tunnelActive": tunnel_active,
                     "webServer": web_server})
@@ -1159,36 +1299,56 @@ def remote_profile_save():
         port = int(body.get("port") or 22)
     except (TypeError, ValueError):
         return jsonify({"error": "bad_port"}), 400
-    username = "root"
+    username = str(body.get("username") or "root").strip().lower() or "root"
     auth_type = str(body.get("auth_type") or "key").strip().lower()
     secret_in = body.get("secret")
+    sudo_in = body.get("sudo_secret")
     if not host or (not _HOST_RE.match(host) and not _IPV4_RE.match(host)):
         return jsonify({"error": "bad_host"}), 400
     if port < 1 or port > 65535:
         return jsonify({"error": "bad_port"}), 400
+    if not _USER_RE.match(username):
+        return jsonify({"error": "bad_user"}), 400
     if auth_type not in ("key", "password"):
         return jsonify({"error": "bad_auth"}), 400
     ensure_remote_tables()
+    old = _get_profile()
+    old_sudo_secret = _get_sudo_secret()
     old_secret = _get_secret()
     # secret: "••••••••" = koru, "" = temizle, None = koru, metin = yeni
     if secret_in is None or secret_in == "••••••••":
         secret = old_secret
     else:
         secret = str(secret_in or "")
+    # sudo secret: root'ta ve parola modunda tutulmaz (parola modunda login
+    # parolasi zaten sudo icin kullanilir). "••••••••" = koru.
+    if username == "root" or auth_type == "password":
+        sudo_secret = ""
+    elif sudo_in is None or sudo_in == "••••••••":
+        sudo_secret = old_sudo_secret
+    else:
+        sudo_secret = str(sudo_in or "")
     try:
         secret_enc = encrypt_secret(secret) if secret else ""
+        sudo_enc = encrypt_secret(sudo_secret) if sudo_secret else ""
     except Exception:
         return jsonify({"error": "secret_store_failed"}), 500
+    # Sudo dogrulamasi yalnizca ayni host + kullanici icin gecerli kalir.
+    keep_nopass = 1 if (old.get("sudo_nopasswd") and old.get("username") == username
+                        and old.get("host") == host and bool(old_sudo_secret) == bool(sudo_secret)
+                        and username != "root") else 0
     try:
         conn = get_db()
         try:
             conn.execute(
-                """INSERT INTO vps_hosts(id, host, port, username, auth_type, secret_enc, updated_at)
-                   VALUES(1, ?, ?, ?, ?, ?, datetime('now'))
+                """INSERT INTO vps_hosts(id, host, port, username, auth_type, secret_enc,
+                                        sudo_enc, sudo_nopasswd, updated_at)
+                   VALUES(1, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                    ON CONFLICT(id) DO UPDATE SET host=excluded.host, port=excluded.port,
                    username=excluded.username, auth_type=excluded.auth_type,
-                   secret_enc=excluded.secret_enc, updated_at=datetime('now')"""
-                , (host, port, username, auth_type, secret_enc))
+                   secret_enc=excluded.secret_enc, sudo_enc=excluded.sudo_enc,
+                   sudo_nopasswd=excluded.sudo_nopasswd, updated_at=datetime('now')"""
+                , (host, port, username, auth_type, secret_enc, sudo_enc, keep_nopass))
             conn.commit()
         finally:
             try:
@@ -1197,7 +1357,8 @@ def remote_profile_save():
                 pass
     except Exception as e:
         return jsonify({"error": f"db_failed: {str(e)[:200]}"}), 500
-    out = {"ok": True, "configured": bool(host and secret),
+    out = {"ok": True, "configured": bool(host and secret and username),
+           "sudo_configured": bool(sudo_secret), "username": username,
            "key_format": detect_key_format(secret) if auth_type == "key" else None}
     return jsonify(out)
 
@@ -1209,38 +1370,62 @@ def remote_test():
         return denied
     p = _get_profile()
     secret = _get_secret()
+    sudo_secret = _get_sudo_secret()
     if not p["host"] or not p["username"] or not secret:
         return jsonify({"ok": True, "connected": False, "reason": "incomplete",
                         "detail": "host/kullanici/secret eksik"}), 200
-    key_file = None
     ts = int(time.time())
+    if p["auth_type"] == "password" and not shutil.which("sshpass"):
+        _store_test_state(0, ts, 0)
+        return jsonify({"ok": True, "connected": False, "reason": "no-sshpass",
+                        "detail": "parola auth icin VPS/Pi uzerinde sshpass gerekli",
+                        "lastTestTs": ts}), 200
     try:
-        cmd = _ssh_base(p["host"], p["port"], p["username"])
-        env = None
-        if p["auth_type"] == "key":
-            kfd, key_file = tempfile.mkstemp(prefix="vps_key_")
-            os.close(kfd)
-            with open(key_file, "w") as kf:
-                kf.write(secret if secret.endswith("\n") else secret + "\n")
-            os.chmod(key_file, 0o600)
-            cmd.extend(["-i", key_file])
-        else:
-            if not shutil.which("sshpass"):
-                try:
-                    set_setting("vps_status_connected", "0")
-                    set_setting("vps_last_test_ts", str(ts))
-                except Exception:
-                    pass
-                return jsonify({"ok": True, "connected": False, "reason": "no-sshpass",
-                                "detail": "parola auth icin VPS/Pi uzerinde sshpass gerekli",
-                                "lastTestTs": ts}), 200
-            import shlex
-            cmd = ["sshpass", "-p", secret] + cmd
-            cmd = [c for c in cmd]
-            env = dict(os.environ)
-        cmd.extend([f"{p['username']}@{p['host']}", "echo REMOTE-OK; hostname"])
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20, env=env)
-        ok = proc.returncode == 0 and "REMOTE-OK" in (proc.stdout or "")
+        # 1) SSH girisi: parola modunda login parolasi, key modunda anahtar.
+        rc, out = _ssh_exec(p, secret, "echo REMOTE-OK; id -u; hostname", timeout=20)
+        if rc != 0 or "REMOTE-OK" not in (out or ""):
+            _store_test_state(0, ts, 0)
+            return jsonify({"ok": True, "connected": False, "reason": "ssh-failed",
+                            "detail": (out or "").strip()[:500], "lastTestTs": ts}), 200
+        uid = ""
+        for line in (out or "").splitlines():
+            s = line.strip()
+            if s.isdigit():
+                uid = s
+        sudo_used = False
+        nopass = 0
+        # 2) root degilse sudo ile root'a gecilir (sudo su muadili, parolasiz).
+        if uid != "0":
+            sudo_used = True
+            _rc_s, out_s = _ssh_exec(p, secret, "sudo -n true 2>&1 && echo SUDO-NOPASS-OK",
+                                     timeout=20)
+            if "SUDO-NOPASS-OK" in (out_s or ""):
+                nopass = 1
+            else:
+                pw = _sudo_login_secret(p, secret, sudo_secret)
+                if not pw:
+                    _store_test_state(0, ts, 0)
+                    return jsonify({"ok": True, "connected": False, "reason": "sudo-pass-required",
+                                    "detail": "root disi kullanici icin sudo parolasi gerekli",
+                                    "lastTestTs": ts}), 200
+                # 3) parolayi bir kez kullan: dogrula + NOPASSWD bootstrap.
+                _rc_c, out_c = _ssh_exec(p, secret, "sudo -S -p '' true 2>&1 && echo SUDO-PASS-OK",
+                                         input_text=pw + "\n", timeout=20)
+                if "SUDO-PASS-OK" not in (out_c or ""):
+                    _store_test_state(0, ts, 0)
+                    reason = "sudo-not-allowed" if _sudo_denied(out_c) else "sudo-wrong-pass"
+                    return jsonify({"ok": True, "connected": False, "reason": reason,
+                                    "detail": (out_c or "").strip()[:300],
+                                    "lastTestTs": ts}), 200
+                okb, detb = _bootstrap_sudoers(p, secret, pw)
+                if not okb:
+                    _store_test_state(0, ts, 0)
+                    reason = "sudo-not-allowed" if _sudo_denied(detb) else "sudo-bootstrap-failed"
+                    return jsonify({"ok": True, "connected": False, "reason": reason,
+                                    "detail": detb, "lastTestTs": ts}), 200
+                nopass = 1
+        # 4) root yetkisi dogrulandi: isaretleri yaz.
+        _store_test_state(1, ts, nopass)
         # TOFU bilgi: fingerprint (fail-soft)
         fp = ""
         try:
@@ -1253,8 +1438,6 @@ def remote_test():
         except Exception:
             fp = ""
         try:
-            set_setting("vps_status_connected", "1" if ok else "0")
-            set_setting("vps_last_test_ts", str(ts))
             if fp:
                 conn = get_db()
                 try:
@@ -1267,33 +1450,20 @@ def remote_test():
                         pass
         except Exception:
             pass
-        if ok:
-            try:
-                set_setting("vps_ever_connected", "1")
-            except Exception:
-                pass
-            return jsonify({"ok": True, "connected": True, "lastTestTs": ts,
-                            "remoteHost": (proc.stdout or "").strip().splitlines()[-1][:100] if proc.stdout else "",
-                            "fingerprint": fp})
-        detail = ((proc.stderr or proc.stdout) or "").strip()[:500]
-        return jsonify({"ok": True, "connected": False, "reason": "ssh-failed",
-                        "detail": detail, "lastTestTs": ts}), 200
-    except subprocess.TimeoutExpired:
         try:
-            set_setting("vps_status_connected", "0")
-            set_setting("vps_last_test_ts", str(ts))
+            set_setting("vps_ever_connected", "1")
         except Exception:
             pass
+        return jsonify({"ok": True, "connected": True, "lastTestTs": ts,
+                        "remoteHost": (out or "").strip().splitlines()[-1][:100] if out else "",
+                        "fingerprint": fp, "username": p["username"],
+                        "sudo": bool(sudo_used), "sudoNopasswd": bool(nopass)})
+    except subprocess.TimeoutExpired:
+        _store_test_state(0, ts, 0)
         return jsonify({"ok": True, "connected": False, "reason": "timeout",
                         "lastTestTs": ts}), 200
     except Exception as e:
         return jsonify({"error": f"test_failed: {str(e)[:300]}"}), 500
-    finally:
-        if key_file and os.path.exists(key_file):
-            try:
-                os.remove(key_file)
-            except Exception:
-                pass
 
 
 @remote_bp.route("/api/remote/check", methods=["GET"])
