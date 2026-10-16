@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.75 - 17/10/2026-02:44
+### TR
+- **Belgesel kimliği artık sarı (`#faef15`):** kart hapı, satır modu tip metni, detay modalı hapı, arama modalı filtresi, chiplet ve geçmiş sekmesi satır rengi aynı sarıyı kullanır (eskiden lime/yeşil-sarı `#d9f99d` / `#8ddb07` idi). TV modu odak halkası da sarıya çevrildi.
+- **Arama modalındaki film kimliği düzeltildi:** film filtresi ve filtre chipleti kırmızıydı (`#3f1d1d` / `#b91c1c`), artık kartlardaki film yeşili (`#22c55e`); hover/aktif durumları ve TV modu odak halkası da uyumlu hâle getirildi.
+- Değişmeyenler: TV mavisi, anime pembesi, chip kapatma (×) rengi ve durum renkleri (izlendi/OK/hata) — bunlar kimlik rengi değildir.
+- Okunabilirlik: yeni yüzeylerin yazı/zemin kontrast oranları WCAG eşiğinin üzerinde (en düşük **5.55**, hedef ≥ 4.5).
+### EN
+- **Documentary identity is yellow now (`#faef15`):** the card pill, row-mode type text, details-modal pill, search-modal filter, chiplet and the history row colour all use the same yellow (previously lime `#d9f99d` / `#8ddb07`). The TV-mode focus ring is yellow as well.
+- **The movie identity in the search modal was fixed:** the movie filter and its chiplet were red (`#3f1d1d` / `#b91c1c`); they now use the card movie green (`#22c55e`), with matching hover/active states and TV-mode focus ring.
+- Unchanged: TV blue, anime pink, the chip close (×) colour and status colours (watched/OK/error) — those are not identity colours.
+- Legibility: the new surfaces keep text/background contrast above the WCAG threshold (lowest **5.55**, target ≥ 4.5).
+
 ## 1.74 - 17/10/2026-02:30
 ### TR
 - **Düzeltme (takvim "bugün" vurgusu):** Kart takviminde günü geçmiş bir bölümün tarihi hâlâ **bold mavi** ("bugün") görünüyordu. Neden: tarih sınıfı yerel "bugün" yerine **UTC günü** ile hesaplanıyordu; yerel gece yarısından sonraki ilk saatlerde (+03'te 00:00-03:00) UTC hâlâ önceki gün olduğu için dün yayınlanan bölüm "bugün" sayılıyordu (MobLand S02E05 vakası; 03:00'te kendiliğinden düzeliyordu).
