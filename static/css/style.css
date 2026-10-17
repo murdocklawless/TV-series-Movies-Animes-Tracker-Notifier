@@ -5908,30 +5908,52 @@ body.logged-out main { padding: 0; }
   border-radius: 10px;
   padding: 8px 10px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
-  min-width: 220px;
-  max-width: 340px;
+  min-width: 0;
+  max-width: min(560px, calc(100vw - 24px));
   pointer-events: auto;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   overscroll-behavior: contain;
 }
+/* Satır görünümü (medya takip) deseni: gerçek tablo → ayraçlar alt alta hizalı. */
+.history-tip-table {
+  display: table;
+  table-layout: auto;
+  width: max-content;
+}
 .history-tip-row {
+  display: table-row;
   font-size: 0.72rem;
   line-height: 1.5;
+}
+.history-tip-cell {
+  display: table-cell;
+  white-space: nowrap;
+  vertical-align: middle;
   padding: 2px 0;
 }
-.history-tip-row + .history-tip-row {
+.history-tip-cell + .history-tip-cell::before {
+  content: "|";
+  color: #f97316;
+  margin: 0 8px;
+  font-weight: 400;
+}
+.history-tip-cell.history-tip-mark::before {
+  content: none;
+}
+.history-tip-row + .history-tip-row .history-tip-cell {
   border-top: 1px dotted #f97316;
-  margin-top: 2px;
   padding-top: 4px;
 }
-.history-tip-row.marked {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+/* Yapım ismi 30 karaktere JS'te kesilir (history.js::truncTitle); burada yalnız tek satır. */
+.history-tip-clip {
+  display: block;
+  white-space: nowrap;
 }
-.history-tip-marked-text {
+.history-tip-mark {
+  padding-left: 8px;
+}
+.history-tip-row.marked .history-tip-cell:not(.history-tip-mark) {
   color: #9ca3af;
   font-style: italic;
 }

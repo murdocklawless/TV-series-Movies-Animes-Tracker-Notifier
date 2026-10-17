@@ -601,14 +601,15 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     max-width: calc(100vw - 16px);
     z-index: 30;
   }
+  /* Poster boyutu bildirimler penceresiyle AYNI (45x68) kalsin */
   html:not(.is-tv):not(.tv-mode) .watched-ask-menu .ask-poster-img {
-    width: 34px;
-    height: 50px;
+    width: 45px;
+    height: 68px;
   }
   html:not(.is-tv):not(.tv-mode) .watched-ask-menu .ask-poster-fallback {
-    width: 34px;
-    height: 50px;
-    font-size: 0.9rem;
+    width: 45px;
+    height: 68px;
+    font-size: 1.2rem;
   }
 }
 

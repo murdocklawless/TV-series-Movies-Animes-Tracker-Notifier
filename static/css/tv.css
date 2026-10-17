@@ -932,8 +932,10 @@ html.is-tv .history-cal, html.tv-mode .history-cal { gap: calc(6px * var(--tv-sc
 html.is-tv .history-cell, html.tv-mode .history-cell { padding: calc(4px * var(--tv-scale)) calc(2px * var(--tv-scale)); gap: calc(4px * var(--tv-scale)); }
 html.is-tv .history-cell-day, html.tv-mode .history-cell-day { font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .history-badge, html.tv-mode .history-badge { min-width: calc(22px * var(--tv-scale)); height: calc(22px * var(--tv-scale)); font-size: calc(0.72rem * var(--tv-scale)); padding: 0 calc(4px * var(--tv-scale)); }
-html.is-tv .history-tooltip, html.tv-mode .history-tooltip { padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); min-width: calc(220px * var(--tv-scale)); max-width: calc(340px * var(--tv-scale)); }
-html.is-tv .history-tip-row, html.tv-mode .history-tip-row { font-size: calc(0.72rem * var(--tv-scale)); padding: calc(2px * var(--tv-scale)) 0; }
+html.is-tv .history-tooltip, html.tv-mode .history-tooltip { padding: calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); }
+html.is-tv .history-tip-row, html.tv-mode .history-tip-row { font-size: calc(0.72rem * var(--tv-scale)); }
+html.is-tv .history-tip-cell, html.tv-mode .history-tip-cell { padding: calc(2px * var(--tv-scale)) 0; }
+html.is-tv .history-tip-cell + .history-tip-cell::before, html.tv-mode .history-tip-cell + .history-tip-cell::before { margin: 0 calc(8px * var(--tv-scale)); }
 html.is-tv .history-marked-badge, html.tv-mode .history-marked-badge { width: calc(15px * var(--tv-scale)); height: calc(15px * var(--tv-scale)); }
 html.is-tv .history-marked-badge svg, html.tv-mode .history-marked-badge svg { width: calc(8px * var(--tv-scale)); height: calc(8px * var(--tv-scale)); }
 html.is-tv .history-actions, html.tv-mode .history-actions { gap: calc(10px * var(--tv-scale)); }
@@ -955,7 +957,7 @@ html.is-tv .stats-box:focus, html.tv-mode .stats-box:focus { outline: 1px solid 
 /* History izlenen popup — TV: satır bölünmez, genişlik en uzun text'e göre (vh/vw yok) */
 html.is-tv .history-tooltip, html.tv-mode .history-tooltip {
   width: max-content;
-  min-width: calc(200px * var(--tv-scale));
+  min-width: 0;
   max-width: calc(720px * var(--tv-scale));
   max-height: calc(380px * var(--tv-scale));
   overflow-y: auto;
@@ -975,6 +977,11 @@ html.is-tv .history-tip-row:focus, html.tv-mode .history-tip-row:focus {
   outline-offset: -1px;
   background: #262a36;
   border-radius: 4px;
+}
+/* table-row üzerinde arka plan/köşe tutarsız olabildiğinden hücrelere de uygula */
+html.is-tv .history-tip-row:focus .history-tip-cell,
+html.tv-mode .history-tip-row:focus .history-tip-cell {
+  background: #262a36;
 }
 
 /* Arama: view-search + sonuç modalı — 0.8 ölçek (radius hariç) */

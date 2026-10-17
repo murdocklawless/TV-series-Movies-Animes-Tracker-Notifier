@@ -135,20 +135,46 @@ function renderCalendar() {
   cal.innerHTML = html;
 }
 
+// Tooltip: satır görünümü (medya takip) desenine göre gerçek tablo.
+// Her kayıt bir tablo satırı, her alan bir hücre; ayraçlar ("|") hücre ::before'u
+// ile basılır → tüm satırlarda aynı x'te alt alta hizalanır.
+// Yapım ismi en fazla 30 karakter; uzunsa kesilip "…" eklenir (kod-noktası güvenli).
+function truncTitle(s) {
+  const chars = Array.from(String(s == null ? "" : s));
+  return chars.length > 30 ? chars.slice(0, 30).join("") + "…" : chars.join("");
+}
+
 function tooltipHTML(entries) {
-  return entries
-    .map((it) => {
-      const { dv, tm } = fmtDT(it.ts);
-      const seg = segLabel(it);
-      if (it.marked) {
-        const text = [esc(it.title), seg, dv, tm].filter(Boolean).join(" | ");
-        return `<div class="history-tip-row marked"><span class="history-tip-marked-text">${text} |</span> <span class="history-marked-badge">${CHECK_SVG}</span></div>`;
-      }
-      const color = KIND_COLOR[KIND_ORDER.includes(it.kind) ? it.kind : "shows"] || "#fff";
-      const parts = [esc(it.title), seg, dv, tm].filter(Boolean).join(" | ");
-      return `<div class="history-tip-row" style="color:${color}">${parts}</div>`;
+  const COLS = ["name", "seg", "date", "time"];
+  const rows = entries.map((it) => {
+    const { dv, tm } = fmtDT(it.ts);
+    return {
+      marked: !!it.marked,
+      color: KIND_COLOR[KIND_ORDER.includes(it.kind) ? it.kind : "shows"] || "#fff",
+      name: esc(truncTitle(it.title)),
+      seg: esc(segLabel(it)),
+      date: esc(dv),
+      time: esc(tm),
+    };
+  });
+  // Kolon kümesi tüm kayıtlar üzerinden belirlenir; eksik alanı olan satırlar da
+  // hücre yer tutar (rowview keptKeys/is-empty deseni) → kolonlar kaymaz.
+  const keep = COLS.filter((k) => rows.some((r) => r[k]));
+  const body = rows
+    .map((r) => {
+      const cells = keep
+        .map((k) => {
+          const val = r[k] || "";
+          const inner = k === "name" && val ? `<span class="history-tip-clip">${val}</span>` : val;
+          return `<span class="history-tip-cell history-tip-${k}${val ? "" : " is-empty"}">${inner}</span>`;
+        })
+        .join("");
+      const badge = r.marked ? `<span class="history-tip-cell history-tip-mark"><span class="history-marked-badge">${CHECK_SVG}</span></span>` : "";
+      const style = r.marked ? "" : ` style="color:${r.color}"`;
+      return `<div class="history-tip-row${r.marked ? " marked" : ""}"${style}>${cells}${badge}</div>`;
     })
     .join("");
+  return `<div class="history-tip-table">${body}</div>`;
 }
 
 function esc(s) {
