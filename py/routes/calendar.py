@@ -70,8 +70,11 @@ def _build_events(owner_id):
             if e["air_time"]:
                 ev["epoch"] = int(e["air_time"])
                 ev["tzid"] = tzid
+                # Sure: GERCEK bolum suresi; yoksa 1 saat. Dizi geneli runtime
+                # (followed.runtime) KULLANILMAZ — bazi dizilerde 130 dk gibi
+                # sezon/ozel bolum degerleri tasiyip takvimde 2+ saat yer tutuyordu.
                 try:
-                    ev["duration_min"] = int(e["runtime"] or 0) or int(r["runtime"] or 0) or 60
+                    ev["duration_min"] = int(e["runtime"] or 0) or 60
                 except Exception:
                     ev["duration_min"] = 60
             events.append(ev)
@@ -104,7 +107,7 @@ def _build_events(owner_id):
                     "description": summary,
                     "epoch": int(e["air_at"]),
                     "tzid": tzid,
-                    "duration_min": int(a["duration"] or 0) or 24,
+                    "duration_min": int(a["duration"] or 0) or 60,
                 }
             )
 

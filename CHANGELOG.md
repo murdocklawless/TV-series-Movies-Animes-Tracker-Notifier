@@ -9,6 +9,7 @@
 - **Domain:** tüm dış erişim artık **`nextep.cembol.com`** üzerinden (`/stremio/*` + `/calendar/*`). Eski `stremio.cembol.com` kaldırıldı; VPS'te landing dizini `/var/www/nextep` oldu.
 - **Sunucu:** yeni `py/ics.py` (elle yazılmış minimal iCalendar üreteci — dış paket yok) + yeni `/calendar/<token>/nextep.ics` ucu (public; yanlış/boş token → **404**). `THIRDPARTY_APPS`'e `calendar` eklendi; `/api/thirdparty/calendar/refresh-uuid|disconnect` uçları Stremio deseninin kardeşi.
 - **Çeviri:** 4 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 528, settings 550, components 532, tv 530, `nextep.js?v=580` (`__NX_BUILD` 511).
+- **Takvim olay süresi düzeltmesi:** saatli olaylarda artık **bölümün kendi süresi** (`episodes.runtime`) kullanılır; bilinmiyorsa **1 saat**. Dizi genel süresi (`followed.runtime`) **artık kullanılmaz** — bazı dizilerde 130 dk gibi sezon/özel bölüm değerleri taşıyıp takvimde 2+ saat yer tutuyordu. Anime için `duration` (yoksa 1 saat). Ayrıca ICS'e **`REFRESH-INTERVAL`/`X-PUBLISHED-TTL` (saatlik yenile ipucu)** eklendi → mobil istemcilerde senkronizasyon gecikmesi azalır.
 ### EN
 - **New feature — Calendar subscription (.ics):** a personal address (`/calendar/<token>/nextep.ics`) can be subscribed to in Google/Apple Calendar; **upcoming** show/documentary-series episodes, anime episodes and movie releases drop into the calendar automatically. Archived titles are excluded; past events are not emitted.
 - **Reminder:** each event carries a `VALARM` **1 day before** airing (Apple Calendar applies it directly; in Google's subscribed calendars you need to enable the calendar's own notifications — the card shows this note).
@@ -16,6 +17,7 @@
 - **Domain:** all external access now goes through **`nextep.cembol.com`** (`/stremio/*` + `/calendar/*`). The old `stremio.cembol.com` was removed; the VPS landing directory became `/var/www/nextep`.
 - **Server:** new `py/ics.py` (hand-written minimal iCalendar generator — no external package) plus the new `/calendar/<token>/nextep.ics` endpoint (public; wrong/empty token → **404**). `calendar` added to `THIRDPARTY_APPS`; `/api/thirdparty/calendar/refresh-uuid|disconnect` mirror the Stremio pattern.
 - **i18n:** 4 new keys × 14 languages. **Cache-buster chain:** i18n 528, settings 550, components 532, tv 530, `nextep.js?v=580` (`__NX_BUILD` 511).
+- **Calendar event duration fix:** timed events now use the **episode's own runtime** (`episodes.runtime`); when unknown, **1 hour**. The show-level runtime (`followed.runtime`) is **no longer used** — some shows carried season/special values such as 130 min and blocked 2+ hours in the calendar. For anime, `duration` (else 1 hour). Also added **`REFRESH-INTERVAL`/`X-PUBLISHED-TTL` (hourly refresh hint)** to the ICS, reducing sync lag on mobile clients.
 
 ## 1.84 - 18/10/2026-00:01
 ### TR

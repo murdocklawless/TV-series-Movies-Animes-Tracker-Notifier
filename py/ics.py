@@ -113,6 +113,9 @@ def build_calendar(events, cal_name="NextEp"):
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "X-WR-CALNAME:" + _esc(cal_name),
+        # Abone istemcilere "saatlik yenile" ipucu (Google/Apple kismen dikkate alir).
+        "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+        "X-PUBLISHED-TTL:PT1H",
     ]
     dtstamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     for ev in events or []:
