@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.79 - 17/10/2026-03:33
+### TR
+- **Ask kartındaki tip hapı artık postere göre ortalanıyor** (bildirimler penceresindeki gibi). "Evet/Hayır" verilmiş kartlarda hap, posterin bulunduğu grid kolonunda `justify-self: center` ile ortalanır; ✓/✗ aynı satırda sağda kalır.
+- Hap posterden genişse (ör. "Belgesel") poster kolonu hapın genişliğine göre ölçeklenir ve poster yarım fark kadar içeri kayar — bildirimler penceresiyle birebir aynı davranış.
+- Bekleyen kartlar değişmedi: hap posterin 5px altında ortalanmış, Evet/Hayır butonları mesajın altında ortada.
+- Yalnız görünüm: veri, API ve buton davranışı aynı. Eski `.ask-foot` sarmalayıcısı ve TV ölçekleme satırı kaldırıldı.
+### EN
+- **The ask-card type pill is now centred on the poster** (as in the notifications panel). On answered ("Yes"/"No") cards the pill is centred inside the poster's grid column via `justify-self: center`; the ✓/✗ stays on the same row, on the right.
+- When the pill is wider than the poster (e.g. "Belgesel") the poster column scales to the pill's width and the poster shifts inwards by half the difference — exactly the behaviour of the notifications panel.
+- Pending cards are unchanged: pill centred 5px below the poster, Yes/No buttons centred under the message.
+- Presentation only: data, API and button behaviour are untouched. The old `.ask-foot` wrapper and its TV scaling line were removed.
+
 ## 1.78 - 17/10/2026-03:28
 ### TR
 - **Ask penceresi başlığı** ("İzlendi Bilgisi") artık **büyük harf ve turuncu** (`#f97316`).

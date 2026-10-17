@@ -1808,12 +1808,13 @@ input:-webkit-autofill:focus {
   flex-direction: column;
   gap: 8px;
 }
-/* Ask karti: 2 kolonlu grid (poster | icerik). Cozumlenmis kartta tip hapi ile
-   tick/x AYNI alt seritte olur (hap solda = poster hizasi, isaret sagda). */
+/* Ask karti: 2 kolonlu grid (poster | icerik). Cozumlenmis kartta hap "pill"
+   hucresinde POSTERE GORE ORTALANIR (bildirimler penceresiyle ayni hiza), tick/x
+   ayni satirda "mark" hucresinde sagda durur. */
 .ask-item {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-areas: "poster content" "foot foot";
+  grid-template-areas: "poster content" "pill mark";
   column-gap: 10px;
   row-gap: 5px;
 }
@@ -1823,12 +1824,15 @@ input:-webkit-autofill:focus {
 .ask-content {
   grid-area: content;
 }
-.ask-foot {
-  grid-area: foot;
+.ask-foot-pill {
+  grid-area: pill;
+  justify-self: center;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+}
+.ask-item .ask-actions.ask-resolved {
+  grid-area: mark;
+  justify-self: end;
 }
 .ask-msg {
   font-size: 0.8rem;
