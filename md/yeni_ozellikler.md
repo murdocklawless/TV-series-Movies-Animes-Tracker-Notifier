@@ -115,9 +115,14 @@
 >   **Film / belgesel filmi YOK.**
 > - **Yerleşim:** **Dizi · Belgesel · Anime** sekmelerinin en üstünde (İzlenmemiş'te **değil**); her sekmede o türe ait öğeler.
 > - Başlık: **"Sıradaki Bölüm"**; sağda `N yapım · toplam M dk` özeti.
-> - **Sıralama:** yayın tarihi **en yeni önce**.
+> - **Sıralama:** yayın tarihi **en yeni önce**. → **REV2:** yaklaşan (gelecek) bölüm tarihi, **en yakın önce**.
 > - **İzlemeye başlanmış şartı:** yapımın **ilk bölümü** (en düşük sezon/bölüm) izlenmiş olmalı.
 > - **Taşınabilir bölüm** (oklar + kalıcı sıra, varsayılan en üst).
+- **Sıralama:** **yaklaşan (gelecek) bölüm tarihi** — en yakın önce; gelecek bölümü olmayanlar sonda.
+- **Özet satırı:** başlığın altında (dotted çizginin sol altı) diğer bölümlerle aynı biçim:
+  `16 Dizi | 285 Bölüm | İzlenmiş 119 Bölüm (180:18) | İzlenmemiş 166 Bölüm (147:01)`.
+- **Görsel:** kart metinleri ortalanmış · `S04E01 · 45 dk` yeşil (`#22c55e`) · mobilde (≤600px) süre gizli.
+- **Arşiv görünürlüğü:** "Arşivlenenleri göster" anahtarı arşivli yoksa **gizli**; hiç arşivli yoksa **"Arşiv" sekmesi** de gizli.
 > - **Kart:** genişlik = alttaki standart kart genişliği · yükseklik **84px** sabit · gap = grid gap'i → sütunlar hizalı.
 > - **Diziliş:** `flex-wrap: wrap` + `justify-content: center` → **yatay scrollbar yok**, taşanlar alt satırda ortalanır.
 > - **Tipografi:** başlık = standart kart başlığı · `S02E05 · 45 dk` = standart kart statüsü · isim **en fazla 2 satır**.

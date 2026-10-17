@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=526";
+import { t } from "./i18n.js?v=527";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=520";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=529";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=526";
+} from "./utils.js?v=521";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=530";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=527";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -113,8 +113,8 @@ document.getElementById("search-close").onclick = () => {
     const view = btn.dataset.view;
     if (!view) return;
     const on = archivedVisible(view);
-    const h2 = btn.closest(".unwatched-section-title");
-    if (h2) h2.classList.add("has-archived-toggle");
+    // Baslangicta gizli: updateArchiveUi arsivli varsa acar (yanip sonme olmaz).
+    btn.style.display = "none";
     btn.classList.toggle("active", on);
     btn.setAttribute("aria-pressed", on ? "true" : "false");
     btn.onclick = (e) => {
@@ -324,13 +324,18 @@ async function loadFollowed(view) {
   let items = await res.json();
   // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
-  if (showArchived) {
-    try {
-      const ares = await fetch("/api/followed?archived=1");
-      const aitems = await ares.json();
-      if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
-    } catch (_) {}
-  }
+  // Arsivli liste HER ZAMAN cekilir (anahtar + Arşiv sekmesi gorunurlugu icin);
+  // gosterime yalniz showArchived acikken katilir.
+  try {
+    const ares = await fetch("/api/followed?archived=1");
+    const aitems = await ares.json();
+    if (Array.isArray(aitems)) {
+      archiveState.followed = aitems;
+      if (showArchived) items = dedupeMerged(items.concat(aitems));
+    }
+  } catch (_) {}
+  try { await ensureArchiveState(); } catch (_) {}
+  try { updateArchiveUi(); } catch (_) {}
   const isTv = view === "dizi";
   const cardKind = isTv ? "shows" : "movies";
   items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && (!(i.in_watched == 1) || i.archived == 1) && !isDocItem(i));
@@ -484,6 +489,8 @@ async function loadBelgesel() {
       if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
     } catch (_) {}
   }
+  try { await ensureArchiveState(); } catch (_) {}
+  try { updateArchiveUi(); } catch (_) {}
   items = items.filter((i) => !i.isAnime && isDocItem(i) && (!(i.in_watched == 1) || i.archived == 1));
   items = applySortDeferred(items);
   const grid = document.getElementById("poster-grid-docs");
@@ -651,17 +658,21 @@ async function loadAnime() {
   let items = await res.json();
   // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
-  if (showArchived) {
-    try {
-      const ares = await fetch("/api/anime/followed?archived=1");
-      const aitems = await ares.json();
-      if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
-    } catch (_) {}
-  }
+  // Arsivli anime HER ZAMAN cekilir (anahtar + Arşiv sekmesi gorunurlugu);
+  // gosterime yalniz showArchived acikken katilir.
+  try {
+    const ares = await fetch("/api/anime/followed?archived=1");
+    const aitems = await ares.json();
+    if (Array.isArray(aitems)) {
+      archiveState.anime = aitems;
+      if (showArchived) items = dedupeMerged(items.concat(aitems));
+    }
+  } catch (_) {}
+  try { await ensureArchiveState(); } catch (_) {}
+  try { updateArchiveUi(); } catch (_) {}
   items = items.filter((i) => (!(i.in_watched == 1) || i.archived == 1));
   items = applySortDeferred(items);
-  const grid = document.getElementById("anime-grid");
-  const empty = document.getElementById("empty-anime");
+  const grid = document.getElementById("anime-grid");  const empty = document.getElementById("empty-anime");
   const laterGridA = document.getElementById("anime-grid-later");
   const animeWrap = document.getElementById("anime-grid-wrap");
   const laterWrapA = document.getElementById("anime-later-wrap");
@@ -823,10 +834,11 @@ function nextupMatchKind(item, kind) {
   return kind === "belgesel" ? doc : !doc;
 }
 
-function nextupCard(item) {
+function nextupCard(item, cardKind) {
   const div = document.createElement("div");
   div.className = "card nextup-card";
   try { setTvCardAttrs(div, item); } catch (_) {}
+  try { tagCardStats(div, item, cardKind || "shows", item.est_min); } catch (_) {}
   const src = nextupImgSrc(item);
   const img = src
     ? `<img class="nextup-poster" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
@@ -834,8 +846,8 @@ function nextupCard(item) {
   const se = item.kind === "anime"
     ? `EP${item.episode}`
     : `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
-  const sub = item.est_min ? `${se} · ${t("runtime_m", { m: item.est_min })}` : se;
-  div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub">${sub}</div></div>`;
+  const dur = item.est_min ? `<span class="nextup-dur"> · ${t("runtime_m", { m: item.est_min })}</span>` : "";
+  div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub"><span class="nextup-ep">${se}</span>${dur}</div></div>`;
   if (item.kind === "anime") div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
   else div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
   try {
@@ -846,7 +858,8 @@ function nextupCard(item) {
 }
 
 // Tum seritleri (dizi/belgesel/anime) tek fetch ile besler; her serit kendi
-// turune gore suzulur. Bos seridin bolumu (baslik + oklar) gizlenir.
+// turune gore suzulur. Bos seridin bolumu (baslik + oklar) gizlenir. Ozet
+// satiri (bolum sayilari + sureler) standart bolum ozetiyle ayni bicimde.
 async function loadNextUp() {
   const __run = __runToken("nextup");
   const strips = Array.from(document.querySelectorAll(".nextup-strip"));
@@ -863,19 +876,17 @@ async function loadNextUp() {
   strips.forEach((strip) => {
     const kind = strip.dataset.nextupKind || "dizi";
     const wrap = strip.closest("[id$='-nextup-wrap']");
-    const summary = wrap ? wrap.querySelector(".nextup-summary") : null;
     const list = items.filter((it) => nextupMatchKind(it, kind));
     strip.innerHTML = "";
     if (!list.length) {
       if (wrap) wrap.style.display = "none";
-      if (summary) summary.textContent = "";
+      try { renderSectionSummary(strip); } catch (_) {}
       return;
     }
     if (wrap) wrap.style.display = "";
-    let min = 0;
-    list.forEach((it) => { min += Number(it.est_min) || 0; });
-    if (summary) summary.textContent = t("nextup_min_left", { n: list.length, m: min });
-    list.forEach((item) => strip.appendChild(nextupCard(item)));
+    const cardKind = kind === "anime" ? "anime" : (kind === "belgesel" ? "docs" : "shows");
+    list.forEach((item) => strip.appendChild(nextupCard(item, cardKind)));
+    try { renderSectionSummary(strip); } catch (_) {}
   });
 }
 
@@ -1341,8 +1352,61 @@ async function loadWatched() {
 
 // ---- Arsiv (1.83) — Izlenmis deseninin arsiv karsiligi ----
 const ARCHIVE_FLAG_KEY = "archivedVisible:";
+// Arsivli listeler (anahtar + Arşiv sekmesi gorunurlugu icin onbellek):
+// followed = arsivli tv+movie listesi, anime = arsivli anime listesi.
+const archiveState = { followed: null, anime: null };
 function archivedVisible(view) {
   try { return localStorage.getItem(ARCHIVE_FLAG_KEY + view) === "1"; } catch (_) { return false; }
+}
+// Sekmede arsivli yapim yoksa "Arşivlenenleri göster" anahtari gizlenir
+// (basliktaki has-archived-toggle sinifi da kalkar -> sag kume kaymaz).
+function setArchivedToggleVisible(view, hasAny) {
+  const v = views[view];
+  if (!v) return;
+  v.querySelectorAll(".section-archived-toggle").forEach((btn) => {
+    btn.style.display = hasAny ? "" : "none";
+    const h2 = btn.closest(".unwatched-section-title");
+    if (h2) h2.classList.toggle("has-archived-toggle", !!hasAny);
+  });
+}
+// Hic arsivli yapim yoksa "Arşiv" sekmesi + gorunumu gizlenir.
+function setArchiveTabVisible(on) {
+  try {
+    if (tabs.archive) tabs.archive.style.display = on ? "" : "none";
+    if (views.archive) views.archive.style.display = on ? "" : "none";
+    if (!on && views.archive && views.archive.classList.contains("active")) switchView("dizi");
+  } catch (_) {}
+}
+// Arsivli sayilarindan anahtar + sekme gorunurlugunu gunceller.
+function updateArchiveUi() {
+  const f = archiveState.followed;
+  const a = archiveState.anime;
+  if (Array.isArray(f)) {
+    const tv = f.filter((i) => i && i.media_type === "tv");
+    const mov = f.filter((i) => i && i.media_type === "movie");
+    setArchivedToggleVisible("dizi", tv.some((i) => !isDocItem(i)));
+    setArchivedToggleVisible("belgesel", tv.some((i) => isDocItem(i)));
+    setArchivedToggleVisible("film", mov.length > 0);
+  }
+  if (Array.isArray(a)) setArchivedToggleVisible("anime", a.length > 0);
+  if (Array.isArray(f) && Array.isArray(a)) setArchiveTabVisible((f.length + a.length) > 0);
+}
+// Eksik arsivli listeyi (ilk seferde) tamamlar; sonra istek yapmaz.
+async function ensureArchiveState() {
+  if (archiveState.followed === null) {
+    try {
+      const r = await fetch("/api/followed?archived=1");
+      const d = await r.json();
+      if (Array.isArray(d)) archiveState.followed = d;
+    } catch (_) {}
+  }
+  if (archiveState.anime === null) {
+    try {
+      const r = await fetch("/api/anime/followed?archived=1");
+      const d = await r.json();
+      if (Array.isArray(d)) archiveState.anime = d;
+    } catch (_) {}
+  }
 }
 function setArchivedVisible(view, on) {
   try { localStorage.setItem(ARCHIVE_FLAG_KEY + view, on ? "1" : "0"); } catch (_) {}
@@ -1437,6 +1501,10 @@ async function loadArchive() {
   if (!Array.isArray(animes)) animes = [];
   items = dedupeMerged(items);
   animes = dedupeMerged(animes);
+  // Arsiv sekmesi/anahtar gorunurlugu bu iki listeden beslenir.
+  archiveState.followed = items;
+  archiveState.anime = animes;
+  try { updateArchiveUi(); } catch (_) {}
   if (!__runCurrent("archive", __run)) return;
 
   let shows = applySort(items.filter((i) => i.media_type === "tv").map((s) => ({ ...s, isAnime: false })));
@@ -2944,7 +3012,7 @@ function optimisticMoveCard(div, reqFn, okMsg, sectionKey) {
   });
 }
 document.addEventListener("app:langchange", () => {
-  document.querySelectorAll(".poster-grid").forEach((g) => renderSectionSummary(g));
+  document.querySelectorAll(".poster-grid, .nextup-strip").forEach((g) => renderSectionSummary(g));
   renderFeedUpdateInfo(_feedUpdateCache);
 });
 function notifyListsRefreshed() {

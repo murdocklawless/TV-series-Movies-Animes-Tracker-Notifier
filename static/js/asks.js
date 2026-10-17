@@ -1,9 +1,9 @@
 // asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
-import { t, errText } from "./i18n.js?v=526";
-import { escAttr, toast, CHECK_SVG } from "./utils.js?v=520";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=541";
-import { openAskClearConfirm, fmtDateTime } from "./components.js?v=529";
+import { t, errText } from "./i18n.js?v=527";
+import { escAttr, toast, CHECK_SVG } from "./utils.js?v=521";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=542";
+import { openAskClearConfirm, fmtDateTime } from "./components.js?v=530";
 
 let askEnabled = true;
 let askTimer = null;

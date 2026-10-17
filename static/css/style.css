@@ -328,13 +328,6 @@ main {
 [id$="-nextup-wrap"] .unwatched-section-title {
   padding-right: 40px;
 }
-.nextup-summary {
-  font-size: 0.78rem;
-  font-weight: 400;
-  color: #8b90a0;
-  text-transform: none;
-  letter-spacing: 0;
-}
 .nextup-strip {
   display: flex;
   flex-wrap: wrap;
@@ -376,6 +369,7 @@ main {
 .nextup-info {
   flex: 1 1 auto;
   min-width: 0;
+  text-align: center;
 }
 .nextup-title {
   color: #e8eaf0;
@@ -389,7 +383,7 @@ main {
   overflow: hidden;
 }
 .nextup-sub {
-  color: #8b90a0;
+  color: #22c55e;
   font-size: var(--card-status-fs);
   font-weight: 600;
   margin-top: 2px;

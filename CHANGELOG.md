@@ -14,7 +14,11 @@
 - **Otomatik kalkma:** bölüm uygulama içinden izlendi işaretlenince şerit anında güncellenir; **Stremio eklentisi veya başka bir istemci** yazdığında 30 saniyelik bildirim sayacı kontrolü değişikliği görüp listeleri ve şeridi kendiliğinden tazeler.
 - **Sunucu:** `GET /api/next-up` (dizi/anime için tek sonraki bölüm + `totals:{count,min}` + `genres`); `list_cache` ile önbelleklenir. **`in_watched` filtresi kaldırıldı** (İzlenmişler'e taşınmış ama yeni bölümü olan dizi de şeride girer).
 - **Düzeltme:** medya sekmesi başlıklarındaki "Arşivlenenleri göster" anahtarı ile satır görünümü düğmesinin **üst üste binmesi** giderildi (bozuk `#view-#view-*` seçicileri düzeltildi — 3 CSS dosyası).
-- **Çeviri:** 2 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 526, views/components/tv 529, search 526, settings 547, notification 541, asks 543, auth 524, stats 542, history 551, rowview 17, utils 520, `nextep.js?v=577` (`__NX_BUILD` 508), `style.css?v=600`, `mobil.css?v=541`, `tv.css?v=558`, `tablet.css?v=511`.
+- **Bölüm özeti satırı:** "Sıradaki Bölüm" şeridinin başlığı altında (dotted çizginin sol altında) diğer bölümlerle aynı biçimde özet satırı: `16 Dizi | 285 Bölüm | İzlenmiş 119 Bölüm (180:18) | İzlenmemiş 166 Bölüm (147:01)`. (Eski sağdaki "N yapım · toplam M dk" kaldırıldı.)
+- **Sıralama:** şerit artık **yaklaşan (gelecek) bölüm tarihine göre** dizilir — en yakın önce; gelecek bölümü olmayan yapımlar sonda (eşitlikte yayınlanmış bölüm tarihi en yeni önce).
+- **Görsel rötuş:** şerit kartındaki metinler ortalandı; `S04E01 · 45 dk` satırı yeşil (`#22c55e`) — mobilde (≤600px) süre gizlenir, yalnız `S04E01` görünür.
+- **Arşiv görünürlüğü:** "Arşivlenenleri göster" anahtarı o sekmede **arşivli yapım yoksa gizlenir**; **hiç arşivli yapım yoksa "Arşiv" sekmesi de gizlenir** (sekmedeyken son öğe arşivden çıkarılırsa otomatik Dizi sekmesine düşer). Anahtar/sekme arşivleme veya arşivden çıkarma sonrası anında belirir/kaybolur.
+- **Çeviri:** 2 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 527, views/components 530, search 527, settings 548, notification 542, asks 544, auth 525, stats 543, history 552, rowview 18, utils 521, `nextep.js?v=578` (`__NX_BUILD` 509), `style.css?v=601`, `mobil.css?v=542`, `tv.css?v=558`, `tablet.css?v=511`.
 ### EN
 - **New feature — "Up Next" strip:** at the top of the **Shows · Documentaries · Anime** tabs, a strip showing each title's **single next unwatched episode**. Each card has the poster plus `S02E05 · 45 min` (anime `EP12 · 24 min`); clicking the card opens the details modal.
 - **Scope:** multi-episode titles only — shows, documentary **series** and anime. Movies and documentary films **never appear** (a single item has no "next episode"); archived titles are excluded too.
@@ -27,7 +31,11 @@
 - **Auto-removal:** marking an episode watched inside the app updates the strip immediately; when the **Stremio add-on or another client** writes, the 30-second notification-count check notices the change and refreshes the lists and the strip automatically.
 - **Server:** `GET /api/next-up` (single next episode per show/anime plus `totals:{count,min}` and `genres`), cached via `list_cache`. The **`in_watched` filter was removed** (a show moved to Watched but with a new episode now also appears).
 - **Fix:** the "Show archived" toggle and the row-view button in media tab headers **overlapping** is fixed (broken `#view-#view-*` selectors corrected — 3 CSS files).
-- **i18n:** 2 new keys × 14 languages. **Cache-buster chain:** i18n 526, views/components/tv 529, search 526, settings 547, notification 541, asks 543, auth 524, stats 542, history 551, rowview 17, utils 520, `nextep.js?v=577` (`__NX_BUILD` 508), `style.css?v=600`, `mobil.css?v=541`, `tv.css?v=558`, `tablet.css?v=511`.
+- **Section summary line:** under the "Up Next" header (below the dotted rule, left-aligned) the same summary format used by other sections: `16 Shows | 285 Episodes | Watched 119 Episodes (180:18) | Unwatched 166 Episodes (147:01)`. (The old right-hand "N titles · M min total" was removed.)
+- **Ordering:** the strip is now ordered by the **upcoming (future) episode date** — nearest first; titles with no future episode go last (ties: most recently aired episode first).
+- **Visual tweaks:** strip card texts are centred; the `S04E01 · 45 min` line is green (`#22c55e`) — on mobile (≤600px) the duration is hidden, leaving only `S04E01`.
+- **Archive visibility:** the "Show archived" toggle is **hidden when that tab has no archived titles**; when there are **no archived titles at all the "Archive" tab is hidden too** (if you unarchive the last item while on it, the app falls back to the Shows tab). The toggle/tab appears or disappears immediately after archiving or unarchiving.
+- **i18n:** 2 new keys × 14 languages. **Cache-buster chain:** i18n 527, views/components 530, search 527, settings 548, notification 542, asks 544, auth 525, stats 543, history 552, rowview 18, utils 521, `nextep.js?v=578` (`__NX_BUILD` 509), `style.css?v=601`, `mobil.css?v=542`, `tv.css?v=558`, `tablet.css?v=511`.
 
 ## 1.83 - 17/10/2026-22:47
 ### TR

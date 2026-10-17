@@ -738,6 +738,8 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-anime #anime-nextup-wrap .unwatched-section-title { padding-right: 40px; }
   html:not(.is-tv):not(.tv-mode) .nextup-strip img.nextup-poster,
   html:not(.is-tv):not(.tv-mode) .nextup-strip .no-poster.nextup-poster { width: 36px; height: 54px; }
+  /* 1.84: mobilde serit kartinda sure gizli (yalniz S02E05 / EP12) */
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-dur { display: none; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-view-toggle { right: 97px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }

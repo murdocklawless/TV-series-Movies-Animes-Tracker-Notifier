@@ -860,6 +860,34 @@ def next_up():
             est = int(ep_rt or show_rt or 0)
         except (TypeError, ValueError):
             est = 0
+        # Ozet satiri icin bolum istatistikleri + yaklasan (gelecek) bolum tarihi
+        try:
+            cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)).fetchone()["c"]
+            wcnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)).fetchone()["c"]
+        except Exception:
+            cnt, wcnt = 0, 0
+        try:
+            mrow = conn.execute(
+                "SELECT "
+                "COALESCE(SUM(CASE WHEN watched=1 THEN COALESCE(runtime, ?) END),0) AS wmin, "
+                "COALESCE(SUM(CASE WHEN watched=0 THEN COALESCE(runtime, ?) END),0) AS umin "
+                "FROM episodes WHERE follow_id=?",
+                (show_rt, show_rt, r["id"]),
+            ).fetchone()
+            wmin = int(mrow["wmin"] or 0)
+            umin = int(mrow["umin"] or 0)
+        except Exception:
+            wmin, umin = 0, 0
+        try:
+            nx = conn.execute(
+                "SELECT air_date FROM episodes "
+                "WHERE follow_id=? AND air_date IS NOT NULL AND air_date>? "
+                "ORDER BY air_date ASC, episode ASC LIMIT 1",
+                (r["id"], today),
+            ).fetchone()
+            next_air = nx["air_date"] if nx else None
+        except Exception:
+            next_air = None
         items.append(
             {
                 "kind": "tv",
@@ -876,6 +904,11 @@ def next_up():
                 "air_date": ep["air_date"],
                 "est_min": est,
                 "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
+                "total_eps": int(cnt or 0),
+                "watched_eps": int(wcnt or 0),
+                "watched_min": wmin,
+                "unwatched_min": umin,
+                "next_air_date": next_air,
             }
         )
 
@@ -913,6 +946,31 @@ def next_up():
             air_date = datetime.datetime.fromtimestamp(ep["air_at"], datetime.timezone.utc).date().isoformat()
         except (ValueError, OSError, OverflowError, TypeError):
             air_date = None
+        # Ozet satiri icin bolum istatistikleri + yaklasan (gelecek) bolum tarihi
+        try:
+            acnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)).fetchone()["c"]
+            awcnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (r["id"],)).fetchone()["c"]
+        except Exception:
+            acnt, awcnt = 0, 0
+        try:
+            d = int(dur or 0)
+        except (TypeError, ValueError):
+            d = 0
+        watched_min_a = int(awcnt or 0) * d
+        unwatched_min_a = max(0, int(acnt or 0) - int(awcnt or 0)) * d
+        try:
+            anx = conn.execute(
+                "SELECT air_at FROM anime_episodes "
+                "WHERE anime_id=? AND air_at IS NOT NULL AND air_at>? "
+                "ORDER BY episode ASC LIMIT 1",
+                (r["id"], now),
+            ).fetchone()
+            next_air = (
+                datetime.datetime.fromtimestamp(anx["air_at"], datetime.timezone.utc).date().isoformat()
+                if anx else None
+            )
+        except Exception:
+            next_air = None
         items.append(
             {
                 "kind": "anime",
@@ -929,11 +987,19 @@ def next_up():
                 "air_date": air_date,
                 "air_at": ep["air_at"],
                 "est_min": est,
+                "total_eps": int(acnt or 0),
+                "watched_eps": int(awcnt or 0),
+                "watched_min": watched_min_a,
+                "unwatched_min": unwatched_min_a,
+                "next_air_date": next_air,
             }
         )
 
-    # Yayin tarihi en yeni once; tarihi olmayanlar sonda (stable: esit tarihte ekleme sirasi).
+    # Sirali: YAKLASAN (gelecek) bolum tarihi en yakin once; gelecek bolumu
+    # olmayanlar sonda. Esitlikte ikincil anahtar: yayinlanmis bolum tarihi en
+    # yeni once (stable sort: once ikincil, sonra birincil).
     items.sort(key=lambda x: x.get("air_date") or "", reverse=True)
+    items.sort(key=lambda x: x.get("next_air_date") or "9999-99-99")
     try:
         total_min = sum(int(x.get("est_min") or 0) for x in items)
     except (TypeError, ValueError):
