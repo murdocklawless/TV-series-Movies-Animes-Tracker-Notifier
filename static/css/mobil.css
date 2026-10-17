@@ -736,10 +736,31 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-dizi #dizi-nextup-wrap .unwatched-section-title,
   html:not(.is-tv):not(.tv-mode) #view-belgesel #belgesel-nextup-wrap .unwatched-section-title,
   html:not(.is-tv):not(.tv-mode) #view-anime #anime-nextup-wrap .unwatched-section-title { padding-right: 40px; }
+  /* 1.85 mobil serit: 2 kart gorunur + yatay kaydirma (alt satir YOK),
+     poster %25 kucuk, isim TEK satir (uzunsa ... ile kesilir), sure gorunur. */
+  html:not(.is-tv):not(.tv-mode) .nextup-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-card {
+    width: calc((100% - 8px) / 2);
+    height: auto;
+    padding: 6px;
+    gap: 6px;
+  }
   html:not(.is-tv):not(.tv-mode) .nextup-strip img.nextup-poster,
-  html:not(.is-tv):not(.tv-mode) .nextup-strip .no-poster.nextup-poster { width: 36px; height: 54px; }
-  /* 1.84: mobilde serit kartinda sure gizli (yalniz S02E05 / EP12) */
-  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-dur { display: none; }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .no-poster.nextup-poster { width: 27px; height: 40px; }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-dur { display: inline; }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-title {
+    -webkit-line-clamp: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: block;
+    min-height: 0;
+  }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-view-toggle { right: 97px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }
