@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.81 - 17/10/2026-04:03
+### TR
+- **Ask mesajı artık 2 satır ve soru biçiminde:** `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz mi?`. "İzlendi bilgisi eklensin mi?" cümlesi kaldırıldı (Evet/Hayır butonları aynen kalır).
+- Tüm türlerde aynı kalıp: `diziyi izlediniz mi?` · `filmi izlediniz mi?` · `belgeseli izlediniz mi?` · `animeyi izlediniz mi?` · `4. bölümünü izlediniz mi?` · `2. Sezon 3. Bölümünü izlediniz mi?`.
+- **Eski kayıtlar arayüzde düzeltilir** (veri göçü yok): cümle atılır, gövde `izlediniz.` → `izlediniz mi?` çevrilir. Yeni kayıtlar sunucuda da 2 satır üretilir (`_ask_message`); push şablonları etkilenmedi.
+### EN
+- **The ask message is now two lines and phrased as a question:** `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz mi?`. The sentence "İzlendi bilgisi eklensin mi?" was removed (the Yes/No buttons stay).
+- Same pattern for every media type: `diziyi izlediniz mi?` · `filmi izlediniz mi?` · `belgeseli izlediniz mi?` · `animeyi izlediniz mi?` · `4. bölümünü izlediniz mi?` · `2. Sezon 3. Bölümünü izlediniz mi?`.
+- **Existing rows are fixed in the UI** (no data migration): the sentence is dropped and the body's `izlediniz.` becomes `izlediniz mi?`. New rows are produced as two lines on the server too (`_ask_message`); push templates are unaffected.
+
 ## 1.80 - 17/10/2026-03:54
 ### TR
 - **Tarih/saat biçimi artık saat diliminin (tz) ülke yereline göre.** Ask mesajı 3 satıra ayrıldı ve damga yerel biçimde gösterilir: `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz.` / `İzlendi bilgisi eklensin mi?`.

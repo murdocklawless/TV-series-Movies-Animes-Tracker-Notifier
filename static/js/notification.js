@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
 import { escAttr, tzLocale } from "./utils.js?v=519";
 import { openNotifClearConfirm } from "./components.js?v=524";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=541";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=542";
 import { isAdmin, loadAdminLists } from "./auth.js?v=520";
 
 const badgeEl = () => document.getElementById("notif-badge");
@@ -112,19 +112,18 @@ export function notifMsgHTML(text, title, stampLine) {
   // 2) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
   s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. Bölüm`);
   // 3) Ask damgasi (varsa): ilk satir verilen yerel bicimle degistirilir ve metin
-  //    3 satira ayrilir -> "<tarih> - <gun> - <saat>" / govde / "İzlendi bilgisi eklensin mi?"
+  //    2 satira ayrilir -> "<tarih> - <gun> - <saat>" / "<govde> izlediniz mi?"
   let lines = null;
   const mStamp = s.match(/^(\d{2}\.\d{2}\.\d{4})(?:\s+tarihinde\s+saat\s+| - )(\d{2}:\d{2})(?:\s+de)?\s*/);
   if (mStamp) {
-    const rest = s.slice(mStamp[0].length);
     const line1 = stampLine || `${mStamp[1]} - ${mStamp[2]}`;
-    let parts = rest.split(/\n+/).map((x) => x.trim()).filter((x) => x);
-    if (parts.length < 2) {
-      const q = "İzlendi bilgisi eklensin mi?";
-      const qi = rest.indexOf(q);
-      parts = qi >= 0 ? [rest.slice(0, qi).trim(), q] : [rest.trim()];
-    }
-    lines = [line1].concat(parts.filter((x) => x));
+    // "İzlendi bilgisi eklensin mi?" cumlesi kaldirilir (govde zaten soruya cevrilir)
+    let rest = s.slice(mStamp[0].length).replace(/İzlendi bilgisi eklensin mi\?\s*$/, "").trim();
+    // Satirlar tek govdeye indirgenir (yeni backend formati tek satir verir)
+    let body = rest.split(/\n+/).map((x) => x.trim()).filter((x) => x).join(" ").trim();
+    // "izlediniz." -> "izlediniz mi?" (yeni format zaten "mi?" ile biter, dokunulmaz)
+    body = body.replace(/izlediniz\.?\s*$/, "izlediniz mi?");
+    lines = body ? [line1, body] : [line1];
   }
   // 4) kacis (HTML enjeksiyonu yok) + satirlar <br> ile birlestirilir
   let srcLines;

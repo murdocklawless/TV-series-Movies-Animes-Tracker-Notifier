@@ -666,17 +666,17 @@ def _ask_message(kind, title, season, episode, uid, is_doc=False):
     stamp = now.strftime("%d.%m.%Y - %H:%M")
     if kind == "anime":
         if episode is not None:
-            body = f"{int(episode)}. bölümünü izlediniz."
+            body = f"{int(episode)}. bölümünü izlediniz mi?"
         else:
-            body = "animeyi izlediniz."
+            body = "animeyi izlediniz mi?"
     elif kind == "movie":
-        body = "belgeseli izlediniz." if is_doc else "filmi izlediniz."
+        body = "belgeseli izlediniz mi?" if is_doc else "filmi izlediniz mi?"
     else:  # tv
         if season is not None and episode is not None:
-            body = f"{int(season)}. Sezon {int(episode)}. Bölümünü izlediniz."
+            body = f"{int(season)}. Sezon {int(episode)}. Bölümünü izlediniz mi?"
         else:
-            body = "belgeseli izlediniz." if is_doc else "diziyi izlediniz."
-    return f"{stamp}\n{body}\nİzlendi bilgisi eklensin mi?"
+            body = "belgeseli izlediniz mi?" if is_doc else "diziyi izlediniz mi?"
+    return f"{stamp}\n{body}"
 
 
 def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False):
