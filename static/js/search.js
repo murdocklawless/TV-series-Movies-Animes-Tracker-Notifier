@@ -5,7 +5,7 @@ import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
 } from "./utils.js?v=521";
-import { loadFollowed, loadBelgesel, loadAnime } from "./views.js?v=530";
+import { loadFollowed, loadBelgesel, loadAnime } from "./views.js?v=531";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=530";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=531";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {

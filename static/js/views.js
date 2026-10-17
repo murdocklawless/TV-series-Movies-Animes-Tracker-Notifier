@@ -7,8 +7,8 @@ import {
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=521";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=530";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=527";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=531";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=528";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -2912,9 +2912,11 @@ function ensureSectionSummary(wrap) {
     s.className = "section-summary";
     try {
       const h2 = wrap.querySelector(":scope > h2.unwatched-section-title");
+      // Serit bolumunde grid yerine .nextup-strip var; ikisini de ara ki ozet
+      // satiri h2'nin HEMEN ALTINA (kartlarin USTUNE) gelsin.
       let grid = null;
-      try { grid = wrap.querySelector(":scope > .poster-grid"); } catch (_) { grid = null; }
-      if (!grid) grid = wrap.querySelector(".poster-grid");
+      try { grid = wrap.querySelector(":scope > .poster-grid, :scope > .nextup-strip"); } catch (_) { grid = null; }
+      if (!grid) grid = wrap.querySelector(".poster-grid, .nextup-strip");
       if (h2 && grid) h2.after(s);
       else if (grid) grid.before(s);
       else wrap.appendChild(s);
