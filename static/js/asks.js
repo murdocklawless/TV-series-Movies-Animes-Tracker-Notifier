@@ -110,17 +110,23 @@ function askItem(a) {
     : resolved === 2
       ? `<span class="ask-mark ask-mark-no">${ASK_X_SVG}</span>`
       : "";
-  const actions = unread
+  const pill = notifTypePill(kind);
+  // Bekleyen kart (v1.76 duzeni): hap posterin 5px altinda, Evet/Hayir ortada.
+  const thumb = unread ? `${askThumb(a)}${pill}` : askThumb(a);
+  // Cozumlenmis kart: tip hapi ile tick/x AYNI alt seritte (hap solda = poster hizasi,
+  // isaret sagda) -> kart yuksekligi artmaz, satirlar hizali gorunur.
+  const foot = unread
     ? `<div class="ask-actions"><button class="ask-btn ask-yes" data-id="${a.id}">${t("ask_yes")}</button><button class="ask-btn ask-no" data-id="${a.id}">${t("ask_no")}</button></div>`
-    : `<div class="ask-actions ask-resolved">${marker}</div>`;
+    : `<div class="ask-foot">${pill}<span class="ask-actions ask-resolved">${marker}</span></div>`;
   return `
     <div class="notif-item ask-item${unread ? " unread" : ""}" data-id="${a.id}" data-resolved="${resolved}" data-media="${kind}">
-      <div class="ask-poster">${askThumb(a)}${notifTypePill(kind)}</div>
+      <div class="ask-poster">${thumb}</div>
       <div class="ask-content">
         ${notifTitleLine(a.title)}
         <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "")}</div>
-        ${actions}
+        ${unread ? foot : ""}
       </div>
+      ${unread ? "" : foot}
     </div>`;
 }
 

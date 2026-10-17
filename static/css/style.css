@@ -1802,6 +1802,28 @@ input:-webkit-autofill:focus {
   flex-direction: column;
   gap: 8px;
 }
+/* Ask karti: 2 kolonlu grid (poster | icerik). Cozumlenmis kartta tip hapi ile
+   tick/x AYNI alt seritte olur (hap solda = poster hizasi, isaret sagda). */
+.ask-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "poster content" "foot foot";
+  column-gap: 10px;
+  row-gap: 6px;
+}
+.ask-poster {
+  grid-area: poster;
+}
+.ask-content {
+  grid-area: content;
+}
+.ask-foot {
+  grid-area: foot;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .ask-msg {
   font-size: 0.8rem;
   color: #aab;

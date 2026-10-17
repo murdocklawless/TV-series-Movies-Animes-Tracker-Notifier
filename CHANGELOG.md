@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.77 - 17/10/2026-03:15
+### TR
+- **Ask kartı yerleşimi:** çözümlenmiş ("Evet"/"Hayır" verilmiş) kartlarda **tip hapı ile ✓/✗ işareti artık aynı alt şeritte** — hap solda (posterin sol hizasında), işaret sağda. Kart iki kolonlu grid'e alındı (`poster | içerik` + alt şerit); böylece işaret kendi satırını kaplamıyor ve satırlar hizalı görünüyor.
+- **Bekleyen kartlar değişmedi:** hap posterin 5px altında (1.76 düzeni), **Evet/Hayır** butonları mesajın altında ortada.
+- Yalnızca görünüm: veri, API ve buton davranışı aynı.
+### EN
+- **Ask card layout:** on resolved ("Yes"/"No" answered) cards the **type pill and the ✓/✗ marker now share the same bottom row** — pill on the left (aligned with the poster), marker on the right. The card became a two-column grid (`poster | content` + a bottom row), so the marker no longer occupies its own line and the rows look aligned.
+- **Pending cards are unchanged:** the pill sits 5px below the poster (1.76 layout) and the **Yes/No** buttons stay centred under the message.
+- Presentation only: data, API and button behaviour are untouched.
+
 ## 1.76 - 17/10/2026-03:07
 ### TR
 - **Bildirim ve "İzlendi" mesajlarına tip hapı:** posterin **5px altında**, postere göre **ortalanmış** `Dizi / Film / Belgesel / Anime` hapı (kart hapı paletiyle birebir renk; poster gizli/yok iken de gösterilir).

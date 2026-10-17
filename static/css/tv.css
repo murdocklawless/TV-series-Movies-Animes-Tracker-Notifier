@@ -681,6 +681,7 @@ html.is-tv .ask-poster, html.tv-mode .ask-poster { gap: calc(5px * var(--tv-scal
 html.is-tv .ask-content, html.tv-mode .ask-content { gap: calc(8px * var(--tv-scale)); }
 html.is-tv .ask-msg, html.tv-mode .ask-msg { font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .ask-actions, html.tv-mode .ask-actions { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .ask-foot, html.tv-mode .ask-foot { gap: calc(8px * var(--tv-scale)); }
 html.is-tv .ask-btn, html.tv-mode .ask-btn { padding: calc(2px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .ask-mark, html.tv-mode .ask-mark { width: calc(22px * var(--tv-scale)); height: calc(22px * var(--tv-scale)); }
 
