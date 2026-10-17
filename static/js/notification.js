@@ -1,10 +1,10 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=525";
-import { escAttr, tzLocale } from "./utils.js?v=519";
-import { openNotifClearConfirm } from "./components.js?v=528";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=546";
-import { isAdmin, loadAdminLists } from "./auth.js?v=523";
+import { t } from "./i18n.js?v=526";
+import { escAttr, tzLocale } from "./utils.js?v=520";
+import { openNotifClearConfirm } from "./components.js?v=529";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=547";
+import { isAdmin, loadAdminLists } from "./auth.js?v=524";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -154,6 +154,10 @@ export function notifTitleLine(title) {
   return s ? `<div class="notif-title">${escAttr(s)}</div>` : "";
 }
 
+// Dis kaynak (Stremio eklentisi / baska istemci) yazdiginda liste cache gen'i
+// artar; 30 sn'lik sayac polling'i bunu gorup aktif gorunumu (ve seritleri)
+// tazeler. Ilk olcumde tetiklenmez.
+let _lastGen = null;
 async function fetchCount() {
   try {
     const r = await fetch("/api/notifications/count?unread=1");
@@ -167,6 +171,15 @@ async function fetchCount() {
     } else {
       b.style.display = "none";
     }
+    try {
+      if (j.gen !== undefined && j.gen !== null) {
+        const g = String(j.gen);
+        if (_lastGen !== null && _lastGen !== g) {
+          document.dispatchEvent(new CustomEvent("app:external-refresh"));
+        }
+        _lastGen = g;
+      }
+    } catch (_) {}
   } catch {}
 }
 

@@ -108,37 +108,42 @@
 
 ---
 
-# 1.84 — "Sıradaki Bölüm" (Continue watching) şeridi  ✅ UYGULANDI
+# 1.84 — "Sıradaki Bölüm" (Continue watching) şeridi  ✅ UYGULANDI (v2)
 
-> **Kilitli kararlar (2026-10-17, uygulama sırasında netleşti):**
+> **Kilitli kararlar (2026-10-17 → 18, uygulama sırasında netleşti):**
 > - **Kapsam = A:** yalnız **çoklu bölümlü** yapımlar — dizi, belgesel **dizisi** (`media_type='tv'`) ve anime.
->   **Film / belgesel filmi YOK** (tek öğede "sonraki bölüm" yok; plandaki film dalı kaldırıldı).
+>   **Film / belgesel filmi YOK.**
+> - **Yerleşim:** **Dizi · Belgesel · Anime** sekmelerinin en üstünde (İzlenmemiş'te **değil**); her sekmede o türe ait öğeler.
 > - Başlık: **"Sıradaki Bölüm"**; sağda `N yapım · toplam M dk` özeti.
-> - **Sıralama:** yayın tarihi **en yeni önce** (tarihi olmayanlar sonda).
-> - **Taşınabilir bölüm:** `section-move-up/down` oklarıyla taşınır (varsayılan en üst, `unwatchedSectionOrder`'da kalıcı).
-> - **Boşsa bölüm tümüyle gizli** (başlık + oklar dahil); boş durum mesajı yok.
+> - **Sıralama:** yayın tarihi **en yeni önce**.
+> - **İzlemeye başlanmış şartı:** yapımın **ilk bölümü** (en düşük sezon/bölüm) izlenmiş olmalı.
+> - **Taşınabilir bölüm** (oklar + kalıcı sıra, varsayılan en üst).
+> - **Kart:** genişlik = alttaki standart kart genişliği · yükseklik **84px** sabit · gap = grid gap'i → sütunlar hizalı.
+> - **Diziliş:** `flex-wrap: wrap` + `justify-content: center` → **yatay scrollbar yok**, taşanlar alt satırda ortalanır.
+> - **Tipografi:** başlık = standart kart başlığı · `S02E05 · 45 dk` = standart kart statüsü · isim **en fazla 2 satır**.
+> - **"İzledim" butonu YOK** (karta tıklama → detay).
+> - **Boşsa bölüm tümüyle gizli.**
+> - **Otomatik kalkma:** uygulama içi anında; Stremio/dış istemci → `/api/notifications/count` `gen` + 30 sn polling ile tazeleme.
 > - Başlıkta arama/filtre/sıralama/kart-satır anahtarı yok.
 
-**Amaç:** Her yapının **tek sonraki izlenmemiş** bölümünü tek şeritte topla; tıkla→izlendi.
-Konum: **İzlenmemiş sekmesinin en üstünde** (taşınabilir bölüm).
+**Amaç:** Her yapının **tek sonraki izlenmemiş** bölümünü sekme başına tek şeritte topla; karta tıkla→detay.
 
 ### Backend — `GET /api/next-up`
-- Dizi (belgesel dizisi dahil): `in_watched=0` + `archived=0` → en düşük `(season, episode)`, `air_date<=today`.
-- Anime: `anime_episodes` en küçük `episode`, `air_at<=now`; `archived=0`.
-- Dönüş: `{items:[{kind,id,title,poster*,season,episode,episode_name,air_date,est_min,tmdb_id|anilist_id}],
-  totals:{count,min}}`; sıralama `air_date` desc.
-- Önbellek: `list_cache` anahtarı `("next_up", uid, gen(), today_str())`.
+- Dizi (belgesel dizisi dahil): `archived=0` + **ilk bölüm `watched=1`** → en düşük `(season, episode)` (yayında, `watched=0`), `air_date<=today`.
+- Anime: `archived=0` + **ilk bölüm `watched=1`** → en küçük `episode` (`air_at<=now`).
+- `in_watched` **filtrelenmez**; öğelere `genres` eklenir (belgesel ayrımı frontend'de).
+- Dönüş: `{items:[…], totals:{count,min}}`; sıralama `air_date` desc; önbellek `("next_up", uid, gen(), today_str())`.
 
 ### Frontend
-- `#nextup-strip` yatay şerit (bölüm: `#unwatched-nextup-wrap`); kart: poster + `S02E05 · 45 dk` + **"İzledim"** butonu.
-- `loadNextUp()` kendi koşu jetonuyla çalışır, `loadUnwatched` içinde `await` edilir; boşsa wrap gizlenir.
-- i18n: `nextup_title`, `nextup_mark`, `nextup_min_left` ×14 (`nextup_empty` gereksiz — boşken bölüm yok).
-- TV: `.nextup-mark` → `CARD_BTN_SEL` + `RANK` + `resolveLiveButton`.
-- Cache-buster zinciri (yukarıdaki dalga).
+- `loadNextUp()` tüm `.nextup-strip`'leri tek fetch ile besler; tür filtresi `data-nextup-kind`.
+- Kart: poster + başlık (2 satır clamp) + `S02E05 · 45 dk`; tıklama → `openDetails` / `openAnimeDetails`.
+- `refreshListsAfterWatch()` (export) → aktif görünümü tazeler; `app:external-refresh` olayı da bunu çağırır.
+- i18n: `nextup_title`, `nextup_min_left` ×14.
 
 ### Doğrulama
-- Temp-DB birim testi: doğru "sonraki" seçimi; `archived`/`in_watched`/gelecek/film dışlanır; sıralama; boş durum.
-- Render: dolu + boş durum, taşıma okları + localStorage; md5 MATCH · servis active · sürüm 1.84 · CHANGELOG TR/EN · faz notu.
+- Temp-DB birim testi (16/16): ilk-bölüm şartı, `in_watched` dahil, arşivli/film dışta, belgesel + genres, sıralama, boş durum.
+- Headless ölçüm: 170×84 = grid kartı, fontlar eşit, 6+2 alt satır ortalanmış, wrap/overflow yok, taşıma + localStorage, boş durumda gizli.
+- Ayrıca **bug fix:** `#view-#view-*` → `#view-*` (arşiv anahtarı ↔ satır görünümü çakışması).
 
 ---
 

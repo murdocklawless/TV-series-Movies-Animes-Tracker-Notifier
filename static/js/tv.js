@@ -104,7 +104,7 @@ function resolveLiveButton(oldBtn) {
     const card = oldBtn.closest && oldBtn.closest('.card');
     const liveCard = card ? resolveLiveCard(card) : null;
     if (liveCard) {
-      const cls = ['calendar-btn','info-btn','remove','move-btn','move-back-btn','archive-btn','unarchive-btn','hide-btn','nextup-mark'].find(c=>oldBtn.classList && oldBtn.classList.contains(c));
+      const cls = ['calendar-btn','info-btn','remove','move-btn','move-back-btn','archive-btn','unarchive-btn','hide-btn'].find(c=>oldBtn.classList && oldBtn.classList.contains(c));
       if (cls) {
         const nb = liveCard.querySelector('.'+cls);
         if (nb) return nb;
@@ -410,7 +410,7 @@ function rectC(el){ const r=rectOf(el); return r.left + r.width/2; }
 function rectT(el){ return rectOf(el).top; }
 
 const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-archive,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-stats,#tab-history,#tab-search,#tab-settings,#tab-exit,#search-close';
-const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.archive-btn,.unarchive-btn,.hide-btn,.defer-btn,.nextup-mark';
+const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.archive-btn,.unarchive-btn,.hide-btn,.defer-btn';
 const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-view-toggle, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
 function isCard(el){ return !!(el && el.classList && el.classList.contains('card')); }
@@ -421,7 +421,7 @@ function cardButtons(card){
   // takvimsiz kartlar DOM sırasında kalır)
   try {
     if (out.some((b)=>b.classList && b.classList.contains('calendar-btn'))) {
-      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'archive-btn': 2, 'unarchive-btn': 2, 'info-btn': 3, 'defer-btn': 4, 'hide-btn': 5, 'nextup-mark': 6, 'remove': 7 };
+      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'archive-btn': 2, 'unarchive-btn': 2, 'info-btn': 3, 'defer-btn': 4, 'hide-btn': 5, 'remove': 6 };
       const rank = (b) => {
         if (!b.classList) return 9;
         for (const k of Object.keys(RANK)) if (b.classList.contains(k)) return RANK[k];

@@ -9,15 +9,15 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=525";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=526";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
-} from "./utils.js?v=519";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=528";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=525";
+} from "./utils.js?v=520";
+import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=529";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=526";
 
 let currentDetails = null;
 
@@ -1194,6 +1194,7 @@ async function openUnwatchedModal(item, isAnime) {
           }
           it.watched = newWatched;
           renderList(savedIdx);
+          try { refreshListsAfterWatch(); } catch (_) {}
         } catch (e) {
           toast(t("error"));
         }

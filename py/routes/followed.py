@@ -803,9 +803,10 @@ def next_up():
     """Siradaki Bolum seridi (1.84): her dizi/anime icin TEK sonraki izlenmemis bolum.
 
     Dizi (belgesel dizisi dahil): yayina girmis (air_date<=bugun) en dusuk
-    (season, episode). Anime: air_at<=now en kucuk episode. Arsivliler ve
-    izlenmisler (in_watched=1) dislanir. Sirali: yayin tarihi en yeni once
-    (tarihi olmayanlar sonda)."""
+    (season, episode). Anime: air_at<=now en kucuk episode. Yalniz IZLEMEYE
+    BASLANMIS yapimlar girer: en dusuk (season, episode) izlenmis olmali.
+    Arsivliler dislanir. Sirali: yayin tarihi en yeni once (tarihi olmayanlar
+    sonda). Film/belgesel filmi bu seride YOK (tek ogede 'sonraki bolum' yok)."""
     uid = _uid()
     key = ("next_up", uid, gen(), today_str())
     hit = list_cache.get(key)
@@ -821,9 +822,21 @@ def next_up():
 
     for r in conn.execute(
         "SELECT * FROM followed WHERE user_id=? AND media_type='tv' "
-        "AND COALESCE(in_watched,0)=0 AND COALESCE(archived,0)=0",
+        "AND COALESCE(archived,0)=0",
         (uid,),
     ).fetchall():
+        # Ilk bolum izlenmis mi? (izlemeye baslanmamis yapim seride gorunmez)
+        try:
+            first = conn.execute(
+                "SELECT watched FROM episodes "
+                "WHERE follow_id=? AND season IS NOT NULL AND episode IS NOT NULL "
+                "ORDER BY season ASC, episode ASC LIMIT 1",
+                (r["id"],),
+            ).fetchone()
+        except Exception:
+            first = None
+        if not first or not int(first["watched"] or 0):
+            continue
         try:
             ep = conn.execute(
                 "SELECT season, episode, name, air_date, runtime FROM episodes "
@@ -862,14 +875,24 @@ def next_up():
                 "episode_name": ep["name"] or "",
                 "air_date": ep["air_date"],
                 "est_min": est,
+                "genres": _safe_json_list(r["genres"]) if "genres" in r.keys() else [],
             }
         )
 
     for r in conn.execute(
-        "SELECT * FROM anime WHERE user_id=? "
-        "AND COALESCE(in_watched,0)=0 AND COALESCE(archived,0)=0",
+        "SELECT * FROM anime WHERE user_id=? AND COALESCE(archived,0)=0",
         (uid,),
     ).fetchall():
+        # Ilk bolum (en kucuk episode) izlenmis mi?
+        try:
+            first = conn.execute(
+                "SELECT watched FROM anime_episodes WHERE anime_id=? ORDER BY episode ASC LIMIT 1",
+                (r["id"],),
+            ).fetchone()
+        except Exception:
+            first = None
+        if not first or not int(first["watched"] or 0):
+            continue
         try:
             ep = conn.execute(
                 "SELECT episode, air_at FROM anime_episodes "

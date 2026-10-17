@@ -1,23 +1,33 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
-## 1.84 - 17/10/2026-23:32
+## 1.84 - 18/10/2026-00:01
 ### TR
-- **Yeni özellik — "Sıradaki Bölüm" şeridi:** İzlenmemiş sekmesinin en üstünde, her dizi/belgesel dizisi/animenin **tek sonraki izlenmemiş bölümünü** toplayan yatay şerit. Kartta poster + `S02E05 · 45 dk` (anime `EP12 · 24 dk`) ve **"İzledim"** butonu; tıklayınca o bölüm izlendi olarak işaretlenir ve şerit/listeler tazelenir. Karta tıklamak detay penceresini açar.
-- **Kapsam:** yalnız çoklu bölümlü yapımlar — dizi, belgesel **dizisi** ve anime. Filmler ve belgesel filmleri şeride girmez (tek öğe oldukları için "sonraki bölüm" kavramı yok); arşivli yapımlar da dışarıda.
-- **Sıralama:** yayın tarihi **en yeni önce** (dizi: bölüm yayın tarihi, anime: bölüm yayın zamanı). Başlıkta sağda `N yapım · toplam M dk` özeti görünür.
-- **Taşınabilir bölüm:** şerit, diğer bölümler gibi yukarı/aşağı oklarıyla taşınabilir; sıra tarayıcıda hatırlanır (varsayılan: en üstte).
+- **Yeni özellik — "Sıradaki Bölüm" şeridi:** **Dizi · Belgesel · Anime** sekmelerinin en üstünde, her yapımın **tek sonraki izlenmemiş bölümünü** gösteren şerit. Kartta poster + `S02E05 · 45 dk` (anime `EP12 · 24 dk`); karta tıklamak detay penceresini açar.
+- **Kapsam:** yalnız çoklu bölümlü yapımlar — dizi, belgesel **dizisi** ve anime. Filmler ve belgesel filmleri **hiç görünmez** (tek öğede "sonraki bölüm" kavramı yok); arşivli yapımlar da dışarıda.
+- **İzlemeye başlanmış olma şartı:** bir yapım şeride girmek için **ilk bölümü (en düşük sezon/bölüm) izlenmiş** olmalı; hiç izlenmeye başlanmamış yapımlar şeritte görünmez.
+- **Sıralama:** yayın tarihi **en yeni önce**. Başlıkta sağda `N yapım · toplam M dk` özeti görünür.
+- **Taşınabilir bölüm:** şerit, yukarı/aşağı oklarıyla taşınabilir; sıra tarayıcıda hatırlanır (varsayılan: en üstte).
+- **Diziliş:** kart **genişliği altındaki standart kartla aynı**, yükseklik **84px sabit**, aralarındaki boşluk da grid boşluğuyla aynı → şerit sütunları alttaki kartlarla **birebir hizalı**. **Yatay kaydırma çubuğu yok**; satıra sığmayan kartlar **alt satıra ortalanarak** geçer (6 sütunlu geniş ekranda 7. kart ikinci satıra iner).
+- **Yazı boyutları:** karttaki yapım adı standart kart başlığıyla, `S02E05 · 45 dk` satırı standart kart statü satırıyla **aynı** boyutta; yapım adı en fazla **iki satır** olur, ikinci satırın sonunda `…` ile kesilir (üçüncü satıra taşmaz).
 - **Boş durum:** sırada izlenecek bölüm yoksa "Sıradaki Bölüm" bölümü **tümüyle gizlenir** (başlık ve oklar dahil).
-- **Sunucu:** yeni `GET /api/next-up` ucu (dizi/anime için tek sonraki bölüm + `totals:{count,min}`); `list_cache` ile önbelleklenir. Arşiv ve izlenmiş (İzlenmişler listesindekiler) dışlanır.
-- **Çeviri:** 3 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 525, views 528, components 528, search 525, settings 546, notification 540, asks 542, auth 523, stats 541, history 550, tv 528, rowview 16, `nextep.js?v=576` (`__NX_BUILD` 507), `style.css?v=599`, `mobil.css?v=540`, `tv.css?v=557`.
+- **Otomatik kalkma:** bölüm uygulama içinden izlendi işaretlenince şerit anında güncellenir; **Stremio eklentisi veya başka bir istemci** yazdığında 30 saniyelik bildirim sayacı kontrolü değişikliği görüp listeleri ve şeridi kendiliğinden tazeler.
+- **Sunucu:** `GET /api/next-up` (dizi/anime için tek sonraki bölüm + `totals:{count,min}` + `genres`); `list_cache` ile önbelleklenir. **`in_watched` filtresi kaldırıldı** (İzlenmişler'e taşınmış ama yeni bölümü olan dizi de şeride girer).
+- **Düzeltme:** medya sekmesi başlıklarındaki "Arşivlenenleri göster" anahtarı ile satır görünümü düğmesinin **üst üste binmesi** giderildi (bozuk `#view-#view-*` seçicileri düzeltildi — 3 CSS dosyası).
+- **Çeviri:** 2 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 526, views/components/tv 529, search 526, settings 547, notification 541, asks 543, auth 524, stats 542, history 551, rowview 17, utils 520, `nextep.js?v=577` (`__NX_BUILD` 508), `style.css?v=600`, `mobil.css?v=541`, `tv.css?v=558`, `tablet.css?v=511`.
 ### EN
-- **New feature — "Up Next" strip:** a horizontal strip at the top of the Unwatched tab collecting the **single next unwatched episode** of every show/documentary series/anime. Each card shows the poster plus `S02E05 · 45 min` (anime `EP12 · 24 min`) and a **"Watched"** button; clicking marks that episode watched and refreshes the strip and lists. Clicking the card opens the details modal.
-- **Scope:** multi-episode titles only — shows, documentary **series** and anime. Movies and documentary films are excluded (a single item has no "next episode"); archived titles are excluded too.
-- **Ordering:** air date, **newest first** (shows: episode air date, anime: episode air time). A `N titles · M min total` summary appears on the right of the header.
-- **Movable section:** the strip can be moved up/down with the section arrows like any other section; the order is remembered in the browser (default: topmost).
-- **Empty state:** when nothing is up next, the "Up Next" section is **hidden entirely** (header and arrows included).
-- **Server:** new `GET /api/next-up` endpoint (single next episode per show/anime plus `totals:{count,min}`), cached via `list_cache`. Archived and watched (items in the Watched list) titles are excluded.
-- **i18n:** 3 new keys × 14 languages. **Cache-buster chain:** i18n 525, views 528, components 528, search 525, settings 546, notification 540, asks 542, auth 523, stats 541, history 550, tv 528, rowview 16, `nextep.js?v=576` (`__NX_BUILD` 507), `style.css?v=599`, `mobil.css?v=540`, `tv.css?v=557`.
+- **New feature — "Up Next" strip:** at the top of the **Shows · Documentaries · Anime** tabs, a strip showing each title's **single next unwatched episode**. Each card has the poster plus `S02E05 · 45 min` (anime `EP12 · 24 min`); clicking the card opens the details modal.
+- **Scope:** multi-episode titles only — shows, documentary **series** and anime. Movies and documentary films **never appear** (a single item has no "next episode"); archived titles are excluded too.
+- **Started-watching requirement:** a title enters the strip only if its **first episode (lowest season/episode) is watched**; titles you never started do not appear.
+- **Ordering:** air date, **newest first**. A `N titles · M min total` summary appears on the right of the header.
+- **Movable section:** the strip can be moved up/down with the section arrows; the order is remembered in the browser (default: topmost).
+- **Layout:** card **width matches the standard card below**, height is a fixed **84px**, and the gap matches the grid gap → the strip columns line up **exactly** with the cards beneath. **No horizontal scrollbar**; overflowing cards wrap to a **centred second row** (on a 6-column wide screen the 7th card drops to the second row).
+- **Type scale:** the title uses the standard card title size and the `S02E05 · 45 min` line uses the standard card status size; the title is clamped to **two lines** with an ellipsis at the end of the second line.
+- **Empty state:** when nothing is up next, the section is **hidden entirely** (header and arrows included).
+- **Auto-removal:** marking an episode watched inside the app updates the strip immediately; when the **Stremio add-on or another client** writes, the 30-second notification-count check notices the change and refreshes the lists and the strip automatically.
+- **Server:** `GET /api/next-up` (single next episode per show/anime plus `totals:{count,min}` and `genres`), cached via `list_cache`. The **`in_watched` filter was removed** (a show moved to Watched but with a new episode now also appears).
+- **Fix:** the "Show archived" toggle and the row-view button in media tab headers **overlapping** is fixed (broken `#view-#view-*` selectors corrected — 3 CSS files).
+- **i18n:** 2 new keys × 14 languages. **Cache-buster chain:** i18n 526, views/components/tv 529, search 526, settings 547, notification 541, asks 543, auth 524, stats 542, history 551, rowview 17, utils 520, `nextep.js?v=577` (`__NX_BUILD` 508), `style.css?v=600`, `mobil.css?v=541`, `tv.css?v=558`, `tablet.css?v=511`.
 
 ## 1.83 - 17/10/2026-22:47
 ### TR

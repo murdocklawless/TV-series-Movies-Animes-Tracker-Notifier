@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=525";
+import { t } from "./i18n.js?v=526";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=528";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=525";
+} from "./utils.js?v=520";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=529";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=526";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -316,6 +316,9 @@ function animeEpMid(item) {
 
 async function loadFollowed(view) {
   const __run = __runToken("followed:" + view);
+  if (view === "dizi") {
+    try { await loadNextUp(); } catch (_) {}
+  }
   const showArchived = archivedVisible(view);
   const res = await fetch("/api/followed");
   let items = await res.json();
@@ -459,6 +462,7 @@ async function loadFollowed(view) {
   }
   renderSectionSummary(grid);
   if (laterGrid) renderSectionSummary(laterGrid);
+  try { updateMoveButtons("view-dizi"); } catch (_) {}
   notifyListsRefreshed();
 }
 
@@ -468,6 +472,7 @@ function docBadge() {
 
 async function loadBelgesel() {
   const __run = __runToken("belgesel");
+  try { await loadNextUp(); } catch (_) {}
   const showArchived = archivedVisible("belgesel");
   const res = await fetch("/api/followed");
   let items = await res.json();
@@ -603,6 +608,7 @@ async function loadBelgesel() {
   }
   renderSectionSummary(grid);
   if (laterGridDoc) renderSectionSummary(laterGridDoc);
+  try { updateMoveButtons("view-belgesel"); } catch (_) {}
   notifyListsRefreshed();
 }
 
@@ -639,6 +645,7 @@ function animeStatusLabel(status) {
 
 async function loadAnime() {
   const __run = __runToken("anime");
+  try { await loadNextUp(); } catch (_) {}
   const showArchived = archivedVisible("anime");
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
@@ -763,6 +770,7 @@ async function loadAnime() {
   }
   renderSectionSummary(grid);
   if (laterGridA) renderSectionSummary(laterGridA);
+  try { updateMoveButtons("view-anime"); } catch (_) {}
   notifyListsRefreshed();
 }
 
@@ -806,36 +814,43 @@ function nextupImgSrc(item) {
   return null;
 }
 
-async function markNextUpWatched(item) {
-  try {
-    if (item.kind === "anime") {
-      await fetch("/api/anime/episode/watch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anime_id: item.id, episode: item.episode, watched: 1 }),
-      });
-    } else {
-      await fetch("/api/episode/watch", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tmdb_id: item.tmdb_id, season: item.season, episode: item.episode, watched: 1 }),
-      });
-    }
-  } catch (e) {
-    toast(t("error"));
-    return;
-  }
-  try { await loadUnwatched(); } catch (_) {}
+// Siradaki Bolum seridi (1.84): dizi/belgesel/anime sekmelerinin en ustunde,
+// her yapimin TEK sonraki izlenmemis bolumu. Bossa bolum tamamen gizlenir.
+function nextupMatchKind(item, kind) {
+  if (kind === "anime") return item.kind === "anime";
+  if (item.kind !== "tv") return false;
+  const doc = isDocItem(item);
+  return kind === "belgesel" ? doc : !doc;
 }
 
-// Siradaki Bolum seridi (1.84): her dizi/anime icin tek sonraki izlenmemis bolum.
-// Bossa bolum tamamen gizlenir. Donus: oge sayisi (hasContent.nextup icin).
+function nextupCard(item) {
+  const div = document.createElement("div");
+  div.className = "card nextup-card";
+  try { setTvCardAttrs(div, item); } catch (_) {}
+  const src = nextupImgSrc(item);
+  const img = src
+    ? `<img class="nextup-poster" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
+    : `<div class="no-poster nextup-poster">${FILM_SVG}</div>`;
+  const se = item.kind === "anime"
+    ? `EP${item.episode}`
+    : `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
+  const sub = item.est_min ? `${se} · ${t("runtime_m", { m: item.est_min })}` : se;
+  div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub">${sub}</div></div>`;
+  if (item.kind === "anime") div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
+  else div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
+  try {
+    const tel = div.querySelector(".nextup-title");
+    if (tel && tel.scrollWidth > tel.clientWidth) tel.setAttribute("data-tip", item.title);
+  } catch (_) {}
+  return div;
+}
+
+// Tum seritleri (dizi/belgesel/anime) tek fetch ile besler; her serit kendi
+// turune gore suzulur. Bos seridin bolumu (baslik + oklar) gizlenir.
 async function loadNextUp() {
   const __run = __runToken("nextup");
-  const strip = document.getElementById("nextup-strip");
-  const wrap = document.getElementById("unwatched-nextup-wrap");
-  const summary = document.getElementById("nextup-summary");
-  if (!strip || !wrap) return 0;
+  const strips = Array.from(document.querySelectorAll(".nextup-strip"));
+  if (!strips.length) return;
   let payload = { items: [], totals: { count: 0, min: 0 } };
   try {
     const res = await fetch("/api/next-up");
@@ -843,49 +858,46 @@ async function loadNextUp() {
   } catch (e) {
     payload = { items: [], totals: { count: 0, min: 0 } };
   }
-  if (!__runCurrent("nextup", __run)) return 0;
+  if (!__runCurrent("nextup", __run)) return;
   const items = (payload && payload.items) || [];
-  strip.innerHTML = "";
-  if (!items.length) {
-    wrap.style.display = "none";
-    if (summary) summary.textContent = "";
-    return 0;
-  }
-  wrap.style.display = "";
-  const tot = payload.totals || {};
-  if (summary) summary.textContent = t("nextup_min_left", { n: tot.count || items.length, m: tot.min || 0 });
-  items.forEach((item) => {
-    const div = document.createElement("div");
-    div.className = "card nextup-card";
-    try { setTvCardAttrs(div, item); } catch (_) {}
-    const src = nextupImgSrc(item);
-    const img = src
-      ? `<img class="nextup-poster" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
-      : `<div class="no-poster nextup-poster">${FILM_SVG}</div>`;
-    const se = item.kind === "anime"
-      ? `EP${item.episode}`
-      : `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
-    const sub = item.est_min ? `${se} · ${t("runtime_m", { m: item.est_min })}` : se;
-    div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub">${sub}</div></div><button class="nextup-mark">${t("nextup_mark")}</button>`;
-    div.querySelector(".nextup-mark").onclick = (e) => {
-      e.stopPropagation();
-      markNextUpWatched(item);
-    };
-    if (item.kind === "anime") div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
-    else div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
-    strip.appendChild(div);
-    try {
-      const tel = div.querySelector(".nextup-title");
-      if (tel && tel.scrollWidth > tel.clientWidth) tel.setAttribute("data-tip", item.title);
-    } catch (_) {}
+  strips.forEach((strip) => {
+    const kind = strip.dataset.nextupKind || "dizi";
+    const wrap = strip.closest("[id$='-nextup-wrap']");
+    const summary = wrap ? wrap.querySelector(".nextup-summary") : null;
+    const list = items.filter((it) => nextupMatchKind(it, kind));
+    strip.innerHTML = "";
+    if (!list.length) {
+      if (wrap) wrap.style.display = "none";
+      if (summary) summary.textContent = "";
+      return;
+    }
+    if (wrap) wrap.style.display = "";
+    let min = 0;
+    list.forEach((it) => { min += Number(it.est_min) || 0; });
+    if (summary) summary.textContent = t("nextup_min_left", { n: list.length, m: min });
+    list.forEach((item) => strip.appendChild(nextupCard(item)));
   });
-  return items.length;
+}
+
+// Izlendi isaretlemesi sonrasi aktif gorunumu tazele (seritler de yukleyici
+// icinde yenilenir). Boylece kart/serit otomatik guncellenir.
+async function refreshListsAfterWatch() {
+  try {
+    const active = document.querySelector(".view.active");
+    const id = active ? active.id : "";
+    if (id === "view-dizi") await loadFollowed("dizi");
+    else if (id === "view-film") await loadFollowed("film");
+    else if (id === "view-belgesel") await loadBelgesel();
+    else if (id === "view-anime") await loadAnime();
+    else if (id === "view-unwatched") await loadUnwatched();
+    else if (id === "view-watched") await loadWatched();
+    else if (id === "view-archive") await loadArchive();
+    else if (id === "view-dizi" || !id) await loadFollowed("dizi");
+  } catch (_) {}
 }
 
 async function loadUnwatched() {
   const __run = __runToken("unwatched");
-  let nextupCount = 0;
-  try { nextupCount = await loadNextUp(); } catch (_) { nextupCount = 0; }
   let data = { shows: [], anime: [], movies: [] };
   try {
     const res = await fetch("/api/unwatched");
@@ -912,10 +924,8 @@ async function loadUnwatched() {
   shows = shows.filter((s) => !isDocItem(s));
   movies = movies.filter((m) => !isDocItem(m));
 
-  const hasContent = { nextup: nextupCount, shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
+  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
 
-  const nextupWrap = document.getElementById("unwatched-nextup-wrap");
-  if (nextupWrap) nextupWrap.style.display = nextupCount ? "" : "none";
   document.getElementById("unwatched-shows-wrap").style.display = shows.length ? "" : "none";
   document.getElementById("unwatched-movies-wrap").style.display = movies.length ? "" : "none";
   const docsWrap = document.getElementById("unwatched-docs-wrap");
@@ -1107,7 +1117,7 @@ async function loadUnwatched() {
   notifyListsRefreshed();
 }
 
-const DEFAULT_ORDER = ["nextup", "shows", "movies", "docs", "anime"];
+const DEFAULT_ORDER = ["shows", "movies", "docs", "anime"];
 
 async function loadWatched() {
   const __run = __runToken("watched");
@@ -2940,6 +2950,11 @@ document.addEventListener("app:langchange", () => {
 function notifyListsRefreshed() {
   try { document.dispatchEvent(new CustomEvent("app:lists-refreshed")); } catch (_) {}
 }
+// Dis kaynak (Stremio eklentisi / baska istemci) yazdi -> aktif gorunumu tazele
+// (seritler de yukleyici icinde yenilenir).
+document.addEventListener("app:external-refresh", () => {
+  try { refreshListsAfterWatch(); } catch (_) {}
+});
 (function wireFollowSearch() {
   document.querySelectorAll("#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search, #view-archive .section-search").forEach((btn) => {
     btn.onclick = () => {
@@ -3429,7 +3444,7 @@ function saveSectionOrder(prefix, order) {
 function insertMissingSections(order, hasContent) {
   // Kayitli sirada olmayan dolu bolumleri DEFAULT_ORDER konumuna yerlestir
   // (sona push degil; ornegin docs her zaman movies-anime arasina gelir).
-  ["nextup", "shows", "movies", "docs", "anime"].forEach((s) => {
+  ["shows", "movies", "docs", "anime"].forEach((s) => {
     if (hasContent[s] && !order.includes(s)) {
       const ref = DEFAULT_ORDER.indexOf(s);
       let at = order.length;
@@ -3536,4 +3551,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab };
+export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, refreshListsAfterWatch, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab };

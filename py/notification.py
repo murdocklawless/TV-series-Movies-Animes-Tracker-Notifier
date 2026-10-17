@@ -183,7 +183,7 @@ def count_notifications():
     else:
         c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE type!='watched_ask' AND (user_id=0 OR user_id=?)", (uid,)).fetchone()["c"]
     conn.close()
-    payload = {"count": c}
+    payload = {"count": c, "gen": gen()}
     list_cache.set(key, payload)
     return cached_response(payload, False)
 

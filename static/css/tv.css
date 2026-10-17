@@ -105,34 +105,27 @@ html.is-tv .poster-grid:not(.row-mode) .card:focus-within, html.tv-mode .poster-
   box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-/* 1.84 Siradaki Bolum seridi (TV): olcek + odak halkasi + buton olcusu */
-html.is-tv #unwatched-nextup-wrap .unwatched-section-title,
-html.tv-mode #unwatched-nextup-wrap .unwatched-section-title { padding-right: calc(44px * var(--tv-scale)); }
+/* 1.84 Siradaki Bolum seridi (TV): kart olcusu/tipografi grid ile ayni kaynaktan,
+   yalniz yukseklik 84px (scale'li) sabit + odak halkasi */
+html.is-tv, html.tv-mode {
+  --card-w: calc(119px * var(--tv-scale));
+  --card-title-fs: 0.53rem;
+  --card-status-fs: var(--tv-card-scale);
+}
+html.is-tv [id$="-nextup-wrap"] .unwatched-section-title,
+html.tv-mode [id$="-nextup-wrap"] .unwatched-section-title { padding-right: calc(44px * var(--tv-scale)); }
 html.is-tv .nextup-strip .nextup-card,
 html.tv-mode .nextup-strip .nextup-card {
-  width: calc(300px * var(--tv-scale));
+  height: calc(84px * var(--tv-scale));
   padding: calc(8px * var(--tv-scale));
-  gap: calc(10px * var(--tv-scale));
+  gap: calc(8px * var(--tv-scale));
 }
 html.is-tv .nextup-strip img.nextup-poster,
 html.tv-mode .nextup-strip img.nextup-poster,
 html.is-tv .nextup-strip .no-poster.nextup-poster,
 html.tv-mode .nextup-strip .no-poster.nextup-poster {
-  width: calc(46px * var(--tv-scale));
+  width: calc(45px * var(--tv-scale));
   height: calc(68px * var(--tv-scale));
-}
-html.is-tv .nextup-title, html.tv-mode .nextup-title { font-size: calc(0.9rem * var(--tv-scale)); }
-html.is-tv .nextup-sub, html.tv-mode .nextup-sub { font-size: calc(0.8rem * var(--tv-scale)); }
-html.is-tv .nextup-mark, html.tv-mode .nextup-mark {
-  font-size: calc(0.8rem * var(--tv-scale));
-  padding: calc(6px * var(--tv-scale)) calc(10px * var(--tv-scale));
-}
-html.is-tv .nextup-mark:focus, html.tv-mode .nextup-mark:focus,
-html.is-tv .nextup-mark:focus-visible, html.tv-mode .nextup-mark:focus-visible {
-  outline: 1px solid #f97316;
-  outline-offset: 1px;
-  background: #166534;
-  color: #fff;
 }
 html.is-tv .nextup-strip .nextup-card:focus, html.tv-mode .nextup-strip .nextup-card:focus,
 html.is-tv .nextup-strip .nextup-card:focus-visible, html.tv-mode .nextup-strip .nextup-card:focus-visible {

@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=525";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=519";
-import { activateUtilityTab } from "./views.js?v=528";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=528";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=526";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=520";
+import { activateUtilityTab } from "./views.js?v=529";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=529";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=525");
+      const { errText: _err } = await import("./i18n.js?v=526");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=519");
-    const { openDetails } = await import("./components.js?v=528");
-    const { loadFollowed } = await import("./views.js?v=528");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=520");
+    const { openDetails } = await import("./components.js?v=529");
+    const { loadFollowed } = await import("./views.js?v=529");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=525");
+        const { t: _t } = await import("./i18n.js?v=526");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=540").then((m) => {
+  import("./notification.js?v=541").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
