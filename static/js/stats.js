@@ -1,6 +1,6 @@
 // stats.js — "%" navbar butonu + İstatistik modalı.
 // Tür (Dizi/Film/Belgesel/Anime) kutuları + Genel (mini kutular) + Dağılım (bar) istatistikleri.
-import { t } from "./i18n.js?v=524";
+import { t } from "./i18n.js?v=525";
 import { isDocItem, parseGenres } from "./utils.js?v=519";
 import { state } from "./state.js";
 

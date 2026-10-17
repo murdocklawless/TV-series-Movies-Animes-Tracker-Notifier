@@ -798,6 +798,129 @@ def followed_archive():
     return jsonify({"ok": True, "archived": archived})
 
 
+@followed_bp.route("/api/next-up")
+def next_up():
+    """Siradaki Bolum seridi (1.84): her dizi/anime icin TEK sonraki izlenmemis bolum.
+
+    Dizi (belgesel dizisi dahil): yayina girmis (air_date<=bugun) en dusuk
+    (season, episode). Anime: air_at<=now en kucuk episode. Arsivliler ve
+    izlenmisler (in_watched=1) dislanir. Sirali: yayin tarihi en yeni once
+    (tarihi olmayanlar sonda)."""
+    uid = _uid()
+    key = ("next_up", uid, gen(), today_str())
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
+    conn = get_db()
+    today = today_str()
+    try:
+        now = int(datetime.datetime.now().timestamp())
+    except Exception:
+        now = 0
+    items = []
+
+    for r in conn.execute(
+        "SELECT * FROM followed WHERE user_id=? AND media_type='tv' "
+        "AND COALESCE(in_watched,0)=0 AND COALESCE(archived,0)=0",
+        (uid,),
+    ).fetchall():
+        try:
+            ep = conn.execute(
+                "SELECT season, episode, name, air_date, runtime FROM episodes "
+                "WHERE follow_id=? AND COALESCE(watched,0)=0 AND air_date IS NOT NULL AND air_date<=? "
+                "ORDER BY season ASC, episode ASC LIMIT 1",
+                (r["id"], today),
+            ).fetchone()
+        except Exception:
+            ep = None
+        if not ep:
+            continue
+        try:
+            show_rt = r["runtime"] if "runtime" in r.keys() else None
+        except Exception:
+            show_rt = None
+        try:
+            ep_rt = ep["runtime"] if "runtime" in ep.keys() else None
+        except Exception:
+            ep_rt = None
+        try:
+            est = int(ep_rt or show_rt or 0)
+        except (TypeError, ValueError):
+            est = 0
+        items.append(
+            {
+                "kind": "tv",
+                "id": r["id"],
+                "tmdb_id": r["tmdb_id"],
+                "media_type": "tv",
+                "title": r["title"],
+                "poster_path": r["poster_path"],
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
+                "season": ep["season"],
+                "episode": ep["episode"],
+                "episode_name": ep["name"] or "",
+                "air_date": ep["air_date"],
+                "est_min": est,
+            }
+        )
+
+    for r in conn.execute(
+        "SELECT * FROM anime WHERE user_id=? "
+        "AND COALESCE(in_watched,0)=0 AND COALESCE(archived,0)=0",
+        (uid,),
+    ).fetchall():
+        try:
+            ep = conn.execute(
+                "SELECT episode, air_at FROM anime_episodes "
+                "WHERE anime_id=? AND COALESCE(watched,0)=0 AND air_at IS NOT NULL AND air_at<=? "
+                "ORDER BY episode ASC LIMIT 1",
+                (r["id"], now),
+            ).fetchone()
+        except Exception:
+            ep = None
+        if not ep:
+            continue
+        try:
+            dur = r["duration"] if "duration" in r.keys() else None
+            est = int(dur or 0)
+        except (TypeError, ValueError):
+            est = 0
+        try:
+            air_date = datetime.datetime.fromtimestamp(ep["air_at"], datetime.timezone.utc).date().isoformat()
+        except (ValueError, OSError, OverflowError, TypeError):
+            air_date = None
+        items.append(
+            {
+                "kind": "anime",
+                "id": r["id"],
+                "anilist_id": r["anilist_id"],
+                "media_type": "anime",
+                "title": r["title"],
+                "cover_url": r["cover_url"],
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
+                "season": None,
+                "episode": ep["episode"],
+                "episode_name": "",
+                "air_date": air_date,
+                "air_at": ep["air_at"],
+                "est_min": est,
+            }
+        )
+
+    # Yayin tarihi en yeni once; tarihi olmayanlar sonda (stable: esit tarihte ekleme sirasi).
+    items.sort(key=lambda x: x.get("air_date") or "", reverse=True)
+    try:
+        total_min = sum(int(x.get("est_min") or 0) for x in items)
+    except (TypeError, ValueError):
+        total_min = 0
+    payload = {"items": items, "totals": {"count": len(items), "min": total_min}}
+    conn.close()
+    list_cache.set(key, payload)
+    return cached_response(payload, False)
+
+
 @followed_bp.route("/api/releases")
 def releases():
     media_type = request.args.get("media_type")

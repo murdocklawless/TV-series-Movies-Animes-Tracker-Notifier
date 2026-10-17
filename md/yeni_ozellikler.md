@@ -108,28 +108,37 @@
 
 ---
 
-# 1.84 — "Sıradaki" (Continue watching) şeridi
+# 1.84 — "Sıradaki Bölüm" (Continue watching) şeridi  ✅ UYGULANDI
 
-**Amaç:** Her yapının **tek sonraki izlenmemiş** öğesini tek şeritte topla; tıkla→izlendi.
-Konum: **İzlenmemiş sekmesinin en üstünde**.
+> **Kilitli kararlar (2026-10-17, uygulama sırasında netleşti):**
+> - **Kapsam = A:** yalnız **çoklu bölümlü** yapımlar — dizi, belgesel **dizisi** (`media_type='tv'`) ve anime.
+>   **Film / belgesel filmi YOK** (tek öğede "sonraki bölüm" yok; plandaki film dalı kaldırıldı).
+> - Başlık: **"Sıradaki Bölüm"**; sağda `N yapım · toplam M dk` özeti.
+> - **Sıralama:** yayın tarihi **en yeni önce** (tarihi olmayanlar sonda).
+> - **Taşınabilir bölüm:** `section-move-up/down` oklarıyla taşınır (varsayılan en üst, `unwatchedSectionOrder`'da kalıcı).
+> - **Boşsa bölüm tümüyle gizli** (başlık + oklar dahil); boş durum mesajı yok.
+> - Başlıkta arama/filtre/sıralama/kart-satır anahtarı yok.
+
+**Amaç:** Her yapının **tek sonraki izlenmemiş** bölümünü tek şeritte topla; tıkla→izlendi.
+Konum: **İzlenmemiş sekmesinin en üstünde** (taşınabilir bölüm).
 
 ### Backend — `GET /api/next-up`
-- Dizi: `in_watched=0` + `dropped=0` → her yapı için **en düşük `(season, episode)`**, `air_date<=today`.
-- Anime: `anime_episodes` en küçük `episode`, `air_at<=now`.
-- Film: `in_watched=0` + `release_date<=today`, en yeni izlenmemiş.
-- Dönüş: `{items:[{kind,title,poster,season,episode,est_min,air_date,tmdb_id|anilist_id}],
-  totals:{count,min}}`.
+- Dizi (belgesel dizisi dahil): `in_watched=0` + `archived=0` → en düşük `(season, episode)`, `air_date<=today`.
+- Anime: `anime_episodes` en küçük `episode`, `air_at<=now`; `archived=0`.
+- Dönüş: `{items:[{kind,id,title,poster*,season,episode,episode_name,air_date,est_min,tmdb_id|anilist_id}],
+  totals:{count,min}}`; sıralama `air_date` desc.
 - Önbellek: `list_cache` anahtarı `("next_up", uid, gen(), today_str())`.
 
 ### Frontend
-- `#nextup-strip` yatay şerit; kart: poster + `S02E03 · 45 dk` + **"İzledim"** butonu.
-- `rowview.js` kart düzeninden bağımsız yeni blok (`views.js`/`components.js` deseni).
-- i18n: `nextup_title`, `nextup_empty`, `nextup_mark`, `nextup_min_left` ×14.
+- `#nextup-strip` yatay şerit (bölüm: `#unwatched-nextup-wrap`); kart: poster + `S02E05 · 45 dk` + **"İzledim"** butonu.
+- `loadNextUp()` kendi koşu jetonuyla çalışır, `loadUnwatched` içinde `await` edilir; boşsa wrap gizlenir.
+- i18n: `nextup_title`, `nextup_mark`, `nextup_min_left` ×14 (`nextup_empty` gereksiz — boşken bölüm yok).
+- TV: `.nextup-mark` → `CARD_BTN_SEL` + `RANK` + `resolveLiveButton`.
 - Cache-buster zinciri (yukarıdaki dalga).
 
 ### Doğrulama
-- Temp-DB: dizi/anime/film için doğru "sonraki" seçimi; `dropped` dışlanır; "İzledim" sonrası şerit tazelenir.
-- Render: boş durum + dolu durum; md5 MATCH · servis active · sürüm 1.84 · CHANGELOG TR/EN · faz notu.
+- Temp-DB birim testi: doğru "sonraki" seçimi; `archived`/`in_watched`/gelecek/film dışlanır; sıralama; boş durum.
+- Render: dolu + boş durum, taşıma okları + localStorage; md5 MATCH · servis active · sürüm 1.84 · CHANGELOG TR/EN · faz notu.
 
 ---
 

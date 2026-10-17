@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=524";
+import { t } from "./i18n.js?v=525";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=527";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=524";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=528";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=525";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -798,8 +798,94 @@ function unwatchedDateLine(dateStr, label, isMovie) {
   return `<div class="next-ep">${prefix}${dateText} · <span class="next-ep-days" data-tip="${tip}">${days}</span></div>`;
 }
 
+function nextupImgSrc(item) {
+  if (item.poster_local_w185) return item.poster_local_w185;
+  if (item.poster_local) return item.poster_local;
+  if (item.kind === "anime") return item.cover_url || null;
+  if (item.poster_path) return `https://image.tmdb.org/t/p/w185${item.poster_path}`;
+  return null;
+}
+
+async function markNextUpWatched(item) {
+  try {
+    if (item.kind === "anime") {
+      await fetch("/api/anime/episode/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anime_id: item.id, episode: item.episode, watched: 1 }),
+      });
+    } else {
+      await fetch("/api/episode/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tmdb_id: item.tmdb_id, season: item.season, episode: item.episode, watched: 1 }),
+      });
+    }
+  } catch (e) {
+    toast(t("error"));
+    return;
+  }
+  try { await loadUnwatched(); } catch (_) {}
+}
+
+// Siradaki Bolum seridi (1.84): her dizi/anime icin tek sonraki izlenmemis bolum.
+// Bossa bolum tamamen gizlenir. Donus: oge sayisi (hasContent.nextup icin).
+async function loadNextUp() {
+  const __run = __runToken("nextup");
+  const strip = document.getElementById("nextup-strip");
+  const wrap = document.getElementById("unwatched-nextup-wrap");
+  const summary = document.getElementById("nextup-summary");
+  if (!strip || !wrap) return 0;
+  let payload = { items: [], totals: { count: 0, min: 0 } };
+  try {
+    const res = await fetch("/api/next-up");
+    payload = await res.json();
+  } catch (e) {
+    payload = { items: [], totals: { count: 0, min: 0 } };
+  }
+  if (!__runCurrent("nextup", __run)) return 0;
+  const items = (payload && payload.items) || [];
+  strip.innerHTML = "";
+  if (!items.length) {
+    wrap.style.display = "none";
+    if (summary) summary.textContent = "";
+    return 0;
+  }
+  wrap.style.display = "";
+  const tot = payload.totals || {};
+  if (summary) summary.textContent = t("nextup_min_left", { n: tot.count || items.length, m: tot.min || 0 });
+  items.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card nextup-card";
+    try { setTvCardAttrs(div, item); } catch (_) {}
+    const src = nextupImgSrc(item);
+    const img = src
+      ? `<img class="nextup-poster" src="${src}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
+      : `<div class="no-poster nextup-poster">${FILM_SVG}</div>`;
+    const se = item.kind === "anime"
+      ? `EP${item.episode}`
+      : `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
+    const sub = item.est_min ? `${se} · ${t("runtime_m", { m: item.est_min })}` : se;
+    div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub">${sub}</div></div><button class="nextup-mark">${t("nextup_mark")}</button>`;
+    div.querySelector(".nextup-mark").onclick = (e) => {
+      e.stopPropagation();
+      markNextUpWatched(item);
+    };
+    if (item.kind === "anime") div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
+    else div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
+    strip.appendChild(div);
+    try {
+      const tel = div.querySelector(".nextup-title");
+      if (tel && tel.scrollWidth > tel.clientWidth) tel.setAttribute("data-tip", item.title);
+    } catch (_) {}
+  });
+  return items.length;
+}
+
 async function loadUnwatched() {
   const __run = __runToken("unwatched");
+  let nextupCount = 0;
+  try { nextupCount = await loadNextUp(); } catch (_) { nextupCount = 0; }
   let data = { shows: [], anime: [], movies: [] };
   try {
     const res = await fetch("/api/unwatched");
@@ -826,8 +912,10 @@ async function loadUnwatched() {
   shows = shows.filter((s) => !isDocItem(s));
   movies = movies.filter((m) => !isDocItem(m));
 
-  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
+  const hasContent = { nextup: nextupCount, shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
 
+  const nextupWrap = document.getElementById("unwatched-nextup-wrap");
+  if (nextupWrap) nextupWrap.style.display = nextupCount ? "" : "none";
   document.getElementById("unwatched-shows-wrap").style.display = shows.length ? "" : "none";
   document.getElementById("unwatched-movies-wrap").style.display = movies.length ? "" : "none";
   const docsWrap = document.getElementById("unwatched-docs-wrap");
@@ -1019,7 +1107,7 @@ async function loadUnwatched() {
   notifyListsRefreshed();
 }
 
-const DEFAULT_ORDER = ["shows", "movies", "docs", "anime"];
+const DEFAULT_ORDER = ["nextup", "shows", "movies", "docs", "anime"];
 
 async function loadWatched() {
   const __run = __runToken("watched");
@@ -3341,7 +3429,7 @@ function saveSectionOrder(prefix, order) {
 function insertMissingSections(order, hasContent) {
   // Kayitli sirada olmayan dolu bolumleri DEFAULT_ORDER konumuna yerlestir
   // (sona push degil; ornegin docs her zaman movies-anime arasina gelir).
-  ["shows", "movies", "docs", "anime"].forEach((s) => {
+  ["nextup", "shows", "movies", "docs", "anime"].forEach((s) => {
     if (hasContent[s] && !order.includes(s)) {
       const ref = DEFAULT_ORDER.indexOf(s);
       let at = order.length;

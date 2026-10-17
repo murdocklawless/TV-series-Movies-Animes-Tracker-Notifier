@@ -1,6 +1,24 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.84 - 17/10/2026-23:32
+### TR
+- **Yeni özellik — "Sıradaki Bölüm" şeridi:** İzlenmemiş sekmesinin en üstünde, her dizi/belgesel dizisi/animenin **tek sonraki izlenmemiş bölümünü** toplayan yatay şerit. Kartta poster + `S02E05 · 45 dk` (anime `EP12 · 24 dk`) ve **"İzledim"** butonu; tıklayınca o bölüm izlendi olarak işaretlenir ve şerit/listeler tazelenir. Karta tıklamak detay penceresini açar.
+- **Kapsam:** yalnız çoklu bölümlü yapımlar — dizi, belgesel **dizisi** ve anime. Filmler ve belgesel filmleri şeride girmez (tek öğe oldukları için "sonraki bölüm" kavramı yok); arşivli yapımlar da dışarıda.
+- **Sıralama:** yayın tarihi **en yeni önce** (dizi: bölüm yayın tarihi, anime: bölüm yayın zamanı). Başlıkta sağda `N yapım · toplam M dk` özeti görünür.
+- **Taşınabilir bölüm:** şerit, diğer bölümler gibi yukarı/aşağı oklarıyla taşınabilir; sıra tarayıcıda hatırlanır (varsayılan: en üstte).
+- **Boş durum:** sırada izlenecek bölüm yoksa "Sıradaki Bölüm" bölümü **tümüyle gizlenir** (başlık ve oklar dahil).
+- **Sunucu:** yeni `GET /api/next-up` ucu (dizi/anime için tek sonraki bölüm + `totals:{count,min}`); `list_cache` ile önbelleklenir. Arşiv ve izlenmiş (İzlenmişler listesindekiler) dışlanır.
+- **Çeviri:** 3 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 525, views 528, components 528, search 525, settings 546, notification 540, asks 542, auth 523, stats 541, history 550, tv 528, rowview 16, `nextep.js?v=576` (`__NX_BUILD` 507), `style.css?v=599`, `mobil.css?v=540`, `tv.css?v=557`.
+### EN
+- **New feature — "Up Next" strip:** a horizontal strip at the top of the Unwatched tab collecting the **single next unwatched episode** of every show/documentary series/anime. Each card shows the poster plus `S02E05 · 45 min` (anime `EP12 · 24 min`) and a **"Watched"** button; clicking marks that episode watched and refreshes the strip and lists. Clicking the card opens the details modal.
+- **Scope:** multi-episode titles only — shows, documentary **series** and anime. Movies and documentary films are excluded (a single item has no "next episode"); archived titles are excluded too.
+- **Ordering:** air date, **newest first** (shows: episode air date, anime: episode air time). A `N titles · M min total` summary appears on the right of the header.
+- **Movable section:** the strip can be moved up/down with the section arrows like any other section; the order is remembered in the browser (default: topmost).
+- **Empty state:** when nothing is up next, the "Up Next" section is **hidden entirely** (header and arrows included).
+- **Server:** new `GET /api/next-up` endpoint (single next episode per show/anime plus `totals:{count,min}`), cached via `list_cache`. Archived and watched (items in the Watched list) titles are excluded.
+- **i18n:** 3 new keys × 14 languages. **Cache-buster chain:** i18n 525, views 528, components 528, search 525, settings 546, notification 540, asks 542, auth 523, stats 541, history 550, tv 528, rowview 16, `nextep.js?v=576` (`__NX_BUILD` 507), `style.css?v=599`, `mobil.css?v=540`, `tv.css?v=557`.
+
 ## 1.83 - 17/10/2026-22:47
 ### TR
 - **Yeni özellik — "Arşiv":** yapım artık takibi bırakmadan **arşive** alınabilir. Arşivli yapımın bildirimleri durur ama kaydı veritabanında kalır; "Takibi bırak" ise eskisi gibi kaydı siler.

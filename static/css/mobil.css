@@ -716,6 +716,12 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title .follow-sort-wrap { right: 82px; }
   html:not(.is-tv):not(.tv-mode) #view-unwatched .unwatched-section-title,
   html:not(.is-tv):not(.tv-mode) #view-watched .unwatched-section-title { padding-right: 142px; }
+  /* 1.84 Siradaki Bolum seridi: bu bolumde arama/filtre yok -> yalniz oklar */
+  html:not(.is-tv):not(.tv-mode) #view-unwatched #unwatched-nextup-wrap .unwatched-section-title { padding-right: 40px; }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-card { width: 250px; }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip img.nextup-poster,
+  html:not(.is-tv):not(.tv-mode) .nextup-strip .no-poster.nextup-poster { width: 40px; height: 60px; }
+  html:not(.is-tv):not(.tv-mode) .nextup-mark { padding: 5px 8px; font-size: 0.75rem; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-view-toggle { right: 97px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }

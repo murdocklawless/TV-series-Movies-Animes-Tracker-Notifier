@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=598" />
+  <link rel="stylesheet" href="/static/css/style.css?v=599" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=510" />
-  <link rel="stylesheet" href="/static/css/mobil.css?v=539" />
-  <link rel="stylesheet" href="/static/css/tv.css?v=556" />
+  <link rel="stylesheet" href="/static/css/mobil.css?v=540" />
+  <link rel="stylesheet" href="/static/css/tv.css?v=557" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -207,6 +207,10 @@
 
     <!-- Unwatched view -->
     <section id="view-unwatched" class="view">
+      <div id="unwatched-nextup-wrap" style="display:none">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="nextup" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="nextup" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="nextup_title">Sıradaki Bölüm</span><span id="nextup-summary" class="nextup-summary"></span></h2>
+        <div id="nextup-strip" class="nextup-strip"></div>
+      </div>
       <div id="unwatched-shows-wrap">
         <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı" data-i18n-title="section_move_up"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı" data-i18n-title="section_move_down"><i class="fa-solid fa-arrow-down"></i></button><button class="section-search" data-section="unwatched-shows" data-tip="Ara" data-i18n-title="hidden_search"><i class="fa-solid fa-magnifying-glass"></i></button><input class="rec-search-input" data-section="unwatched-shows" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" data-i18n="search_hint_unwatched_shows" style="display:none" /><div class="section-sort-wrap follow-sort-wrap"><button class="section-filter" data-section="unwatched-shows" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button><div class="follow-sort-menu sort-menu" data-section="unwatched-shows"><button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button><button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button><button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button><button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button><button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button></div></div><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
         <div id="unwatched-shows" class="poster-grid"></div>
@@ -1458,6 +1462,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=575"></script>
+  <script type="module" src="/static/js/nextep.js?v=576"></script>
 </body>
 </html>
