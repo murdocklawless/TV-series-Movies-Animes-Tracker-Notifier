@@ -13,7 +13,7 @@ html.is-tv *, html.tv-mode * {
 
 @media (hover: hover) {
   html.is-tv .card:hover, html.tv-mode .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
-  html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn, html.is-tv .card:hover .defer-btn, html.tv-mode .card:hover .defer-btn { display:flex; }
+  html.is-tv .card:hover .remove, html.is-tv .card:hover .calendar-btn, html.is-tv .card:hover .move-btn, html.is-tv .card:hover .hide-btn, html.is-tv .card:hover .defer-btn, html.is-tv .card:hover .archive-btn, html.is-tv .card:hover .unarchive-btn, html.tv-mode .card:hover .defer-btn, html.tv-mode .card:hover .archive-btn, html.tv-mode .card:hover .unarchive-btn { display:flex; }
 }
 
 html.is-tv .modal-overlay, html.tv-mode .modal-overlay { top:0; left:0; right:0; bottom:0; }
@@ -45,7 +45,9 @@ html.is-tv .card:focus-within .info-btn, html.tv-mode .card:focus-within .info-b
 html.is-tv .card:focus-within .move-btn, html.tv-mode .card:focus-within .move-btn,
 html.is-tv .card:focus-within .hide-btn, html.tv-mode .card:focus-within .hide-btn,
 html.is-tv .card:focus-within .defer-btn, html.tv-mode .card:focus-within .defer-btn,
-html.is-tv .card:focus-within .move-back-btn, html.tv-mode .card:focus-within .move-back-btn { display:flex; }
+html.is-tv .card:focus-within .move-back-btn, html.tv-mode .card:focus-within .move-back-btn,
+html.is-tv .card:focus-within .archive-btn, html.tv-mode .card:focus-within .archive-btn,
+html.is-tv .card:focus-within .unarchive-btn, html.tv-mode .card:focus-within .unarchive-btn { display:flex; }
 
 html.is-tv .card .calendar-btn, html.tv-mode .card .calendar-btn,
 html.is-tv .card .info-btn, html.tv-mode .card .info-btn,
@@ -1006,3 +1008,73 @@ html.is-tv .search-area, html.tv-mode .search-area { gap: calc(22px * var(--tv-s
 html.is-tv .search-block, html.tv-mode .search-block { padding: calc(18px * var(--tv-scale)) calc(20px * var(--tv-scale)); }
 html.is-tv .search-bar, html.tv-mode .search-bar { gap: calc(10px * var(--tv-scale)); margin-bottom: calc(24px * var(--tv-scale)); }
 html.is-tv .search-bar button, html.tv-mode .search-bar button { font-size: calc(1.1rem * var(--tv-scale)); }
+
+
+/* ===== 1.83 Arsiv: TV olcekleri ===== */
+html.is-tv .card .archive-btn, html.tv-mode .card .archive-btn,
+html.is-tv .card .unarchive-btn, html.tv-mode .card .unarchive-btn { top: calc(5.6px * var(--tv-scale)); width: calc(21px * var(--tv-scale)); height: calc(21px * var(--tv-scale)); }
+
+html.is-tv .card .archive-btn i, html.tv-mode .card .archive-btn i,
+html.is-tv .card .unarchive-btn i, html.tv-mode .card .unarchive-btn i { font-size: calc(0.595rem * var(--tv-scale)); }
+
+html.is-tv .section-archived-toggle, html.tv-mode .section-archived-toggle { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
+
+html.is-tv #view-dizi .has-archived-toggle,
+html.tv-mode #view-dizi .has-archived-toggle,
+html.is-tv #view-film .has-archived-toggle,
+html.tv-mode #view-film .has-archived-toggle,
+html.is-tv #view-belgesel .has-archived-toggle,
+html.tv-mode #view-belgesel .has-archived-toggle,
+html.is-tv #view-anime .has-archived-toggle,
+html.tv-mode #view-anime .has-archived-toggle { padding-right: calc(122px * var(--tv-scale)); }
+
+html.is-tv #view-dizi .has-archived-toggle .section-archived-toggle,
+html.tv-mode #view-dizi .has-archived-toggle .section-archived-toggle,
+html.is-tv #view-film .has-archived-toggle .section-archived-toggle,
+html.tv-mode #view-film .has-archived-toggle .section-archived-toggle,
+html.is-tv #view-belgesel .has-archived-toggle .section-archived-toggle,
+html.tv-mode #view-belgesel .has-archived-toggle .section-archived-toggle,
+html.is-tv #view-anime .has-archived-toggle .section-archived-toggle,
+html.tv-mode #view-anime .has-archived-toggle .section-archived-toggle { right: 0; }
+
+html.is-tv #view-dizi .has-archived-toggle .section-view-toggle,
+html.tv-mode #view-dizi .has-archived-toggle .section-view-toggle,
+html.is-tv #view-film .has-archived-toggle .section-view-toggle,
+html.tv-mode #view-film .has-archived-toggle .section-view-toggle,
+html.is-tv #view-belgesel .has-archived-toggle .section-view-toggle,
+html.tv-mode #view-belgesel .has-archived-toggle .section-view-toggle,
+html.is-tv #view-anime .has-archived-toggle .section-view-toggle,
+html.tv-mode #view-anime .has-archived-toggle .section-view-toggle { right: calc(30px * var(--tv-scale)); }
+
+html.is-tv #view-dizi .has-archived-toggle .follow-sort-wrap,
+html.tv-mode #view-dizi .has-archived-toggle .follow-sort-wrap,
+html.is-tv #view-film .has-archived-toggle .follow-sort-wrap,
+html.tv-mode #view-film .has-archived-toggle .follow-sort-wrap,
+html.is-tv #view-belgesel .has-archived-toggle .follow-sort-wrap,
+html.tv-mode #view-belgesel .has-archived-toggle .follow-sort-wrap,
+html.is-tv #view-anime .has-archived-toggle .follow-sort-wrap,
+html.tv-mode #view-anime .has-archived-toggle .follow-sort-wrap { right: calc(60px * var(--tv-scale)); }
+
+html.is-tv #view-dizi .has-archived-toggle .section-search,
+html.tv-mode #view-dizi .has-archived-toggle .section-search,
+html.is-tv #view-film .has-archived-toggle .section-search,
+html.tv-mode #view-film .has-archived-toggle .section-search,
+html.is-tv #view-belgesel .has-archived-toggle .section-search,
+html.tv-mode #view-belgesel .has-archived-toggle .section-search,
+html.is-tv #view-anime .has-archived-toggle .section-search,
+html.tv-mode #view-anime .has-archived-toggle .section-search { right: calc(90px * var(--tv-scale)); }
+
+html.is-tv #view-dizi .has-archived-toggle .rec-search-input,
+html.tv-mode #view-dizi .has-archived-toggle .rec-search-input,
+html.is-tv #view-film .has-archived-toggle .rec-search-input,
+html.tv-mode #view-film .has-archived-toggle .rec-search-input,
+html.is-tv #view-belgesel .has-archived-toggle .rec-search-input,
+html.tv-mode #view-belgesel .has-archived-toggle .rec-search-input,
+html.is-tv #view-anime .has-archived-toggle .rec-search-input,
+html.tv-mode #view-anime .has-archived-toggle .rec-search-input { right: calc(92px * var(--tv-scale)); }
+
+html.is-tv #view-archive .unwatched-section-title, html.tv-mode #view-archive .unwatched-section-title { padding-right: calc(142px * var(--tv-scale)); }
+html.is-tv #view-archive .section-view-toggle, html.tv-mode #view-archive .section-view-toggle { right: calc(52px * var(--tv-scale)); }
+html.is-tv #view-archive .section-search, html.tv-mode #view-archive .section-search { right: calc(112px * var(--tv-scale)); }
+html.is-tv #view-archive .follow-sort-wrap, html.tv-mode #view-archive .follow-sort-wrap { right: calc(82px * var(--tv-scale)); }
+html.is-tv #view-archive .rec-search-input, html.tv-mode #view-archive .rec-search-input { right: calc(142px * var(--tv-scale)); }

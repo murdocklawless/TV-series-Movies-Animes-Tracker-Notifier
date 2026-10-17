@@ -170,12 +170,17 @@ def anime_details():
 @anime_bp.route("/api/anime/followed")
 def anime_followed():
     uid = _uid()
-    key = ("anime_followed", uid, gen(), datetime.datetime.now().strftime("%Y%m%d%H"))
+    # 1.83 Arsiv: ?archived=1 -> yalniz arsivliler; varsayilan -> yalniz aktifler.
+    only_archived = str(request.args.get("archived") or "0") == "1"
+    key = ("anime_followed", uid, gen(), datetime.datetime.now().strftime("%Y%m%d%H"), 1 if only_archived else 0)
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    rows = conn.execute("SELECT * FROM anime WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
+    arch_sql = "COALESCE(archived,0)=1" if only_archived else "COALESCE(archived,0)=0"
+    rows = conn.execute(
+        f"SELECT * FROM anime WHERE user_id=? AND {arch_sql} ORDER BY id DESC", (uid,)
+    ).fetchall()
     result = []
     for r in rows:
         score = r["score"]
@@ -219,6 +224,7 @@ def anime_followed():
                 "can_move_watched": bool(comp or early or final),
                 "in_watched": int(r["in_watched"] or 0),
                 "deferred": int(r["deferred"] or 0) if "deferred" in r.keys() else 0,
+                "archived": int(r["archived"] or 0) if "archived" in r.keys() else 0,
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )
@@ -498,3 +504,24 @@ def anime_defer():
     conn.close()
     bump()
     return jsonify({"ok": True, "deferred": deferred})
+
+
+@anime_bp.route("/api/anime/archive", methods=["POST"])
+def anime_archive():
+    """Arsiv durumu (1.83): anime icin arsive al / arsivden cikar."""
+    body = request.get_json(silent=True) or {}
+    anime_id = body.get("anime_id")
+    archived = 1 if body.get("archived") else 0
+    if not anime_id:
+        return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
+    conn = get_db()
+    row = conn.execute("SELECT id FROM anime WHERE id=? AND user_id=?", (anime_id, uid,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Anime bulunamadi"}), 400
+    conn.execute("UPDATE anime SET archived=? WHERE id=?", (archived, anime_id))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True, "archived": archived})

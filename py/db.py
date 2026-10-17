@@ -79,6 +79,9 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN poster_local_w185 TEXT")
     if "watched_at" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN watched_at INTEGER")
+    # Arsiv (1.83): takipten cikarmadan yapimi arsive alir; bildirimler durur.
+    if "archived" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN archived INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,6 +196,9 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN poster_local TEXT")
     if "poster_local_w185" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN poster_local_w185 TEXT")
+    # Arsiv (1.83): anime icin de arsiv durumu.
+    if "archived" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN archived INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_cast (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -388,6 +394,7 @@ def init_db():
                     in_watched INTEGER DEFAULT 0,
                     poster_local TEXT,
                     poster_local_w185 TEXT,
+                    archived INTEGER DEFAULT 0,
                     UNIQUE(user_id, anilist_id)
                 )"""
             )
@@ -395,10 +402,11 @@ def init_db():
                 """INSERT OR IGNORE INTO anime_new
                     (id, user_id, anilist_id, title, cover_url, episodes, status, score,
                      notified, studios, banner, description, format, duration, genres,
-                     start_date, in_watched, poster_local, poster_local_w185)
+                     start_date, in_watched, poster_local, poster_local_w185, archived)
                     SELECT id, COALESCE(user_id, 1), anilist_id, title, cover_url, episodes,
                      status, score, notified, studios, banner, description, format, duration,
-                     genres, start_date, in_watched, poster_local, poster_local_w185
+                     genres, start_date, in_watched, poster_local, poster_local_w185,
+                     COALESCE(archived, 0)
                     FROM anime"""
             )
             conn.execute("DROP TABLE anime")

@@ -1,13 +1,13 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=523";
+import { t } from "./i18n.js?v=524";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=524";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openArchiveConfirm, openUnwatchedModal } from "./components.js?v=525";
 import { renderChips, closeResultsModal, setMedia } from "./search.js?v=522";
 function isTvUIActive() {
   try {
@@ -17,7 +17,7 @@ function isTvUIActive() {
   } catch { return false; }
 }
 function setTvCardAttrs(div, item) {
-  try { if (!isTvUIActive()) return; div.tabIndex = 0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId = item.tmdb_id; if(item.anilist_id) div.dataset.anilistId = item.anilist_id; if(item.media_type) div.dataset.mediaType = item.media_type; if(item.id) div.dataset.dbId = item.id; if(item.isAnime) div.dataset.isAnime = '1'; div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal = div.querySelector('.calendar-btn'); if(cal){ cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); cal.click(); }}); } const rem = div.querySelector('.remove'); if(rem){ rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); rem.click(); }}); } const mv = div.querySelector('.move-btn,.move-back-btn'); if(mv){ mv.tabIndex=0; mv.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); mv.click(); }}); } const hb = div.querySelector('.hide-btn'); if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } const ib = div.querySelector('.info-btn'); const dfb = div.querySelector('.defer-btn'); if(dfb){ dfb.tabIndex=0; dfb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); dfb.click(); }}); } if(ib){ ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); ib.click(); }}); } if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } } catch {}
+  try { if (!isTvUIActive()) return; div.tabIndex = 0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId = item.tmdb_id; if(item.anilist_id) div.dataset.anilistId = item.anilist_id; if(item.media_type) div.dataset.mediaType = item.media_type; if(item.id) div.dataset.dbId = item.id; if(item.isAnime) div.dataset.isAnime = '1'; div.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal = div.querySelector('.calendar-btn'); if(cal){ cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); cal.click(); }}); } const rem = div.querySelector('.remove'); if(rem){ rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); rem.click(); }}); } const mv = div.querySelector('.move-btn,.move-back-btn'); if(mv){ mv.tabIndex=0; mv.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); mv.click(); }}); } const arb = div.querySelector('.archive-btn,.unarchive-btn'); if(arb){ arb.tabIndex=0; arb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); arb.click(); }}); } const hb = div.querySelector('.hide-btn'); if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } const ib = div.querySelector('.info-btn'); const dfb = div.querySelector('.defer-btn'); if(dfb){ dfb.tabIndex=0; dfb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); dfb.click(); }}); } if(ib){ ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); ib.click(); }}); } if(hb){ hb.tabIndex=0; hb.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); e.stopPropagation(); hb.click(); }}); } } catch {}
 }
 
 
@@ -28,6 +28,7 @@ const views = {
   anime: document.getElementById("view-anime"),
   unwatched: document.getElementById("view-unwatched"),
   watched: document.getElementById("view-watched"),
+  archive: document.getElementById("view-archive"),
   recommend: document.getElementById("view-recommend"),
   search: document.getElementById("view-search"),
 };
@@ -39,6 +40,7 @@ const tabs = {
   anime: document.getElementById("tab-anime"),
   unwatched: document.getElementById("tab-unwatched"),
   watched: document.getElementById("tab-watched"),
+  archive: document.getElementById("tab-archive"),
   recommend: document.getElementById("tab-recommend"),
   search: document.getElementById("tab-search"),
   settings: document.getElementById("tab-settings"),
@@ -72,6 +74,7 @@ function switchView(name) {
   if (name === "anime") loadAnime();
   if (name === "unwatched") loadUnwatched();
   if (name === "watched") loadWatched();
+  if (name === "archive") loadArchive();
   if (name === "recommend") loadRecommendations();
 }
 
@@ -81,6 +84,7 @@ if (tabs.belgesel) tabs.belgesel.onclick = () => switchView("belgesel");
 tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.watched.onclick = () => switchView("watched");
+if (tabs.archive) tabs.archive.onclick = () => switchView("archive");
 tabs.recommend.onclick = () => switchView("recommend");
 tabs.search.onclick = () => {
   switchView("search");
@@ -102,6 +106,27 @@ document.getElementById("search-close").onclick = () => {
     }
   } catch (_) {}
 };
+
+// 1.83 Arsiv: medya sekmesi basliklarindaki "Arsivlenenleri goster" anahtari.
+(function initArchivedToggles() {
+  document.querySelectorAll(".section-archived-toggle").forEach((btn) => {
+    const view = btn.dataset.view;
+    if (!view) return;
+    const on = archivedVisible(view);
+    const h2 = btn.closest(".unwatched-section-title");
+    if (h2) h2.classList.add("has-archived-toggle");
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const next = !archivedVisible(view);
+      setArchivedVisible(view, next);
+      if (view === "dizi" || view === "film") loadFollowed(view);
+      else if (view === "belgesel") loadBelgesel();
+      else if (view === "anime") loadAnime();
+    };
+  });
+})();
 
 function sortValue(item) {
   if (state.sortKey === "alpha") return (item.title || "").toLocaleLowerCase();
@@ -290,13 +315,21 @@ function animeEpMid(item) {
 }
 
 async function loadFollowed(view) {
+  const showArchived = archivedVisible(view);
   const res = await fetch("/api/followed");
   let items = await res.json();
   // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
+  if (showArchived) {
+    try {
+      const ares = await fetch("/api/followed?archived=1");
+      const aitems = await ares.json();
+      if (Array.isArray(aitems)) items = items.concat(aitems);
+    } catch (_) {}
+  }
   const isTv = view === "dizi";
   const cardKind = isTv ? "shows" : "movies";
-  items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && !(i.in_watched == 1) && !isDocItem(i));
+  items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && (!(i.in_watched == 1) || i.archived == 1) && !isDocItem(i));
   items = applySortDeferred(items);
   const grid = document.getElementById(isTv ? "poster-grid-shows" : "poster-grid-movies");
   const empty = document.getElementById(isTv ? "empty-dizi" : "empty-film");
@@ -321,6 +354,8 @@ async function loadFollowed(view) {
     div.className = todayNow ? "card today-release-card" : "card";
     setTvCardAttrs(div, item);
     setFollowSortAttrs(div, item);
+    const isArchived = item.archived == 1;
+    if (isArchived) div.classList.add("is-archived");
     const isMovieWatched = item.media_type === "movie" && item.watched == 1;
     const isTvCompleted = item.media_type === "tv" && item.completed;
     const showBadge = isMovieWatched || isTvCompleted;
@@ -337,12 +372,18 @@ async function loadFollowed(view) {
             mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
             status: item.media_type === "movie" ? "" : followedStatusHTML(item),
           })}
+          ${isArchived ? archivedBadgeHTML() : ""}
           ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
         </div>
       </div>
-      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-      ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+        ${isArchived
+          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
+          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      </div>
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
@@ -359,6 +400,10 @@ async function loadFollowed(view) {
       e.stopPropagation();
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
+    const archBtn = div.querySelector(".archive-btn");
+    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveAskAndArchive(item, () => loadFollowed(view)); };
+    const unarchBtn = div.querySelector(".unarchive-btn");
+    if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, () => loadFollowed(view)); };
     const infoBtn = div.querySelector(".info-btn");
     if(infoBtn) infoBtn.onclick = (e)=>{ e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
     const moveBtn = div.querySelector(".move-btn");
@@ -420,10 +465,18 @@ function docBadge() {
 }
 
 async function loadBelgesel() {
+  const showArchived = archivedVisible("belgesel");
   const res = await fetch("/api/followed");
   let items = await res.json();
   if (!Array.isArray(items)) return;
-  items = items.filter((i) => !i.isAnime && isDocItem(i) && !(i.in_watched == 1));
+  if (showArchived) {
+    try {
+      const ares = await fetch("/api/followed?archived=1");
+      const aitems = await ares.json();
+      if (Array.isArray(aitems)) items = items.concat(aitems);
+    } catch (_) {}
+  }
+  items = items.filter((i) => !i.isAnime && isDocItem(i) && (!(i.in_watched == 1) || i.archived == 1));
   items = applySortDeferred(items);
   const grid = document.getElementById("poster-grid-docs");
   const empty = document.getElementById("empty-belgesel");
@@ -443,6 +496,8 @@ async function loadBelgesel() {
     div.className = todayNow ? "card today-release-card" : "card";
     setTvCardAttrs(div, item);
     setFollowSortAttrs(div, item);
+    const isArchived = item.archived == 1;
+    if (isArchived) div.classList.add("is-archived");
     const isMovieWatched = item.media_type === "movie" && item.watched == 1;
     const isTvCompleted = item.media_type === "tv" && item.completed;
     const showBadge = isMovieWatched || isTvCompleted;
@@ -459,12 +514,18 @@ async function loadBelgesel() {
             mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
             status: item.media_type === "movie" ? CARD_SLOT.status : followedStatusHTML(item),
           })}
+          ${isArchived ? archivedBadgeHTML() : ""}
           ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
         </div>
       </div>
-      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-      ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+        ${isArchived
+          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
+          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      </div>
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
@@ -481,6 +542,10 @@ async function loadBelgesel() {
       e.stopPropagation();
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
+    const archBtn = div.querySelector(".archive-btn");
+    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveAskAndArchive(item, loadBelgesel); };
+    const unarchBtn = div.querySelector(".unarchive-btn");
+    if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadBelgesel); };
     const infoBtn = div.querySelector(".info-btn");
     if (infoBtn) infoBtn.onclick = (e) => { e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
     const moveBtn = div.querySelector(".move-btn");
@@ -569,11 +634,19 @@ function animeStatusLabel(status) {
 }
 
 async function loadAnime() {
+  const showArchived = archivedVisible("anime");
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
   // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
-  items = items.filter((i) => !(i.in_watched == 1));
+  if (showArchived) {
+    try {
+      const ares = await fetch("/api/anime/followed?archived=1");
+      const aitems = await ares.json();
+      if (Array.isArray(aitems)) items = items.concat(aitems);
+    } catch (_) {}
+  }
+  items = items.filter((i) => (!(i.in_watched == 1) || i.archived == 1));
   items = applySortDeferred(items);
   const grid = document.getElementById("anime-grid");
   const empty = document.getElementById("empty-anime");
@@ -589,7 +662,9 @@ async function loadAnime() {
     const animeToday = !!item.next_episode && isReleaseToday({ air_time: item.next_episode.airing_at });
     const animeCompleted = !!item.completed;
     const animeMoveable = animeCompleted || !!item.can_move_watched;
+    const isArchived = item.archived == 1;
     div.className = animeToday ? "card today-release-card" : "card";
+    if (isArchived) div.classList.add("is-archived");
     setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true});
     setFollowSortAttrs(div, item, "anime");
     div.innerHTML = `
@@ -604,11 +679,17 @@ async function loadAnime() {
             mid: animeEpMid(item),
             status: animeNextText(item.next_episode, item.status),
           })}
+          ${isArchived ? archivedBadgeHTML() : ""}
         </div>
       </div>
-      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-      ${animeMoveable ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        ${animeMoveable ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+        ${isArchived
+          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
+          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+      </div>
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
@@ -625,6 +706,10 @@ async function loadAnime() {
       e.stopPropagation();
       openAnimeSchedule(item.id, item.title);
     };
+    const archBtnA = div.querySelector(".archive-btn");
+    if (archBtnA) archBtnA.onclick = (e) => { e.stopPropagation(); archiveAskAndArchiveAnime(item, loadAnime); };
+    const unarchBtnA = div.querySelector(".unarchive-btn");
+    if (unarchBtnA) unarchBtnA.onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, loadAnime); };
     const infoBtnA = div.querySelector(".info-btn");
     if(infoBtnA) infoBtnA.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(item.id, item.anilist_id, item.title); };
     const animeMoveBtn = div.querySelector(".move-btn");
@@ -1139,6 +1224,271 @@ async function loadWatched() {
   });
   try { closeFollowSortMenus(); } catch (_) {}
   ["watched-shows", "watched-movies", "watched-docs", "watched-anime"].forEach((sec) => {
+    try { applyFollowSectionState(sec); } catch (_) {}
+    try { updateFollowSectionControls(sec); } catch (_) {}
+    renderSectionSummary(followSectionGrid(sec));
+  });
+  notifyListsRefreshed();
+}
+
+// ---- Arsiv (1.83) — Izlenmis deseninin arsiv karsiligi ----
+const ARCHIVE_FLAG_KEY = "archivedVisible:";
+function archivedVisible(view) {
+  try { return localStorage.getItem(ARCHIVE_FLAG_KEY + view) === "1"; } catch (_) { return false; }
+}
+function setArchivedVisible(view, on) {
+  try { localStorage.setItem(ARCHIVE_FLAG_KEY + view, on ? "1" : "0"); } catch (_) {}
+  const v = views[view];
+  if (v) {
+    v.classList.toggle("show-archived", !!on);
+    v.querySelectorAll(".section-archived-toggle").forEach((b) => {
+      b.classList.toggle("active", !!on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+}
+async function fetchArchivedFollowed() {
+  const res = await fetch("/api/followed?archived=1");
+  const d = await res.json();
+  return Array.isArray(d) ? d : [];
+}
+async function fetchArchivedAnime() {
+  const res = await fetch("/api/anime/followed?archived=1");
+  const d = await res.json();
+  return Array.isArray(d) ? d : [];
+}
+function archiveFollowedItem(item, done) {
+  return fetch("/api/followed/archive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tmdb_id: item.tmdb_id, media_type: item.media_type, archived: 1 }),
+  }).then(() => { toast(t("archived_toast", { name: item.title })); if (done) done(); });
+}
+function unarchiveFollowedItem(item, done) {
+  return fetch("/api/followed/archive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tmdb_id: item.tmdb_id, media_type: item.media_type, archived: 0 }),
+  }).then(() => { toast(t("unarchived_toast", { name: item.title })); if (done) done(); });
+}
+function archiveAnimeItem(item, done) {
+  return fetch("/api/anime/archive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ anime_id: item.id, archived: 1 }),
+  }).then(() => { toast(t("archived_toast", { name: item.title })); if (done) done(); });
+}
+function unarchiveAnimeItem(item, done) {
+  return fetch("/api/anime/archive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ anime_id: item.id, archived: 0 }),
+  }).then(() => { toast(t("unarchived_toast", { name: item.title })); if (done) done(); });
+}
+function archiveAskAndArchive(item, done) {
+  openArchiveConfirm(t("archive_confirm_text", { title: item.title }), () => archiveFollowedItem(item, done));
+}
+function archiveAskAndArchiveAnime(item, done) {
+  openArchiveConfirm(t("archive_confirm_text", { title: item.title }), () => archiveAnimeItem(item, done));
+}
+function archivedBadgeHTML() {
+  return `<div class="archived-line"><span class="badge badge-archived"><i class="fa-solid fa-box-archive"></i> ${t("archived_badge")}</span></div>`;
+}
+async function loadArchive() {
+  const archView = document.getElementById("view-archive");
+  const empty = document.getElementById("empty-archive");
+  if (!archView || !empty) return;
+  const showsGrid = document.getElementById("archive-shows");
+  const moviesGrid = document.getElementById("archive-movies");
+  const docsGrid = document.getElementById("archive-docs");
+  const animeGrid = document.getElementById("archive-anime");
+  if (!showsGrid || !moviesGrid || !animeGrid) return;
+  showsGrid.innerHTML = "";
+  moviesGrid.innerHTML = "";
+  if (docsGrid) docsGrid.innerHTML = "";
+  animeGrid.innerHTML = "";
+
+  let items = [];
+  let animes = [];
+  try { items = await fetchArchivedFollowed(); } catch (_) { items = []; }
+  try { animes = await fetchArchivedAnime(); } catch (_) { animes = []; }
+  if (!Array.isArray(items)) items = [];
+  if (!Array.isArray(animes)) animes = [];
+
+  let shows = applySort(items.filter((i) => i.media_type === "tv").map((s) => ({ ...s, isAnime: false })));
+  let movies = applySort(items.filter((i) => i.media_type === "movie").map((m) => ({ ...m, isAnime: false })));
+  animes = applySort(animes.map((a) => ({ ...a, isAnime: true })));
+  const docs = applySort([...shows.filter(isDocItem), ...movies.filter(isDocItem)]);
+  shows = shows.filter((s) => !isDocItem(s));
+  movies = movies.filter((m) => !isDocItem(m));
+
+  const hasContent = { shows: shows.length, movies: movies.length, docs: docs.length, anime: animes.length };
+  document.getElementById("archive-shows-wrap").style.display = shows.length ? "" : "none";
+  document.getElementById("archive-movies-wrap").style.display = movies.length ? "" : "none";
+  const docsWrapA = document.getElementById("archive-docs-wrap");
+  if (docsWrapA) docsWrapA.style.display = docs.length ? "" : "none";
+  const animeWrapA = document.getElementById("archive-anime-wrap");
+  if (animeWrapA) animeWrapA.style.display = animes.length ? "" : "none";
+  empty.style.display = (shows.length || movies.length || docs.length || animes.length) ? "none" : "block";
+
+  const order = loadSectionOrder("archive").filter((s) => hasContent[s]);
+  insertMissingSections(order, hasContent);
+  order.forEach((s) => {
+    const wrap = document.getElementById(`archive-${s}-wrap`);
+    if (wrap) archView.insertBefore(wrap, empty);
+  });
+  updateMoveButtons("view-archive");
+
+  shows.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card is-archived";
+    try { setTvCardAttrs(div, item); } catch (_) {}
+    try { setFollowSortAttrs(div, item); } catch (_) {}
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, !!item.completed, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          ${cardRows({
+            type: `<span class="badge badge-tv">${typeLabel("tv")}</span>`,
+            score: scoreTag(item.vote_average),
+            net: platformTag(item.networks),
+            mid: seasonEpMid(item),
+            status: tvStatusText(item),
+          })}
+          ${archivedBadgeHTML()}
+        </div>
+      </div>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+      </div>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases("tv", item.tmdb_id, item.title); };
+    div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
+    tagCardStats(div, item, "shows", item.runtime);
+    showsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  movies.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card is-archived";
+    try { setTvCardAttrs(div, item); } catch (_) {}
+    try { setFollowSortAttrs(div, item); } catch (_) {}
+    const dateLine = item.release_date
+      ? dateState(item.release_date) === "date-past"
+        ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+        : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+      : `<div>${t("date_unknown")}</div>`;
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, item.watched == 1, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          ${cardRows({
+            type: `<span class="badge badge-movie">${typeLabel("movie")}</span>`,
+            score: scoreTag(item.vote_average),
+            net: platformTag(item.networks),
+            mid: dateLine,
+            status: "",
+          })}
+          ${archivedBadgeHTML()}
+        </div>
+      </div>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+      </div>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases("movie", item.tmdb_id, item.title); };
+    div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
+    tagCardStats(div, item, "movies", item.runtime);
+    moviesGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  docs.forEach((item) => {
+    const mt = item.media_type === "tv" ? "tv" : "movie";
+    const div = document.createElement("div");
+    div.className = "card unwatched-card is-archived";
+    try { setTvCardAttrs(div, item); } catch (_) {}
+    try { setFollowSortAttrs(div, item); } catch (_) {}
+    let dateLine;
+    if (mt === "movie") {
+      dateLine = item.release_date
+        ? dateState(item.release_date) === "date-past"
+          ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+          : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+        : `<div>${t("date_unknown")}</div>`;
+    } else {
+      dateLine = tvStatusText(item);
+    }
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, mt === "movie" ? item.watched == 1 : !!item.completed, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          ${cardRows({
+            type: `<span class="badge badge-belgesel">${t("type_doc")}</span>`,
+            score: scoreTag(item.vote_average),
+            net: platformTag(item.networks),
+            mid: mt === "movie" ? dateLine : seasonEpMid(item),
+            status: mt === "movie" ? CARD_SLOT.status : dateLine,
+          })}
+          ${archivedBadgeHTML()}
+        </div>
+      </div>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+      </div>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases(mt, item.tmdb_id, item.title); };
+    div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.onclick = () => openDetails(mt, item.tmdb_id, item.title);
+    tagCardStats(div, item, "docs", item.runtime);
+    if (docsGrid) docsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  animes.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card is-archived";
+    try { setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true}); } catch (_) {}
+    try { setFollowSortAttrs(div, item, "anime"); } catch (_) {}
+    div.innerHTML = `
+      ${animePosterHTML(item.cover_url, item.title, !!item.completed, item.poster_local, item.poster_local_w185, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          ${cardRows({
+            type: `<span class="badge badge-anime">${t("tab_anime")}</span>`,
+            score: item.score ? scoreTag(item.score / 10) : "",
+            net: platformTag(item.studios),
+            mid: animeEpMid(item),
+            status: animeNextText(null, item.status),
+          })}
+          ${archivedBadgeHTML()}
+        </div>
+      </div>
+      <div class="poster-top">
+        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+        <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+      </div>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openAnimeSchedule(item.id, item.title); };
+    div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, loadArchive); };
+    div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
+    tagCardStats(div, item, "anime", item.duration);
+    animeGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  try { closeFollowSortMenus(); } catch (_) {}
+  ["archive-shows", "archive-movies", "archive-docs", "archive-anime"].forEach((sec) => {
     try { applyFollowSectionState(sec); } catch (_) {}
     try { updateFollowSectionControls(sec); } catch (_) {}
     renderSectionSummary(followSectionGrid(sec));
@@ -2120,6 +2470,10 @@ const followSectionState = {
   "watched-movies": Object.assign({ q: "" }, loadFollowFilter("watched-movies")),
   "watched-docs": Object.assign({ q: "" }, loadFollowFilter("watched-docs")),
   "watched-anime": Object.assign({ q: "" }, loadFollowFilter("watched-anime")),
+  "archive-shows": Object.assign({ q: "" }, loadFollowFilter("archive-shows")),
+  "archive-movies": Object.assign({ q: "" }, loadFollowFilter("archive-movies")),
+  "archive-docs": Object.assign({ q: "" }, loadFollowFilter("archive-docs")),
+  "archive-anime": Object.assign({ q: "" }, loadFollowFilter("archive-anime")),
 };
 const followSectionGridId = {
   dizi: "poster-grid-shows",
@@ -2138,6 +2492,10 @@ const followSectionGridId = {
   "watched-movies": "watched-movies",
   "watched-docs": "watched-docs",
   "watched-anime": "watched-anime",
+  "archive-shows": "archive-shows",
+  "archive-movies": "archive-movies",
+  "archive-docs": "archive-docs",
+  "archive-anime": "archive-anime",
 };
 const followSectionView = {
   dizi: "view-dizi",
@@ -2156,6 +2514,10 @@ const followSectionView = {
   "watched-movies": "view-watched",
   "watched-docs": "view-watched",
   "watched-anime": "view-watched",
+  "archive-shows": "view-archive",
+  "archive-movies": "view-archive",
+  "archive-docs": "view-archive",
+  "archive-anime": "view-archive",
 };
 function followSectionGrid(section) {
   const id = followSectionGridId[section];
@@ -2412,7 +2774,7 @@ function notifyListsRefreshed() {
   try { document.dispatchEvent(new CustomEvent("app:lists-refreshed")); } catch (_) {}
 }
 (function wireFollowSearch() {
-  document.querySelectorAll("#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search").forEach((btn) => {
+  document.querySelectorAll("#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search, #view-archive .section-search").forEach((btn) => {
     btn.onclick = () => {
       const section = btn.dataset.section;
       const viewId = followSectionView[section] || "view-dizi";
@@ -2430,7 +2792,7 @@ function notifyListsRefreshed() {
       }
     };
   });
-  document.querySelectorAll("#view-dizi .rec-search-input, #view-film .rec-search-input, #view-belgesel .rec-search-input, #view-anime .rec-search-input, #view-unwatched .rec-search-input, #view-watched .rec-search-input").forEach((inp) => {
+  document.querySelectorAll("#view-dizi .rec-search-input, #view-film .rec-search-input, #view-belgesel .rec-search-input, #view-anime .rec-search-input, #view-unwatched .rec-search-input, #view-watched .rec-search-input, #view-archive .rec-search-input").forEach((inp) => {
     inp.addEventListener("input", () => {
       const section = inp.dataset.section;
       if (section && followSectionState[section]) {
@@ -2457,7 +2819,7 @@ function notifyListsRefreshed() {
 function closeFollowSortMenus() {
   try {
     document.querySelectorAll(".follow-sort-menu.open").forEach((m) => m.classList.remove("open"));
-    document.querySelectorAll("#view-dizi .section-filter.active, #view-film .section-filter.active, #view-belgesel .section-filter.active, #view-anime .section-filter.active, #view-unwatched .section-filter.active, #view-watched .section-filter.active").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll("#view-dizi .section-filter.active, #view-film .section-filter.active, #view-belgesel .section-filter.active, #view-anime .section-filter.active, #view-unwatched .section-filter.active, #view-watched .section-filter.active, #view-archive .section-filter.active").forEach((b) => b.classList.remove("active"));
   } catch (_) {}
 }
 function updateFollowSortMenu(section) {
@@ -2498,7 +2860,7 @@ function toggleFollowSortMenu(section, force) {
   }
 }
 (function wireFollowFilter() {
-  document.querySelectorAll("#view-dizi .section-filter, #view-film .section-filter, #view-belgesel .section-filter, #view-anime .section-filter, #view-unwatched .section-filter, #view-watched .section-filter").forEach((btn) => {
+  document.querySelectorAll("#view-dizi .section-filter, #view-film .section-filter, #view-belgesel .section-filter, #view-anime .section-filter, #view-unwatched .section-filter, #view-watched .section-filter, #view-archive .section-filter").forEach((btn) => {
     btn.onclick = (e) => {
       if (e) e.stopPropagation();
       if (btn.disabled) return;
@@ -3007,4 +3369,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab };
+export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab };

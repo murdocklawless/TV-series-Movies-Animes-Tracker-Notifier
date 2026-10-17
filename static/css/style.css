@@ -902,6 +902,144 @@ main {
   display: flex;
 }
 
+/* ===== 1.83 Arsiv: kart ust seridi (takvim . tasi . arsiv . takibi birak) =====
+   Dort buton esit araliklarla dagitilir; "tasi" yoksa arsiv tam ortada kalir. */
+.card .poster-top {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.card .poster-top > button {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  pointer-events: auto;
+}
+
+.card .archive-btn,
+.card .unarchive-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #fbbf24;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.card .archive-btn:hover,
+.card .unarchive-btn:hover {
+  color: #fde68a;
+}
+
+.card:hover .archive-btn,
+.card:hover .unarchive-btn {
+  display: flex;
+}
+
+.card.is-archived .poster-wrap img,
+.card.is-archived .poster-wrap .no-poster,
+.card.is-archived .info {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+.card .info .meta .badge.badge-archived {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.archived-line { margin-top: 2px; }
+
+/* Medya sekmeleri: "Arsivlenenleri goster" anahtari (sag kume +30px kayar) */
+.section-archived-toggle {
+  background: transparent;
+  border: none;
+  color: #B4B8C4;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 1;
+  transition: color 0.15s ease;
+  line-height: 1;
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  top: 40%;
+}
+
+.section-archived-toggle:hover,
+.section-archived-toggle.active {
+  color: #fbbf24;
+}
+
+#view-#view-dizi .has-archived-toggle,
+#view-#view-film .has-archived-toggle,
+#view-#view-belgesel .has-archived-toggle,
+#view-#view-anime .has-archived-toggle { padding-right: 122px; }
+
+#view-#view-dizi .has-archived-toggle .section-archived-toggle,
+#view-#view-film .has-archived-toggle .section-archived-toggle,
+#view-#view-belgesel .has-archived-toggle .section-archived-toggle,
+#view-#view-anime .has-archived-toggle .section-archived-toggle { right: 0; }
+
+#view-#view-dizi .has-archived-toggle .section-view-toggle,
+#view-#view-film .has-archived-toggle .section-view-toggle,
+#view-#view-belgesel .has-archived-toggle .section-view-toggle,
+#view-#view-anime .has-archived-toggle .section-view-toggle { right: 30px; }
+
+#view-#view-dizi .has-archived-toggle .follow-sort-wrap,
+#view-#view-film .has-archived-toggle .follow-sort-wrap,
+#view-#view-belgesel .has-archived-toggle .follow-sort-wrap,
+#view-#view-anime .has-archived-toggle .follow-sort-wrap { right: 60px; }
+
+#view-#view-dizi .has-archived-toggle .section-search,
+#view-#view-film .has-archived-toggle .section-search,
+#view-#view-belgesel .has-archived-toggle .section-search,
+#view-#view-anime .has-archived-toggle .section-search { right: 90px; }
+
+#view-#view-dizi .has-archived-toggle .rec-search-input,
+#view-#view-film .has-archived-toggle .rec-search-input,
+#view-#view-belgesel .has-archived-toggle .rec-search-input,
+#view-#view-anime .has-archived-toggle .rec-search-input { right: 122px; }
+
+/* Arsiv gorunumu (1.83): izlenmis deseni, tasi oklari + arama + filtre + gorunum anahtari */
+#view-archive .unwatched-section-title {
+  justify-content: flex-start;
+  padding-right: 142px;
+}
+
+#view-archive .unwatched-section-title > span {
+  order: -1;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 0;
+}
+
+#view-archive .section-view-toggle { right: 52px; }
+#view-archive .section-search { right: 112px; }
+#view-archive .follow-sort-wrap { right: 82px; }
+#view-archive .rec-search-input { right: 142px; }
+#view-archive > div { margin-bottom: 24px; }
+
+
 .search-bar {
   display: flex;
   gap: 10px;

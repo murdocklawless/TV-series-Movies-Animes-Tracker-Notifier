@@ -238,7 +238,7 @@ function statsModalMove(top, dir, e){
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","archive-confirm-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -409,8 +409,8 @@ function rectOf(el){ try{ return el.getBoundingClientRect(); }catch{ return {lef
 function rectC(el){ const r=rectOf(el); return r.left + r.width/2; }
 function rectT(el){ return rectOf(el).top; }
 
-const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-stats,#tab-history,#tab-search,#tab-settings,#tab-exit,#search-close';
-const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.hide-btn,.defer-btn';
+const NAVBAR_SEL = '#tab-dizi,#tab-film,#tab-belgesel,#tab-anime,#tab-unwatched,#tab-watched,#tab-archive,#tab-recommend,#tab-watched-ask,#tab-notif,#tab-stats,#tab-history,#tab-search,#tab-settings,#tab-exit,#search-close';
+const CARD_BTN_SEL = '.calendar-btn,.info-btn,.remove,.move-btn,.move-back-btn,.archive-btn,.unarchive-btn,.hide-btn,.defer-btn';
 const SECTION_HDR_SEL = '.unwatched-section-title .section-refresh, .unwatched-section-title .section-hide, .unwatched-section-title .section-search, .unwatched-section-title .section-filter, .unwatched-section-title .section-view-toggle, .unwatched-section-title .section-move-up, .unwatched-section-title .section-move-down';
 
 function isCard(el){ return !!(el && el.classList && el.classList.contains('card')); }
@@ -421,7 +421,7 @@ function cardButtons(card){
   // takvimsiz kartlar DOM sırasında kalır)
   try {
     if (out.some((b)=>b.classList && b.classList.contains('calendar-btn'))) {
-      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'info-btn': 2, 'defer-btn': 3, 'hide-btn': 4, 'remove': 5 };
+      const RANK = { 'calendar-btn': 0, 'move-btn': 1, 'move-back-btn': 1, 'archive-btn': 2, 'unarchive-btn': 2, 'info-btn': 3, 'defer-btn': 4, 'hide-btn': 5, 'remove': 6 };
       const rank = (b) => {
         if (!b.classList) return 9;
         for (const k of Object.keys(RANK)) if (b.classList.contains(k)) return RANK[k];

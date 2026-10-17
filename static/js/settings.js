@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=523";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=524";
 import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=519";
-import { activateUtilityTab } from "./views.js?v=524";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=524";
+import { activateUtilityTab } from "./views.js?v=525";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=525";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=523");
+      const { errText: _err } = await import("./i18n.js?v=524");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1041,8 +1041,8 @@ async function openFavListing(kind, ident, title) {
       return;
     }
     const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=519");
-    const { openDetails } = await import("./components.js?v=524");
-    const { loadFollowed } = await import("./views.js?v=524");
+    const { openDetails } = await import("./components.js?v=525");
+    const { loadFollowed } = await import("./views.js?v=525");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=523");
+        const { t: _t } = await import("./i18n.js?v=524");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");

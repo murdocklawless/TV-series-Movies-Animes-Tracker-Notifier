@@ -636,7 +636,7 @@ def check_notifications(user_id=None):
     now_ts = int(datetime.datetime.now().timestamp())
     conn = get_db()
     # 1-2: TV episode today + season start today
-    for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv'", (uid,)).fetchall():
+    for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv' AND COALESCE(archived,0)=0", (uid,)).fetchall():
         is_doc = _is_doc_row(r)
         # 1 episode_today (merkez + dis push tek geciste; makbuz notified_date=today dedupe'u)
         rows = conn.execute("SELECT season, episode, air_date FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], today)).fetchall()
@@ -745,7 +745,7 @@ def check_notifications(user_id=None):
         except Exception:
             pass
     # 14 movie today
-    for m in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='movie'", (uid,)).fetchall():
+    for m in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND COALESCE(archived,0)=0", (uid,)).fetchall():
         is_doc = _is_doc_row(m)
         if m["release_date"] == today:
             _notif_create(m["title"], "Bugün Vizyona Girdi", _doc_type(is_doc, "movie_today"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=today, user_id=uid)
@@ -794,7 +794,7 @@ def check_anime_notifications(user_id=None):
     uid = int(user_id or 0)
     today = _user_today(uid)
     conn = get_db()
-    for a in conn.execute("SELECT * FROM anime WHERE user_id=?", (uid,)).fetchall():
+    for a in conn.execute("SELECT * FROM anime WHERE user_id=? AND COALESCE(archived,0)=0", (uid,)).fetchall():
         # 17 episode today
         rows = conn.execute("SELECT episode, air_at FROM anime_episodes WHERE anime_id=? AND air_at IS NOT NULL", (a["id"],)).fetchall()
         for ae in rows:
@@ -1049,7 +1049,7 @@ def _reset_stale_watched(conn):
     """in_watched=1 olup artık tamamlanmamış (yeni bölüm yayınlanan) yapımları izlenmişten çıkarır.
     Erken-izlenmiş (yayını eşikten uzak) olanlar korunur; tarihi eşiğe inenler otomatik Takip'e döner."""
     for r in conn.execute(
-        "SELECT id, status FROM followed WHERE media_type='tv' AND in_watched=1"
+        "SELECT id, status FROM followed WHERE media_type='tv' AND in_watched=1 AND COALESCE(archived,0)=0"
     ).fetchall():
         total = conn.execute(
             "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)
@@ -1071,7 +1071,7 @@ def _reset_stale_watched(conn):
             continue
         conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
     for r in conn.execute(
-        "SELECT id, release_date, status FROM followed WHERE media_type='movie' AND in_watched=1"
+        "SELECT id, release_date, status FROM followed WHERE media_type='movie' AND in_watched=1 AND COALESCE(archived,0)=0"
     ).fetchall():
         watched = conn.execute(
             "SELECT watched FROM followed WHERE id=?", (r["id"],)
@@ -1092,7 +1092,7 @@ def _reset_stale_watched(conn):
             continue
         conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
     for r in conn.execute(
-        "SELECT id, status FROM anime WHERE in_watched=1"
+        "SELECT id, status FROM anime WHERE in_watched=1 AND COALESCE(archived,0)=0"
     ).fetchall():
         total = conn.execute(
             "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)

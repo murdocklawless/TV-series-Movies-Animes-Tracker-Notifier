@@ -2,7 +2,7 @@
 // views.js'e dokunmaz; mevcut .card verisini okuyup satır modunda hücre (tablo) düzenine çevirir.
 // Kolon genişlikleri dinamiktir (display:table auto-layout). Boş kolonlar (tüm satırlarda boş) düşürülür.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=523";
+import { t } from "./i18n.js?v=524";
 
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1"></rect><line x1="11" y1="6.5" x2="21" y2="6.5"></line><rect x="3" y="15" width="5" height="5" rx="1"></rect><line x1="11" y1="17.5" x2="21" y2="17.5"></line></svg>`;
 const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`;
@@ -10,7 +10,7 @@ const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" st
 const ROW_TOOLTIP = { tr: "Satır görünümü", en: "Row view", de: "Zeilenansicht", fr: "Vue lignes", es: "Vista de filas", it: "Vista righe", ru: "Список", ar: "عرض الصفوف", pt: "Vista em linhas", nl: "Rijenweergave", pl: "Widok wierszy", ja: "行表示", ko: "행 보기", zh: "列表视图" };
 const CARD_TOOLTIP = { tr: "Kart görünümü", en: "Card view", de: "Kartenansicht", fr: "Vue cartes", es: "Vista de tarjetas", it: "Vista schede", ru: "Сетка", ar: "عرض البطاقات", pt: "Vista em cartões", nl: "Kaartweergave", pl: "Widok kart", ja: "カード表示", ko: "카드 보기", zh: "卡片视图" };
 
-const BTN_SEL = ".calendar-btn, .info-btn, .move-btn, .move-back-btn, .hide-btn, .remove, .defer-btn";
+const BTN_SEL = ".calendar-btn, .info-btn, .move-btn, .move-back-btn, .archive-btn, .unarchive-btn, .hide-btn, .remove, .defer-btn";
 const hoverFine = !!(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches);
 
 function tr(map) {
@@ -181,14 +181,15 @@ function buildCard(card, kind, d, kept, section) {
   if (title) { try { if (isTvMode()) title.tabIndex = 0; } catch (_) {} }
 }
 
-const SLOT_SEL = { calendar: ".calendar-btn", info: ".info-btn", defer: ".defer-btn", move: ".move-btn, .move-back-btn", hide: ".hide-btn", remove: ".remove" };
+const SLOT_SEL = { calendar: ".calendar-btn", info: ".info-btn", defer: ".defer-btn", move: ".move-btn, .move-back-btn", archive: ".archive-btn, .unarchive-btn", hide: ".hide-btn", remove: ".remove" };
 function slotKeysFor(kind, section) {
   const s = (section || "").toLowerCase();
   const tv = isTvMode();
+  if (s.startsWith("archive")) return ["calendar", "archive"];
   if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return tv ? ["info", "move", "hide", "remove"] : ["move", "hide", "remove"];
   if (s.startsWith("watched")) return tv ? ["calendar", "info", "move"] : ["calendar", "move"];
   if (s.startsWith("unwatched")) return tv ? ["calendar", "info"] : ["calendar"];
-  return tv ? ["calendar", "info", "defer", "move", "remove"] : ["calendar", "defer", "move", "remove"];
+  return tv ? ["calendar", "info", "defer", "move", "archive", "remove"] : ["calendar", "defer", "move", "archive", "remove"];
 }
 
 // Bölüm sargısı: grid'in id'si -wrap ile biten en yakın div atası

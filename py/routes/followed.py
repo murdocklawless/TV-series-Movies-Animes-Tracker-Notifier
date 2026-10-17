@@ -137,12 +137,17 @@ def follow():
 @followed_bp.route("/api/followed")
 def followed():
     uid = _uid()
-    key = ("followed", uid, gen(), today_str())
+    # 1.83 Arsiv: ?archived=1 -> yalniz arsivliler; varsayilan -> yalniz aktifler.
+    only_archived = str(request.args.get("archived") or "0") == "1"
+    key = ("followed", uid, gen(), today_str(), 1 if only_archived else 0)
     hit = list_cache.get(key)
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    rows = conn.execute("SELECT * FROM followed WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
+    arch_sql = "COALESCE(archived,0)=1" if only_archived else "COALESCE(archived,0)=0"
+    rows = conn.execute(
+        f"SELECT * FROM followed WHERE user_id=? AND {arch_sql} ORDER BY id DESC", (uid,)
+    ).fetchall()
     today = today_str()
     items = []
     for r in rows:
@@ -158,6 +163,7 @@ def followed():
         # film için watched, dizi için completed
         item["watched"] = int(item.get("watched") or 0)
         item["deferred"] = int(item.get("deferred") or 0)
+        item["archived"] = int(item.get("archived") or 0)
         if item.get("poster_local"):
             item["poster_local"] = versioned_web_path(item["poster_local"])
         if item.get("poster_local_w185"):
@@ -251,7 +257,7 @@ def unwatched():
     now = int(datetime.datetime.now().timestamp())
 
     shows = []
-    for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv'", (uid,)).fetchall():
+    for r in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='tv' AND COALESCE(archived,0)=0", (uid,)).fetchall():
         rows = conn.execute(
             "SELECT season, episode, air_date, name FROM episodes "
             "WHERE follow_id=? AND air_date IS NOT NULL AND air_date<=? AND watched=0 "
@@ -331,7 +337,7 @@ def unwatched():
 
     movies = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND watched=0 ORDER BY release_date IS NULL, release_date ASC",
+        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND watched=0 AND COALESCE(archived,0)=0 ORDER BY release_date IS NULL, release_date ASC",
         (uid,),
     ).fetchall():
         movies.append(
@@ -357,7 +363,7 @@ def unwatched():
         )
 
     anime_list = []
-    for r in conn.execute("SELECT * FROM anime WHERE user_id=?", (uid,)).fetchall():
+    for r in conn.execute("SELECT * FROM anime WHERE user_id=? AND COALESCE(archived,0)=0", (uid,)).fetchall():
         rows = conn.execute(
             "SELECT episode, air_at FROM anime_episodes "
             "WHERE anime_id=? AND air_at IS NOT NULL AND air_at<=? AND watched=0 "
@@ -452,7 +458,7 @@ def watched():
 
     shows = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE user_id=? AND media_type='tv' AND in_watched=1",
+        "SELECT * FROM followed WHERE user_id=? AND media_type='tv' AND in_watched=1 AND COALESCE(archived,0)=0",
         (uid,),
     ).fetchall():
         total = conn.execute(
@@ -535,7 +541,7 @@ def watched():
 
     movies = []
     for r in conn.execute(
-        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND in_watched=1 ORDER BY release_date IS NULL, release_date ASC",
+        "SELECT * FROM followed WHERE user_id=? AND media_type='movie' AND in_watched=1 AND COALESCE(archived,0)=0 ORDER BY release_date IS NULL, release_date ASC",
         (uid,),
     ).fetchall():
         try:
@@ -574,7 +580,7 @@ def watched():
         )
 
     anime_list = []
-    for r in conn.execute("SELECT * FROM anime WHERE user_id=? AND in_watched=1", (uid,)).fetchall():
+    for r in conn.execute("SELECT * FROM anime WHERE user_id=? AND in_watched=1 AND COALESCE(archived,0)=0", (uid,)).fetchall():
         total = conn.execute(
             "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)
         ).fetchone()["c"]
@@ -765,6 +771,31 @@ def followed_defer():
     conn.close()
     bump()
     return jsonify({"ok": True, "deferred": deferred})
+
+
+@followed_bp.route("/api/followed/archive", methods=["POST"])
+def followed_archive():
+    """Arsiv durumu (1.83): takibi birakmadan yapimi arsive alir; bildirimler durur."""
+    body = request.get_json(silent=True) or {}
+    tmdb_id = body.get("tmdb_id")
+    media_type = body.get("media_type")
+    archived = 1 if body.get("archived") else 0
+    if not tmdb_id or media_type not in ("movie", "tv"):
+        return jsonify({"error": "Eksik bilgi"}), 400
+    uid = _uid()
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+        (uid, tmdb_id, media_type),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadi"}), 400
+    conn.execute("UPDATE followed SET archived=? WHERE id=?", (archived, follow["id"]))
+    conn.commit()
+    conn.close()
+    bump()
+    return jsonify({"ok": True, "archived": archived})
 
 
 @followed_bp.route("/api/releases")

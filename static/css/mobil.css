@@ -91,6 +91,10 @@
   html:not(.is-tv):not(.tv-mode) .card .remove {
     display: block;
   }
+  html:not(.is-tv):not(.tv-mode) .card .archive-btn,
+  html:not(.is-tv):not(.tv-mode) .card .unarchive-btn {
+    display: flex;
+  }
   html:not(.is-tv):not(.tv-mode) .card .calendar-btn {
     display: flex;
   }
@@ -109,6 +113,14 @@
 
   html:not(.is-tv):not(.tv-mode) .poster-grid .card {
     width: calc((100% - 16px) / 3);
+  }
+
+  html:not(.is-tv):not(.tv-mode) .card .poster-top > button {
+    width: 19px;
+    height: 19px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .poster-top > button i {
+    font-size: 0.62rem;
   }
 
   html:not(.is-tv):not(.tv-mode) #view-anime .poster-grid .card {
@@ -708,6 +720,40 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-search { right: 147px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title .section-sort-wrap { right: 122px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title { padding-right: 171px; }
+  /* 1.83 Arsiv: mobilde arsiv butonu + medya anahtari ofsetleri */
+  html:not(.is-tv):not(.tv-mode) .card .archive-btn,
+  html:not(.is-tv):not(.tv-mode) .card .unarchive-btn {
+    width: 21px;
+    height: 21px;
+    top: 4px;
+  }
+  html:not(.is-tv):not(.tv-mode) .card .archive-btn i,
+  html:not(.is-tv):not(.tv-mode) .card .unarchive-btn i {
+    font-size: 0.68rem;
+  }
+html:not(.is-tv):not(.tv-mode) #view-#view-dizi .has-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-film .has-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-belgesel .has-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-anime .has-archived-toggle { padding-right: 118px; }
+html:not(.is-tv):not(.tv-mode) #view-#view-dizi .has-archived-toggle .section-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-film .has-archived-toggle .section-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-belgesel .has-archived-toggle .section-archived-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-anime .has-archived-toggle .section-archived-toggle { right: 0; }
+html:not(.is-tv):not(.tv-mode) #view-#view-dizi .has-archived-toggle .section-view-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-film .has-archived-toggle .section-view-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-belgesel .has-archived-toggle .section-view-toggle,
+html:not(.is-tv):not(.tv-mode) #view-#view-anime .has-archived-toggle .section-view-toggle { right: 30px; }
+html:not(.is-tv):not(.tv-mode) #view-#view-dizi .has-archived-toggle .follow-sort-wrap,
+html:not(.is-tv):not(.tv-mode) #view-#view-film .has-archived-toggle .follow-sort-wrap,
+html:not(.is-tv):not(.tv-mode) #view-#view-belgesel .has-archived-toggle .follow-sort-wrap,
+html:not(.is-tv):not(.tv-mode) #view-#view-anime .has-archived-toggle .follow-sort-wrap { right: 60px; }
+html:not(.is-tv):not(.tv-mode) #view-#view-dizi .has-archived-toggle .section-search,
+html:not(.is-tv):not(.tv-mode) #view-#view-film .has-archived-toggle .section-search,
+html:not(.is-tv):not(.tv-mode) #view-#view-belgesel .has-archived-toggle .section-search,
+html:not(.is-tv):not(.tv-mode) #view-#view-anime .has-archived-toggle .section-search { right: 90px; }
+  html:not(.is-tv):not(.tv-mode) #view-archive .unwatched-section-title { padding-right: 142px; }
+  html:not(.is-tv):not(.tv-mode) #view-archive .section-search { right: 112px; }
+  html:not(.is-tv):not(.tv-mode) #view-archive .follow-sort-wrap { right: 82px; }
   /* Satır posteri mobilde daha küçük: genişlik 300px (oran 2/3 korunur) */
   html:not(.is-tv):not(.tv-mode) .wrow-poster { height: auto; width: min(300px, 86vw); }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-title .wclip { max-width: 30ch; }
