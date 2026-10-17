@@ -661,7 +661,9 @@ def _ask_message(kind, title, season, episode, uid, is_doc=False):
         now = _dt.datetime.now(_user_tz(uid))
     except Exception:
         now = _dt.datetime.now()
-    stamp = now.strftime("%d.%m.%Y tarihinde saat %H:%M")
+    # Tarih/saat bicimi istemcide secili tz'nin ulke yereline gore kurulur
+    # (gun adi + tarih sirasi + 12/24 saat); burada yalnizca yedek metin tutulur.
+    stamp = now.strftime("%d.%m.%Y - %H:%M")
     if kind == "anime":
         if episode is not None:
             body = f"{int(episode)}. bölümünü izlediniz."
@@ -674,7 +676,7 @@ def _ask_message(kind, title, season, episode, uid, is_doc=False):
             body = f"{int(season)}. Sezon {int(episode)}. Bölümünü izlediniz."
         else:
             body = "belgeseli izlediniz." if is_doc else "diziyi izlediniz."
-    return f"{stamp} {body} İzlendi bilgisi eklensin mi?"
+    return f"{stamp}\n{body}\nİzlendi bilgisi eklensin mi?"
 
 
 def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False):

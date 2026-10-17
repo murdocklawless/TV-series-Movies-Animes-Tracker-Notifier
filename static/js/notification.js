@@ -1,10 +1,10 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
-import { escAttr } from "./utils.js?v=519";
-import { openNotifClearConfirm } from "./components.js?v=523";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=540";
-import { isAdmin, loadAdminLists } from "./auth.js?v=519";
+import { escAttr, tzLocale } from "./utils.js?v=519";
+import { openNotifClearConfirm } from "./components.js?v=524";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=541";
+import { isAdmin, loadAdminLists } from "./auth.js?v=520";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -19,16 +19,19 @@ function alignMenu() {
   menu.style.right = "0";
 }
 
-// Tam tarih ve saat: secili timezone'da gg/aa/yyyy-ss.dd
+// Tam tarih ve saat: secili tz'nin ULKE YERELINE gore (tarih sirasi + saat bicimi;
+// 12/24 saat zorlanmaz -> AM/PM kullanan ulkeler kendi bicimini gorur).
 function formatAbsolute(d) {
-  const loc = state.currentLang || "tr";
-  const parts = new Intl.DateTimeFormat(loc, {
-    timeZone: state.currentTz || "Europe/Istanbul",
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(d);
-  const get = (tp) => { const p = parts.find((x) => x.type === tp); return p ? p.value : ""; };
-  return `${get("day")}/${get("month")}/${get("year")}-${get("hour")}.${get("minute")}`;
+  const loc = tzLocale();
+  const tz = state.currentTz;
+  const mk = (o) => (tz ? Object.assign({ timeZone: tz }, o) : o);
+  try {
+    const dv = new Intl.DateTimeFormat(loc, mk({ day: "2-digit", month: "2-digit", year: "numeric" })).format(d);
+    const tm = new Intl.DateTimeFormat(loc, mk({ hour: "2-digit", minute: "2-digit" })).format(d);
+    return `${dv}-${tm}`;
+  } catch (_) {
+    try { return d.toLocaleString(); } catch (_) { return ""; }
+  }
 }
 
 function formatTime(ts) {
@@ -78,7 +81,7 @@ export function notifTypePill(kind) {
 
 // Mesaj metni: yapim ismi + "N. Sezon / N. Bölüm" renklenir; S02E08 -> "2. Sezon 8. Bölüm".
 // Eski ve yeni kayitlar ayni sekilde gorunur (veri gocu gerekmez).
-export function notifMsgHTML(text, title) {
+export function notifMsgHTML(text, title, stampLine) {
   let s = String(text == null ? "" : text);
   const tRaw = String(title || "").trim();
   // 1) Yapim ismini mesajdan kaldir: isim yalnizca .notif-title satirinda gosterilir.
@@ -108,15 +111,34 @@ export function notifMsgHTML(text, title) {
   }
   // 2) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
   s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. Bölüm`);
-  // 3) kacis (HTML enjeksiyonu yok)
-  let html = escAttr(s);
-  // 4) mesajda kalinti isim varsa tip rengiyle isaretle (nadir; isim normalde ust satirda)
+  // 3) Ask damgasi (varsa): ilk satir verilen yerel bicimle degistirilir ve metin
+  //    3 satira ayrilir -> "<tarih> - <gun> - <saat>" / govde / "İzlendi bilgisi eklensin mi?"
+  let lines = null;
+  const mStamp = s.match(/^(\d{2}\.\d{2}\.\d{4})(?:\s+tarihinde\s+saat\s+| - )(\d{2}:\d{2})(?:\s+de)?\s*/);
+  if (mStamp) {
+    const rest = s.slice(mStamp[0].length);
+    const line1 = stampLine || `${mStamp[1]} - ${mStamp[2]}`;
+    let parts = rest.split(/\n+/).map((x) => x.trim()).filter((x) => x);
+    if (parts.length < 2) {
+      const q = "İzlendi bilgisi eklensin mi?";
+      const qi = rest.indexOf(q);
+      parts = qi >= 0 ? [rest.slice(0, qi).trim(), q] : [rest.trim()];
+    }
+    lines = [line1].concat(parts.filter((x) => x));
+  }
+  // 4) kacis (HTML enjeksiyonu yok) + satirlar <br> ile birlestirilir
+  let srcLines;
+  if (lines) srcLines = lines;
+  else if (s.indexOf("\n") >= 0) srcLines = s.split(/\n+/).map((x) => x.trim()).filter((x) => x);
+  else srcLines = [s];
+  let html = srcLines.map((x) => escAttr(x)).join("<br>");
+  // 5) mesajda kalinti isim varsa tip rengiyle isaretle (nadir; isim normalde ust satirda)
   const tEsc = title ? escAttr(String(title)) : "";
   if (tEsc) {
     const i = html.indexOf(tEsc);
     if (i >= 0) html = html.slice(0, i) + `<span class="hl-title">${tEsc}</span>` + html.slice(i + tEsc.length);
   }
-  // 5) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni;
+  // 6) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni;
   //    anime mesajindaki kucuk harfli "4. bölümünü" de kapsar)
   html = html.replace(/(\d+\.\s*Sezon[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-season">$1</span>`);
   html = html.replace(/(\d+\.\s*Bölüm[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-ep">$1</span>`);

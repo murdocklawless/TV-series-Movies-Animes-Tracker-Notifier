@@ -16,8 +16,8 @@ import {
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
 } from "./utils.js?v=519";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=523";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=521";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=524";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=522";
 
 let currentDetails = null;
 
@@ -343,18 +343,33 @@ function openAnimeEpisodeInfo(animeId, animeTitle, it, animeDuration) {
   } catch (_) {}
 }
 
-function formatWatchedAt(watchedAt) {
-  let wText = "—";
-  if (watchedAt) {
+// Ortak tarih-saat bicimi: "<tarih> - <gun> - <saat>" — tarih sirasi, gun adi ve
+// saat bicimi (12/24 dahil) secili tz'nin ulke yereline gore gelir. Saat bicimi
+// ZORLANMAZ: ICU'nun yerel tercihi kullanilir (en-US AM/PM, tr-TR 24 saat).
+export function fmtDateTime(epoch) {
+  if (!epoch) return "";
+  const d = new Date(epoch * 1000);
+  if (isNaN(d.getTime())) return "";
+  const loc = tzLocale();
+  const tz = state.currentTz;
+  const mk = (o) => (tz ? Object.assign({ timeZone: tz }, o) : o);
+  try {
+    const dateTxt = new Intl.DateTimeFormat(loc, mk({ day: "2-digit", month: "2-digit", year: "numeric" })).format(d);
+    const dayTxt = new Intl.DateTimeFormat(loc, mk({ weekday: "long" })).format(d);
+    const timeTxt = new Intl.DateTimeFormat(loc, mk({ hour: "2-digit", minute: "2-digit" })).format(d);
+    return `${dateTxt} - ${dayTxt} - ${timeTxt}`;
+  } catch (_) {
     try {
-      wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: state.currentTz }).format(new Date(watchedAt * 1000));
-    } catch (_) {
-      try {
-        wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(watchedAt * 1000));
-      } catch (_) { wText = String(watchedAt); }
-    }
+      const dateTxt = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+      const dayTxt = new Intl.DateTimeFormat(loc, { weekday: "long" }).format(d);
+      const timeTxt = new Intl.DateTimeFormat(loc, { hour: "2-digit", minute: "2-digit" }).format(d);
+      return `${dateTxt} - ${dayTxt} - ${timeTxt}`;
+    } catch (_) { return String(epoch); }
   }
-  return wText;
+}
+
+function formatWatchedAt(watchedAt) {
+  return fmtDateTime(watchedAt) || "—";
 }
 
 async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
@@ -380,17 +395,7 @@ async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
     if (!res.ok) throw new Error("http " + res.status);
     document.getElementById("episode-info-overview").textContent = (j.overview || "").trim() || t("ep_no_overview");
     document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${j.runtime ? fmtRuntime(j.runtime) : "—"}`;
-    let wText = "—";
-    if (j.watched_at) {
-      try {
-        wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: state.currentTz }).format(new Date(j.watched_at * 1000));
-      } catch (_) {
-        try {
-          wText = new Intl.DateTimeFormat(tzLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(j.watched_at * 1000));
-        } catch (_) { wText = String(j.watched_at); }
-      }
-    }
-    document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${wText}`;
+    document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(j.watched_at)}`;
   } catch (e) {
     document.getElementById("episode-info-overview").textContent = t("error");
   }

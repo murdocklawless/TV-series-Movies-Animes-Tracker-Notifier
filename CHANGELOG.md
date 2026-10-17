@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.80 - 17/10/2026-03:54
+### TR
+- **Tarih/saat biçimi artık saat diliminin (tz) ülke yereline göre.** Ask mesajı 3 satıra ayrıldı ve damga yerel biçimde gösterilir: `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz.` / `İzlendi bilgisi eklensin mi?`.
+  Gün adı, tarih sırası ve **12/24 saat tercihi** `Intl` + tz yerelinden gelir (elle 14 dilli tablo yoktur): tr `16.10.2026 - Cuma - 22:46` · en-US `10/16/2026 - Friday - 3:46 PM` · en-GB `16/10/2026 - Friday - 20:46` · ja `2026/10/16 - 土曜日 - 04:46` · zh-TW `下午4:46` · ko `AM/PM`.
+- **Kart/takvim modalındaki `İzlendi:` satırı** aynı biçimi kullanır (`16.10.2026 - Cuma - 21:53`); aynı kodun kopyası kaldırıldı, tek `fmtDateTime` kaldı.
+- **Bildirim merkezinde** başlık ile mesaj arasına ask paneliyle aynı boşluk (8px) konuldu.
+- **24 saat zorlaması kaldırıldı** (İzleme Geçmişi saatleri, bildirim listesi saati, feed tarihi): AM/PM kullanan ülkeler (ABD, Kanada, Avustralya, Hindistan, Meksika, Kore, Tayvan, arap ülkeleri …) kendi biçimini görür; Türkiye 24 saat kalır. Önceden bu satırlarda 24 saat **ve** sabit `gg/aa/yyyy` sırası zorlanıyordu.
+- Ask damgası **epoch'tan** üretilir (`created_at`) → tz sonradan değişse bile saat doğru görünür; backend'de yalnızca yedek metin tutulur (`GG.AA.YYYY - ss:dd`), gün adı sunucuda **yazılmaz**. Damgası tanınmayan eski kayıtlar bozulmaz.
+### EN
+- **Date/time is now formatted per the timezone's country locale.** The ask message is split into three lines with a locally formatted stamp: `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz.` / `İzlendi bilgisi eklensin mi?`.
+  The weekday name, date order and the **12/24-hour choice** come from `Intl` + the tz locale (no manual 14-language table): tr `16.10.2026 - Cuma - 22:46` · en-US `10/16/2026 - Friday - 3:46 PM` · en-GB `16/10/2026 - Friday - 20:46` · ja `2026/10/16 - 土曜日 - 04:46` · zh-TW `下午4:46` · ko `AM/PM`.
+- The **`İzlendi:` (watched) line** in the card/calendar modal uses the same format (`16.10.2026 - Cuma - 21:53`); the duplicated code was removed in favour of a single `fmtDateTime`.
+- In the **notification centre** the title→message gap now matches the ask panel (8px).
+- **The forced 24-hour clock was removed** (watch history times, notification-list time, feed date): countries that use AM/PM (US, Canada, Australia, India, Mexico, Korea, Taiwan, Arabic countries …) see their own convention, while Turkey stays 24-hour. Previously those rows forced 24-hour **and** the fixed `dd/mm/yyyy` order.
+- The ask stamp is produced from the **epoch** (`created_at`), so the time stays correct even if the timezone is changed later; the backend keeps only a fallback text (`DD.MM.YYYY - HH:MM`) and never writes the weekday. Rows whose stamp is not recognised are left untouched.
+
 ## 1.79 - 17/10/2026-03:33
 ### TR
 - **Ask kartındaki tip hapı artık postere göre ortalanıyor** (bildirimler penceresindeki gibi). "Evet/Hayır" verilmiş kartlarda hap, posterin bulunduğu grid kolonunda `justify-self: center` ile ortalanır; ✓/✗ aynı satırda sağda kalır.

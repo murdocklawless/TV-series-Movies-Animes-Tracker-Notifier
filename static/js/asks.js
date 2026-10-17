@@ -2,8 +2,8 @@
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
 import { t, errText } from "./i18n.js?v=523";
 import { escAttr, toast, CHECK_SVG } from "./utils.js?v=519";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=534";
-import { openAskClearConfirm } from "./components.js?v=523";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=535";
+import { openAskClearConfirm, fmtDateTime } from "./components.js?v=524";
 
 let askEnabled = true;
 let askTimer = null;
@@ -125,7 +125,7 @@ function askItem(a) {
       <div class="ask-poster">${thumb}</div>
       <div class="ask-content">
         ${notifTitleLine(a.title)}
-        <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "")}</div>
+        <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "", fmtDateTime(a.created_at))}</div>
         ${actions}
       </div>
       ${pillCell}

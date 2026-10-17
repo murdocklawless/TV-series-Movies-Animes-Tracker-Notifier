@@ -1,7 +1,7 @@
 // history.js — "H" navbar butonu + İzleme Geçmişi takvimi (İstatistik modalı deseni).
 import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
-import { toast, CHECK_SVG } from "./utils.js?v=519";
+import { toast, CHECK_SVG, tzLocale } from "./utils.js?v=519";
 
 const KIND_COLOR = { shows: "#60a5fa", movies: "#22c55e", docs: "#faef15", anime: "#f472b6", marked: "#9ca3af" };
 const KIND_ORDER = ["shows", "movies", "docs", "anime", "marked"];
@@ -49,14 +49,14 @@ function localKey(ts) {
 function fmtDT(ts) {
   try {
     const d = new Date(ts * 1000);
-    const loc = state.currentLang || "tr";
-    const parts = new Intl.DateTimeFormat(loc, {
-      timeZone: state.currentTz || "Europe/Istanbul",
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    }).formatToParts(d);
-    const g = (tp) => { const p = parts.find((x) => x.type === tp); return p ? p.value : ""; };
-    return { dv: `${g("day")}/${g("month")}/${g("year")}`, tm: `${g("hour")}:${g("minute")}` };
+    // Secili tz'nin ulke yereli; saat bicimi zorlanmaz (AM/PM dahil)
+    const loc = tzLocale();
+    const tz = state.currentTz;
+    const mk = (o) => (tz ? Object.assign({ timeZone: tz }, o) : o);
+    return {
+      dv: new Intl.DateTimeFormat(loc, mk({ day: "2-digit", month: "2-digit", year: "numeric" })).format(d),
+      tm: new Intl.DateTimeFormat(loc, mk({ hour: "2-digit", minute: "2-digit" })).format(d),
+    };
   } catch (_) {
     return { dv: "", tm: "" };
   }

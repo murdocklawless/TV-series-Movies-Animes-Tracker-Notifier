@@ -7,8 +7,8 @@ import {
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=523";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=521";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=524";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=522";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -1368,14 +1368,13 @@ function feedDateTime(ts) {
   if (!ts) return null;
   try {
     const d = new Date(ts * 1000);
-    const loc = state.currentLang || "tr";
-    const parts = new Intl.DateTimeFormat(loc, {
-      timeZone: state.currentTz || "Europe/Istanbul",
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    }).formatToParts(d);
-    const g = (tp) => { const p = parts.find((x) => x.type === tp); return p ? p.value : ""; };
-    return `${g("day")}/${g("month")}/${g("year")} - ${g("hour")}:${g("minute")}`;
+    // Secili tz'nin ulke yereli; saat bicimi zorlanmaz (AM/PM dahil)
+    const loc = tzLocale();
+    const tz = state.currentTz;
+    const mk = (o) => (tz ? Object.assign({ timeZone: tz }, o) : o);
+    const dv = new Intl.DateTimeFormat(loc, mk({ day: "2-digit", month: "2-digit", year: "numeric" })).format(d);
+    const tm = new Intl.DateTimeFormat(loc, mk({ hour: "2-digit", minute: "2-digit" })).format(d);
+    return `${dv} - ${tm}`;
   } catch (_) { return null; }
 }
 

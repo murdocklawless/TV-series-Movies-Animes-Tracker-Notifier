@@ -2,8 +2,8 @@
 import { t, applyLang } from "./i18n.js?v=523";
 import { state } from "./state.js";
 import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js?v=519";
-import { openRejectConfirm, openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm } from "./components.js?v=523";
-import { switchView } from "./views.js?v=523";
+import { openRejectConfirm, openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm } from "./components.js?v=524";
+import { switchView } from "./views.js?v=524";
 
 let currentUser = null;
 let loginMode = "login"; // login | register | force
