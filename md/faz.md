@@ -673,3 +673,13 @@
 - **Cache-buster (teknik):** `style.css?v=594→595`, `tv.css?v=553→554` — içerik değişti, artırılmazsa cihazlar eski CSS'i servis eder.
 - **Sürüm artırılmadı (kullanıcı kararı):** VERSION/DB **1.81** kaldı; CHANGELOG'a giriş yazılmadı, `__NX_BUILD` değişmedi (JS dokunulmadı).
 - **Doğrulama:** CSS grep (sabit `width: 378px` + `min-width: 0` + TV ölçekli 378px), iki pencerenin aynı sınıfı kullandığı teyidi, LINK_TEMIZ, pi md5 + servis edilen CSS'te `width: 378px`; statik → **restart yok**.
+
+
+## FAZ NOTLARI — Bildirim listesinde ay adı TAM yazılır (2026-10-17)
+
+- **Belirti:** Bildirimler penceresinde 24 saatten eski kayıtlarda tarih "12 Eki 05:00" gibi **kısaltmalı** görünüyordu.
+- **Kök neden:** `notification.js::formatTime` yedek dalı `month: "short"` kullanıyordu; ayrıca yerel olarak `state.currentLang` alıp **`timeZone` uygulamıyordu** (v1.80'deki "tz'nin ülke yereli + tz" kararıyla tutarsız).
+- **Çözüm:** yedek dal `month: "long"` + `tzLocale()` + `timeZone: state.currentTz` → tr `12 Ekim 05:00`; en-US `October 12, 4:00 AM` (yerel sıra + 12/24 kuralı korunur). `Az önce` / `N dk` / `N saat önce` kısa yolları ve **absolute** biçim değişmedi.
+- **Kapsam:** yalnızca bildirim listesi. `utils.js::shortDateShort` (kartlardaki kısa tarih etiketleri) bilinçli olarak **değiştirilmedi**.
+- **Cache-buster (teknik):** notification.js 536→537 → import edenler asks 539→540, settings 542→543; `nextep.js?v=569→570`, `__NX_BUILD` 500→501. **Sürüm artırılmadı** (kullanıcı kararı): VERSION/DB **1.81** kaldı, CHANGELOG girişi yok.
+- **Doğulama:** yeni `notif_time_test.mjs` **13/13** (tr'de `Ekim` var / `Eki` yok, en-US'ta tam ay adı, tz farkı, kısa yollar, absolute modu) + regresyon `tz_fmt` 28/28, `notif_strip` 30/30, `notif_pill` 38/38, `ask_foot` 25/25; `node --check` 16/16; LINK_TEMIZ + esmcheck LINK_TEMIZ; pi md5 + servis edilen içerik; statik → **restart yok**.

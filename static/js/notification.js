@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
 import { escAttr, tzLocale } from "./utils.js?v=519";
 import { openNotifClearConfirm } from "./components.js?v=524";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=542";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=543";
 import { isAdmin, loadAdminLists } from "./auth.js?v=520";
 
 const badgeEl = () => document.getElementById("notif-badge");
@@ -51,8 +51,12 @@ function formatTime(ts) {
   const diffH = Math.floor(diffMins / 60);
   if (diffH < 24) return t("notif_hours_ago") ? t("notif_hours_ago").replace("{n}", diffH) : `${diffH} saat önce`;
   try {
-    const loc = (state.currentTz && state.currentLang) ? state.currentLang : "tr-TR";
-    return new Intl.DateTimeFormat(loc, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(d);
+    // Ay adi TAM yazilir; bicim tz'nin ulke yerelinden ve saat secili tz'de
+    // (v1.80 karari: gun/tarih sirasi/12-24 yerelden gelir, tz uygulanir)
+    const loc = tzLocale();
+    const tz = state.currentTz;
+    const opts = { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" };
+    return new Intl.DateTimeFormat(loc, tz ? Object.assign({ timeZone: tz }, opts) : opts).format(d);
   } catch { return d.toLocaleString(); }
 }
 
