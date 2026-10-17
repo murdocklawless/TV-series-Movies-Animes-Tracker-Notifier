@@ -1590,8 +1590,11 @@ input:-webkit-autofill:focus {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 360px;
-  max-width: 380px;
+  /* Sabit genislik: bildirimler ve izlendi pencereleri AYNI genislikte kalsin
+     (onceden min 360 / max 380 idi ve icerige gore degisiyordu) */
+  width: 378px;
+  min-width: 0;
+  max-width: 378px;
   max-height: 60vh;
   background: #1e2230;
   border: 1px solid #3a4050;

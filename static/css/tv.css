@@ -663,7 +663,7 @@ html.is-tv .settings-menu-item, html.tv-mode .settings-menu-item { gap: calc(10p
 html.is-tv .settings-menu-item i, html.tv-mode .settings-menu-item i { width: calc(16px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
 
 /* Bildirim merkezi pulldown */
-html.is-tv .notif-menu, html.tv-mode .notif-menu { top: calc(100% + (8px * var(--tv-scale))); min-width: calc(360px * var(--tv-scale)); max-width: calc(380px * var(--tv-scale)); }
+html.is-tv .notif-menu, html.tv-mode .notif-menu { top: calc(100% + (8px * var(--tv-scale))); width: calc(378px * var(--tv-scale)); min-width: calc(378px * var(--tv-scale)); max-width: calc(378px * var(--tv-scale)); }
 html.is-tv .notif-header, html.tv-mode .notif-header { padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
 html.is-tv .notif-header-btn, html.tv-mode .notif-header-btn { width: calc(28px * var(--tv-scale)); height: calc(28px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
 html.is-tv .notif-empty, html.tv-mode .notif-empty { padding: calc(24px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }

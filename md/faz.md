@@ -663,3 +663,13 @@
 - **Zincir bump (modül adına göre hedefli):** notification 535→536 → import edenler asks 538→539, settings 541→542; `nextep.js?v=` 568→569, `__NX_BUILD` 499→500 (index.html). CSS değişmedi. LINK_TEMIZ + esmcheck **LINK_TEMIZ**, `node --check` 16/16.
 - **Testler:** `notif_strip_test.mjs` **30/30** — ask 2 satır, gövde `izlediniz mi?`, "eklensin mi?" yok, 8 medya varyantı, yeni/eski biçim aynı sonuç, idempotent, renkler, yanlış pozitifler, `<img onerror>` kaçışı; `tz_fmt_test.mjs` **28/28** (ask bölümü 2 satıra güncellendi); `ask_msg_test.py` (pi venv + geçici DB) **60/60** (8 varyant: 2 satır, damga, `izlediniz mi?`, "eklensin mi?" yok); regresyon `notif_pill` 38/38, `ask_foot` 25/25.
 - **Dağıtım:** 6 dosya scp (py hedefi `py/routes/`, js/index ayrı), pi md5 **6/6 MATCH**, `py_compile` OK, **restart** → active, HTTP 200 (açılış bu kez de yavaştı — doğrulama döngüsü 200 görene kadar bekledi), servis edilen içerik doğrulandı (`notification.js?v=536`'da `izlediniz mi?`, `asks`/`settings` → notification 536 referansı, `nextep.js?v=569`, `__NX_BUILD "500"`, stremio.py'de 5 gövde + 2 satır dönüşü). **DB + VERSION 1.80→1.81.** Yedekler: pi `bak/askmi_20261017_040005/` (DB dahil), yerel `bak/askmi_20261017_040007/`.
+
+
+## FAZ NOTLARI — Bildirim/İzlendi penceresi genişliği 378px'e sabitlendi (2026-10-17)
+
+- **Belirti:** İzlendi (ask) penceresi bildirimler penceresinden **dar** görünüyordu.
+- **Kök neden:** İki pencere de aynı sınıfı kullanıyor (`#notif-menu` ve `#watched-ask-menu` → `.notif-menu`), ancak genişlik **sabit değildi**: `min-width: 360px; max-width: 380px` → shrink-to-fit ile içeriğe göre belirleniyordu; ask paneli içeriği kısa olduğu için 360px'te kalıyordu, bildirimler paneli uzun satırlarla 378px'e çıkıyordu.
+- **Çözüm (CSS-only):** `.notif-menu { width: 378px; min-width: 0; max-width: 378px }` (kullanıcı tarayıcıda bildirim penceresini **378px** ölçtü); `tv.css`'teki TV kuralına `width: calc(378px * var(--tv-scale))` eklendi (min/max da 378'e çekildi). `tablet.css` (≤1366px → iki panel de 360px, eşit) ve `mobil.css` (`max-width: calc(100vw - 16px)`, telefonda sınırlar) zaten eşit/sınırlı olduğu için **dokunulmadı**.
+- **Cache-buster (teknik):** `style.css?v=594→595`, `tv.css?v=553→554` — içerik değişti, artırılmazsa cihazlar eski CSS'i servis eder.
+- **Sürüm artırılmadı (kullanıcı kararı):** VERSION/DB **1.81** kaldı; CHANGELOG'a giriş yazılmadı, `__NX_BUILD` değişmedi (JS dokunulmadı).
+- **Doğrulama:** CSS grep (sabit `width: 378px` + `min-width: 0` + TV ölçekli 378px), iki pencerenin aynı sınıfı kullandığı teyidi, LINK_TEMIZ, pi md5 + servis edilen CSS'te `width: 378px`; statik → **restart yok**.
