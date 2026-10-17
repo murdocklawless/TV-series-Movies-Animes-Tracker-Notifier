@@ -20,6 +20,16 @@ def _uget(user_id, key):
     return get_setting(key)
 
 
+def _tg_md_escape(text):
+    """Telegram legacy Markdown (parse_mode="Markdown") kacisi.
+
+    Yalnizca `_ * ` [ ` ozel karakterdir; kacislanmazsa baslik/mesaj icinde
+    gecen bu karakterler gonderimi reddettirir (400). MarkdownV2 degil:
+    . - ( ) # + = ! | > ~ gibi karakterler kacislanmaz.
+    """
+    return "".join(("\\" + ch if ch in "_*`[" else ch) for ch in str(text or ""))
+
+
 def send_telegram(text, poster_url=None, user_id=None):
     if _uget(user_id, "telegram_enabled") == "0":
         return False
@@ -27,6 +37,7 @@ def send_telegram(text, poster_url=None, user_id=None):
     chat_id = _uget(user_id, "telegram_chat_id")
     if not token or not chat_id:
         return False
+    safe = _tg_md_escape(text)
     try:
         if poster_url:
             r = requests.post(
@@ -34,7 +45,7 @@ def send_telegram(text, poster_url=None, user_id=None):
                 json={
                     "chat_id": chat_id,
                     "photo": poster_url,
-                    "caption": text,
+                    "caption": safe,
                     "parse_mode": "Markdown",
                 },
                 timeout=20,
@@ -42,7 +53,7 @@ def send_telegram(text, poster_url=None, user_id=None):
         else:
             r = requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+                json={"chat_id": chat_id, "text": safe, "parse_mode": "Markdown"},
                 timeout=15,
             )
         return r.status_code == 200

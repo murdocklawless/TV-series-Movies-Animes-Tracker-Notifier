@@ -611,7 +611,12 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
         # Faz 32c: tum tipler ayni kisisel akistan gecer; ayri push yolu yok.
         # E-posta tampona tutulur; kosu sonunda tek ozet mail atilir.
         from notifications import notify_all
-        notify_all(message, remote_url, card=card, user_id=uid, hold_email=True)
+        # Dis push metnine yapim adini ekle (bildirim merkezi title'i zaten ayri gosterir;
+        # mesajlardan "{title} " oneki kaldirilmisti -> push isimsiz kaliyordu).
+        push_text = message
+        if title and message and not str(message).startswith(str(title)):
+            push_text = f"{title} {message}"
+        notify_all(push_text, remote_url, card=card, user_id=uid, hold_email=True)
     except Exception as e:
         print(f"notif create failed {type_name} {title}: {e}")
 
