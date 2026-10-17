@@ -1,6 +1,24 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.78 - 17/10/2026-03:28
+### TR
+- **Ask penceresi başlığı** ("İzlendi Bilgisi") artık **büyük harf ve turuncu** (`#f97316`).
+- **Ask kartı boşluğu:** hap + ✓/✗ alt şeridinin posterle mesafesi, bildirimler penceresindeki poster↔hap mesafesiyle eşitlendi (`row-gap` 6→5px).
+- **Mesajlardan yapım ismi kaldırıldı** — ad yalnızca üst satırda (`.notif-title`) görünür:
+  - Ask: `16.10.2026 tarihinde saat 22:46 3. Sezon 4. Bölümünü izlediniz. İzlendi bilgisi eklensin mi?`
+  - Bildirim merkezi: `2. Sezon 8. Bölüm Bugün Yayınlanacak`
+- Eski kayıtlar arayüzde düzeltilir (veri göçü yok). Yeni ask mesajları (`_ask_message`) ve `scheduler.py`'deki **21 in-app bildirim metni** sunucuda da isimsiz üretilir; push/Telegram şablonları ve rol/bakım/yedek bildirimleri değişmedi.
+- Anime mesajındaki küçük harfli "4. bölümünü" de artık renklenir ("N. Sezon/Bölüm" kalıbı büyük/küçük harf duyarsız).
+### EN
+- The **ask panel header** ("İzlendi Bilgisi") is now **uppercase and orange** (`#f97316`).
+- **Ask card spacing:** the distance from the poster to the pill/✓-✗ bottom row now matches the poster↔pill distance in the notifications panel (`row-gap` 6→5px).
+- **The production name was removed from the messages** — it is shown only on the title line (`.notif-title`):
+  - Ask: `16.10.2026 tarihinde saat 22:46 3. Sezon 4. Bölümünü izlediniz. İzlendi bilgisi eklensin mi?`
+  - Notification centre: `2. Sezon 8. Bölüm Bugün Yayınlanacak`
+- Existing rows are fixed in the UI (no data migration). New ask messages (`_ask_message`) and the **21 in-app notification messages** in `scheduler.py` are produced without the name on the server too; push/Telegram templates and role/maintenance/backup notifications are untouched.
+- The lowercase "4. bölümünü" in anime messages is now coloured as well (the "N. Sezon/Bölüm" pattern is case-insensitive).
+
 ## 1.77 - 17/10/2026-03:15
 ### TR
 - **Ask kartı yerleşimi:** çözümlenmiş ("Evet"/"Hayır" verilmiş) kartlarda **tip hapı ile ✓/✗ işareti artık aynı alt şeritte** — hap solda (posterin sol hizasında), işaret sağda. Kart iki kolonlu grid'e alındı (`poster | içerik` + alt şerit); böylece işaret kendi satırını kaplamıyor ve satırlar hizalı görünüyor.

@@ -2,7 +2,7 @@
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
 import { t, errText } from "./i18n.js?v=523";
 import { escAttr, toast, CHECK_SVG } from "./utils.js?v=519";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=533";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=534";
 import { openAskClearConfirm } from "./components.js?v=523";
 
 let askEnabled = true;

@@ -1766,6 +1766,12 @@ input:-webkit-autofill:focus {
   color: #e5e9f0;
   border-bottom: 1px solid #3a4050;
 }
+/* Ask penceresi basligi: buyuk harf + turuncu (yalnizca baslik metni) */
+.watched-ask-header > span {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #f97316;
+}
 /* Poster + (5px altinda, postere gore ortali) tip hapi kolonu */
 .notif-thumbcol,
 .ask-poster {
@@ -1809,7 +1815,7 @@ input:-webkit-autofill:focus {
   grid-template-columns: auto 1fr;
   grid-template-areas: "poster content" "foot foot";
   column-gap: 10px;
-  row-gap: 6px;
+  row-gap: 5px;
 }
 .ask-poster {
   grid-area: poster;

@@ -650,31 +650,30 @@ def _prev_watched_anime(conn, anime_db_id, episode):
 
 
 def _ask_message(kind, title, season, episode, uid, is_doc=False):
-    """Izlendi-sor bildirim mesaji (kullanicinin kendi diliminde tarih-saat)."""
+    """Izlendi-sor bildirim mesaji (kullanicinin kendi diliminde tarih-saat).
+
+    NOT: yapim ismi mesaja YAZILMAZ — arayuzde ayri satirda (.notif-title, tip
+    rengiyle) gosterilir. `title` parametresi geriye donuk uyumluluk icin durur.
+    """
     import datetime as _dt
     try:
         from scheduler import _user_tz
         now = _dt.datetime.now(_user_tz(uid))
     except Exception:
         now = _dt.datetime.now()
-    stamp = now.strftime("%d.%m.%Y tarihinde saat %H:%M de")
+    stamp = now.strftime("%d.%m.%Y tarihinde saat %H:%M")
     if kind == "anime":
         if episode is not None:
-            body = f"{title} isimli animenin {int(episode)}. bölümünü izlediniz."
+            body = f"{int(episode)}. bölümünü izlediniz."
         else:
-            body = f"{title} isimli animeyi izlediniz."
+            body = "animeyi izlediniz."
     elif kind == "movie":
-        if is_doc:
-            body = f"{title} isimli belgeseli izlediniz."
-        else:
-            body = f"{title} isimli filmi izlediniz."
+        body = "belgeseli izlediniz." if is_doc else "filmi izlediniz."
     else:  # tv
         if season is not None and episode is not None:
-            noun = "belgeselin" if is_doc else "dizinin"
-            body = f"{title} isimli {noun} {int(season)}. Sezon {int(episode)}. Bölümünü izlediniz."
+            body = f"{int(season)}. Sezon {int(episode)}. Bölümünü izlediniz."
         else:
-            noun = "belgeseli" if is_doc else "diziyi"
-            body = f"{title} isimli {noun} izlediniz."
+            body = "belgeseli izlediniz." if is_doc else "diziyi izlediniz."
     return f"{stamp} {body} İzlendi bilgisi eklensin mi?"
 
 

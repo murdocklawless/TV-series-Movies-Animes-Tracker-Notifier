@@ -636,14 +636,14 @@ def check_notifications(user_id=None):
         # 1 episode_today (merkez + dis push tek geciste; makbuz notified_date=today dedupe'u)
         rows = conn.execute("SELECT season, episode, air_date FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], today)).fetchall()
         for ep in rows:
-            msg = f"{r['title']} {ep['season']}. Sezon {ep['episode']}. Bölüm Bugün Yayınlanacak"
+            msg = f"{ep['season']}. Sezon {ep['episode']}. Bölüm Bugün Yayınlanacak"
             _notif_create(r["title"], msg, _doc_type(is_doc, "episode_today"), media_type="tv", tmdb_id=r["tmdb_id"], season=ep["season"], episode=ep["episode"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, remote_url=TMDB_IMAGE_BASE + r["poster_path"] if r["poster_path"] else None, user_id=uid)
         # 2 season_start today via season_list
         try:
             sl = json.loads(r["season_list"] or "[]")
             for s in sl:
                 if s.get("air_date") == today and s.get("season_number"):
-                    msg = f"{r['title']} {s['season_number']}. Sezon Bugün Başlıyor"
+                    msg = f"{s['season_number']}. Sezon Bugün Başlıyor"
                     _notif_create(r["title"], msg, _doc_type(is_doc, "season_start"), media_type="tv", tmdb_id=r["tmdb_id"], season=s["season_number"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, user_id=uid)
         except Exception:
             pass
@@ -657,17 +657,17 @@ def check_notifications(user_id=None):
                 fire = prev is not None and prev != status
                 if fire:
                     if status == "Planned":
-                        _notif_create(r["title"], f"{r['title']} 4. Sezon Planlanıyor" if "Sezon" not in r["title"] else f"{r['title']} Planlanıyor", _doc_type(is_doc, "season_planned"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "4. Sezon Planlanıyor" if "Sezon" not in r["title"] else "Planlanıyor", _doc_type(is_doc, "season_planned"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                     elif status == "In Production":
-                        _notif_create(r["title"], f"{r['title']} 4. Sezon Yapım Aşamasında", _doc_type(is_doc, "season_production"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "4. Sezon Yapım Aşamasında", _doc_type(is_doc, "season_production"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                     elif status == "Ended":
-                        _notif_create(r["title"], f"{r['title']} Bitti", _doc_type(is_doc, "status_ended"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "Bitti", _doc_type(is_doc, "status_ended"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                     elif status in ("Canceled", "Cancelled"):
-                        _notif_create(r["title"], f"{r['title']} İptal Edildi", _doc_type(is_doc, "status_canceled"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "İptal Edildi", _doc_type(is_doc, "status_canceled"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                     elif status == "Pilot":
-                        _notif_create(r["title"], f"{r['title']} Pilot Bölüm", _doc_type(is_doc, "status_pilot"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "Pilot Bölüm", _doc_type(is_doc, "status_pilot"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                     elif status == "Returning Series":
-                        _notif_create(r["title"], f"{r['title']} Yeni Sezon Bekleniyor", _doc_type(is_doc, "status_returning"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
+                        _notif_create(r["title"], "Yeni Sezon Bekleniyor", _doc_type(is_doc, "status_returning"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=status, user_id=uid)
                 snap[key] = status
                 from db import set_setting
                 _sset(uid, "notif_tv_status", json.dumps(snap))
@@ -682,7 +682,7 @@ def check_notifications(user_id=None):
             key = f"tv_{r['tmdb_id']}"
             prev = snap.get(key)
             if cand and prev is not None and cand > prev:
-                _notif_create(r["title"], f"{r['title']} {cand}. Sezon Yakında", _doc_type(is_doc, "season_upcoming"), media_type="tv", tmdb_id=r["tmdb_id"], season=cand, poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=f"upcoming_{cand}", user_id=uid)
+                _notif_create(r["title"], f"{cand}. Sezon Yakında", _doc_type(is_doc, "season_upcoming"), media_type="tv", tmdb_id=r["tmdb_id"], season=cand, poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=f"upcoming_{cand}", user_id=uid)
             if cand:
                 snap[key] = cand
                 from db import set_setting
@@ -719,7 +719,7 @@ def check_notifications(user_id=None):
             if fire:
                 cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=0 AND air_date IS NOT NULL AND air_date < ?", (r["id"], today)).fetchone()["c"]
                 if cnt >= 3:
-                    _notif_create(r["title"], f"{r['title']} {cnt} bölüm birikti", _doc_type(is_doc, "unwatched_bulk"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=bulk_key, user_id=uid)
+                    _notif_create(r["title"], f"{cnt} bölüm birikti", _doc_type(is_doc, "unwatched_bulk"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=bulk_key, user_id=uid)
         except StopIteration:
             pass
         except Exception:
@@ -732,7 +732,7 @@ def check_notifications(user_id=None):
             prev = snap.get(key)
             cur = r["vote_average"] or 0
             if prev is not None and cur - prev >= 0.5 and (r["vote_count"] or 0) > 100:
-                _notif_create(r["title"], f"{r['title']} puanı yükseldi: {prev:.1f} → {cur:.1f}", _doc_type(is_doc, "vote_threshold"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=f"vote_{cur:.1f}", user_id=uid)
+                _notif_create(r["title"], f"puanı yükseldi: {prev:.1f} → {cur:.1f}", _doc_type(is_doc, "vote_threshold"), media_type="tv", tmdb_id=r["tmdb_id"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=f"vote_{cur:.1f}", user_id=uid)
             snap[key] = cur
             # save back later
             from db import set_setting
@@ -743,7 +743,7 @@ def check_notifications(user_id=None):
     for m in conn.execute("SELECT * FROM followed WHERE user_id=? AND media_type='movie'", (uid,)).fetchall():
         is_doc = _is_doc_row(m)
         if m["release_date"] == today:
-            _notif_create(m["title"], f"{m['title']} Bugün Vizyona Girdi", _doc_type(is_doc, "movie_today"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=today, user_id=uid)
+            _notif_create(m["title"], "Bugün Vizyona Girdi", _doc_type(is_doc, "movie_today"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=today, user_id=uid)
         # 15 movie rescheduled snapshot
         try:
             snap_raw = _sget(uid, "notif_movie_snapshot") or "{}"
@@ -752,7 +752,7 @@ def check_notifications(user_id=None):
             prev = snap.get(key)
             cur = m["release_date"]
             if prev and prev != cur and cur:
-                _notif_create(m["title"], f"{m['title']} vizyon tarihi değişti: {prev} → {cur}", _doc_type(is_doc, "movie_rescheduled"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
+                _notif_create(m["title"], f"vizyon tarihi değişti: {prev} → {cur}", _doc_type(is_doc, "movie_rescheduled"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
             snap[key] = cur
             from db import set_setting
             _sset(uid, "notif_movie_snapshot", json.dumps(snap))
@@ -766,7 +766,7 @@ def check_notifications(user_id=None):
             prev = snap.get(key)
             cur = m["networks"]
             if prev and prev != cur and cur:
-                _notif_create(m["title"], f"{m['title']} Platform bilgisi güncellendi", _doc_type(is_doc, "networks_changed"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
+                _notif_create(m["title"], "Platform bilgisi güncellendi", _doc_type(is_doc, "networks_changed"), media_type="movie", tmdb_id=m["tmdb_id"], poster_path=m["poster_path"], kind="movie", ident=m["tmdb_id"], notified_date=cur, user_id=uid)
             snap[key] = cur
             from db import set_setting
             _sset(uid, "notif_network_snapshot", json.dumps(snap))
@@ -796,7 +796,7 @@ def check_anime_notifications(user_id=None):
             try:
                 d = datetime.datetime.fromtimestamp(ae["air_at"], datetime.timezone.utc).date().isoformat()
                 if d == today:
-                    _notif_create(a["title"], f"{a['title']} {ae['episode']}. Bölüm Bugün Yayında", "anime_episode_today", media_type="anime", anilist_id=a["anilist_id"], episode=ae["episode"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=today, user_id=uid)
+                    _notif_create(a["title"], f"{ae['episode']}. Bölüm Bugün Yayında", "anime_episode_today", media_type="anime", anilist_id=a["anilist_id"], episode=ae["episode"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=today, user_id=uid)
             except Exception:
                 pass
         # 18-19 anime durumları — snapshot bazlı: yalnızca durum DEĞİŞİNCE bir kez
@@ -812,16 +812,16 @@ def check_anime_notifications(user_id=None):
         status_changed = prev is not None and prev != status
         if status == "HIATUS":
             if status_changed:
-                _notif_create(a["title"], f"{a['title']} Ara Verdi", "anime_hiatus", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
+                _notif_create(a["title"], "Ara Verdi", "anime_hiatus", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
         elif status == "CANCELLED":
             if status_changed:
-                _notif_create(a["title"], f"{a['title']} İptal Edildi", "anime_cancelled", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
+                _notif_create(a["title"], "İptal Edildi", "anime_cancelled", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
         elif status == "FINISHED":
             if status_changed:
-                _notif_create(a["title"], f"{a['title']} Bitti", "anime_finished", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
+                _notif_create(a["title"], "Bitti", "anime_finished", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
         elif status == "RELEASING":
             if prev == "NOT_YET_RELEASED" and status == "RELEASING":
-                _notif_create(a["title"], f"{a['title']} Yayına Başladı", "anime_releasing", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
+                _notif_create(a["title"], "Yayına Başladı", "anime_releasing", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=status, user_id=uid)
         if status:
             try:
                 snap[key] = status
@@ -836,7 +836,7 @@ def check_anime_notifications(user_id=None):
             prev = snap.get(key)
             cur = a["episodes"]
             if prev and prev != cur:
-                _notif_create(a["title"], f"{a['title']} bölüm sayısı {prev} → {cur}", "anime_episodes", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=str(cur), user_id=uid)
+                _notif_create(a["title"], f"bölüm sayısı {prev} → {cur}", "anime_episodes", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=str(cur), user_id=uid)
             snap[key] = cur
             from db import set_setting
             _sset(uid, "notif_anime_ep", json.dumps(snap))
@@ -871,7 +871,7 @@ def check_anime_notifications(user_id=None):
             if fire:
                 cnt = conn.execute("SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=0 AND air_at IS NOT NULL AND air_at < ?", (a["id"], int(datetime.datetime.now(datetime.timezone.utc).timestamp()))).fetchone()["c"]
                 if cnt >= 3:
-                    _notif_create(a["title"], f"{a['title']} {cnt} bölüm birikti", "anime_unwatched_bulk", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=bulk_key, user_id=uid)
+                    _notif_create(a["title"], f"{cnt} bölüm birikti", "anime_unwatched_bulk", media_type="anime", anilist_id=a["anilist_id"], cover_url=a["cover_url"], kind="anime", ident=a["anilist_id"], notified_date=bulk_key, user_id=uid)
         except StopIteration:
             pass
         except Exception:

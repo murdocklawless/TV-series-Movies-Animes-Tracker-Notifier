@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
 import { escAttr } from "./utils.js?v=519";
 import { openNotifClearConfirm } from "./components.js?v=523";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=539";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=540";
 import { isAdmin, loadAdminLists } from "./auth.js?v=519";
 
 const badgeEl = () => document.getElementById("notif-badge");
@@ -80,19 +80,46 @@ export function notifTypePill(kind) {
 // Eski ve yeni kayitlar ayni sekilde gorunur (veri gocu gerekmez).
 export function notifMsgHTML(text, title) {
   let s = String(text == null ? "" : text);
-  // 1) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
+  const tRaw = String(title || "").trim();
+  // 1) Yapim ismini mesajdan kaldir: isim yalnizca .notif-title satirinda gosterilir.
+  //    a) "<isim> isimli dizi(nin)/film(i)/belgesel(in)/anime(yi) ..." -> parca (+ varsa " de ") silinir
+  //    b) basdaki "<isim> " (bildirim merkezi) silinir
+  if (tRaw) {
+    const idx = s.indexOf(tRaw);
+    if (idx >= 0) {
+      const after = s.slice(idx + tRaw.length);
+      let cut = 0;
+      // "isimli dizinin/belgeselin/animenin <N>. Sezon ..." -> tur de silinir (tam parca)
+      const poss = after.match(/^\s+isimli\s+(dizinin|belgeselin|animenin)\s+(?=\d+\.\s)/i);
+      if (poss) cut = poss[0].length;
+      else {
+        // "... isimli filmi/diziyi/animeyi/belgeseli ..." -> yalniz "isimli" silinir, tur kalir
+        const any = after.match(/^\s+isimli\s+/i);
+        if (any) cut = any[0].length;
+      }
+      if (cut > 0) {
+        let head = s.slice(0, idx);
+        head = head.replace(/\s+de\s+$/i, " ");
+        s = head + after.slice(cut);
+      } else if (idx === 0) {
+        s = after.replace(/^\s+/, "");
+      }
+    }
+  }
+  // 2) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
   s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. Bölüm`);
-  // 2) kacis (HTML enjeksiyonu yok)
+  // 3) kacis (HTML enjeksiyonu yok)
   let html = escAttr(s);
-  // 3) yapim ismi: bilinen tam metin, regex yok (ozel karakter guvenli)
+  // 4) mesajda kalinti isim varsa tip rengiyle isaretle (nadir; isim normalde ust satirda)
   const tEsc = title ? escAttr(String(title)) : "";
   if (tEsc) {
     const i = html.indexOf(tEsc);
     if (i >= 0) html = html.slice(0, i) + `<span class="hl-title">${tEsc}</span>` + html.slice(i + tEsc.length);
   }
-  // 4) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni)
-  html = html.replace(/(\d+\.\s*Sezon[\wÇĞİÖŞÜçğıöşü]*)/g, `<span class="hl-season">$1</span>`);
-  html = html.replace(/(\d+\.\s*Bölüm[\wÇĞİÖŞÜçğıöşü]*)/g, `<span class="hl-ep">$1</span>`);
+  // 5) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni;
+  //    anime mesajindaki kucuk harfli "4. bölümünü" de kapsar)
+  html = html.replace(/(\d+\.\s*Sezon[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-season">$1</span>`);
+  html = html.replace(/(\d+\.\s*Bölüm[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-ep">$1</span>`);
   return html;
 }
 
