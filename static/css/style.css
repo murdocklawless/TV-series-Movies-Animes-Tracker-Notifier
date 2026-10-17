@@ -27,7 +27,7 @@ nav {
 }
 
 .logo {
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: #f97316;
   display: flex;
@@ -134,7 +134,7 @@ nav > .nav-tabs-scroll {
 
 @media (min-width: 601px) {
   .logo {
-    font-size: 1.7rem;
+    font-size: 1.15rem;
   }
 
   .search-area {
