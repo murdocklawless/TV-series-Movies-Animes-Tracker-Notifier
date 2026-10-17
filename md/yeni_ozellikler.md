@@ -79,7 +79,7 @@
   align-items:center; pointer-events:none; z-index:2`; çocuklar `pointer-events:auto`,
   `position:static` resetlenir (mobil/TV konum ezmeleri dahil).
 - İkon `fa-box-archive`; renk önerisi `#fbbf24` (amber — kırmızı "sil"e ayrılmış).
-- **Adanmış onay modalı** (AGENTS: ortak/parametrik modal YASAK) + TV `hookModals` kaydı.
+- **Adanmış onay YOK (1.83 düzeltmesi):** arşivleme de arşivden çıkarma gibi onaysız tek tıklamadır (`archiveAskAndArchive` silindi; `#archive-confirm-modal` yok). TV `hookModals` / `resolveLiveButton` listelerinde arşiv kaydı yoktur (unarchive dönüş odağı rowview slotuyla çözülür).
 - TV: `tv.js` `RANK` + `CARD_BTN_SEL` + `:hover`/`:focus-within` display listelerine arşiv eklenir;
   `views.js` `setTvCardAttrs` arşiv keydown'unu bağlar.
 

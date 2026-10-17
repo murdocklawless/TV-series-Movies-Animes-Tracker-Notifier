@@ -16,8 +16,8 @@ import {
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
 } from "./utils.js?v=519";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=525";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=522";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=526";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=523";
 
 let currentDetails = null;
 
@@ -450,12 +450,6 @@ function closeAnimeUnfollow() {
 }
 function openAnimeUnfollowConfirm(text, onYes) {
   wireDedicatedConfirm("anime-unfollow-modal", text, onYes);
-}
-function closeArchiveConfirm() {
-  document.getElementById("archive-confirm-modal").style.display = "none";
-}
-function openArchiveConfirm(text, onYes) {
-  wireDedicatedConfirm("archive-confirm-modal", text, onYes);
 }
 function closeRejectConfirm() {
   document.getElementById("reject-confirm-modal").style.display = "none";
@@ -1576,7 +1570,7 @@ if (detailsRefreshBtn) {
 }
 
 export { openReleases, closeReleases, closeDetails, closeModals,
-         openTvUnfollowConfirm, openAnimeUnfollowConfirm, openArchiveConfirm, openRejectConfirm,
+         openTvUnfollowConfirm, openAnimeUnfollowConfirm, openRejectConfirm,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
          openNotifClearConfirm, openAskClearConfirm, openStremioDisconnectConfirm,
          openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,

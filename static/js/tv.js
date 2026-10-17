@@ -104,7 +104,7 @@ function resolveLiveButton(oldBtn) {
     const card = oldBtn.closest && oldBtn.closest('.card');
     const liveCard = card ? resolveLiveCard(card) : null;
     if (liveCard) {
-      const cls = ['calendar-btn','info-btn','remove','move-btn','move-back-btn','hide-btn'].find(c=>oldBtn.classList && oldBtn.classList.contains(c));
+      const cls = ['calendar-btn','info-btn','remove','move-btn','move-back-btn','archive-btn','unarchive-btn','hide-btn'].find(c=>oldBtn.classList && oldBtn.classList.contains(c));
       if (cls) {
         const nb = liveCard.querySelector('.'+cls);
         if (nb) return nb;
@@ -238,7 +238,7 @@ function statsModalMove(top, dir, e){
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","archive-confirm-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;

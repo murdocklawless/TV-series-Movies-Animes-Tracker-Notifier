@@ -185,7 +185,7 @@ const SLOT_SEL = { calendar: ".calendar-btn", info: ".info-btn", defer: ".defer-
 function slotKeysFor(kind, section) {
   const s = (section || "").toLowerCase();
   const tv = isTvMode();
-  if (s.startsWith("archive")) return ["calendar", "archive"];
+  if (s.startsWith("archive")) return ["calendar", "archive", "remove"];
   if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return tv ? ["info", "move", "hide", "remove"] : ["move", "hide", "remove"];
   if (s.startsWith("watched")) return tv ? ["calendar", "info", "move"] : ["calendar", "move"];
   if (s.startsWith("unwatched")) return tv ? ["calendar", "info"] : ["calendar"];

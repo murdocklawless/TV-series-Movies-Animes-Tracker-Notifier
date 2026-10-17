@@ -7,8 +7,8 @@ import {
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openArchiveConfirm, openUnwatchedModal } from "./components.js?v=525";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=522";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=526";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=523";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -324,7 +324,7 @@ async function loadFollowed(view) {
     try {
       const ares = await fetch("/api/followed?archived=1");
       const aitems = await ares.json();
-      if (Array.isArray(aitems)) items = items.concat(aitems);
+      if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
     } catch (_) {}
   }
   const isTv = view === "dizi";
@@ -401,7 +401,7 @@ async function loadFollowed(view) {
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
     const archBtn = div.querySelector(".archive-btn");
-    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveAskAndArchive(item, () => loadFollowed(view)); };
+    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveFollowedItem(item, () => loadFollowed(view)); };
     const unarchBtn = div.querySelector(".unarchive-btn");
     if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, () => loadFollowed(view)); };
     const infoBtn = div.querySelector(".info-btn");
@@ -473,7 +473,7 @@ async function loadBelgesel() {
     try {
       const ares = await fetch("/api/followed?archived=1");
       const aitems = await ares.json();
-      if (Array.isArray(aitems)) items = items.concat(aitems);
+      if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
     } catch (_) {}
   }
   items = items.filter((i) => !i.isAnime && isDocItem(i) && (!(i.in_watched == 1) || i.archived == 1));
@@ -543,7 +543,7 @@ async function loadBelgesel() {
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
     const archBtn = div.querySelector(".archive-btn");
-    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveAskAndArchive(item, loadBelgesel); };
+    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveFollowedItem(item, loadBelgesel); };
     const unarchBtn = div.querySelector(".unarchive-btn");
     if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadBelgesel); };
     const infoBtn = div.querySelector(".info-btn");
@@ -643,7 +643,7 @@ async function loadAnime() {
     try {
       const ares = await fetch("/api/anime/followed?archived=1");
       const aitems = await ares.json();
-      if (Array.isArray(aitems)) items = items.concat(aitems);
+      if (Array.isArray(aitems)) items = dedupeMerged(items.concat(aitems));
     } catch (_) {}
   }
   items = items.filter((i) => (!(i.in_watched == 1) || i.archived == 1));
@@ -707,7 +707,7 @@ async function loadAnime() {
       openAnimeSchedule(item.id, item.title);
     };
     const archBtnA = div.querySelector(".archive-btn");
-    if (archBtnA) archBtnA.onclick = (e) => { e.stopPropagation(); archiveAskAndArchiveAnime(item, loadAnime); };
+    if (archBtnA) archBtnA.onclick = (e) => { e.stopPropagation(); archiveAnimeItem(item, loadAnime); };
     const unarchBtnA = div.querySelector(".unarchive-btn");
     if (unarchBtnA) unarchBtnA.onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, loadAnime); };
     const infoBtnA = div.querySelector(".info-btn");
@@ -1257,6 +1257,18 @@ async function fetchArchivedAnime() {
   const d = await res.json();
   return Array.isArray(d) ? d : [];
 }
+// Birlesik (aktif + arsivli) listelerde ayni yapim iki kaynaktan da gelebilir
+// (eski onbellek / yaris durumu); id bazinda tekille (cift kart onlenir).
+function dedupeMerged(items) {
+  const seen = new Set();
+  return (items || []).filter((i) => {
+    if (!i || typeof i !== "object") return false;
+    const k = i.anilist_id ? "a" + i.anilist_id : "f" + (i.tmdb_id || "") + ":" + (i.media_type || "");
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
 function archiveFollowedItem(item, done) {
   return fetch("/api/followed/archive", {
     method: "POST",
@@ -1285,12 +1297,6 @@ function unarchiveAnimeItem(item, done) {
     body: JSON.stringify({ anime_id: item.id, archived: 0 }),
   }).then(() => { toast(t("unarchived_toast", { name: item.title })); if (done) done(); });
 }
-function archiveAskAndArchive(item, done) {
-  openArchiveConfirm(t("archive_confirm_text", { title: item.title }), () => archiveFollowedItem(item, done));
-}
-function archiveAskAndArchiveAnime(item, done) {
-  openArchiveConfirm(t("archive_confirm_text", { title: item.title }), () => archiveAnimeItem(item, done));
-}
 function archivedBadgeHTML() {
   return `<div class="archived-line"><span class="badge badge-archived"><i class="fa-solid fa-box-archive"></i> ${t("archived_badge")}</span></div>`;
 }
@@ -1314,6 +1320,8 @@ async function loadArchive() {
   try { animes = await fetchArchivedAnime(); } catch (_) { animes = []; }
   if (!Array.isArray(items)) items = [];
   if (!Array.isArray(animes)) animes = [];
+  items = dedupeMerged(items);
+  animes = dedupeMerged(animes);
 
   let shows = applySort(items.filter((i) => i.media_type === "tv").map((s) => ({ ...s, isAnime: false })));
   let movies = applySort(items.filter((i) => i.media_type === "movie").map((m) => ({ ...m, isAnime: false })));
@@ -1355,6 +1363,7 @@ async function loadArchive() {
             net: platformTag(item.networks),
             mid: seasonEpMid(item),
             status: tvStatusText(item),
+            count: `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
           ${archivedBadgeHTML()}
         </div>
@@ -1362,10 +1371,22 @@ async function loadArchive() {
       <div class="poster-top">
         <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
         <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
       </div>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases("tv", item.tmdb_id, item.title); };
     div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.querySelector(".remove").onclick = (e) => {
+      e.stopPropagation();
+      openTvUnfollowConfirm(
+        t("unfollow_confirm", { title: item.title }),
+        async () => {
+          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+          loadArchive();
+          toast(t("unfollowed", { name: item.title }));
+        }
+      );
+    };
     div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
     tagCardStats(div, item, "shows", item.runtime);
     showsGrid.appendChild(div);
@@ -1400,10 +1421,22 @@ async function loadArchive() {
       <div class="poster-top">
         <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
         <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
       </div>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases("movie", item.tmdb_id, item.title); };
     div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.querySelector(".remove").onclick = (e) => {
+      e.stopPropagation();
+      openTvUnfollowConfirm(
+        t("unfollow_confirm", { title: item.title }),
+        async () => {
+          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+          loadArchive();
+          toast(t("unfollowed", { name: item.title }));
+        }
+      );
+    };
     div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
     tagCardStats(div, item, "movies", item.runtime);
     moviesGrid.appendChild(div);
@@ -1437,6 +1470,7 @@ async function loadArchive() {
             net: platformTag(item.networks),
             mid: mt === "movie" ? dateLine : seasonEpMid(item),
             status: mt === "movie" ? CARD_SLOT.status : dateLine,
+            count: mt === "movie" ? "" : `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
           ${archivedBadgeHTML()}
         </div>
@@ -1444,10 +1478,22 @@ async function loadArchive() {
       <div class="poster-top">
         <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
         <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
       </div>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openReleases(mt, item.tmdb_id, item.title); };
     div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadArchive); };
+    div.querySelector(".remove").onclick = (e) => {
+      e.stopPropagation();
+      openTvUnfollowConfirm(
+        t("unfollow_confirm", { title: item.title }),
+        async () => {
+          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+          loadArchive();
+          toast(t("unfollowed", { name: item.title }));
+        }
+      );
+    };
     div.onclick = () => openDetails(mt, item.tmdb_id, item.title);
     tagCardStats(div, item, "docs", item.runtime);
     if (docsGrid) docsGrid.appendChild(div);
@@ -1470,6 +1516,7 @@ async function loadArchive() {
             net: platformTag(item.studios),
             mid: animeEpMid(item),
             status: animeNextText(null, item.status),
+            count: `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
           ${archivedBadgeHTML()}
         </div>
@@ -1477,10 +1524,22 @@ async function loadArchive() {
       <div class="poster-top">
         <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
         <button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>
+        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
       </div>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => { e.stopPropagation(); openAnimeSchedule(item.id, item.title); };
     div.querySelector(".unarchive-btn").onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, loadArchive); };
+    div.querySelector(".remove").onclick = (e) => {
+      e.stopPropagation();
+      openAnimeUnfollowConfirm(
+        t("unfollow_confirm", { title: item.title }),
+        async () => {
+          await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
+          loadArchive();
+          toast(t("unfollowed", { name: item.title }));
+        }
+      );
+    };
     div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
     tagCardStats(div, item, "anime", item.duration);
     animeGrid.appendChild(div);
