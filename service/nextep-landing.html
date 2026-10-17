@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NextEp Watch Sync — Stremio Addon</title>
+<title>NextEp — Stremio Addon & Takvim</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,6 +43,8 @@
     font-family: inherit;
   }
   .tab:hover { background: rgba(249, 115, 22, 0.3); border-color: #f97316; color: #fff; }
+  .tab.active { background: rgba(249, 115, 22, 0.22); border-color: #f97316; color: #fff; }
+  .tabs { display: flex; gap: 8px; }
   .sort-menu {
     position: absolute;
     top: calc(100% + 8px);
@@ -101,6 +103,10 @@
 <body>
 <nav>
   <div class="logo"><i class="fa-solid fa-clapperboard"></i><span>NextEp Watch Sync</span></div>
+  <div class="tabs">
+    <button class="tab lp-tab" id="lp-tab-stremio"></button>
+    <button class="tab lp-tab" id="lp-tab-calendar"></button>
+  </div>
   <div class="lang-wrap">
     <button class="tab" id="lang-btn" aria-haspopup="true"><i class="fa-solid fa-globe"></i><span id="lang-name">English</span><i class="fa-solid fa-caret-down"></i></button>
     <div class="sort-menu" id="lang-menu" role="menu"></div>
@@ -109,12 +115,22 @@
 <main>
   <h1>NextEp Watch Sync</h1>
   <p class="tagline" id="lp-tagline"></p>
-  <h2 id="lp-what-t"></h2>
-  <ul class="feat" id="lp-what"></ul>
-  <h2 id="lp-install-t"></h2>
-  <ol class="steps" id="lp-install"></ol>
-  <h2 id="lp-notes-t"></h2>
-  <ul class="feat" id="lp-notes"></ul>
+  <div id="panel-stremio">
+    <h2 id="lp-what-t"></h2>
+    <ul class="feat" id="lp-what"></ul>
+    <h2 id="lp-install-t"></h2>
+    <ol class="steps" id="lp-install"></ol>
+    <h2 id="lp-notes-t"></h2>
+    <ul class="feat" id="lp-notes"></ul>
+  </div>
+  <div id="panel-calendar" style="display:none">
+    <h2 id="lp-cal-what-t"></h2>
+    <ul class="feat" id="lp-cal-what"></ul>
+    <h2 id="lp-cal-install-t"></h2>
+    <ol class="steps" id="lp-cal-install"></ol>
+    <h2 id="lp-cal-notes-t"></h2>
+    <ul class="feat" id="lp-cal-notes"></ul>
+  </div>
 </main>
 <script>
 var LANGS = [
@@ -533,6 +549,417 @@ zh: {
   ]
 }
 };
+
+// ---- Takvim sekmesi (1.85): ayni sema (Ne ise yarar? / Kurulum / Onemli notlar) ----
+var LPC = {
+tr: {
+  tab_stremio: "Stremio", tab_calendar: "Takvim",
+  cal_tagline: "Takip ettiğin dizilerin, belgesellerin, animelerin yayınlanacak bölümleri ve filmlerin vizyon tarihleri kişisel takvim adresinle Google/Apple Takvim'e otomatik düşer.",
+  cal_what: "Ne işe yarar?",
+  cal_w: [
+    "Yaklaşan bölümler takviminde görünür: dizi ve belgesel dizilerinin yayınlanacak bölümleri, animelerin bölümleri ve filmlerin vizyon tarihleri tek takvimde toplanır.",
+    "Geçmiş kendiliğinden temizlenir: yalnız bugün ve sonrası gönderilir; yayınlanan bölümler takvimden kalkar.",
+    "Arşiv ve izlenmişler: arşivlediklerin takvime eklenmez; İzlenmişler'e taşıdıkların yeni bölümü varsa görünür.",
+    "Hatırlatıcı: her olaya yayından 1 gün önce hatırlatıcı eklenir (Apple Takvim otomatik uygular; Google'da takvimin bildirimlerini açman gerekir).",
+    "Kişiye özel ve bağımsız: adres yalnız sana özeldir; istediğin kadar cihaza ekleyebilirsin. Uygulama kapalı olsa da takvim güncellenir."
+  ],
+  cal_install: "Kurulum",
+  cal_s: [
+    "Adresi al: Nextep → Ayarlar → Third Party Apps → Takvim (ICS) → adresi Kopyala butonuyla kopyala. (Adres sana özeldir, kimseyle paylaşma.)",
+    "Google Takvim: sol menüden Diğer takvimler → + → “URL ile ekle” → adresi yapıştır → Takvim ekle.",
+    "Apple Takvim: Ayarlar → Takvim → Hesaplar → Hesap Ekle → Diğer → Takvim Aboneliği Ekle → adresi yapıştır → Kaydet.",
+    "Google'da hatırlatıcı: Takvim ayarları → ilgili takvim → Etkinlik bildirimleri → “1 gün önce” ekle.",
+    "Kontrol: takvimde bir sonraki bölümü gör. Görünmüyorsa mobilde ☰ → Diğer takvimler → NextEp kutusunu işaretle."
+  ],
+  cal_notes: "Önemli notlar",
+  cal_n: [
+    "Güncelleme gecikmesi: Google abone takvimleri ~12-24 saatte yeniler; web'de ⟳ (Şimdi yenile) ile hemen çekebilirsin.",
+    "Mobil görünürlük: Google mobil uygulaması abone takvimleri kapalı gösterebilir → ☰ → Diğer takvimler → NextEp işaretle.",
+    "Yenile: yeni adres üretir; eski adres ölür — takvime yeni adresi eklemen gerekir.",
+    "Kes: adres geçersiz olur; abone takvim güncellenmeyi durdurur.",
+    "Saatler: saatli olaylar bölümün yayın saatinde görünür; yayın saati bilinmeyenler tüm gün işaretlenir.",
+    "Gizlilik: adres yalnız yapım adı, bölüm ve tarih taşır; başka bilgi gitmez."
+  ]
+},
+en: {
+  tab_stremio: "Stremio", tab_calendar: "Calendar",
+  cal_tagline: "Upcoming episodes of the shows, documentaries and anime you follow, plus movie release dates, drop into Google/Apple Calendar automatically via your personal calendar address.",
+  cal_what: "What does it do?",
+  cal_w: [
+    "Upcoming episodes appear in your calendar: upcoming episodes of shows and documentary series, anime episodes and movie release dates are collected in a single calendar.",
+    "The past clears itself: only today and later are sent; aired episodes disappear from the calendar.",
+    "Archive and watched: archived titles are not added; titles moved to Watched appear if they have a new episode.",
+    "Reminder: every event gets a reminder 1 day before airing (Apple Calendar applies it automatically; in Google you must enable the calendar's notifications).",
+    "Personal and independent: the address is yours alone; add it to as many devices as you like. The calendar keeps updating even when the app is closed."
+  ],
+  cal_install: "Setup",
+  cal_s: [
+    "Get the address: NextEp → Settings → Third Party Apps → Calendar (ICS) → copy it with the Copy button. (The address is personal — don't share it.)",
+    "Google Calendar: in the left menu, Other calendars → + → “From URL” → paste the address → Add calendar.",
+    "Apple Calendar: Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar → paste the address → Save.",
+    "Reminders in Google: Calendar settings → the calendar → Event notifications → add “1 day before”.",
+    "Check: you should see the next episode in your calendar. If not, on mobile tap ☰ → Other calendars → tick NextEp."
+  ],
+  cal_notes: "Important notes",
+  cal_n: [
+    "Refresh lag: Google refreshes subscribed calendars every ~12–24 hours; use ⟳ (Refresh now) on the web to pull immediately.",
+    "Mobile visibility: the Google mobile app may show subscribed calendars unchecked → ☰ → Other calendars → tick NextEp.",
+    "Refresh: generates a new address; the old one dies — you must add the new address to your calendar.",
+    "Disconnect: the address becomes invalid; the subscribed calendar stops updating.",
+    "Times: timed events appear at the episode's air time; events without an air time are marked all-day.",
+    "Privacy: the address carries only title, episode and date; nothing else."
+  ]
+},
+de: {
+  tab_stremio: "Stremio", tab_calendar: "Kalender",
+  cal_tagline: "Kommende Folgen der Serien, Dokus und Animes, die du verfolgst, sowie Kinostarts landen über deine persönliche Kalenderadresse automatisch in Google/Apple Kalender.",
+  cal_what: "Wozu ist es gut?",
+  cal_w: [
+    "Kommende Folgen im Kalender: kommende Folgen von Serien und Doku-Reihen, Anime-Folgen und Kinostarts werden in einem Kalender gesammelt.",
+    "Vergangenes räumt sich selbst auf: nur heute und später werden gesendet; ausgestrahlte Folgen verschwinden aus dem Kalender.",
+    "Archiv und Gesehen: archivierte Titel werden nicht hinzugefügt; nach Gesehen verschobene erscheinen, wenn es eine neue Folge gibt.",
+    "Erinnerung: jede Folge bekommt 1 Tag vor Ausstrahlung eine Erinnerung (Apple Kalender automatisch; in Google die Benachrichtigungen des Kalenders aktivieren).",
+    "Persönlich und unabhängig: die Adresse gehört nur dir; füge sie beliebig vielen Geräten hinzu. Der Kalender aktualisiert auch bei geschlossener App."
+  ],
+  cal_install: "Einrichtung",
+  cal_s: [
+    "Adresse holen: NextEp → Einstellungen → Third Party Apps → Kalender (ICS) → mit Kopyala kopieren. (Die Adresse ist persönlich — nicht weitergeben.)",
+    "Google Kalender: links Weitere Kalender → + → „Per URL“ → Adresse einfügen → Kalender hinzufügen.",
+    "Apple Kalender: Einstellungen → Kalender → Accounts → Account hinzufügen → Andere → Abonnierten Kalender hinzufügen → Adresse einfügen → Sichern.",
+    "Erinnerungen in Google: Kalender-Einstellungen → der Kalender → Ereignisbenachrichtigungen → „1 Tag vorher“ hinzufügen.",
+    "Prüfen: die nächste Folge sollte im Kalender erscheinen. Sonst am Handy ☰ → Weitere Kalender → NextEp anhaken."
+  ],
+  cal_notes: "Wichtige Hinweise",
+  cal_n: [
+    "Aktualisierungsverzögerung: Google aktualisiert abonnierte Kalender alle ~12–24 Stunden; im Web mit ⟳ sofort ziehen.",
+    "Mobile Sichtbarkeit: die Google-App zeigt abonnierte Kalender evtl. nicht angehakt → ☰ → Weitere Kalender → NextEp anhaken.",
+    "Neu erzeugen: erzeugt eine neue Adresse; die alte stirbt — neue Adresse im Kalender eintragen.",
+    "Trennen: die Adresse wird ungültig; der abonnierte Kalender aktualisiert nicht mehr.",
+    "Zeiten: zeitgesteuerte Ereignisse erscheinen zur Sendezeit; ohne Sendezeit ganztägig.",
+    "Datenschutz: die Adresse überträgt nur Titel, Folge und Datum; sonst nichts."
+  ]
+},
+fr: {
+  tab_stremio: "Stremio", tab_calendar: "Agenda",
+  cal_tagline: "Les épisodes à venir des séries, documentaires et animes que tu suis, ainsi que les sorties de films, arrivent automatiquement dans Google/Apple Agenda via ton adresse personnelle.",
+  cal_what: "À quoi ça sert ?",
+  cal_w: [
+    "Épisodes à venir dans l'agenda : les épisodes à venir des séries et séries documentaires, les épisodes d'anime et les sorties de films sont regroupés dans un seul agenda.",
+    "Le passé s'efface : seuls aujourd'hui et après sont envoyés ; les épisodes diffusés disparaissent de l'agenda.",
+    "Archives et vus : les titres archivés ne sont pas ajoutés ; ceux déplacés vers Vus apparaissent s'ils ont un nouvel épisode.",
+    "Rappel : chaque événement reçoit un rappel 1 jour avant la diffusion (Apple Agenda l'applique ; dans Google, active les notifications de l'agenda).",
+    "Personnel et indépendant : l'adresse n'appartient qu'à toi ; ajoute-la à autant d'appareils que tu veux. L'agenda se met à jour même app fermée."
+  ],
+  cal_install: "Installation",
+  cal_s: [
+    "Récupère l'adresse : NextEp → Réglages → Third Party Apps → Agenda (ICS) → copie-la avec le bouton Copier. (Adresse personnelle — ne la partage pas.)",
+    "Google Agenda : menu de gauche, Autres agendas → + → « À partir de l'URL » → colle l'adresse → Ajouter l'agenda.",
+    "Apple Calendrier : Réglages → Calendrier → Comptes → Ajouter un compte → Autre → Ajouter un calendrier abonné → colle l'adresse → Enregistrer.",
+    "Rappels dans Google : paramètres de l'agenda → l'agenda → Notifications d'événement → ajoute « 1 jour avant ».",
+    "Vérifie : le prochain épisode doit apparaître. Sinon, sur mobile ☰ → Autres agendas → coche NextEp."
+  ],
+  cal_notes: "Notes importantes",
+  cal_n: [
+    "Délai de mise à jour : Google rafraîchit les agendas abonnés toutes les ~12–24 h ; sur le web, ⟳ pour forcer.",
+    "Visibilité mobile : l'app Google peut afficher les agendas abonnés décochés → ☰ → Autres agendas → coche NextEp.",
+    "Régénérer : crée une nouvelle adresse ; l'ancienne meurt — ajoute la nouvelle à l'agenda.",
+    "Déconnecter : l'adresse devient invalide ; l'agenda abonné cesse de se mettre à jour.",
+    "Heures : les événements horaires apparaissent à l'heure de diffusion ; sans heure, toute la journée.",
+    "Confidentialité : l'adresse ne transporte que titre, épisode et date ; rien d'autre."
+  ]
+},
+es: {
+  tab_stremio: "Stremio", tab_calendar: "Calendario",
+  cal_tagline: "Los próximos episodios de las series, documentales y animes que sigues, y los estrenos de películas, llegan automáticamente a Google/Apple Calendario con tu dirección personal.",
+  cal_what: "¿Para qué sirve?",
+  cal_w: [
+    "Próximos episodios en tu calendario: episodios próximos de series y series documentales, episodios de anime y estrenos de películas se reúnen en un solo calendario.",
+    "El pasado se limpia solo: solo se envían hoy y posteriores; los episodios emitidos desaparecen.",
+    "Archivo y vistos: los títulos archivados no se añaden; los movidos a Vistos aparecen si tienen episodio nuevo.",
+    "Recordatorio: cada evento recibe un aviso 1 día antes (Apple Calendario lo aplica; en Google activa las notificaciones del calendario).",
+    "Personal e independiente: la dirección es solo tuya; añádela a tantos dispositivos como quieras. El calendario se actualiza aunque la app esté cerrada."
+  ],
+  cal_install: "Instalación",
+  cal_s: [
+    "Consigue la dirección: NextEp → Ajustes → Third Party Apps → Calendario (ICS) → cópiala con el botón Copiar. (Es personal: no la compartas.)",
+    "Google Calendario: menú izquierdo, Otros calendarios → + → «Desde URL» → pega la dirección → Añadir calendario.",
+    "Apple Calendario: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario suscrito → pega la dirección → Guardar.",
+    "Recordatorios en Google: ajustes del calendario → el calendario → Notificaciones de eventos → añade «1 día antes».",
+    "Comprueba: deberías ver el próximo episodio. Si no, en el móvil ☰ → Otros calendarios → marca NextEp."
+  ],
+  cal_notes: "Notas importantes",
+  cal_n: [
+    "Retardo de actualización: Google refresca los calendarios suscritos cada ~12–24 h; en web usa ⟳ para forzar.",
+    "Visibilidad móvil: la app de Google puede mostrar los calendarios suscritos desmarcados → ☰ → Otros calendarios → marca NextEp.",
+    "Renovar: genera una dirección nueva; la antigua muere — añade la nueva al calendario.",
+    "Desconectar: la dirección deja de ser válida; el calendario suscrito deja de actualizarse.",
+    "Horas: los eventos con hora aparecen a la hora de emisión; sin hora, todo el día.",
+    "Privacidad: la dirección solo lleva título, episodio y fecha; nada más."
+  ]
+},
+it: {
+  tab_stremio: "Stremio", tab_calendar: "Calendario",
+  cal_tagline: "I prossimi episodi delle serie, dei documentari e degli anime che segui, più le date di uscita dei film, arrivano automaticamente su Google/Apple Calendario con il tuo indirizzo personale.",
+  cal_what: "A cosa serve?",
+  cal_w: [
+    "Prossimi episodi nel calendario: episodi futuri di serie e serie documentarie, episodi di anime e uscite dei film raccolti in un unico calendario.",
+    "Il passato si pulisce da solo: vengono inviati solo oggi e successivi; gli episodi già andati in onda spariscono.",
+    "Archivio e visti: i titoli archiviati non vengono aggiunti; quelli spostati in Visti compaiono se hanno un nuovo episodio.",
+    "Promemoria: ogni evento riceve un promemoria 1 giorno prima (Apple Calendario lo applica; su Google attiva le notifiche del calendario).",
+    "Personale e indipendente: l'indirizzo è solo tuo; aggiungilo a quanti dispositivi vuoi. Il calendario si aggiorna anche ad app chiusa."
+  ],
+  cal_install: "Installazione",
+  cal_s: [
+    "Ottieni l'indirizzo: NextEp → Impostazioni → Third Party Apps → Calendario (ICS) → copialo con il pulsante Copia. (È personale: non condividerlo.)",
+    "Google Calendar: menu a sinistra, Altri calendari → + → «Da URL» → incolla l'indirizzo → Aggiungi calendario.",
+    "Apple Calendario: Impostazioni → Calendario → Account → Aggiungi account → Altro → Aggiungi calendario con abbonamento → incolla → Salva.",
+    "Promemoria su Google: impostazioni del calendario → il calendario → Notifiche eventi → aggiungi «1 giorno prima».",
+    "Verifica: dovresti vedere il prossimo episodio. Altrimenti su mobile ☰ → Altri calendari → spunta NextEp."
+  ],
+  cal_notes: "Note importanti",
+  cal_n: [
+    "Ritardo di aggiornamento: Google aggiorna i calendari abbonati ogni ~12–24 h; sul web usa ⟳ per forzare.",
+    "Visibilità mobile: l'app Google può mostrare i calendari abbonati non spuntati → ☰ → Altri calendari → spunta NextEp.",
+    "Rigenera: crea un nuovo indirizzo; il vecchio muore — aggiungi il nuovo al calendario.",
+    "Disconnetti: l'indirizzo diventa non valido; il calendario abbonato smette di aggiornarsi.",
+    "Orari: gli eventi con orario appaiono all'ora di messa in onda; senza orario, tutto il giorno.",
+    "Privacy: l'indirizzo trasporta solo titolo, episodio e data; nient'altro."
+  ]
+},
+ru: {
+  tab_stremio: "Stremio", tab_calendar: "Календарь",
+  cal_tagline: "Предстоящие серии сериалов, документальных сериалов и аниме, которые ты отслеживаешь, а также даты выхода фильмов автоматически попадают в Google/Apple Календарь по твоему личному адресу.",
+  cal_what: "Зачем это?",
+  cal_w: [
+    "Предстоящие серии в календаре: будущие серии сериалов и документальных сериалов, серии аниме и даты выхода фильмов собраны в одном календаре.",
+    "Прошлое очищается само: отправляются только сегодня и позже; вышедшие серии исчезают из календаря.",
+    "Архив и просмотренное: архивные тайтлы не добавляются; перенесённые в «Просмотрено» появляются, если есть новая серия.",
+    "Напоминание: у каждого события напоминание за 1 день до выхода (Apple Календарь применяет сам; в Google включи уведомления календаря).",
+    "Личный и независимый: адрес только твой; добавляй на любое число устройств. Календарь обновляется даже при закрытом приложении."
+  ],
+  cal_install: "Установка",
+  cal_s: [
+    "Получи адрес: NextEp → Настройки → Third Party Apps → Календарь (ICS) → скопируй кнопкой Копировать. (Адрес личный — не делись им.)",
+    "Google Календарь: слева Другие календари → + → «По URL» → вставь адрес → Добавить календарь.",
+    "Apple Календарь: Настройки → Календарь → Учётные записи → Добавить учётную запись → Другое → Добавить подписку → вставь адрес → Сохранить.",
+    "Напоминания в Google: настройки календаря → календарь → Уведомления о событиях → добавь «за 1 день».",
+    "Проверь: должна появиться следующая серия. Если нет — на телефоне ☰ → Другие календари → отметь NextEp."
+  ],
+  cal_notes: "Важные замечания",
+  cal_n: [
+    "Задержка обновления: Google обновляет подписки раз в ~12–24 ч; в вебе нажми ⟳, чтобы обновить сразу.",
+    "Видимость на телефоне: приложение Google может показывать подписки снятыми → ☰ → Другие календари → отметь NextEp.",
+    "Обновить: создаёт новый адрес; старый перестаёт работать — добавь новый в календарь.",
+    "Отключить: адрес становится недействительным; подписка перестаёт обновляться.",
+    "Время: события со временем появляются во время выхода; без времени — на весь день.",
+    "Приватность: адрес передаёт только название, серию и дату; больше ничего."
+  ]
+},
+ar: {
+  tab_stremio: "Stremio", tab_calendar: "التقويم",
+  cal_tagline: "الحلقات القادمة للمسلسلات والوثائقيات والأنمي التي تتابعها، ومواعيد عرض الأفلام، تصل تلقائيًا إلى تقويم Google/Apple عبر عنوانك الشخصي.",
+  cal_what: "ما الفائدة؟",
+  cal_w: [
+    "الحلقات القادمة في تقويمك: الحلقات القادمة للمسلسلات والوثائقيات، وحلقات الأنمي، ومواعيد عرض الأفلام تُجمع في تقويم واحد.",
+    "الماضي يُنظَّف تلقائيًا: يُرسل اليوم وما بعده فقط؛ الحلقات المعروضة تختفي من التقويم.",
+    "الأرشيف والمشاهد: العناوين المؤرشفة لا تُضاف؛ والمنقولة إلى المشاهد تظهر إن كان لها حلقة جديدة.",
+    "تذكير: كل حدث يحصل على تذكير قبل يوم واحد من العرض (تقويم Apple يطبقه تلقائيًا؛ في Google فعّل إشعارات التقويم).",
+    "شخصي ومستقل: العنوان خاص بك وحدك؛ أضفه إلى أي عدد من الأجهزة. يتحدّث التقويم حتى لو كان التطبيق مغلقًا."
+  ],
+  cal_install: "التثبيت",
+  cal_s: [
+    "احصل على العنوان: NextEp → الإعدادات → Third Party Apps → التقويم (ICS) → انسخه بزر النسخ. (العنوان شخصي — لا تشاركه.)",
+    "تقويم Google: القائمة اليسرى، تقاويم أخرى → + → «عبر عنوان URL» → الصق العنوان → إضافة تقويم.",
+    "تقويم Apple: الإعدادات → التقويم → الحسابات → إضافة حساب → أخرى → إضافة تقويم مشترك → الصق العنوان → حفظ.",
+    "التذكيرات في Google: إعدادات التقويم → التقويم → إشعارات الأحداث → أضف «قبل يوم واحد».",
+    "تحقق: يجب أن تظهر الحلقة القادمة. إن لم تظهر، على الهاتف ☰ → تقاويم أخرى → علّم NextEp."
+  ],
+  cal_notes: "ملاحظات مهمة",
+  cal_n: [
+    "تأخير التحديث: يحدّث Google التقاويم المشتركة كل ~12-24 ساعة؛ في الويب اضغط ⟳ للتحديث فورًا.",
+    "الظهور على الهاتف: قد يعرض تطبيق Google التقاويم المشتركة غير معلَّمة → ☰ → تقاويم أخرى → علّم NextEp.",
+    "التجديد: ينشئ عنوانًا جديدًا؛ القديم يتوقف — أضف الجديد إلى تقويمك.",
+    "قطع الاتصال: يصبح العنوان غير صالح؛ يتوقف تحديث التقويم المشترك.",
+    "الأوقات: الأحداث ذات الوقت تظهر في وقت العرض؛ وبدون وقت تُعلَّم ليوم كامل.",
+    "الخصوصية: لا ينقل العنوان سوى الاسم والحلقة والتاريخ؛ لا شيء غير ذلك."
+  ]
+},
+pt: {
+  tab_stremio: "Stremio", tab_calendar: "Calendário",
+  cal_tagline: "Os próximos episódios das séries, documentários e animes que segues, e as datas de estreia dos filmes, chegam automaticamente ao Google/Apple Calendário com o teu endereço pessoal.",
+  cal_what: "Para que serve?",
+  cal_w: [
+    "Próximos episódios no calendário: episódios futuros de séries e séries documentais, episódios de anime e estreias de filmes reunidos num só calendário.",
+    "O passado limpa-se sozinho: só hoje e depois são enviados; os episódios já exibidos desaparecem.",
+    "Arquivo e vistos: os títulos arquivados não são adicionados; os movidos para Vistos aparecem se tiverem episódio novo.",
+    "Lembrete: cada evento recebe um lembrete 1 dia antes (Apple Calendário aplica; no Google ativa as notificações do calendário).",
+    "Pessoal e independente: o endereço é só teu; adiciona-o a quantos dispositivos quiseres. O calendário atualiza mesmo com a app fechada."
+  ],
+  cal_install: "Instalação",
+  cal_s: [
+    "Obtém o endereço: NextEp → Definições → Third Party Apps → Calendário (ICS) → copia com o botão Copiar. (É pessoal — não partilhes.)",
+    "Google Calendário: menu esquerdo, Outros calendários → + → «A partir do URL» → cola o endereço → Adicionar calendário.",
+    "Apple Calendário: Definições → Calendário → Contas → Adicionar conta → Outra → Adicionar calendário subscrito → cola → Guardar.",
+    "Lembretes no Google: definições do calendário → o calendário → Notificações de eventos → adiciona «1 dia antes».",
+    "Verifica: deves ver o próximo episódio. Se não, no telemóvel ☰ → Outros calendários → marca NextEp."
+  ],
+  cal_notes: "Notas importantes",
+  cal_n: [
+    "Atraso de atualização: o Google atualiza calendários subscritos a cada ~12–24 h; na web usa ⟳ para forçar.",
+    "Visibilidade móvel: a app Google pode mostrar calendários subscritos desmarcados → ☰ → Outros calendários → marca NextEp.",
+    "Renovar: gera um endereço novo; o antigo morre — adiciona o novo ao calendário.",
+    "Desligar: o endereço fica inválido; o calendário subscrito para de atualizar.",
+    "Horas: eventos com hora aparecem à hora de exibição; sem hora, todo o dia.",
+    "Privacidade: o endereço transporta apenas título, episódio e data; mais nada."
+  ]
+},
+nl: {
+  tab_stremio: "Stremio", tab_calendar: "Agenda",
+  cal_tagline: "Komende afleveringen van de series, documentaires en anime die je volgt, plus releasedata van films, komen automatisch in Google/Apple Agenda via je persoonlijke adres.",
+  cal_what: "Waarvoor dient het?",
+  cal_w: [
+    "Komende afleveringen in je agenda: komende afleveringen van series en docuseries, anime-afleveringen en releasedata van films in één agenda.",
+    "Het verleden ruimt zichzelf op: alleen vandaag en later worden gestuurd; uitgezonden afleveringen verdwijnen.",
+    "Archief en bekeken: gearchiveerde titels worden niet toegevoegd; naar Bekeken verplaatste titels verschijnen als er een nieuwe aflevering is.",
+    "Herinnering: elk evenement krijgt 1 dag voor uitzending een herinnering (Apple Agenda past die toe; in Google meldingen van de agenda aanzetten).",
+    "Persoonlijk en onafhankelijk: het adres is alleen van jou; voeg het aan zoveel apparaten toe als je wilt. De agenda werkt bij met de app dicht."
+  ],
+  cal_install: "Installatie",
+  cal_s: [
+    "Adres ophalen: NextEp → Instellingen → Third Party Apps → Agenda (ICS) → kopieer met de knop Kopiëren. (Persoonlijk — deel het niet.)",
+    "Google Agenda: links, Andere agenda's → + → “Via URL” → plak het adres → Agenda toevoegen.",
+    "Apple Agenda: Instellingen → Agenda → Accounts → Account toevoegen → Overig → Abonnementsagenda toevoegen → plak → Bewaar.",
+    "Herinneringen in Google: agenda-instellingen → de agenda → Meldingen van afspraken → voeg “1 dag van tevoren” toe.",
+    "Controleer: je zou de volgende aflevering moeten zien. Zo niet, op mobiel ☰ → Andere agenda's → vink NextEp aan."
+  ],
+  cal_notes: "Belangrijke opmerkingen",
+  cal_n: [
+    "Vertraging: Google ververst abonnementsagenda's elke ~12–24 uur; gebruik op het web ⟳ om direct te verversen.",
+    "Zichtbaarheid mobiel: de Google-app toont abonnementsagenda's soms niet aangevinkt → ☰ → Andere agenda's → vink NextEp aan.",
+    "Vernieuwen: maakt een nieuw adres; het oude vervalt — voeg het nieuwe toe aan je agenda.",
+    "Loskoppelen: het adres wordt ongeldig; de abonnementsagenda stopt met bijwerken.",
+    "Tijden: getimede evenementen verschijnen op de uitzendtijd; zonder tijd de hele dag.",
+    "Privacy: het adres bevat alleen titel, aflevering en datum; verder niets."
+  ]
+},
+pl: {
+  tab_stremio: "Stremio", tab_calendar: "Kalendarz",
+  cal_tagline: "Nadchodzące odcinki seriali, dokumentów i anime, które śledzisz, oraz daty premier filmów trafiają automatycznie do Google/Apple Kalendarz przez twój osobisty adres.",
+  cal_what: "Do czego to służy?",
+  cal_w: [
+    "Nadchodzące odcinki w kalendarzu: przyszłe odcinki seriali i seriali dokumentalnych, odcinki anime i premiery filmów w jednym kalendarzu.",
+    "Przeszłość czyści się sama: wysyłane są tylko dzisiejsze i późniejsze; wyemitowane odcinki znikają.",
+    "Archiwum i obejrzane: zarchiwizowane tytuły nie są dodawane; przeniesione do Obejrzanych pojawiają się, jeśli mają nowy odcinek.",
+    "Przypomnienie: każde wydarzenie dostaje przypomnienie 1 dzień przed emisją (Apple Kalendarz stosuje sam; w Google włącz powiadomienia kalendarza).",
+    "Osobisty i niezależny: adres należy tylko do ciebie; dodaj go na dowolną liczbę urządzeń. Kalendarz aktualizuje się nawet przy zamkniętej aplikacji."
+  ],
+  cal_install: "Instalacja",
+  cal_s: [
+    "Pobierz adres: NextEp → Ustawienia → Third Party Apps → Kalendarz (ICS) → skopiuj przyciskiem Kopiuj. (Adres jest osobisty — nie udostępniaj.)",
+    "Google Kalendarz: menu po lewej, Inne kalendarze → + → „Z adresu URL” → wklej adres → Dodaj kalendarz.",
+    "Apple Kalendarz: Ustawienia → Kalendarz → Konta → Dodaj konto → Inne → Dodaj kalendarz subskrybowany → wklej → Zapisz.",
+    "Przypomnienia w Google: ustawienia kalendarza → kalendarz → Powiadomienia o wydarzeniach → dodaj „1 dzień wcześniej”.",
+    "Sprawdź: powinien pojawić się następny odcinek. Jeśli nie — na telefonie ☰ → Inne kalendarze → zaznacz NextEp."
+  ],
+  cal_notes: "Ważne uwagi",
+  cal_n: [
+    "Opóźnienie: Google odświeża subskrybowane kalendarze co ~12–24 h; w przeglądarce użyj ⟳, aby odświeżyć od razu.",
+    "Widoczność na telefonie: aplikacja Google może pokazać subskrybowane kalendarze odznaczone → ☰ → Inne kalendarze → zaznacz NextEp.",
+    "Odśwież: tworzy nowy adres; stary przestaje działać — dodaj nowy do kalendarza.",
+    "Odłącz: adres staje się nieaktywny; subskrybowany kalendarz przestaje się aktualizować.",
+    "Godziny: wydarzenia z godziną pojawiają się o porze emisji; bez godziny — cały dzień.",
+    "Prywatność: adres zawiera tylko tytuł, odcinek i datę; nic więcej."
+  ]
+},
+ja: {
+  tab_stremio: "Stremio", tab_calendar: "カレンダー",
+  cal_tagline: "フォロー中のドラマ・ドキュメンタリー・アニメの次回エピソードと映画の公開日が、個人用アドレスで Google/Apple カレンダーに自動で追加されます。",
+  cal_what: "何ができる？",
+  cal_w: [
+    "次回エピソードがカレンダーに表示：ドラマとドキュメンタリーの次回エピソード、アニメのエピソード、映画の公開日が1つのカレンダーにまとまります。",
+    "過去は自動で整理：今日以降のみ送信され、放送済みのエピソードはカレンダーから消えます。",
+    "アーカイブと視聴済み：アーカイブした作品は追加されません。視聴済みに移した作品も新しいエピソードがあれば表示されます。",
+    "リマインダー：各予定に放送1日前のリマインダーが付きます（Apple カレンダーは自動適用。Google ではカレンダーの通知を有効にしてください）。",
+    "個人用で独立：アドレスはあなた専用です。好きなだけ端末に追加できます。アプリを閉じていてもカレンダーは更新されます。"
+  ],
+  cal_install: "セットアップ",
+  cal_s: [
+    "アドレスを取得：NextEp → 設定 → Third Party Apps → カレンダー (ICS) → 「コピー」でコピー。（個人用アドレスです。共有しないでください。）",
+    "Google カレンダー：左メニューの「他のカレンダー」→ + → 「URL で追加」→ アドレスを貼り付け → カレンダーを追加。",
+    "Apple カレンダー：設定 → カレンダー → アカウント → アカウントを追加 → その他 → 購読カレンダーを追加 → アドレスを貼り付け → 保存。",
+    "Google のリマインダー：カレンダーの設定 → 該当カレンダー → 予定の通知 → 「1日前」を追加。",
+    "確認：次のエピソードが表示されるはずです。出ない場合はスマホで ☰ → 他のカレンダー → NextEp にチェック。"
+  ],
+  cal_notes: "重要な注意",
+  cal_n: [
+    "更新の遅れ：Google は購読カレンダーを約12〜24時間ごとに更新します。Web では ⟳ で即時更新できます。",
+    "スマホでの表示：Google アプリでは購読カレンダーが未チェックの場合があります → ☰ → 他のカレンダー → NextEp にチェック。",
+    "更新（再生成）：新しいアドレスが発行され、古いものは無効になります。新しいアドレスを追加してください。",
+    "切断：アドレスが無効になり、購読カレンダーの更新が止まります。",
+    "時刻：時刻付きの予定は放送時刻に表示され、時刻がないものは終日になります。",
+    "プライバシー：アドレスが運ぶのは作品名・エピソード・日付のみです。"
+  ]
+},
+ko: {
+  tab_stremio: "Stremio", tab_calendar: "캘린더",
+  cal_tagline: "팔로우하는 드라마·다큐멘터리·애니메의 다음 에피소드와 영화 개봉일이 개인 주소를 통해 Google/Apple 캘린더에 자동으로 추가됩니다.",
+  cal_what: "무엇을 하나요?",
+  cal_w: [
+    "다음 에피소드가 캘린더에 표시: 드라마와 다큐멘터리 시리즈의 다음 에피소드, 애니 에피소드, 영화 개봉일이 하나의 캘린더에 모입니다.",
+    "과거는 자동 정리: 오늘 이후만 전송되며, 방영된 에피소드는 캘린더에서 사라집니다.",
+    "보관함과 시청 완료: 보관한 작품은 추가되지 않습니다. 시청 완료로 옮긴 작품도 새 에피소드가 있으면 표시됩니다.",
+    "알림: 각 일정에 방영 1일 전 알림이 붙습니다(Apple 캘린더는 자동 적용, Google에서는 캘린더 알림을 켜야 합니다).",
+    "개인용·독립적: 주소는 본인 전용입니다. 원하는 만큼 기기에 추가하세요. 앱이 꺼져 있어도 캘린더는 갱신됩니다."
+  ],
+  cal_install: "설치",
+  cal_s: [
+    "주소 받기: NextEp → 설정 → Third Party Apps → 캘린더 (ICS) → 복사 버튼으로 복사. (개인 주소이니 공유하지 마세요.)",
+    "Google 캘린더: 왼쪽 메뉴, 다른 캘린더 → + → “URL로 추가” → 주소 붙여넣기 → 캘린더 추가.",
+    "Apple 캘린더: 설정 → 캘린더 → 계정 → 계정 추가 → 기타 → 구독 캘린더 추가 → 주소 붙여넣기 → 저장.",
+    "Google 알림: 캘린더 설정 → 해당 캘린더 → 일정 알림 → “1일 전” 추가.",
+    "확인: 다음 에피소드가 보여야 합니다. 안 보이면 모바일에서 ☰ → 다른 캘린더 → NextEp 체크."
+  ],
+  cal_notes: "중요 사항",
+  cal_n: [
+    "갱신 지연: Google은 구독 캘린더를 약 12~24시간마다 갱신합니다. 웹에서는 ⟳로 즉시 갱신하세요.",
+    "모바일 표시: Google 앱은 구독 캘린더를 체크 해제 상태로 보여줄 수 있습니다 → ☰ → 다른 캘린더 → NextEp 체크.",
+    "갱신(재발급): 새 주소가 생기고 이전 주소는 무효가 됩니다. 새 주소를 캘린더에 추가하세요.",
+    "연결 끊기: 주소가 무효가 되고 구독 캘린더 갱신이 멈춥니다.",
+    "시간: 시간이 있는 일정은 방영 시각에, 없는 일정은 종일로 표시됩니다.",
+    "개인정보: 주소는 제목·에피소드·날짜만 전달합니다."
+  ]
+},
+zh: {
+  tab_stremio: "Stremio", tab_calendar: "日历",
+  cal_tagline: "你关注的剧集、纪录片和动漫的即将播出的集数，以及电影上映日期，会通过你的个人地址自动加入 Google/Apple 日历。",
+  cal_what: "有什么作用？",
+  cal_w: [
+    "即将播出的集数出现在日历中：剧集与纪录片系列的后续集数、动漫集数和电影上映日期汇集在一个日历里。",
+    "过去会自动清理：只发送今天及以后；已播出的集数会从日历中消失。",
+    "归档与已看：已归档的作品不会被加入；移到“已看”的作品若有新集数仍会显示。",
+    "提醒：每个事件都会附带播出前 1 天的提醒（Apple 日历自动应用；Google 需开启该日历的通知）。",
+    "个人且独立：地址仅属于你；可添加到任意数量的设备。即使应用关闭，日历也会更新。"
+  ],
+  cal_install: "安装",
+  cal_s: [
+    "获取地址：NextEp → 设置 → Third Party Apps → 日历 (ICS) → 用“复制”按钮复制。（这是个人地址，请勿分享。）",
+    "Google 日历：左侧“其他日历” → + → “通过网址添加” → 粘贴地址 → 添加日历。",
+    "Apple 日历：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加已订阅的日历 → 粘贴地址 → 存储。",
+    "Google 提醒：日历设置 → 该日历 → 事件通知 → 添加“提前 1 天”。",
+    "检查：应能看到下一集。若没有，在手机上 ☰ → 其他日历 → 勾选 NextEp。"
+  ],
+  cal_notes: "重要说明",
+  cal_n: [
+    "更新延迟：Google 约每 12–24 小时刷新订阅日历；在网页上点 ⟳ 可立即刷新。",
+    "手机显示：Google 应用可能将订阅日历显示为未勾选 → ☰ → 其他日历 → 勾选 NextEp。",
+    "刷新：会生成新地址，旧地址失效——请把新地址加入日历。",
+    "断开：地址失效，订阅日历停止更新。",
+    "时间：有时间的日程显示在播出时间；无时间的按全天显示。",
+    "隐私：地址只携带标题、集数和日期，别无其他。"
+  ]
+}
+};
+
 function setList(el, arr) {
   el.innerHTML = "";
   for (var i = 0; i < arr.length; i++) {
@@ -545,25 +972,50 @@ function langName(code) {
   for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === code) return LANGS[i][1];
   return code;
 }
+var curLang = "en";
+var lpTab = "stremio";
 function setLang(code) {
   if (!LP[code]) code = "en";
   var d = LP[code];
+  var c = LPC[code] || LPC.en || {};
+  curLang = code;
   document.documentElement.lang = code;
   document.documentElement.dir = (code === "ar") ? "rtl" : "ltr";
   document.getElementById("lang-name").textContent = langName(code);
-  document.getElementById("lp-tagline").textContent = d.tagline;
+  // sekmeler + tagline (sekmeye gore)
+  document.getElementById("lp-tab-stremio").textContent = c.tab_stremio || "Stremio";
+  document.getElementById("lp-tab-calendar").textContent = c.tab_calendar || "Calendar";
+  document.getElementById("lp-tagline").textContent =
+    (lpTab === "calendar" && c.cal_tagline) ? c.cal_tagline : d.tagline;
+  // Stremio paneli
   document.getElementById("lp-what-t").textContent = d.what;
   setList(document.getElementById("lp-what"), d.w);
   document.getElementById("lp-install-t").textContent = d.install;
   setList(document.getElementById("lp-install"), d.s);
   document.getElementById("lp-notes-t").textContent = d.notes;
   setList(document.getElementById("lp-notes"), d.n);
+  // Takvim paneli (1.85) — ayni sema: Ne ise yarar? / Kurulum / Onemli notlar
+  document.getElementById("lp-cal-what-t").textContent = c.cal_what || "";
+  setList(document.getElementById("lp-cal-what"), c.cal_w || []);
+  document.getElementById("lp-cal-install-t").textContent = c.cal_install || "";
+  setList(document.getElementById("lp-cal-install"), c.cal_s || []);
+  document.getElementById("lp-cal-notes-t").textContent = c.cal_notes || "";
+  setList(document.getElementById("lp-cal-notes"), c.cal_n || []);
   var items = document.querySelectorAll("#lang-menu .sort-item");
   for (var i = 0; i < items.length; i++) {
     if (items[i].getAttribute("data-lang") === code) items[i].classList.add("active");
     else items[i].classList.remove("active");
   }
   try { localStorage.setItem("lp_lang", code); } catch (e) {}
+}
+function setTab(t) {
+  lpTab = (t === "calendar") ? "calendar" : "stremio";
+  document.getElementById("panel-stremio").style.display = lpTab === "stremio" ? "" : "none";
+  document.getElementById("panel-calendar").style.display = lpTab === "calendar" ? "" : "none";
+  document.getElementById("lp-tab-stremio").classList.toggle("active", lpTab === "stremio");
+  document.getElementById("lp-tab-calendar").classList.toggle("active", lpTab === "calendar");
+  try { localStorage.setItem("lp_tab", lpTab); } catch (e) {}
+  setLang(curLang);
 }
 function buildMenu() {
   var menu = document.getElementById("lang-menu");
@@ -594,6 +1046,12 @@ function detectLang() {
 }
 buildMenu();
 (function init() {
+  var storedTab = "";
+  try { storedTab = localStorage.getItem("lp_tab") || ""; } catch (e) {}
+  lpTab = (storedTab === "calendar") ? "calendar" : "stremio";
+  document.getElementById("lp-tab-stremio").onclick = function() { setTab("stremio"); };
+  document.getElementById("lp-tab-calendar").onclick = function() { setTab("calendar"); };
+  setTab(lpTab);
   var stored = "";
   try { stored = localStorage.getItem("lp_lang") || ""; } catch (e) {}
   if (stored && LP[stored]) { setLang(stored); return; }

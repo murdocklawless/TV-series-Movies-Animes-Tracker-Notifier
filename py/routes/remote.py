@@ -614,7 +614,7 @@ def _run_stremio_job(job_id, params):
         return
     # F1: sihirbaz e-posta gondermiyor -> uygulamanin gonderen adresine dus
     email = str(params.get("email") or "").strip() or str(_gs("email_from") or "").strip()
-    landing = str(params.get("landing") or "").strip() or "/var/www/stremio"
+    landing = str(params.get("landing") or "").strip() or "/var/www/nextep"
     logpath = str(params.get("logpath") or "").strip() or "/var/log/caddy/stremio-access.log"
     port = vps_install.read_pi_port()
     backend = str(params.get("backend") or "").strip() or f"127.0.0.1:{port}"

@@ -167,7 +167,7 @@ def detect_web(vps_run):
 # --------------------------------------------------------------------------
 
 def _landing_html():
-    path = os.path.join(BASE_DIR, "service", "stremio-landing.html")
+    path = os.path.join(BASE_DIR, "service", "nextep-landing.html")
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
