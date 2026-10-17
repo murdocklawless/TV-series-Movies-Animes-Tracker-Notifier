@@ -6333,6 +6333,9 @@ body.logged-out main { padding: 0; }
 .poster-grid.row-mode .wc-season { color: #14b8a6; }
 .poster-grid.row-mode .wc-episode { color: #a78bfa; }
 .poster-grid.row-mode .wc-status { color: #22c55e; }
+/* Metin statusu (Bitti / Iptal edildi / Yeni sezon bekleniyor ...): karttaki
+   .next-ep.muted kirmizisiyla ayni (#ef4444). Tarihli statu yesil kalir. */
+.poster-grid.row-mode .wc-status.wc-status-muted { color: #ef4444; }
 .poster-grid.row-mode .wc-count { color: #14b8a6; }
 .poster-grid.row-mode .wc-date, .poster-grid.row-mode .wc-mid { color: #8b90a0; }
 /* Satırda bugün yayında: karttaki .next-ep.today mavisi (kalın değil) */

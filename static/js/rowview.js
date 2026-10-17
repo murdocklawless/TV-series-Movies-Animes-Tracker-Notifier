@@ -77,6 +77,10 @@ function extract(card) {
   const st = isEmptySlot(statusEl) ? { text: "", days: "" } : splitDays(statusEl);
   out.status = st.text; out.statusDays = st.days;
   out.statusToday = !!(statusEl && (statusEl.classList.contains("today") || statusEl.querySelector(".today")));
+  // Metin statusu (Bitti / Iptal edildi / Yeni sezon bekleniyor ...) kartta
+  // .next-ep.muted ile kirmizi gosterilir; satir gorunumunde ayni rengi korumak
+  // icin bu bayragi tasiyoruz (tarihli statu: S02E03 · 21 Ekim · 3 -> yesil kalir).
+  out.statusMuted = !!(statusEl && statusEl.querySelector(".next-ep.muted"));
   const midEl = info.querySelector(".mrow-mid");
   const md = isEmptySlot(midEl) ? { text: "", days: "" } : splitDays(midEl);
   out.mid = md.text; out.midDays = md.days;
@@ -114,7 +118,7 @@ function cellSpecs(d, kind) {
     net: { cls: "wc-net", html: esc(d.net) },
     season: { cls: "wc-season", html: esc(d.season) },
     episode: { cls: "wc-episode", html: esc(d.episode) },
-    status: { cls: "wc-status" + (statusToday ? " today" : ""), html: esc(status) + daysHTML(statusDays) },
+    status: { cls: "wc-status" + (statusToday ? " today" : "") + (d.statusMuted ? " wc-status-muted" : ""), html: esc(status) + daysHTML(statusDays) },
     count: { cls: "wc-count", html: esc(d.count) },
     date: { cls: "wc-date" + (d.midToday ? " today" : ""), html: esc(d.mid) + daysHTML(d.midDays) },
     detail: { cls: "wc-mid" + (d.midToday ? " today" : ""), html: esc(detail) + daysHTML(detailDays) },
