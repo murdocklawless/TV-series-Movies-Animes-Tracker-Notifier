@@ -1,6 +1,24 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.82 - 17/10/2026-19:06
+### TR
+- **Bildirim ve İzlendi (ask) penceresi genişliği 378px'e sabitlendi:** iki pencere artık aynı genişlikte (içeriğe göre daralmıyor).
+- **Bildirim listesinde ay adı tam yazılır:** 24 saatten eski kayıtlarda `12 Ekim 05:00` (kısaltma yok); tarih kullanıcı saat dilimine göre biçimlenir.
+- **Ask metni dilbilgisi:** `2. Sezon 5. Bölümünü` → `2. Sezon 5. Bölümü` (dizi, belgesel, anime; veritabanındaki mevcut izlendi-soruları da güncellendi).
+- **Dış push bildirimlerine yapım adı eklendi:** Telegram/ntfy/Discord/e-posta artık `Yapım mesaj` biçiminde (başlık bildirim merkezinde ayrı gösterildiği için mesajlardan çıkarılmıştı). Bildirim merkezi değişmedi.
+- **Telegram Markdown kaçışı:** başlık/mesajdaki Markdown özel karakterleri (`_`, `*`, `[` ve ters tırnak) kaçışlanır; kaçışsız karakter yüzünden gönderimin reddedilmesi önlenir.
+- **İzlenen penceresi poster boyutu** 34×50 → 45×68 (bildirimler penceresiyle aynı).
+- **İzleme Geçmişi (History) tooltip'i satır görünümü tablosuna çevrildi:** alan ayraçları (`|`) sütun sütun hizalanır, boş alanlarda da `|` görünür, kutu genişliği en uzun satıra göre ayarlanır ve yapım ismi 30 karakterde `…` ile kesilir.
+### EN
+- **Notification and watched-ask window width fixed at 378px:** both windows now share the same width (no content-based shrinking).
+- **Full month names in the notification list:** rows older than 24 h show `12 Ekim 05:00` (no abbreviation); the date is formatted per the user's timezone.
+- **Ask message grammar:** `2. Sezon 5. Bölümünü` → `2. Sezon 5. Bölümü` (shows, documentaries, anime; existing watched-ask rows in the DB were updated too).
+- **Series title added to external push notifications:** Telegram/ntfy/Discord/e-mail now send `Title message` (the title had been stripped from the messages since the notification centre shows it separately). The notification centre is unchanged.
+- **Telegram Markdown escaping:** the Markdown special characters (`_`, `*`, `[` and backtick) in the title/message are escaped; unescaped characters no longer cause the send to be rejected.
+- **Watched window poster size** 34×50 → 45×68 (same as the notifications window).
+- **History tooltip converted to a row-view table:** the `|` field separators align in columns, empty fields still show a `|`, the box width follows the longest row, and the production name is cut at 30 characters with `…`.
+
 ## 1.81 - 17/10/2026-04:03
 ### TR
 - **Ask mesajı artık 2 satır ve soru biçiminde:** `16.10.2026 - Cuma - 22:46` / `3. Sezon 4. Bölümünü izlediniz mi?`. "İzlendi bilgisi eklensin mi?" cümlesi kaldırıldı (Evet/Hayır butonları aynen kalır).
