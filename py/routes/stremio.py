@@ -61,6 +61,7 @@ stremio_bp = Blueprint("stremio", __name__)
 # Genisletilebilir uygulama defteri: ileride Nuvio vb. buraya satir eklenir.
 THIRDPARTY_APPS = [
     {"id": "stremio", "name": "Stremio", "protocol": "stremio"},
+    {"id": "calendar", "name": "Takvim (ICS)", "protocol": "ics"},
     {"id": "remote", "name": "Uzak Bağlantı", "protocol": "wireguard"},
 ]
 
@@ -170,6 +171,8 @@ def _cors(resp):
 
 
 def _install_url(app_id, u):
+    if app_id == "calendar":
+        return f"{_base_url()}/calendar/{u}/nextep.ics"
     return f"{_base_url()}/{app_id}/{u}/manifest.json"
 
 
@@ -1143,6 +1146,23 @@ def thirdparty_stremio_disconnect():
     uid = _me_uid() or 1
     set_user_setting(uid, _uuid_setting_key("stremio"), "")
     clear_all_signals(user_id=uid)
+    return jsonify({"ok": True})
+
+
+# --- Takvim (ICS) — 1.85: jenerik thirdparty deseni (Stremio'nun kardesi) ---
+
+@stremio_bp.route("/api/thirdparty/calendar/refresh-uuid", methods=["POST"])
+def thirdparty_calendar_refresh_uuid():
+    uid = _me_uid() or 1
+    u = uuid.uuid4().hex
+    set_user_setting(uid, _uuid_setting_key("calendar"), u)
+    return jsonify({"ok": True, "installUrl": _install_url("calendar", u)})
+
+
+@stremio_bp.route("/api/thirdparty/calendar/disconnect", methods=["POST"])
+def thirdparty_calendar_disconnect():
+    uid = _me_uid() or 1
+    set_user_setting(uid, _uuid_setting_key("calendar"), "")
     return jsonify({"ok": True})
 
 

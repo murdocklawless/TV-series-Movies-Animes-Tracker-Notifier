@@ -152,32 +152,37 @@
 
 ---
 
-# 1.85 — .ics takvim aboneliği (yaklaşan + hatırlatıcı)
+# 1.85 — .ics takvim aboneliği (yaklaşan + hatırlatıcı)  ✅ UYGULANDI
 
 **Amaç:** Kişiye özel ICS URL → Google/Apple Takvim'e abone; bölüm çıkışları otomatik düşer.
+
+> **Uygulama notları (2026-10-18):**
+> - Tüm dış erişim **`nextep.cembol.com`** üzerinden (eski `stremio.cembol.com` kaldırıldı); VPS landing `/var/www/nextep`.
+>   **8050 tek başına yeterli** — ayrı port/tünel/WireGuard gerekmedi (ayrım Caddy'de Host + path).
+> - `tp_base_url = https://nextep.cembol.com`; ICS adresi bundan üretilir (ayrı base ayarı eklenmedi).
+> - `VALARM` Apple'da doğrudan çalışır; **Google abone takvimlerde takvimin kendi bildirimini açmak gerekir** (kartta not).
 
 ### Token
 - `user_settings.tp_calendar_uuid` — mevcut `_get_uuid("calendar")` deseni.
 
 ### Uç
-- `GET /calendar/<token>/nextep.ics` — public (auth kapısı `/api/*` dışı olduğu için zaten açık; netlik için
-  `auth.py` muafiyet listesine açık satır eklenir). Yol `<token>/nextep.ics` (`.ics` uzantı çakışmasını önler).
-- İçerik: **bugün ve sonrası** dizi bölümleri + film vizyon + anime bölümleri.
-- `VEVENT`: `UID=nextep-<kind>-<id>-<S/E>@nextep`; saat varsa `DTSTART;TZID=<kullanıcı dilimi>`,
+- `GET /calendar/<token>/nextep.ics` — public (auth kapısı `/api/*` dışı; `/calendar/*` zaten muaf).
+- İçerik: **bugün ve sonrası** dizi/belgesel dizisi bölümleri + anime bölümleri + film vizyonları (arşivliler hariç).
+- `VEVENT`: `UID=nextep-<kind>-<id>-<S/E>@nextep`; saat varsa `DTSTART;TZID=<settings.timezone>`,
   yoksa `DTSTART;VALUE=DATE`; `DTSTAMP`; `SUMMARY` = yapım + `S02E03` + bölüm adı; `DESCRIPTION`.
 - **`VALARM`**: yayından **1 gün önce** hatırlatıcı.
-- Yeni modül `py/ics.py` — **elle minimal ICS üreteci** (dış paket YOK; Stremio "sıfırdan yaz" felsefesi).
+- `py/ics.py` — **elle minimal ICS üreteci** (dış paket YOK).
 
 ### Frontend
-- Üçüncü Parti Apps'a **"Takvim (ICS)"** kartı (Stremio kartı deseni: URL + Kopyala + Yenile + Kes).
+- Üçüncü Parti Apps'ta **"Takvim (ICS)"** kartı (URL + Kopyala + Yenile + Kes; adanmış onay modalı).
 - `THIRDPARTY_APPS`'e `{"id":"calendar","name":"Takvim (ICS)","protocol":"ics"}`.
 - `_install_url()` içine ICS dalı → `_base_url() + "/calendar/<uuid>/nextep.ics"`.
-- `/api/thirdparty/<app>/refresh-uuid|disconnect` **jenerikleştirilir** (`md/stremio.md` §0.13 öngörüsü).
-- i18n: kart/etiket anahtarları ×14.
+- `/api/thirdparty/calendar/refresh-uuid|disconnect` uçları (Stremio deseninin kardeşi).
+- i18n: 4 yeni anahtar ×14.
 
-### Doğrulama
-- `curl /calendar/<tok>/nextep.ics` → geçerli `VCALENDAR`; Google Takvim'e ekleme denemesi.
-- Yanlış token → 404; yalnız yaklaşan olaylar; VALARM var.
+### Doğrulama (yapıldı)
+- Birim (temp-DB): **14/14** — geçerli `VCALENDAR`, saatli/tüm-gün olaylar, `VALARM`, geçmiş+arşivli hariç, yanlış token 404.
+- Uçtan uca (VPS→tünel→Pi): ICS **200** (`text/calendar`, 64 VEVENT + 64 VALARM, `TZID=Europe/Istanbul`), yanlış token **404**, Stremio manifest **200**, landing **200**, eski domain kapalı.
 - md5 MATCH · servis active · sürüm 1.85 · CHANGELOG TR/EN · faz notu.
 
 ---

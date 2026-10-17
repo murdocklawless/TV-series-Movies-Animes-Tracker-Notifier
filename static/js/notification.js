@@ -1,9 +1,9 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=527";
+import { t } from "./i18n.js?v=528";
 import { escAttr, tzLocale } from "./utils.js?v=521";
-import { openNotifClearConfirm } from "./components.js?v=531";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=549";
+import { openNotifClearConfirm } from "./components.js?v=532";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=550";
 import { isAdmin, loadAdminLists } from "./auth.js?v=526";
 
 const badgeEl = () => document.getElementById("notif-badge");

@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.85 - 18/10/2026-01:31
+### TR
+- **Yeni özellik — Takvim aboneliği (.ics):** kişiye özel bir adres (`/calendar/<token>/nextep.ics`) Google/Apple Takvim'e abone edilir; **yaklaşan** dizi/belgesel dizisi bölümleri, anime bölümleri ve film vizyonları takvime otomatik düşer. Arşivli yapımlar dışarıda; geçmiş olaylar gönderilmez.
+- **Hatırlatıcı:** her olay için yayından **1 gün önce** `VALARM` eklenir (Apple Takvim doğrudan uygular; Google abone takvimlerde takvimin kendi bildirimini açmak gerekir — kartta bu not gösterilir).
+- **Ayarlar → Üçüncü Parti Apps → "Takvim (ICS)" kartı:** adres + **Kopyala** + **Yenile** (yeni token) + **Kes** (token iptali, adanmış onay penceresi). Adres, Public Adres (`tp_base_url`) üzerinden üretilir.
+- **Domain:** tüm dış erişim artık **`nextep.cembol.com`** üzerinden (`/stremio/*` + `/calendar/*`). Eski `stremio.cembol.com` kaldırıldı; VPS'te landing dizini `/var/www/nextep` oldu.
+- **Sunucu:** yeni `py/ics.py` (elle yazılmış minimal iCalendar üreteci — dış paket yok) + yeni `/calendar/<token>/nextep.ics` ucu (public; yanlış/boş token → **404**). `THIRDPARTY_APPS`'e `calendar` eklendi; `/api/thirdparty/calendar/refresh-uuid|disconnect` uçları Stremio deseninin kardeşi.
+- **Çeviri:** 4 yeni anahtar × 14 dil. **Cache-buster zinciri:** i18n 528, settings 550, components 532, tv 530, `nextep.js?v=580` (`__NX_BUILD` 511).
+### EN
+- **New feature — Calendar subscription (.ics):** a personal address (`/calendar/<token>/nextep.ics`) can be subscribed to in Google/Apple Calendar; **upcoming** show/documentary-series episodes, anime episodes and movie releases drop into the calendar automatically. Archived titles are excluded; past events are not emitted.
+- **Reminder:** each event carries a `VALARM` **1 day before** airing (Apple Calendar applies it directly; in Google's subscribed calendars you need to enable the calendar's own notifications — the card shows this note).
+- **Settings → Third Party Apps → "Calendar (ICS)" card:** address + **Copy** + **Refresh** (new token) + **Disconnect** (token revoked, dedicated confirm dialog). The address is built from the Public Address (`tp_base_url`).
+- **Domain:** all external access now goes through **`nextep.cembol.com`** (`/stremio/*` + `/calendar/*`). The old `stremio.cembol.com` was removed; the VPS landing directory became `/var/www/nextep`.
+- **Server:** new `py/ics.py` (hand-written minimal iCalendar generator — no external package) plus the new `/calendar/<token>/nextep.ics` endpoint (public; wrong/empty token → **404**). `calendar` added to `THIRDPARTY_APPS`; `/api/thirdparty/calendar/refresh-uuid|disconnect` mirror the Stremio pattern.
+- **i18n:** 4 new keys × 14 languages. **Cache-buster chain:** i18n 528, settings 550, components 532, tv 530, `nextep.js?v=580` (`__NX_BUILD` 511).
+
 ## 1.84 - 18/10/2026-00:01
 ### TR
 - **Yeni özellik — "Sıradaki Bölüm" şeridi:** **Dizi · Belgesel · Anime** sekmelerinin en üstünde, her yapımın **tek sonraki izlenmemiş bölümünü** gösteren şerit. Kartta poster + `S02E05 · 45 dk` (anime `EP12 · 24 dk`); karta tıklamak detay penceresini açar.

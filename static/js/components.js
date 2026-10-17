@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=527";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=528";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
@@ -489,6 +489,13 @@ function openAskClearConfirm(text, onYes) {
 }
 function closeStremioDisconnect() {
   document.getElementById("stremio-disconnect-modal").style.display = "none";
+}
+// Takvim (ICS) — 1.85: adanmis onay modali (AGENTS: paylasimli modal yasak).
+function closeCalendarDisconnect() {
+  document.getElementById("calendar-disconnect-modal").style.display = "none";
+}
+function openCalendarDisconnectConfirm(onYes) {
+  wireDedicatedConfirm("calendar-disconnect-modal", t("tp_calendar_disconnect_text"), onYes);
 }
 function openStremioInstallModal() {
   const ov = document.getElementById("stremio-install-modal");
@@ -1574,6 +1581,7 @@ export { openReleases, closeReleases, closeDetails, closeModals,
          openTvUnfollowConfirm, openAnimeUnfollowConfirm, openRejectConfirm,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
          openNotifClearConfirm, openAskClearConfirm, openStremioDisconnectConfirm,
+         openCalendarDisconnectConfirm,
          openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,
          openStremioInstallModal, closeStremioInstallModal,
          openStremioTunnelRemoveConfirm, openRemoteResetConfirm,

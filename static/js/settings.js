@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=527";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=528";
 import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=521";
 import { activateUtilityTab } from "./views.js?v=531";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm } from "./components.js?v=531";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm } from "./components.js?v=532";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=527");
+      const { errText: _err } = await import("./i18n.js?v=528");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1041,7 +1041,7 @@ async function openFavListing(kind, ident, title) {
       return;
     }
     const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=521");
-    const { openDetails } = await import("./components.js?v=531");
+    const { openDetails } = await import("./components.js?v=532");
     const { loadFollowed } = await import("./views.js?v=531");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=527");
+        const { t: _t } = await import("./i18n.js?v=528");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2139,6 +2139,7 @@ document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
 // Yeni uygulama = backend THIRDPARTY_APPS'e satir + buraya renderer. Cekirdek donguye dokunulmaz.
 
 let tpStremioOpen = false;
+let tpCalendarOpen = false;
 let tpBaseUrl = "";
 let tpIsAdmin = false;
 let tpAskBeforeWatched = true;
@@ -2288,8 +2289,35 @@ const thirdPartyAppRenderers = {
       </div>
     </div>`;
   },
-  remote: (app) => {
-    const isConn = app.status === "connected";
+  calendar: (app) => {
+    const url = app.installUrl || "";
+    return `
+    <div class="channel-box accordion-box notif-type-box${tpCalendarOpen ? " accordion-open" : ""}" id="tp-app-calendar">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid fa-calendar-days"></i> ${escAttr(app.name || "Takvim (ICS)")}</span>
+      </div>
+      <div class="notif-type-body" style="display:${tpCalendarOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_status")}</span>
+            <span class="tp-status-value ${tpStatusClass(app)}">${tpStatusText(app)}</span>
+          </div>
+          <div class="tp-frame-note">${t("tp_calendar_note")}</div>
+        </div>
+        ${url ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
+            <div class="tp-url-box"><input id="tp-calendar-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-calendar-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+          </label>
+        </div>` : ""}
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="tp-calendar-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
+          ${url ? `<button id="tp-calendar-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+        </div>
+      </div>
+    </div>`;
+  },
+  remote: (app) => {    const isConn = app.status === "connected";
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
     const gate = vpsGate.connected;
@@ -2443,7 +2471,7 @@ async function flushTpBaseUrl() {
 
 function bindThirdPartyEvents() {
   // Tek-açık akordeon: VPS / Stremio / Uzak Bağlantı kartları.
-  ["vps-info-box", "tp-app-stremio", "tp-app-remote"].forEach((id) => {
+  ["vps-info-box", "tp-app-stremio", "tp-app-calendar", "tp-app-remote"].forEach((id) => {
     const box = document.getElementById(id);
     if (!box) return;
     const head = box.querySelector(".notif-type-head");
@@ -2452,7 +2480,8 @@ function bindThirdPartyEvents() {
     head.addEventListener("click", (e) => {
       if (box.classList.contains("tp-card-disabled")) return;
       if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
-      setTpAccordion(id === "vps-info-box" ? "vps" : id === "tp-app-remote" ? "remote" : "stremio");
+      const which = id === "vps-info-box" ? "vps" : id === "tp-app-remote" ? "remote" : id === "tp-app-calendar" ? "calendar" : "stremio";
+      setTpAccordion(which);
     });
   });
   bindVpsRemoteEvents();
@@ -2542,15 +2571,83 @@ function bindThirdPartyEvents() {
       }, { yes: t("confirm_yes") });
     });
   }
+  // --- Takvim (ICS) — 1.85 ---
+  const calCopy = document.getElementById("tp-calendar-copy");
+  if (calCopy) {
+    calCopy.addEventListener("click", async () => {
+      const input = document.getElementById("tp-calendar-url");
+      if (!input) return;
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(input.value);
+        ok = true;
+      } catch (e) {
+        ok = false;
+      }
+      if (!ok) {
+        try {
+          input.select();
+          input.setSelectionRange(0, 99999);
+          ok = document.execCommand("copy");
+        } catch (e2) {
+          ok = false;
+        }
+      }
+      toast(ok ? t("tp_copied") : t("error"));
+    });
+  }
+  const calRefresh = document.getElementById("tp-calendar-refresh");
+  if (calRefresh) {
+    calRefresh.addEventListener("click", async () => {
+      calRefresh.disabled = true;
+      calRefresh.classList.add("loading");
+      try {
+        const r = await fetch("/api/thirdparty/calendar/refresh-uuid", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "refresh");
+        toast(t("tp_uuid_refreshed"));
+        renderThirdPartyApps({ silent: true });
+      } catch (e) {
+        toast(errText((e && e.message) || "") || t("error"), true);
+      } finally {
+        calRefresh.disabled = false;
+        calRefresh.classList.remove("loading");
+      }
+    });
+  }
+  const calDisconnect = document.getElementById("tp-calendar-disconnect");
+  if (calDisconnect) {
+    calDisconnect.addEventListener("click", () => {
+      openCalendarDisconnectConfirm(async () => {
+        try {
+          const r = await fetch("/api/thirdparty/calendar/disconnect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || "disconnect");
+          toast(t("tp_disconnected"));
+          renderThirdPartyApps({ silent: true });
+        } catch (e) {
+          toast(errText((e && e.message) || "") || t("error"), true);
+        }
+      });
+    });
+  }
 }
 
 function setTpAccordion(which) {
   const boxes = [
     { id: "vps-info-box", get: () => tpVpsOpen, set: (v) => { tpVpsOpen = v; } },
     { id: "tp-app-stremio", get: () => tpStremioOpen, set: (v) => { tpStremioOpen = v; } },
+    { id: "tp-app-calendar", get: () => tpCalendarOpen, set: (v) => { tpCalendarOpen = v; } },
     { id: "tp-app-remote", get: () => tpRemoteOpen, set: (v) => { tpRemoteOpen = v; } },
   ];
-  const cur = boxes.find((b) => b.id === (which === "vps" ? "vps-info-box" : which === "stremio" ? "tp-app-stremio" : "tp-app-remote"));
+  const _idMap = { vps: "vps-info-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar", remote: "tp-app-remote" };
+  const cur = boxes.find((b) => b.id === (_idMap[which] || ""));
   if (!cur) return;
   const willOpen = !cur.get();
   boxes.forEach((b) => {
