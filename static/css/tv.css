@@ -670,11 +670,14 @@ html.is-tv .notif-empty, html.tv-mode .notif-empty { padding: calc(24px * var(--
 html.is-tv .notif-item, html.tv-mode .notif-item { gap: calc(10px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); }
 html.is-tv .notif-thumb, html.tv-mode .notif-thumb { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
 html.is-tv .notif-thumb-fallback, html.tv-mode .notif-thumb-fallback { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
+html.is-tv .notif-thumbcol, html.tv-mode .notif-thumbcol { gap: calc(5px * var(--tv-scale)); }
+html.is-tv .notif-type-pill, html.tv-mode .notif-type-pill { font-size: calc(0.55rem * var(--tv-scale)); padding: calc(1px * var(--tv-scale)) calc(7px * var(--tv-scale)); }
 
 /* İzlendi-sor paneli */
 html.is-tv .watched-ask-header, html.tv-mode .watched-ask-header { gap: calc(8px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(14px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }
 html.is-tv .ask-poster-img, html.tv-mode .ask-poster-img { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); }
 html.is-tv .ask-poster-fallback, html.tv-mode .ask-poster-fallback { width: calc(45px * var(--tv-scale)); height: calc(68px * var(--tv-scale)); font-size: calc(1.2rem * var(--tv-scale)); }
+html.is-tv .ask-poster, html.tv-mode .ask-poster { gap: calc(5px * var(--tv-scale)); }
 html.is-tv .ask-content, html.tv-mode .ask-content { gap: calc(8px * var(--tv-scale)); }
 html.is-tv .ask-msg, html.tv-mode .ask-msg { font-size: calc(0.8rem * var(--tv-scale)); }
 html.is-tv .ask-actions, html.tv-mode .ask-actions { gap: calc(8px * var(--tv-scale)); }

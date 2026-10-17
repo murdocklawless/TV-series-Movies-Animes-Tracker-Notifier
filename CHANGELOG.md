@@ -1,6 +1,24 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.76 - 17/10/2026-03:07
+### TR
+- **Bildirim ve "İzlendi" mesajlarına tip hapı:** posterin **5px altında**, postere göre **ortalanmış** `Dizi / Film / Belgesel / Anime` hapı (kart hapı paletiyle birebir renk; poster gizli/yok iken de gösterilir).
+- **Yapım ismi tip rengiyle:** hem bildirimin üst satırındaki yapım adı hem mesaj içindeki ad renklenir (dizi `#60a5fa`, film `#22c55e`, belgesel `#faef15`, anime `#f472b6`).
+- **"N. Sezon / N. Bölüm" renkleri:** kart rozetleriyle aynı — Sezon **teal `#14b8a6`**, Bölüm **violet `#a78bfa`** ("4. Bölümünü" gibi ekler dahil).
+- **`S02E08` → "2. Sezon 8. Bölüm":** arayüzde dönüştürülür; **eski kayıtlar da** yeni biçimde ve renkli görünür (veri göçü gerekmez). Yeni `episode_today` bildirimleri sunucuda da yeni biçimde üretilir (`scheduler.py`); Telegram/ntfy şablonları (14 dil) değişmedi.
+- **"İzlendi" (ask) kartı** artık bildirim merkeziyle aynı iskelette: poster + tip hapı (5px) → **yapım ismi satırı** → mesaj → Evet/Hayır.
+- Belgesel tespiti: bildirimlerde `doc_` bildirim tipi, ask kartlarında yeni **`is_doc`** alanı (`/api/asks`; `followed.genres` belgesel türleriyle karşılaştırılır).
+- Okunabilirlik: yeni yüzeylerin en düşük kontrast oranı **4.65** (hedef ≥ 4.5).
+### EN
+- **Type pill for notifications and "watched" asks:** a `TV / Movie / Documentary / Anime` pill **5px below** the poster, **centred to the poster** (same palette as the card pill; also shown when the poster is hidden or missing).
+- **Title in the type colour:** both the production name on the notification's first line and the name inside the message are coloured (tv `#60a5fa`, movie `#22c55e`, documentary `#faef15`, anime `#f472b6`).
+- **"N. Sezon / N. Bölüm" colours:** same as the card badges — season **teal `#14b8a6`**, episode **violet `#a78bfa`** (suffixes like "4. Bölümünü" included).
+- **`S02E08` → "2. Sezon 8. Bölüm":** converted in the UI, so **existing rows** also render in the new form and colour (no data migration). New `episode_today` notifications are produced in the new form on the server as well (`scheduler.py`); Telegram/ntfy templates (14 languages) are untouched.
+- **The "watched" (ask) card** now matches the notification centre: poster + type pill (5px) → **title line** → message → Yes/No.
+- Documentary detection: the `doc_` notification type in the centre, and a new **`is_doc`** field for ask cards (`/api/asks`; `followed.genres` compared against documentary genres).
+- Legibility: the lowest contrast ratio across the new surfaces is **4.65** (target ≥ 4.5).
+
 ## 1.75 - 17/10/2026-02:44
 ### TR
 - **Belgesel kimliği artık sarı (`#faef15`):** kart hapı, satır modu tip metni, detay modalı hapı, arama modalı filtresi, chiplet ve geçmiş sekmesi satır rengi aynı sarıyı kullanır (eskiden lime/yeşil-sarı `#d9f99d` / `#8ddb07` idi). TV modu odak halkası da sarıya çevrildi.

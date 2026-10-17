@@ -1766,7 +1766,13 @@ input:-webkit-autofill:focus {
   color: #e5e9f0;
   border-bottom: 1px solid #3a4050;
 }
+/* Poster + (5px altinda, postere gore ortali) tip hapi kolonu */
+.notif-thumbcol,
 .ask-poster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
 }
 .ask-poster-img {
@@ -1802,6 +1808,27 @@ input:-webkit-autofill:focus {
   line-height: 1.3;
   word-break: break-word;
 }
+/* Tip hapi (kart hapi paletiyle birebir) + isim/sezon/bolum renkleri */
+.notif-type-pill {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.notif-type-pill.pill-tv { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+.notif-type-pill.pill-movie { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); }
+.notif-type-pill.pill-doc { background: rgba(250, 239, 21, 0.15); color: #faef15; border: 1px solid rgba(250, 239, 21, 0.4); }
+.notif-type-pill.pill-anime { background: rgba(236, 72, 153, 0.15); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.4); }
+.notif-item[data-media="tv"] .notif-title, .notif-item[data-media="tv"] .hl-title { color: #60a5fa; }
+.notif-item[data-media="movie"] .notif-title, .notif-item[data-media="movie"] .hl-title { color: #22c55e; }
+.notif-item[data-media="doc"] .notif-title, .notif-item[data-media="doc"] .hl-title { color: #faef15; }
+.notif-item[data-media="anime"] .notif-title, .notif-item[data-media="anime"] .hl-title { color: #f472b6; }
+.hl-title { font-weight: 600; }
+.hl-season { color: #14b8a6; font-weight: 600; }
+.hl-ep { color: #a78bfa; font-weight: 600; }
 .ask-actions {
   display: flex;
   justify-content: center;

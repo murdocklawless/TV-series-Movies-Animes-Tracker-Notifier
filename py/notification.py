@@ -240,8 +240,35 @@ def delete_all():
     return jsonify({"ok": True})
 
 
+def _doc_genres(raw):
+    """followed.genres (JSON isim listesi) belgesel iceriyor mu (isDocItem/_is_doc_row eslenigi).
+
+    Ask kartinda "Belgesel" hapi + tip rengi icin kullanilir; tur listesi tek
+    kaynaktan (scheduler.DOC_GENRES) alinir, erisilemezse kucuk bir kopya.
+    """
+    import json as _json
+    try:
+        from scheduler import DOC_GENRES as _DOCS
+    except Exception:
+        _DOCS = {"documentary", "documentaries", "belgesel", "doku", "dokus", "documentaire",
+                 "documentaires", "documental", "documentales", "documentario", "documentari",
+                 "документальный", "доку", "وثائقي", "وثائقيات", "documentário", "documentários",
+                 "dokument", "dokumenty", "ドキュメンタリー", "다큐멘터리", "纪录片"}
+    try:
+        gs = _json.loads(raw or "[]")
+    except Exception:
+        return False
+    if not isinstance(gs, list):
+        return False
+    for x in gs:
+        if str(x or "").strip().lower() in _DOCS:
+            return True
+    return False
+
+
 def _ask_row_dict(r):
     d = dict(r)
+    d["is_doc"] = _doc_genres(d.pop("_genres", ""))
     if d.get("thumbnail_local"):
         d["thumbnail_local"] = versioned_web_path(d["thumbnail_local"])
     if d.get("poster_local"):
@@ -255,11 +282,14 @@ def list_asks():
     uid = _me_id()
     conn = get_db()
     rows = conn.execute(
-        "SELECT * FROM notifications WHERE type='watched_ask' AND user_id=? ORDER BY created_at DESC",
+        "SELECT n.*, IFNULL(f.genres,'') AS _genres FROM notifications n "
+        "LEFT JOIN followed f ON f.user_id=n.user_id AND f.tmdb_id=n.tmdb_id AND f.media_type=n.media_type "
+        "WHERE n.type='watched_ask' AND n.user_id=? ORDER BY n.created_at DESC",
         (uid,),
     ).fetchall()
+    asks = [_ask_row_dict(r) for r in rows]
     conn.close()
-    return jsonify({"asks": [_ask_row_dict(r) for r in rows]})
+    return jsonify({"asks": asks})
 
 
 @notification_bp.route("/api/asks/count", methods=["GET"])

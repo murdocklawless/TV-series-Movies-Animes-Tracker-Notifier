@@ -2,7 +2,7 @@
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
 import { t, errText } from "./i18n.js?v=523";
 import { escAttr, toast, CHECK_SVG } from "./utils.js?v=519";
-import { closeMenu as closeNotifMenu } from "./notification.js?v=532";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=533";
 import { openAskClearConfirm } from "./components.js?v=523";
 
 let askEnabled = true;
@@ -104,6 +104,7 @@ function askThumb(a) {
 function askItem(a) {
   const resolved = Number(a.resolved || 0);
   const unread = resolved === 0;
+  const kind = notifMediaKind(a, null);
   const marker = resolved === 1
     ? `<span class="ask-mark ask-mark-yes">${CHECK_SVG}</span>`
     : resolved === 2
@@ -113,10 +114,11 @@ function askItem(a) {
     ? `<div class="ask-actions"><button class="ask-btn ask-yes" data-id="${a.id}">${t("ask_yes")}</button><button class="ask-btn ask-no" data-id="${a.id}">${t("ask_no")}</button></div>`
     : `<div class="ask-actions ask-resolved">${marker}</div>`;
   return `
-    <div class="notif-item ask-item${unread ? " unread" : ""}" data-id="${a.id}" data-resolved="${resolved}">
-      <div class="ask-poster">${askThumb(a)}</div>
+    <div class="notif-item ask-item${unread ? " unread" : ""}" data-id="${a.id}" data-resolved="${resolved}" data-media="${kind}">
+      <div class="ask-poster">${askThumb(a)}${notifTypePill(kind)}</div>
       <div class="ask-content">
-        <div class="ask-msg">${escAttr(a.message || "")}</div>
+        ${notifTitleLine(a.title)}
+        <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "")}</div>
         ${actions}
       </div>
     </div>`;

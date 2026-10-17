@@ -636,7 +636,7 @@ def check_notifications(user_id=None):
         # 1 episode_today (merkez + dis push tek geciste; makbuz notified_date=today dedupe'u)
         rows = conn.execute("SELECT season, episode, air_date FROM episodes WHERE follow_id=? AND air_date=?", (r["id"], today)).fetchall()
         for ep in rows:
-            msg = f"{r['title']} S{ep['season']:02d}E{ep['episode']:02d} Bugün Yayınlanacak"
+            msg = f"{r['title']} {ep['season']}. Sezon {ep['episode']}. Bölüm Bugün Yayınlanacak"
             _notif_create(r["title"], msg, _doc_type(is_doc, "episode_today"), media_type="tv", tmdb_id=r["tmdb_id"], season=ep["season"], episode=ep["episode"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, remote_url=TMDB_IMAGE_BASE + r["poster_path"] if r["poster_path"] else None, user_id=uid)
         # 2 season_start today via season_list
         try:

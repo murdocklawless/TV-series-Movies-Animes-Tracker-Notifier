@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js?v=523";
 import { escAttr } from "./utils.js?v=519";
 import { openNotifClearConfirm } from "./components.js?v=523";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=538";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=539";
 import { isAdmin, loadAdminLists } from "./auth.js?v=519";
 
 const badgeEl = () => document.getElementById("notif-badge");
@@ -53,6 +53,55 @@ function formatTime(ts) {
   } catch { return d.toLocaleString(); }
 }
 
+// ---- Tip kimligi: bildirim/ask satirlarinin hapi, ismi ve mesaj renkleri ----
+// tv | movie | doc | anime
+export function notifMediaKind(row, typeName) {
+  const mt = ((row && row.media_type) || "").toLowerCase();
+  const tn = String(typeName || "");
+  if (mt === "anime") return "anime";
+  if (tn.indexOf("doc_") === 0) return "doc";
+  if (row && row.is_doc) return "doc";
+  return mt === "movie" ? "movie" : "tv";
+}
+
+function notifKindLabel(kind) {
+  if (kind === "doc") return t("type_doc");
+  if (kind === "anime") return t("tab_anime");
+  if (kind === "movie") return t("type_movie");
+  return t("type_tv");
+}
+
+// Posterin 5px altinda, postere gore ortalanan tip hapi (CSS: .notif-type-pill)
+export function notifTypePill(kind) {
+  return `<span class="notif-type-pill pill-${kind}">${escAttr(notifKindLabel(kind))}</span>`;
+}
+
+// Mesaj metni: yapim ismi + "N. Sezon / N. Bölüm" renklenir; S02E08 -> "2. Sezon 8. Bölüm".
+// Eski ve yeni kayitlar ayni sekilde gorunur (veri gocu gerekmez).
+export function notifMsgHTML(text, title) {
+  let s = String(text == null ? "" : text);
+  // 1) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
+  s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. Bölüm`);
+  // 2) kacis (HTML enjeksiyonu yok)
+  let html = escAttr(s);
+  // 3) yapim ismi: bilinen tam metin, regex yok (ozel karakter guvenli)
+  const tEsc = title ? escAttr(String(title)) : "";
+  if (tEsc) {
+    const i = html.indexOf(tEsc);
+    if (i >= 0) html = html.slice(0, i) + `<span class="hl-title">${tEsc}</span>` + html.slice(i + tEsc.length);
+  }
+  // 4) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni)
+  html = html.replace(/(\d+\.\s*Sezon[\wÇĞİÖŞÜçğıöşü]*)/g, `<span class="hl-season">$1</span>`);
+  html = html.replace(/(\d+\.\s*Bölüm[\wÇĞİÖŞÜçğıöşü]*)/g, `<span class="hl-ep">$1</span>`);
+  return html;
+}
+
+// Yapim ismi satiri (bildirim merkezi + ask karti ayni stili paylasir)
+export function notifTitleLine(title) {
+  const s = String(title || "");
+  return s ? `<div class="notif-title">${escAttr(s)}</div>` : "";
+}
+
 async function fetchCount() {
   try {
     const r = await fetch("/api/notifications/count?unread=1");
@@ -100,6 +149,10 @@ async function fetchList() {
       div.className = "notif-item" + (n.is_read ? "" : " unread");
       div.dataset.id = n.id;
       if (n.type) div.dataset.ntype = n.type;
+      // Tip kimligi (hap + isim rengi): belgesel = doc_ tipleri veya is_doc
+      const kind = notifMediaKind(n, n.type);
+      const hasMedia = !!(n.media_type || String(n.type || "").indexOf("doc_") === 0);
+      if (hasMedia) div.dataset.media = kind;
       let thumbHtml = "";
       if (state.notifCenterPoster) {
         const thumb = n.thumbnail_local || n.poster_local || "";
@@ -111,11 +164,14 @@ async function fetchList() {
           thumbHtml = `<div class="notif-thumb-fallback"><i class="fa-solid fa-image"></i></div>`;
         }
       }
+      // Poster + tip hapi (hap, poster kapaliyken de gosterilir; postere gore ortali)
+      const pillHtml = hasMedia ? notifTypePill(kind) : "";
+      const colHtml = (thumbHtml || pillHtml) ? `<div class="notif-thumbcol">${thumbHtml}${pillHtml}</div>` : "";
       div.innerHTML = `
-        ${thumbHtml}
+        ${colHtml}
         <div class="notif-content">
           <div class="notif-title">${escAttr(n.title||"")}</div>
-          <div class="notif-message">${escAttr(n.message||"")}</div>
+          <div class="notif-message">${notifMsgHTML(n.message||"", n.title||"")}</div>
           <div class="notif-time">${formatTime(n.created_at)}</div>
         </div>
       `;
