@@ -16,8 +16,8 @@ import {
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
 } from "./utils.js?v=519";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=526";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=523";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js?v=527";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=524";
 
 let currentDetails = null;
 

@@ -7,8 +7,8 @@ import {
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=519";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=526";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=523";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=527";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=524";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -315,6 +315,7 @@ function animeEpMid(item) {
 }
 
 async function loadFollowed(view) {
+  const __run = __runToken("followed:" + view);
   const showArchived = archivedVisible(view);
   const res = await fetch("/api/followed");
   let items = await res.json();
@@ -342,6 +343,7 @@ async function loadFollowed(view) {
   const laterGrid = document.getElementById(gridIdLater);
   const showsWrap = document.getElementById(wrapIdMain);
   const laterWrap = document.getElementById(wrapIdLater);
+  if (!__runCurrent("followed:" + view, __run)) return;
   grid.innerHTML = "";
   if (laterGrid) laterGrid.innerHTML = "";
   empty.style.display = items.length ? "none" : "block";
@@ -465,6 +467,7 @@ function docBadge() {
 }
 
 async function loadBelgesel() {
+  const __run = __runToken("belgesel");
   const showArchived = archivedVisible("belgesel");
   const res = await fetch("/api/followed");
   let items = await res.json();
@@ -484,6 +487,7 @@ async function loadBelgesel() {
   const laterGridDoc = document.getElementById("poster-grid-docs-later");
   const docsWrap = document.getElementById("belgesel-docs-wrap");
   const laterWrapDoc = document.getElementById("belgesel-later-wrap");
+  if (!__runCurrent("belgesel", __run)) return;
   grid.innerHTML = "";
   if (laterGridDoc) laterGridDoc.innerHTML = "";
   empty.style.display = items.length ? "none" : "block";
@@ -634,6 +638,7 @@ function animeStatusLabel(status) {
 }
 
 async function loadAnime() {
+  const __run = __runToken("anime");
   const showArchived = archivedVisible("anime");
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
@@ -653,6 +658,7 @@ async function loadAnime() {
   const laterGridA = document.getElementById("anime-grid-later");
   const animeWrap = document.getElementById("anime-grid-wrap");
   const laterWrapA = document.getElementById("anime-later-wrap");
+  if (!__runCurrent("anime", __run)) return;
   grid.innerHTML = "";
   if (laterGridA) laterGridA.innerHTML = "";
   empty.style.display = items.length ? "none" : "block";
@@ -793,6 +799,7 @@ function unwatchedDateLine(dateStr, label, isMovie) {
 }
 
 async function loadUnwatched() {
+  const __run = __runToken("unwatched");
   let data = { shows: [], anime: [], movies: [] };
   try {
     const res = await fetch("/api/unwatched");
@@ -806,6 +813,7 @@ async function loadUnwatched() {
   const moviesGrid = document.getElementById("unwatched-movies");
   const docsGrid = document.getElementById("unwatched-docs");
   const animeGrid = document.getElementById("unwatched-anime");
+  if (!__runCurrent("unwatched", __run)) return;
   showsGrid.innerHTML = "";
   moviesGrid.innerHTML = "";
   if (docsGrid) docsGrid.innerHTML = "";
@@ -1014,6 +1022,7 @@ async function loadUnwatched() {
 const DEFAULT_ORDER = ["shows", "movies", "docs", "anime"];
 
 async function loadWatched() {
+  const __run = __runToken("watched");
   let data = { shows: [], anime: [], movies: [] };
   try {
     const res = await fetch("/api/watched");
@@ -1027,6 +1036,7 @@ async function loadWatched() {
   const moviesGrid = document.getElementById("watched-movies");
   const docsGrid = document.getElementById("watched-docs");
   const animeGrid = document.getElementById("watched-anime");
+  if (!__runCurrent("watched", __run)) return;
   showsGrid.innerHTML = "";
   moviesGrid.innerHTML = "";
   if (docsGrid) docsGrid.innerHTML = "";
@@ -1257,6 +1267,12 @@ async function fetchArchivedAnime() {
   const d = await res.json();
   return Array.isArray(d) ? d : [];
 }
+// Kosu jetonu (acilis yarisi): ayni yukleyici eszamanli iki kez calisirsa
+// (or. switchView + app:langchange) bayat kosu grid'e dokunmadan cikar;
+// taze kosu tek basina temizler + basar (cift kart olmaz).
+const __loadGen = {};
+function __runToken(key) { const n = (__loadGen[key] || 0) + 1; __loadGen[key] = n; return n; }
+function __runCurrent(key, n) { return __loadGen[key] === n; }
 // Birlesik (aktif + arsivli) listelerde ayni yapim iki kaynaktan da gelebilir
 // (eski onbellek / yaris durumu); id bazinda tekille (cift kart onlenir).
 function dedupeMerged(items) {
@@ -1301,6 +1317,7 @@ function archivedBadgeHTML() {
   return `<div class="archived-line"><span class="badge badge-archived"><i class="fa-solid fa-box-archive"></i> ${t("archived_badge")}</span></div>`;
 }
 async function loadArchive() {
+  const __run = __runToken("archive");
   const archView = document.getElementById("view-archive");
   const empty = document.getElementById("empty-archive");
   if (!archView || !empty) return;
@@ -1322,6 +1339,7 @@ async function loadArchive() {
   if (!Array.isArray(animes)) animes = [];
   items = dedupeMerged(items);
   animes = dedupeMerged(animes);
+  if (!__runCurrent("archive", __run)) return;
 
   let shows = applySort(items.filter((i) => i.media_type === "tv").map((s) => ({ ...s, isAnime: false })));
   let movies = applySort(items.filter((i) => i.media_type === "movie").map((m) => ({ ...m, isAnime: false })));
@@ -1803,6 +1821,7 @@ function renderFeedUpdateInfo(payload) {
 }
 
 async function loadFeed(force) {
+  const __run = __runToken("recommend");
   initFeedControls();
   const m = document.getElementById("feed-media");
   const s = document.getElementById("feed-source");
@@ -1824,6 +1843,7 @@ async function loadFeed(force) {
     const res = await fetch(`/api/recommendations/feed?media=${encodeURIComponent(media)}&source=${encodeURIComponent(source)}${force ? "&refresh=1" : ""}`, { cache: "no-store" });
     const j = await res.json();
     const items = (j && j.items) || [];
+    if (!__runCurrent("recommend", __run)) return;
     grid.innerHTML = "";
     renderFeedCards(items, grid, media);
     renderFeedUpdateInfo(j);
