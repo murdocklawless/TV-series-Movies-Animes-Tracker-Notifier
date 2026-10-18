@@ -1,6 +1,6 @@
 // Faz 4: utils — genel yardımcılar, SVG sabitleri, tarih/saat formatları.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=529";
+import { t } from "./i18n.js?v=530";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
@@ -161,6 +161,32 @@ function escAttr(s) {
     .replace(/>/g, "&gt;");
 }
 
+// --- Kaynak etiketi (1.86) -------------------------------------------------
+// Nereden izlendi: stremio|plex|jellyfin|emby|other. Ask damga satirinda ve
+// ozet modalinda ayni renkler kullanilir (.src-* siniflari style.css'te).
+const SOURCE_KEYS = ["stremio", "plex", "jellyfin", "emby", "other"];
+const SOURCE_NAMES = { stremio: "Stremio", plex: "Plex", jellyfin: "Jellyfin", emby: "Emby" };
+
+// Bilinmeyen/bos kaynak -> "" (etiket cizilmez).
+function srcKey(source) {
+  const k = String(source == null ? "" : source).trim().toLowerCase();
+  return SOURCE_KEYS.indexOf(k) >= 0 ? k : "";
+}
+
+// Gorunen ad: marka adlari sabit, "other" cevrilir.
+function srcName(source) {
+  const k = srcKey(source);
+  if (!k) return "";
+  return k === "other" ? t("other") : SOURCE_NAMES[k];
+}
+
+// Damga satiri eki: " - <renkli kaynak>" (kaynak yoksa bos).
+function srcStampHTML(source) {
+  const k = srcKey(source);
+  if (!k) return "";
+  return ` - <span class="src src-${k}">${escAttr(srcName(k))}</span>`;
+}
+
 function applyTitleHint(card) {
   const el = card.querySelector(".info .title");
   if (!el) return;
@@ -206,6 +232,14 @@ const CLOCK_SVG = `
        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="12" cy="12" r="10"></circle>
     <polyline points="12 6 12 12 16 14"></polyline>
+  </svg>`;
+
+// 1.86: kaynak (nereden izlendi) satiri ikonu — etiket/oynatma kaynagi.
+const SOURCE_SVG = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+    <line x1="7" y1="7" x2="7.01" y2="7"></line>
   </svg>`;
 
 function tzLocale() {
@@ -425,9 +459,11 @@ function isDocItem(item) {
 
 export {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, UNDO_SVG, EYE_SVG, EYE_OFF_SVG, FILM_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
+  SOURCE_SVG,
   ARROW_DOWN_SVG, ARROW_UP_SVG,
   ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG,
   loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
+  SOURCE_KEYS, srcKey, srcName, srcStampHTML,
   CARD_SLOT, cardRows, resultCardRows, cardDateLine,
   applyTitleHint, tzLocale, formatDate, utcDayStr, dayStrInTz, dayStateStr, releaseDayStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,

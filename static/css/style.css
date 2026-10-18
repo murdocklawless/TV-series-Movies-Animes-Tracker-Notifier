@@ -2052,6 +2052,14 @@ input:-webkit-autofill:focus {
   grid-area: mark;
   justify-self: end;
 }
+/* Bekleyen kart: Evet/Hayir ALT SATIRDA (grid row 2, iki kolonu kaplar) ->
+   hap (poster alti, ortali) ve cozulmus karttaki tick/x ile ayni hizada;
+   yatayda pencere geneline gore ortalanir. */
+.ask-item.unread .ask-actions {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  justify-self: center;
+}
 .ask-msg {
   font-size: 0.8rem;
   color: #aab;
@@ -2079,6 +2087,14 @@ input:-webkit-autofill:focus {
 .hl-title { font-weight: 600; }
 .hl-season { color: #14b8a6; font-weight: 600; }
 .hl-ep { color: #a78bfa; font-weight: 600; }
+/* 1.86: kaynak etiketi (ask damga satiri + ozet modali "Kaynak:" satiri).
+   Kaynak basina marka renkleri; bilinmeyenler notr gri. */
+.src { font-weight: 600; }
+.src-stremio { color: #8b5cf6; }
+.src-plex { color: #e5a00d; }
+.src-jellyfin { color: #00a4dc; }
+.src-emby { color: #52b54b; }
+.src-other { color: #9aa3b2; }
 .ask-actions {
   display: flex;
   justify-content: center;
@@ -2118,9 +2134,11 @@ input:-webkit-autofill:focus {
 }
 .ask-item:hover .ask-btn.ask-yes {
   border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.3);
 }
 .ask-item:hover .ask-btn.ask-no {
   border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.3);
 }
 .ask-mark {
   display: inline-flex;

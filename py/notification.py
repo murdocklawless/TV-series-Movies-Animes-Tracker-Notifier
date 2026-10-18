@@ -79,11 +79,12 @@ def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_
         conn.close()
 
 
-def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None, user_id=0):
+def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None, user_id=0, source=None):
     """Insert notification if not duplicate. Handles thumbnail generation.
     kind_for_thumb: tv/movie/anime, ident_for_thumb: tmdb_id/anilist_id
     remote_poster_url: fallback url (w500 or cover) to ensure thumb if w500 missing.
     user_id: 0 = herkese acik; >0 yalniz hedef kullaniciya (Faz 31 rol bildirimi).
+    source (1.86): kaynak etiketi (stremio/plex/jellyfin/emby/other) — izlendi-sor penceresinde gosterilir.
     Returns new id or None if duplicate."""
     conn = get_db()
     try:
@@ -123,8 +124,8 @@ def create_notification(title, message, type_name, media_type=None, tmdb_id=None
             pass
 
     conn.execute(
-        "INSERT INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts(), user_id or 0),
+        "INSERT INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at, user_id, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts(), user_id or 0, source),
     )
     conn.commit()
     nid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -317,17 +318,28 @@ def _ask_ts(row):
     return t if t > 0 else int(time.time())
 
 
+def _ask_source(row):
+    """Ask satirindaki kaynak (1.86): stremio/plex/jellyfin/emby/other. Yoksa None."""
+    try:
+        return (row["source"] or None)
+    except Exception:
+        return None
+
+
 def _mark_ask_watched(row):
     """Izlendi-sor onayi: medya tipine gore watched=1 yazar. commit'li.
 
     watched_at her zaman ask (bildirim) zamanindan alinir; boylece "Evet"e
     gunler sonra basilsa da izleme gecmisi/siralamasi sinyal saatini gosterir.
+    Kaynak (1.86): ask hangi kaynaktan geldiyse bolum/film satirina yazilir
+    (yeni kaynak bossa mevcut kaynak korunur).
     """
     conn = get_db()
     uid = row["user_id"]
     media = (row["media_type"] or "").lower()
     season, episode = row["season"], row["episode"]
     ts = _ask_ts(row)
+    src = _ask_source(row)
     try:
         if media == "anime":
             anilist_id = row["anilist_id"]
@@ -341,16 +353,18 @@ def _mark_ask_watched(row):
                 conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (arow["id"],))
             else:
                 conn.execute(
-                    "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at) VALUES (?,?,1,?) "
-                    "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
-                    (arow["id"], episode, ts),
+                    "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source) VALUES (?,?,1,?,?) "
+                    "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
+                    "source=COALESCE(excluded.source, source)",
+                    (arow["id"], episode, ts, src),
                 )
         elif media == "movie":
             # mevcut saat varsa (dogrudan isaretleme) korunur, yoksa ask zamani yazilir
             conn.execute(
-                "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?) "
+                "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?), "
+                "watched_source=COALESCE(?, watched_source) "
                 "WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
-                (ts, uid, row["tmdb_id"]),
+                (ts, src, uid, row["tmdb_id"]),
             )
         else:  # tv
             frow = conn.execute(
@@ -359,12 +373,13 @@ def _mark_ask_watched(row):
             ).fetchone()
             if frow and season is not None and episode is not None:
                 conn.execute(
-                    "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) VALUES (?,?,?,1,?) "
-                    "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at",
-                    (frow["id"], season, episode, ts),
+                    "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) VALUES (?,?,?,1,?,?) "
+                    "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
+                    "source=COALESCE(excluded.source, source)",
+                    (frow["id"], season, episode, ts, src),
                 )
         conn.commit()
-        print(f"[asks] onay: watched_at=ask zamani ({ts}) media={media} s{season} e{episode}", flush=True)
+        print(f"[asks] onay: watched_at=ask zamani ({ts}) media={media} s{season} e{episode} kaynak={src}", flush=True)
         return True
     except Exception as e:
         print(f"[asks] watched yazma hata: {e}", flush=True)

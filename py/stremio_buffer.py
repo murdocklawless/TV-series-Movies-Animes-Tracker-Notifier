@@ -17,8 +17,12 @@ def _dedupe(kind, tmdb_id, anilist_id, season, episode, user_id=0):
     return f"{uid}|{kind}|{tmdb_id or ''}|{anilist_id or ''}|{season or ''}|{episode or ''}"
 
 
-def record_signal(kind, tmdb_id, anilist_id, season, episode, user_id=0):
-    """Sinyali tampona yazar (var ise ts tazelenir). Fail-soft. Faz 32: per-user."""
+def record_signal(kind, tmdb_id, anilist_id, season, episode, user_id=0, source=None):
+    """Sinyali tampona yazar (var ise ts + kaynak tazelenir). Fail-soft. Faz 32: per-user.
+
+    source (1.86): sinyalin geldigi kaynak (stremio/plex/jellyfin/emby/other).
+    Ayni bolum icin yeni sinyal gelirse kaynak da tazelenir (son kaynak kazanir).
+    """
     try:
         uid = int(user_id or 0)
     except (TypeError, ValueError):
@@ -26,11 +30,11 @@ def record_signal(kind, tmdb_id, anilist_id, season, episode, user_id=0):
     try:
         conn = get_db()
         conn.execute(
-            "INSERT INTO stremio_signals (dedupe, kind, tmdb_id, anilist_id, season, episode, ts, user_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
-            "ON CONFLICT(dedupe) DO UPDATE SET ts=excluded.ts, user_id=excluded.user_id",
+            "INSERT INTO stremio_signals (dedupe, kind, tmdb_id, anilist_id, season, episode, ts, user_id, source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(dedupe) DO UPDATE SET ts=excluded.ts, user_id=excluded.user_id, source=excluded.source",
             (_dedupe(kind, tmdb_id, anilist_id, season, episode, uid),
-             kind, tmdb_id, anilist_id, season, episode, int(time.time()), uid),
+             kind, tmdb_id, anilist_id, season, episode, int(time.time()), uid, source),
         )
         conn.commit()
         conn.close()
@@ -40,21 +44,21 @@ def record_signal(kind, tmdb_id, anilist_id, season, episode, user_id=0):
 
 def signals_for_tv(tmdb_id, user_id=0):
     try:
-        return _rows("SELECT dedupe, season, episode, ts FROM stremio_signals WHERE kind='tv' AND tmdb_id=? AND user_id=?", (tmdb_id, int(user_id or 0)))
+        return _rows("SELECT dedupe, season, episode, ts, source FROM stremio_signals WHERE kind='tv' AND tmdb_id=? AND user_id=?", (tmdb_id, int(user_id or 0)))
     except Exception:
         return _rows("SELECT dedupe, season, episode, ts FROM stremio_signals WHERE kind='tv' AND tmdb_id=?", (tmdb_id,))
 
 
 def signals_for_movie(tmdb_id, user_id=0):
     try:
-        return _rows("SELECT dedupe, ts FROM stremio_signals WHERE kind='movie' AND tmdb_id=? AND user_id=?", (tmdb_id, int(user_id or 0)))
+        return _rows("SELECT dedupe, ts, source FROM stremio_signals WHERE kind='movie' AND tmdb_id=? AND user_id=?", (tmdb_id, int(user_id or 0)))
     except Exception:
         return _rows("SELECT dedupe, ts FROM stremio_signals WHERE kind='movie' AND tmdb_id=?", (tmdb_id,))
 
 
 def signals_for_anime(anilist_id, user_id=0):
     try:
-        return _rows("SELECT dedupe, episode, ts FROM stremio_signals WHERE kind='anime' AND anilist_id=? AND user_id=?", (anilist_id, int(user_id or 0)))
+        return _rows("SELECT dedupe, episode, ts, source FROM stremio_signals WHERE kind='anime' AND anilist_id=? AND user_id=?", (anilist_id, int(user_id or 0)))
     except Exception:
         return _rows("SELECT dedupe, episode, ts FROM stremio_signals WHERE kind='anime' AND anilist_id=?", (anilist_id,))
 

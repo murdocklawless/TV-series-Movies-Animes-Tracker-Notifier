@@ -1,10 +1,10 @@
 // notification.js — bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=529";
-import { escAttr, tzLocale } from "./utils.js?v=521";
-import { openNotifClearConfirm } from "./components.js?v=533";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=551";
-import { isAdmin, loadAdminLists } from "./auth.js?v=527";
+import { t } from "./i18n.js?v=530";
+import { escAttr, tzLocale, srcStampHTML } from "./utils.js?v=522";
+import { openNotifClearConfirm } from "./components.js?v=534";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=552";
+import { isAdmin, loadAdminLists } from "./auth.js?v=528";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -83,9 +83,13 @@ export function notifTypePill(kind) {
   return `<span class="notif-type-pill pill-${kind}">${escAttr(notifKindLabel(kind))}</span>`;
 }
 
+// Kaynak etiketi (1.86): stremio|plex|jellyfin|emby|other -> damga satirinda renkli metin.
+// Yardimcilar utils.js'te (components/notification ayni renkleri paylasir).
+
 // Mesaj metni: yapim ismi + "N. Sezon / N. Bölüm" renklenir; S02E08 -> "2. Sezon 8. Bölüm".
 // Eski ve yeni kayitlar ayni sekilde gorunur (veri gocu gerekmez).
-export function notifMsgHTML(text, title, stampLine) {
+// source (1.86): ask damga satirinin sonuna kaynak etiketi eklenir.
+export function notifMsgHTML(text, title, stampLine, source) {
   let s = String(text == null ? "" : text);
   const tRaw = String(title || "").trim();
   // 1) Yapim ismini mesajdan kaldir: isim yalnizca .notif-title satirinda gosterilir.
@@ -135,6 +139,12 @@ export function notifMsgHTML(text, title, stampLine) {
   else if (s.indexOf("\n") >= 0) srcLines = s.split(/\n+/).map((x) => x.trim()).filter((x) => x);
   else srcLines = [s];
   let html = srcLines.map((x) => escAttr(x)).join("<br>");
+  // 4b) Kaynak etiketi (1.86): yalniz ask damga satirinda, satir sonunda renkli metin.
+  if (lines && source) {
+    const esc1 = escAttr(lines[0]);
+    const at = html.indexOf(esc1);
+    if (at >= 0) html = html.slice(0, at + esc1.length) + srcStampHTML(source) + html.slice(at + esc1.length);
+  }
   // 5) mesajda kalinti isim varsa tip rengiyle isaretle (nadir; isim normalde ust satirda)
   const tEsc = title ? escAttr(String(title)) : "";
   if (tEsc) {

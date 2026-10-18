@@ -9,15 +9,17 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=529";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=530";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
+  SOURCE_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
-} from "./utils.js?v=521";
-import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=532";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=529";
+  srcKey, srcName,
+} from "./utils.js?v=522";
+import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=533";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=530";
 
 let currentDetails = null;
 
@@ -307,6 +309,27 @@ function closeDetails() {
   currentDetails = null;
 }
 
+// 1.86: ozet modalinda "Kaynak: X" satiri (Sure'nin ustunde). Kaynak bos/eski
+// kayitlarda satir gizlenir; deger kaynak rengiyle yazilir.
+function fillEpisodeSourceRow(source) {
+  const row = document.getElementById("episode-info-source-row");
+  if (!row) return;
+  const name = srcName(source);
+  const key = srcKey(source);
+  if (!name) {
+    row.style.display = "none";
+    return;
+  }
+  const icon = document.getElementById("episode-info-source-icon");
+  if (icon) icon.innerHTML = SOURCE_SVG;
+  const val = document.getElementById("episode-info-source");
+  if (val) {
+    val.textContent = `${t("ep_source")}: ${name}`;
+    val.className = `src src-${key}`;
+  }
+  row.style.display = "";
+}
+
 function openMovieInfo(tmdbId, movieTitle, it) {
   const modal = document.getElementById("episode-info-modal");
   if (!modal) return;
@@ -319,6 +342,7 @@ function openMovieInfo(tmdbId, movieTitle, it) {
   if (metaEl) metaEl.style.borderTop = "none";
   document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${it.runtime ? fmtRuntime(it.runtime) : "—"}`;
   document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
+  fillEpisodeSourceRow(it.source);
   modal.style.display = "flex";
   try {
     if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
@@ -337,6 +361,7 @@ function openAnimeEpisodeInfo(animeId, animeTitle, it, animeDuration) {
   if (metaEl) metaEl.style.borderTop = "none";
   document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${animeDuration ? fmtRuntime(animeDuration) : "—"}`;
   document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
+  fillEpisodeSourceRow(it.source);
   modal.style.display = "flex";
   try {
     if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
@@ -385,6 +410,7 @@ async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
   if (metaEl) metaEl.style.borderTop = "";
   document.getElementById("episode-info-runtime").textContent = "";
   document.getElementById("episode-info-watched").textContent = "";
+  fillEpisodeSourceRow("");
   modal.style.display = "flex";
   try {
     if (isTvUIActive()) document.getElementById("episode-info-close").focus({ preventScroll: true });
@@ -396,6 +422,7 @@ async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
     document.getElementById("episode-info-overview").textContent = (j.overview || "").trim() || t("ep_no_overview");
     document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${j.runtime ? fmtRuntime(j.runtime) : "—"}`;
     document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(j.watched_at)}`;
+    fillEpisodeSourceRow(j.source);
   } catch (e) {
     document.getElementById("episode-info-overview").textContent = t("error");
   }
@@ -496,6 +523,16 @@ function closeCalendarDisconnect() {
 }
 function openCalendarDisconnectConfirm(onYes) {
   wireDedicatedConfirm("calendar-disconnect-modal", t("tp_calendar_disconnect_text"), onYes);
+}
+// Plex / Jellyfin / Emby (1.86): adanmis onay modallari (AGENTS: paylasimli modal yasak).
+function openPlexDisconnectConfirm(onYes) {
+  wireDedicatedConfirm("plex-disconnect-modal", t("tp_webhook_disconnect_text", { app: "Plex" }), onYes);
+}
+function openJellyfinDisconnectConfirm(onYes) {
+  wireDedicatedConfirm("jellyfin-disconnect-modal", t("tp_webhook_disconnect_text", { app: "Jellyfin" }), onYes);
+}
+function openEmbyDisconnectConfirm(onYes) {
+  wireDedicatedConfirm("emby-disconnect-modal", t("tp_webhook_disconnect_text", { app: "Emby" }), onYes);
 }
 function openStremioInstallModal() {
   const ov = document.getElementById("stremio-install-modal");
@@ -1582,6 +1619,7 @@ export { openReleases, closeReleases, closeDetails, closeModals,
          openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm,
          openNotifClearConfirm, openAskClearConfirm, openStremioDisconnectConfirm,
          openCalendarDisconnectConfirm,
+         openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm,
          openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm,
          openStremioInstallModal, closeStremioInstallModal,
          openStremioTunnelRemoveConfirm, openRemoteResetConfirm,

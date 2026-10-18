@@ -1,9 +1,9 @@
 // asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
-import { t, errText } from "./i18n.js?v=529";
-import { escAttr, toast, CHECK_SVG } from "./utils.js?v=521";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=542";
-import { openAskClearConfirm, fmtDateTime } from "./components.js?v=533";
+import { t, errText } from "./i18n.js?v=530";
+import { escAttr, toast, CHECK_SVG } from "./utils.js?v=522";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=543";
+import { openAskClearConfirm, fmtDateTime } from "./components.js?v=534";
 
 let askEnabled = true;
 let askTimer = null;
@@ -111,23 +111,24 @@ function askItem(a) {
       ? `<span class="ask-mark ask-mark-no">${ASK_X_SVG}</span>`
       : "";
   const pill = notifTypePill(kind);
-  // Bekleyen kart: hap poster kolonunda (posterin 5px altinda, ortalanmis), Evet/Hayir ortada.
-  const thumb = unread ? `${askThumb(a)}${pill}` : askThumb(a);
+  // Hap poster kolonunun altinda (grid "pill" hucresi, postere gore ortali).
+  // Bekleyen kartta Evet/Hayir ALT SATIRDA (grid row 2) -> hap ve tick/x ile ayni hizada.
+  const thumb = askThumb(a);
   const actions = unread
     ? `<div class="ask-actions"><button class="ask-btn ask-yes" data-id="${a.id}">${t("ask_yes")}</button><button class="ask-btn ask-no" data-id="${a.id}">${t("ask_no")}</button></div>`
     : "";
   // Cozumlenmis kart: hap POSTERE GORE ORTALANIR (grid "pill" hucresi, .ask-foot-pill)
   // ve tick/x ayni satirda sagda (grid "mark" hucresi) -> bildirimler penceresiyle ayni hiza.
-  const pillCell = unread ? "" : `<div class="ask-foot-pill">${pill}</div>`;
+  const pillCell = `<div class="ask-foot-pill">${pill}</div>`;
   const markCell = unread ? "" : `<span class="ask-actions ask-resolved">${marker}</span>`;
   return `
     <div class="notif-item ask-item${unread ? " unread" : ""}" data-id="${a.id}" data-resolved="${resolved}" data-media="${kind}">
       <div class="ask-poster">${thumb}</div>
       <div class="ask-content">
         ${notifTitleLine(a.title)}
-        <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "", fmtDateTime(a.created_at))}</div>
-        ${actions}
+        <div class="ask-msg">${notifMsgHTML(a.message || "", a.title || "", fmtDateTime(a.created_at), a.source)}</div>
       </div>
+      ${actions}
       ${pillCell}
       ${markCell}
     </div>`;

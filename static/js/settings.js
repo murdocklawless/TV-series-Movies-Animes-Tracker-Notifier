@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=529";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=521";
-import { activateUtilityTab } from "./views.js?v=532";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm } from "./components.js?v=533";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=530";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=522";
+import { activateUtilityTab } from "./views.js?v=533";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=534";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=529");
+      const { errText: _err } = await import("./i18n.js?v=530");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=521");
-    const { openDetails } = await import("./components.js?v=533");
-    const { loadFollowed } = await import("./views.js?v=532");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=522");
+    const { openDetails } = await import("./components.js?v=534");
+    const { loadFollowed } = await import("./views.js?v=533");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=529");
+        const { t: _t } = await import("./i18n.js?v=530");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=542").then((m) => {
+  import("./notification.js?v=543").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2140,6 +2140,10 @@ document.querySelectorAll(".channel-sub-overlay").forEach((ov) => {
 
 let tpStremioOpen = false;
 let tpCalendarOpen = false;
+// 1.86: webhook uygulamalari (Plex / Jellyfin / Emby) kartlari.
+let tpPlexOpen = false;
+let tpJellyfinOpen = false;
+let tpEmbyOpen = false;
 let tpBaseUrl = "";
 let tpIsAdmin = false;
 let tpAskBeforeWatched = true;
@@ -2317,6 +2321,10 @@ const thirdPartyAppRenderers = {
       </div>
     </div>`;
   },
+  // 1.86: Plex / Jellyfin / Emby — webhook ile izleme sinyali (aynı iskelet).
+  plex: (app) => tpWebhookCard(app, tpPlexOpen, "fa-circle-play", "tp_plex_note"),
+  jellyfin: (app) => tpWebhookCard(app, tpJellyfinOpen, "fa-clapperboard", "tp_jellyfin_note"),
+  emby: (app) => tpWebhookCard(app, tpEmbyOpen, "fa-photo-film", "tp_emby_note"),
   remote: (app) => {    const isConn = app.status === "connected";
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
@@ -2359,6 +2367,94 @@ const thirdPartyAppRenderers = {
     </div>`;
   },
 };
+
+// 1.86: webhook uygulama karti (Plex / Jellyfin / Emby). Adres = /webhook/<app>/<uuid>;
+// kullanici adresi uygulamanin webhook ayarina yapistirir. Durum "Hazir" -> ilk olay "Bagli".
+function tpWebhookCard(app, open, icon, noteKey) {
+  const aid = String(app.id || "");
+  const url = app.installUrl || "";
+  return `
+    <div class="channel-box accordion-box notif-type-box${open ? " accordion-open" : ""}" id="tp-app-${escAttr(aid)}">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid ${escAttr(icon)}"></i> ${escAttr(app.name || aid)}</span>
+      </div>
+      <div class="notif-type-body" style="display:${open ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_status")}</span>
+            <span class="tp-status-value ${tpStatusClass(app)}">${tpStatusText(app)}</span>
+          </div>
+          <div class="tp-frame-note">${t(noteKey)}</div>
+          <div class="tp-frame-note">${t("tp_webhook_recipe")}</div>
+        </div>
+        ${url ? `
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
+            <div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+          </label>
+        </div>` : ""}
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="tp-${escAttr(aid)}-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
+          ${url ? `<button id="tp-${escAttr(aid)}-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function tpCopyInput(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(input.value);
+    ok = true;
+  } catch (e) {
+    ok = false;
+  }
+  if (!ok) {
+    try {
+      input.select();
+      input.setSelectionRange(0, 99999);
+      ok = document.execCommand("copy");
+    } catch (e2) {
+      ok = false;
+    }
+  }
+  toast(ok ? t("tp_copied") : t("error"));
+}
+
+async function tpRefreshUuid(aid, btn) {
+  if (btn) { btn.disabled = true; btn.classList.add("loading"); }
+  try {
+    const r = await fetch(`/api/thirdparty/${encodeURIComponent(aid)}/refresh-uuid`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "refresh");
+    toast(t("tp_webhook_refreshed"));
+    renderThirdPartyApps({ silent: true });
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  } finally {
+    if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+  }
+}
+
+async function tpWebhookDisconnect(aid) {
+  try {
+    const r = await fetch(`/api/thirdparty/${encodeURIComponent(aid)}/disconnect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "disconnect");
+    toast(t("tp_disconnected"));
+    renderThirdPartyApps({ silent: true });
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  }
+}
 
 function tpStatusClass(app) {
   if (app.status === "connected") return "tp-connected";
@@ -2470,8 +2566,10 @@ async function flushTpBaseUrl() {
 }
 
 function bindThirdPartyEvents() {
-  // Tek-açık akordeon: VPS / Stremio / Uzak Bağlantı kartları.
-  ["vps-info-box", "tp-app-stremio", "tp-app-calendar", "tp-app-remote"].forEach((id) => {
+  // Tek-açık akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak Bağlantı.
+  [["vps-info-box", "vps"], ["tp-app-stremio", "stremio"], ["tp-app-calendar", "calendar"],
+   ["tp-app-plex", "plex"], ["tp-app-jellyfin", "jellyfin"], ["tp-app-emby", "emby"],
+   ["tp-app-remote", "remote"]].forEach(([id, which]) => {
     const box = document.getElementById(id);
     if (!box) return;
     const head = box.querySelector(".notif-type-head");
@@ -2480,7 +2578,6 @@ function bindThirdPartyEvents() {
     head.addEventListener("click", (e) => {
       if (box.classList.contains("tp-card-disabled")) return;
       if (e.target.closest("input") || e.target.closest("button") || e.target.closest("select") || e.target.closest("a") || e.target.closest(".provider-list")) return;
-      const which = id === "vps-info-box" ? "vps" : id === "tp-app-remote" ? "remote" : id === "tp-app-calendar" ? "calendar" : "stremio";
       setTpAccordion(which);
     });
   });
@@ -2637,6 +2734,15 @@ function bindThirdPartyEvents() {
       });
     });
   }
+  // --- Webhook uygulamaları (Plex / Jellyfin / Emby) — 1.86 ---
+  [["plex", openPlexDisconnectConfirm], ["jellyfin", openJellyfinDisconnectConfirm], ["emby", openEmbyDisconnectConfirm]].forEach(([aid, confirmFn]) => {
+    const copy = document.getElementById(`tp-${aid}-copy`);
+    if (copy) copy.addEventListener("click", () => tpCopyInput(`tp-${aid}-url`));
+    const refresh = document.getElementById(`tp-${aid}-refresh`);
+    if (refresh) refresh.addEventListener("click", () => tpRefreshUuid(aid, refresh));
+    const disc = document.getElementById(`tp-${aid}-disconnect`);
+    if (disc) disc.addEventListener("click", () => confirmFn(() => tpWebhookDisconnect(aid)));
+  });
 }
 
 function setTpAccordion(which) {
@@ -2644,9 +2750,13 @@ function setTpAccordion(which) {
     { id: "vps-info-box", get: () => tpVpsOpen, set: (v) => { tpVpsOpen = v; } },
     { id: "tp-app-stremio", get: () => tpStremioOpen, set: (v) => { tpStremioOpen = v; } },
     { id: "tp-app-calendar", get: () => tpCalendarOpen, set: (v) => { tpCalendarOpen = v; } },
+    { id: "tp-app-plex", get: () => tpPlexOpen, set: (v) => { tpPlexOpen = v; } },
+    { id: "tp-app-jellyfin", get: () => tpJellyfinOpen, set: (v) => { tpJellyfinOpen = v; } },
+    { id: "tp-app-emby", get: () => tpEmbyOpen, set: (v) => { tpEmbyOpen = v; } },
     { id: "tp-app-remote", get: () => tpRemoteOpen, set: (v) => { tpRemoteOpen = v; } },
   ];
-  const _idMap = { vps: "vps-info-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar", remote: "tp-app-remote" };
+  const _idMap = { vps: "vps-info-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar",
+                   plex: "tp-app-plex", jellyfin: "tp-app-jellyfin", emby: "tp-app-emby", remote: "tp-app-remote" };
   const cur = boxes.find((b) => b.id === (_idMap[which] || ""));
   if (!cur) return;
   const willOpen = !cur.get();

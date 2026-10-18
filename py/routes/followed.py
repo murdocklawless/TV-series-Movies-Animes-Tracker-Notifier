@@ -695,7 +695,7 @@ def followed_move_watched():
                 auto = []
             if auto:
                 conn.execute(
-                    "UPDATE episodes SET watched=1 WHERE follow_id=? AND watched=0",
+                    "UPDATE episodes SET watched=1, source=COALESCE(source, 'other') WHERE follow_id=? AND watched=0",
                     (follow["id"],),
                 )
                 save_watch_snapshot(conn, uid, "tv", follow["id"], auto)
@@ -707,7 +707,7 @@ def followed_move_watched():
             conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
         else:  # movie
             if int(follow["watched"] or 0) != 1:
-                conn.execute("UPDATE followed SET watched=1 WHERE id=?", (follow["id"],))
+                conn.execute("UPDATE followed SET watched=1, watched_source='other' WHERE id=?", (follow["id"],))
                 save_watch_snapshot(conn, uid, "movie", follow["id"], ["1"])
             conn.execute(
                 "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?) WHERE id=?",
@@ -724,7 +724,7 @@ def followed_move_watched():
                 try:
                     for s, e in snap:
                         conn.execute(
-                            "UPDATE episodes SET watched=0, watched_at=NULL WHERE follow_id=? AND season=? AND episode=?",
+                            "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL WHERE follow_id=? AND season=? AND episode=?",
                             (follow["id"], s, e),
                         )
                 except Exception:
@@ -740,7 +740,7 @@ def followed_move_watched():
             except Exception:
                 snap = None
             if snap and "1" in snap:
-                conn.execute("UPDATE followed SET watched=0, watched_at=NULL WHERE id=?", (follow["id"],))
+                conn.execute("UPDATE followed SET watched=0, watched_at=NULL, watched_source=NULL WHERE id=?", (follow["id"],))
             conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
@@ -1033,6 +1033,7 @@ def releases():
         if runtime is None:
             runtime = movie_info.get("runtime")
         watched_at = (follow["watched_at"] if follow and "watched_at" in follow.keys() and follow["watched_at"] is not None else None)
+        watched_source = (follow["watched_source"] if follow and "watched_source" in follow.keys() and follow["watched_source"] is not None else None)
         conn.close()
         return jsonify(
             {
@@ -1045,6 +1046,7 @@ def releases():
                         "watched": watched,
                         "runtime": runtime,
                         "watched_at": watched_at,
+                        "source": watched_source,
                     }
                 ],
             }
@@ -1115,13 +1117,15 @@ def episode_info():
     ).fetchone()
     title = follow["title"] if follow else ""
     watched_at = None
+    source = None
     if follow:
         row = conn.execute(
-            "SELECT watched_at FROM episodes WHERE follow_id=? AND season=? AND episode=?",
+            "SELECT watched_at, source FROM episodes WHERE follow_id=? AND season=? AND episode=?",
             (follow["id"], season, episode,),
         ).fetchone()
         if row:
             watched_at = row["watched_at"]
+            source = row["source"]
     conn.close()
 
     overview, runtime = "", None
@@ -1148,6 +1152,7 @@ def episode_info():
         "overview": overview,
         "runtime": runtime,
         "watched_at": watched_at,
+        "source": source,
     }
     list_cache.set(key, payload)
     return cached_response(payload, False)
@@ -1174,12 +1179,13 @@ def episode_watch():
         return jsonify({"error": "Takip bulunamadı"}), 400
 
     conn.execute(
-        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at) "
-        "VALUES (?, ?, ?, ?, ?) "
+        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(follow_id, season, episode) "
-        "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at",
+        "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, source=excluded.source",
         (follow["id"], season, episode, watched,
-         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None),
+         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
+         "other" if watched else None),
     )
     conn.commit()
     conn.close()
@@ -1259,13 +1265,14 @@ def season_watch():
                 except (ValueError, OSError, OverflowError):
                     pass
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at, runtime) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at, runtime, source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(follow_id, season, episode) "
-            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date, runtime=excluded.runtime",
+            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date, runtime=excluded.runtime, source=excluded.source",
             (follow["id"], season, ep_num, air_date, watched,
              int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
-             ep.get("runtime")),
+             ep.get("runtime"),
+             "other" if watched else None),
         )
         count += 1
     conn.commit()
@@ -1290,9 +1297,10 @@ def movie_watch():
     if not follow:
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 400
-    conn.execute("UPDATE followed SET watched=?, watched_at=? WHERE id=?", (
+    conn.execute("UPDATE followed SET watched=?, watched_at=?, watched_source=? WHERE id=?", (
         watched,
         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
+        "other" if watched else None,
         follow["id"],
     ))
     conn.commit()

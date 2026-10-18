@@ -17,6 +17,7 @@ from routes.stremio import stremio_bp
 from routes.calendar import calendar_bp
 from routes.remote import remote_bp
 from routes.auth import auth_bp
+from routes.webhook import webhook_bp
 from notification import notification_bp
 
 app.register_blueprint(search_bp)
@@ -31,6 +32,7 @@ app.register_blueprint(calendar_bp)
 app.register_blueprint(remote_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(notification_bp)
+app.register_blueprint(webhook_bp)
 
 from auth import init_auth
 

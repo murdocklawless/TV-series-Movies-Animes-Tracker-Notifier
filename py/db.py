@@ -79,6 +79,9 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN poster_local_w185 TEXT")
     if "watched_at" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN watched_at INTEGER")
+    # Kaynak (1.86): film son kez nereden izlendi (stremio/plex/jellyfin/emby/other).
+    if "watched_source" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN watched_source TEXT")
     # Arsiv (1.83): takipten cikarmadan yapimi arsive alir; bildirimler durur.
     if "archived" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN archived INTEGER DEFAULT 0")
@@ -107,6 +110,9 @@ def init_db():
         conn.execute("ALTER TABLE episodes ADD COLUMN watched_at INTEGER")
     if "runtime" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN runtime INTEGER")
+    # Kaynak (1.86): bolumun izlendigi kaynak (stremio/plex/jellyfin/emby/other).
+    if "source" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN source TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS watched_snapshot (
             user_id INTEGER NOT NULL,
@@ -233,6 +239,9 @@ def init_db():
     aecols = [r["name"] for r in conn.execute("PRAGMA table_info(anime_episodes)").fetchall()]
     if "watched_at" not in aecols:
         conn.execute("ALTER TABLE anime_episodes ADD COLUMN watched_at INTEGER")
+    # Kaynak (1.86): bolumun izlendigi kaynak (stremio/plex/jellyfin/emby/other).
+    if "source" not in aecols:
+        conn.execute("ALTER TABLE anime_episodes ADD COLUMN source TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -258,6 +267,10 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_notif_media ON notifications(media_type, tmdb_id)")
     except Exception:
         pass
+    # Kaynak (1.86): watched_ask bildiriminin kaynagi (stremio/plex/jellyfin/emby/other).
+    ncols = [r["name"] for r in conn.execute("PRAGMA table_info(notifications)").fetchall()]
+    if "source" not in ncols:
+        conn.execute("ALTER TABLE notifications ADD COLUMN source TEXT")
     # Kalici cache: genel liste cache'i (restart sonrasi restore icin)
     conn.execute(
         """CREATE TABLE IF NOT EXISTS cache_store (
@@ -439,6 +452,9 @@ def init_db():
     cols_sig = [r["name"] for r in conn.execute("PRAGMA table_info(stremio_signals)").fetchall()]
     if "user_id" not in cols_sig:
         conn.execute("ALTER TABLE stremio_signals ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+    # Kaynak (1.86): sinyalin geldigi kaynak (stremio/plex/jellyfin/emby/other).
+    if "source" not in cols_sig:
+        conn.execute("ALTER TABLE stremio_signals ADD COLUMN source TEXT")
     # Faz 32: oneri payload'i per-user (restart sonrasi da yasar).
     cols_rc = [r["name"] for r in conn.execute("PRAGMA table_info(rec_cache)").fetchall()]
     if "user_id" not in cols_rc:

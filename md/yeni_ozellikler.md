@@ -1,7 +1,7 @@
 # NextEp — Yeni Özellik Planı (1.83 → 1.86)
 
-> Durum: **PLAN** (henüz uygulanmadı). Sürüm başlangıcı: 1.82 (canlı).
-> Kapsam: 4 özellik, her biri **ayrı sürüm**. Uygulama sırası: 1.83 → 1.84 → 1.85 → 1.86.
+> Durum: **TAMAMLANDI** (1.83 arşiv · 1.84 sıradaki · 1.85 ICS · 1.86 webhook + kaynak etiketi — hepsi canlı).
+> Sıradaki aday: **1.87 Trakt entegrasyonu** (VLC vb. oynatıcıların kaynağını belirsizlikten çıkarır).
 > Bu dosya Plan modunda `~/.opencode/plan/` altına yazıldı; Build'e geçilince repo konvansiyonuna göre
 > `md/yeni_ozellikler.md` (veya sürüm başına ayrı `md/<is>.md`) altına taşınır.
 
@@ -13,7 +13,8 @@
 |---|---|
 | "Sıradaki" şeridi konumu | **İzlenmemiş sekmesinin en üstünde** (tek yer, yatay şerit) |
 | .ics kapsamı | **Yaklaşan + hatırlatıcı** (bugün ve sonrası; yayından 1 gün önce `VALARM`) |
-| Webhook kapsamı | **Plex + Jellyfin/Emby ikisi birden**, tek sürümde |
+| Webhook kapsamı | **Plex + Jellyfin + Emby üçü birden**, tek sürümde (Jellyfin/Emby ayrı kart+token) |
+| Kaynak etiketi | **Yalnız 2 yüzey**: özet modalı + ask penceresi damga satırı (kart/şerit/satır kapsam dışı) |
 | Sürüm planı | **Her özellik ayrı sürüm**: 1.83 arşiv · 1.84 sıradaki · 1.85 ics · 1.86 webhook |
 
 ---
@@ -187,12 +188,32 @@
 
 ---
 
-# 1.86 — Plex + Jellyfin/Emby webhook
+# 1.86 — Plex + Jellyfin + Emby webhook + "kaynak" etiketi  ✅ UYGULANDI
 
 **Amaç:** Ev sunucusunda izleyince otomatik "izlendi". Stremio kancasının kardeşi.
 
+> **Uygulama notları (2026-10-18):**
+> - **Üç kart:** Plex / Jellyfin / Emby — ayrı token, ayrı kart (Jellyfin ve Emby ayrı eklenti).
+>   Kart "Bağlı" durumuna **ilk gerçek olaydan** sonra geçer (`tp_<app>_verified_ts`); öncesi "Hazır".
+> - **`ask_before_watched`'a UYAR** (plan varsayılanı değişti): ON → ask penceresi, OFF → doğrudan izlendi.
+> - **Kaynak etiketi** (`stremio|plex|jellyfin|emby|other`) yalnız **iki yüzeyde**: özet modalı
+>   (`Süre` satırının üstünde "Kaynak: X") ve ask penceresi **damga satırında** (farklı renkte).
+>   Damga satırını **istemci** kurar (`srcStampHTML`); backend mesajına yazılmaz.
+> - **Son dolu kaynak kazanır:** `COALESCE(excluded.source, source)` / `COALESCE(?, watched_source)`;
+>   zaten izlenmiş bölümde/filmde de kaynak tazelenir (boş kaynak asla ezmez).
+> - Elle işaretleme + kaynağı belirsiz oynatıcı → `other` ("Diğer"). Eski (1.86 öncesi) kayıtlarda
+>   `source` NULL → satır **gizlenir** (yanlış etiket yok; veri göçü yok).
+> - Webhook payload çözümlemesi **tolerant** (resmî doküman doğrulanamadı, ağ erişimi yok):
+>   önce seri seviyesi sağlayıcı kimliği + TMDB sezon/bölüm doğrulaması → yoksa isim araması
+>   (dizi: yıl kullanılmaz, film: `year`). `Played=false` / alakasız olay atlanır.
+>   Legacy Plex ajanı `tvdb://<seri>/<S>/<E>` guid'i desteklenir.
+> - **Yakalanan gerçek hata:** ask dedupe `IFNULL(tmdb_id,-1)=IFNULL(?,-1)` deseninde SQLite
+>   kolon affinity'sini kaybediyor → metin `"95396"` int `95396` ile eşleşmiyordu (webhook metin
+>   gönderir) → her olay **yeni ask** üretiyordu. `CAST(... AS TEXT)` ile affinity'den bağımsız hale getirildi.
+> - VLC benzeri oynatıcılar için gelecek çözüm **Trakt entegrasyonu (1.87 adayı)**.
+
 ### Tokenlar (ayrı, tek tek iptal edilebilir)
-- `user_settings.tp_jellyfin_uuid`, `user_settings.tp_plex_uuid`.
+- `user_settings.tp_plex_uuid`, `user_settings.tp_jellyfin_uuid`, `user_settings.tp_emby_uuid`.
 
 ### Uç
 - `POST /webhook/<app>/<token>` — public; yanlış token → 404.
@@ -206,20 +227,32 @@
   `_movie_branch`, `_ensure_tmdb_follow`, `_ensure_anime_follow`.
 - Idempotentlik: aynı `stremio_signals` tamponu (`kind|tmdb|anilist|season|episode`) — çift olay tek satır.
 
-### Yazım politikası (varsayılan — build'de teyit)
-- Yalnız **"izlendi/finish"** olayı yazar (play/stop yazmaz).
-- **"İzlendi sorusu" (Evet/Hayır) tetiklenmez**, doğrudan izlendi yazılır (scrobble = net izlendi).
+### Yazım politikası (uygulandı)
+- Yalnız **"izlendi/finish"** olayı işlenir (play/start/`Played=false` atlanır).
+- **`ask_before_watched`'a UYULUR** (kullanıcı kararı): ON → ask penceresi (Evet/Hayır), OFF → doğrudan
+  `watched=1`. Ask onayı `watched_at`'i **ask anından** (`notifications.created_at`) alır.
 
 ### Frontend
-- Üçüncü Parti Apps'a **"Plex"** ve **"Jellyfin"** kartları (URL + Kopyala + Yenile + Kes).
-- Kurulum tarifi: Plex → Ayarlar → Webhooks → URL (Plex Pass gerekir notu);
-  Jellyfin → Webhook eklentisi.
-- i18n: kart + tarif anahtarları ×14.
+- Üçüncü Parti Apps'a **"Plex"**, **"Jellyfin"**, **"Emby"** kartları (URL + Kopyala + Yenile + Kes;
+  her biri kendi adanmış onay modalı — `plex/jellyfin/emby-disconnect-modal`). Plex Pass notu kartta.
+- Kurulum tarifi: Plex → Ayarlar → Webhooks → URL (Plex Pass); Jellyfin/Emby → Webhook eklentisi
+  (seri kimliklerini de gönderen şablon önerilir; yoksa isim aramasına düşer).
+- Kaynak hapı/pill değil: ask penceresinde **damga satırı** (ör. `18.10.2026 - Pazar - 16:34 - Plex`),
+  özet modalında `Süre` üstünde satır. Renkler: Stremio `#8b5cf6` · Plex `#e5a00d` · Jellyfin `#00a4dc` ·
+  Emby `#52b54b` · Diğer `#9aa3b2`.
+- Yardımcılar `utils.js`'te (`SOURCE_KEYS/srcKey/srcName/srcStampHTML/SOURCE_SVG`) — dairesel import
+  (notification↔components) önlendi.
+- i18n: 7 anahtar ×14.
 
-### Doğrulama
-- `curl` ile sahte Plex (`multipart`) ve Jellyfin (`JSON`) gövdesi → bölüm/film `watched=1`.
-- Çift olay → tek satır (dedupe). Yanlış token → 404.
-- md5 MATCH · servis active · sürüm 1.86 · CHANGELOG TR/EN · faz notu.
+### Doğrulama (yapıldı)
+- Parser stub harness'ı (yerel): **33/33**.
+- **Uçtan uca (Pi venv + canlı DB'nin KOPYASI, gerçek TMDB): 42/42** — Plex multipart + Jellyfin/Emby JSON,
+  ask ON → OF, sağlayıcı kimliği **ve** isim araması yolları, dedupe (çift olay tek satır), "son kaynak
+  kazanır" (zaten izlenmişte de), `watched_at` korunumu, ask onayı, film dalı, filtreler, yanlış/bilinmeyen
+  token → 404, "Bağlı" damgası, canlı DB'ye dokunulmadı.
+- Canlı servis: zincir `style.css?v=608` / `nextep.js?v=587` / `__NX_BUILD 515`; yeni içerik izleri servis
+  edilen dosyalarda doğrulandı; 3 webhook ucunda yanlış token **404**.
+- md5 MATCH (26/26) · `py_compile` OK · servis active · sürüm 1.86 (DB + dosya) · CHANGELOG TR/EN · faz notu.
 
 ---
 
@@ -235,7 +268,11 @@
 8. **i18n ×14** + `?v=` cache-buster zinciri (eksik zincir = çift bağlama hatası).
 
 ## Risk notları
-- **Webhook (1.86):** en büyük iş; iki sağlayıcı formatı + test edilebilirlik. Plex Pass şartı belgelenmeli.
+- **Webhook (1.86) — KAPANDI:** canlı test 42/42. Kalan tek risk: sağlayıcı kimliği gönderilmezse
+  **isim aramasının** yanlış yapıma eşleşmesi (dizi adı çok anlamlıysa). Ask açıkken kullanıcı
+  pencerede doğru adı görüp "Hayır" diyebilir; kart notunda seri kimliği gönderen şablon önerilir.
+- **Trakt (1.87 adayı):** VLC/mpv gibi oynatıcılar kaynak olarak `other` kalır; Trakt bağlayınca
+  gerçek kaynak (Trakt) ve otomatik "izlendi" gelebilir.
 - **Scheduler filtreleri (1.83):** 10+ nokta tek tek denetlenmeli; atlanan sorgu "bıraktım"a rağmen bildirim gönderir.
 - **ICS (1.85):** kullanıcı dilimi (`TZID`) ve epoch→tarih dönüşümü AGENTS "tek kaynak" kuralına uymalı
   (`dayStrInTz` / `utcDayStr` ayrımı).

@@ -1,9 +1,9 @@
 // Faz 30: kimlik — giris/kayit ekranı, oturum boot, admin modalı, rol kapıları.
-import { t, applyLang } from "./i18n.js?v=529";
+import { t, applyLang } from "./i18n.js?v=530";
 import { state } from "./state.js";
-import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js?v=521";
-import { openRejectConfirm, openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm } from "./components.js?v=533";
-import { switchView } from "./views.js?v=532";
+import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js?v=522";
+import { openRejectConfirm, openMemberDeleteConfirm, openMemberDeactivateConfirm, openLogoutConfirm } from "./components.js?v=534";
+import { switchView } from "./views.js?v=533";
 
 let currentUser = null;
 let loginMode = "login"; // login | register | force
