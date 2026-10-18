@@ -2060,7 +2060,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=567").then((m) => {
+  import("./notification.js?v=568").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2276,7 +2276,7 @@ const thirdPartyAppRenderers = {
     const stremioInstallLabel = (app.installUrl || app.installed) ? `
         <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
           ${app.installUrl ? `<div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
-            : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
+            : `<div class="tp-frame-note tp-warn">${t("tp_public_missing")}</div>`}
         </label>` : "";
     return `
     <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-stremio"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
@@ -2326,7 +2326,7 @@ const thirdPartyAppRenderers = {
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
             ${url ? `<div class="tp-url-box"><input id="tp-calendar-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-calendar-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
-              : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
+              : `<div class="tp-frame-note tp-warn">${t("tp_public_missing")}</div>`}
           </label>
         </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
@@ -2454,7 +2454,7 @@ function tpWebhookCard(app, open, icon, noteKey) {
           <div class="tp-sub-box">
             <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
               ${url ? `<div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
-                : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
+                : `<div class="tp-frame-note tp-warn">${t("tp_public_missing")}</div>`}
             </label>
           </div>` : ""}
           <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">

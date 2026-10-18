@@ -3,7 +3,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js?v=546";
 import { escAttr, tzLocale, srcStampHTML } from "./utils.js?v=538";
 import { openNotifClearConfirm } from "./components.js?v=550";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=576";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=577";
 import { isAdmin, loadAdminLists } from "./auth.js?v=544";
 
 const badgeEl = () => document.getElementById("notif-badge");

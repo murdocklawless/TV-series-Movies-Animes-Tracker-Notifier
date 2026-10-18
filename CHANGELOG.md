@@ -1,6 +1,14 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.89 - 19/10/2026-02:11
+### TR
+- **"Public adres tanımlı değil" notu artık kırmızı:** bu not, izlendi detaylarıyla aynı sınıfı kullanıyordu (`tp-frame-note`, yeşil `#2e7d32`) ve bu yüzden yanlışlıkla yeşil görünüyordu. Yeni **`.tp-frame-note.tp-warn`** varyantı eklendi (`color: #ef4444`); not artık **Stremio + Takvim + Plex/Jellyfin/Emby** kartlarının (URL) çerçevelerinde kırmızı gösteriliyor. İzlendi detayları (ör. "… izlendi") **yeşil** kalır.
+- **Cache-buster:** `settings.js?577`, `nextep.js?613` (`__NX_BUILD 541`), `style.css?612`.
+### EN
+- **The "Public address not set" note is now red:** because the note shared the class used by watched detail lines (`tp-frame-note`, green `#2e7d32`) it was rendered green by mistake. A new **`.tp-frame-note.tp-warn`** variant was added (`color: #ef4444`) and the note now shows red in the (URL) frames of the **Stremio + Calendar + Plex/Jellyfin/Emby** cards. Watched detail lines (e.g. "… watched") stay **green**.
+- **Cache-buster:** `settings.js?577`, `nextep.js?613` (`__NX_BUILD 541`), `style.css?612`.
+
 ## 1.88 - 19/10/2026-02:09
 ### TR
 - **Güncelleme ekranı artık anında açılıyor:** "NextEp Güncelleme" bölümüne girildiğinde **30 saniyeye varan bekleme** vardı; çünkü ilk yanıt GitHub raw `VERSION` + yayınlanmış sürüm geçmişini (her VERSION commit'i için ayrı API çağrısı) bekliyordu. Artık:

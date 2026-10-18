@@ -3897,6 +3897,11 @@ input:-webkit-autofill:focus {
   line-height: 1.5;
 }
 
+/* 1.88: uyari notu (or. "Public adres tanimli degil") — kirmizi */
+.tp-frame-note.tp-warn {
+  color: #ef4444;
+}
+
 .tp-watch-detail {
   white-space: nowrap;
   overflow: hidden;

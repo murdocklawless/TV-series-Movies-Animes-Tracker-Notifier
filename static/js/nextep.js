@@ -1,13 +1,13 @@
 // Faz 4: tracker.js � giri� noktas�. T�m mant�k mod�llere b�l�nd�; bu dosya
 // mod�lleri ba�lar, ba�lang�� y�klemelerini yapar ve genel (global) olaylar� kurar.
-window.__NX_BUILD = "540";
+window.__NX_BUILD = "541";
 import { state } from "./state.js";
 import { checkTmdbKey, applyLang, t } from "./i18n.js?v=546";
 import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=549";
 import { closeResultsModal } from "./search.js?v=546";
-import "./settings.js?v=576";
-import "./notification.js?v=567";
-import "./asks.js?v=573";
+import "./settings.js?v=577";
+import "./notification.js?v=568";
+import "./asks.js?v=574";
 import "./stats.js?v=560";
   import "./history.js?v=569";
   import "./tv.js?v=531";
