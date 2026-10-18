@@ -6336,6 +6336,13 @@ body.logged-out main { padding: 0; }
 /* Metin statusu (Bitti / Iptal edildi / Yeni sezon bekleniyor ...): karttaki
    .next-ep.muted kirmizisiyla ayni (#ef4444). Tarihli statu yesil kalir. */
 .poster-grid.row-mode .wc-status.wc-status-muted { color: #ef4444; }
+/* Arsivli kart satir gorunumunde de soluk: kart gorunumundeki
+   .card.is-archived .info { opacity:.45 } kurali display:contents yuzunden
+   satir modunda etkisiz kaliyordu -> hucrelere uygulanir (butonlar haric). */
+.poster-grid.row-mode .card.is-archived .wcell:not(.wc-actions) {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
 .poster-grid.row-mode .wc-count { color: #14b8a6; }
 .poster-grid.row-mode .wc-date, .poster-grid.row-mode .wc-mid { color: #8b90a0; }
 /* Satırda bugün yayında: karttaki .next-ep.today mavisi (kalın değil) */
