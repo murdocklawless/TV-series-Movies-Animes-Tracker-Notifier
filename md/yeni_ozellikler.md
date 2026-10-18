@@ -203,6 +203,8 @@
 >   zaten izlenmiş bölümde/filmde de kaynak tazelenir (boş kaynak asla ezmez).
 > - Elle işaretleme + kaynağı belirsiz oynatıcı → `other` ("Diğer"). Eski (1.86 öncesi) kayıtlarda
 >   `source` NULL → satır **gizlenir** (yanlış etiket yok; veri göçü yok).
+>   Açık elle işaretleme (bölüm/sezon) kaynağı `other`'a çeker; **toplu "diziyi izlendiye taşı"** yalnız
+>   `watched=0` satırlara dokunur → mevcut kaynaklar korunur; izlenmemişe alma kaynağı temizler.
 > - Webhook payload çözümlemesi **tolerant** (resmî doküman doğrulanamadı, ağ erişimi yok):
 >   önce seri seviyesi sağlayıcı kimliği + TMDB sezon/bölüm doğrulaması → yoksa isim araması
 >   (dizi: yıl kullanılmaz, film: `year`). `Played=false` / alakasız olay atlanır.
