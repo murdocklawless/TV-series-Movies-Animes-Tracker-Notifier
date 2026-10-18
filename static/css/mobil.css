@@ -743,7 +743,11 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     justify-content: flex-start;
     gap: 8px;
     -webkit-overflow-scrolling: touch;
+    /* 1.85: kaydirma cubugu gorunmesin (kaydirma yine calisir) */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  html:not(.is-tv):not(.tv-mode) .nextup-strip::-webkit-scrollbar { display: none; }
   html:not(.is-tv):not(.tv-mode) .nextup-strip .nextup-card {
     width: calc((100% - 8px) / 2);
     height: auto;
