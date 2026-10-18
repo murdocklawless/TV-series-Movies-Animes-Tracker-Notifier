@@ -46,17 +46,102 @@ def local_version():
         return ""
 
 
-def fetch_remote_version(timeout=20):
+def fetch_remote_version(timeout=8):
     r = requests.get(REMOTE_VERSION_URL, timeout=timeout)
     r.raise_for_status()
     return r.text.strip()
 
 
-def check_update():
-    """(local, remote, available, known) — ağ hatasında (local, "", False, True).
+# 1.87: taze kontrol sonucu kisa sureli onbelleklenir (modal acilisinda/tekrar
+# basista GitHub'i bekletmesin) + "Kontrol Et" icin en kucuk yenileme araligi.
+CHECK_CACHE_TTL = 5 * 60
+CHECK_FRESH_COOLDOWN = 60
+_check_cache = {"ts": 0.0, "data": None}
+_check_lock = threading.Lock()
+
+
+def cached_version_state():
+    """AG YOK: (local, remote, available, known) — aninda doner. 1.87.
+
+    Modal/cerceve acilir acilmaz "Mevcut surum" satirinin ANINDA yazilmasi icin:
+    yerel surum DB/VERSION dosyasindan, uzak surum `settings.app_remote_version`
+    onbelleginden okunur. Hicbir ag cagrisi yapilmaz.
+    """
+    try:
+        local = db_version_get() or local_version()
+    except Exception:
+        try:
+            local = local_version()
+        except Exception:
+            local = ""
+    try:
+        remote = (get_setting("app_remote_version") or "").strip()
+    except Exception:
+        remote = ""
+    known = True
+    try:
+        raw = get_setting("app_known_versions")
+        if raw and local:
+            cached = json.loads(raw)
+            if isinstance(cached, list) and cached:
+                known = local in set(str(v) for v in cached)
+    except Exception:
+        known = True
+    available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
+    return local, remote, available, known
+
+
+def cached_published_versions():
+    """Onbellekteki yayinlanmis surum kumesi (AG YOK, bos kume olabilir). 1.87."""
+    try:
+        local_now = db_version_get() or local_version()
+    except Exception:
+        local_now = ""
+    try:
+        raw = get_setting("app_known_versions")
+        cached_for = get_setting("app_known_versions_for") or ""
+        if raw and cached_for == (local_now or ""):
+            cached = json.loads(raw)
+            if isinstance(cached, list):
+                return set(str(v) for v in cached)
+    except Exception:
+        pass
+    return set()
+
+
+def _refresh_published_async():
+    """Yayinlanmis surum listesini ARKA PLANDA tazele (yaniti bloklamaz). 1.87."""
+    def _work():
+        try:
+            fetch_published_versions()
+        except Exception:
+            pass
+    try:
+        threading.Thread(target=_work, daemon=True).start()
+    except Exception:
+        pass
+
+
+def check_update(force=False):
+    """(local, remote, available, known) — ağ hatasında son bilinen uzak sürüme düşer.
 
     Tablo gerçeğin evidir: dosya farklıysa sessizce tablo değeriyle eşitlenir
-    (aynıysa dokunulmaz). Bilinmeyen yerel sürüm "en eski" sayılır → körlenme yok."""
+    (aynıysa dokunulmaz). Bilinmeyen yerel sürüm "en eski" sayılır → körlenme yok.
+    1.87: sonuç CHECK_CACHE_TTL boyunca önbellekte; force=True önbelleği atlar ama
+    CHECK_FRESH_COOLDOWN'dan sık ağa gitmez. `known` yanıtı bloklamaz (arka planda tazelenir).
+    """
+    now = time.time()
+    with _check_lock:
+        cached = _check_cache.get("data")
+        age = now - float(_check_cache.get("ts") or 0)
+    if cached and age < CHECK_CACHE_TTL and (not force or age < CHECK_FRESH_COOLDOWN):
+        # 1.87: yerel surum degistiyse (guncelleme ya da elle yukseltme) onbellek BAYAT
+        # sayilir; yoksa "/version" ile "/check" farkli surum gosterebiliyordu.
+        try:
+            if (cached[0] or "") == (db_version_get() or local_version()):
+                return cached
+        except Exception:
+            return cached
     try:
         db_ver = db_version_get()
     except Exception:
@@ -72,23 +157,36 @@ def check_update():
         remote = fetch_remote_version()
     except Exception as e:
         print(f"app-update check failed: {e}", flush=True)
-        return local, "", False, True
+        # 1.87: ag hatasinda son bilinen uzak surume dus (modal ile ayni veri gorunsun).
+        try:
+            remote = (get_setting("app_remote_version") or "").strip()
+        except Exception:
+            remote = ""
+        if not remote:
+            return local, "", False, True
     if remote:
         try:
             set_setting("app_remote_version", remote)
         except Exception:
             pass
-    try:
-        published = fetch_published_versions()
-    except Exception:
-        published = set()
-    known = True if not published else ((not local) or local in published)
+    # 1.87: yayinlanmis surum listesi YANITI BLOKLAMAZ — onbellekten okunur;
+    # onbellek yoksa fail-open (known=True) + arka planda tazeleme.
+    published = cached_published_versions()
+    if not published:
+        known = True
+        _refresh_published_async()
+    else:
+        known = (not local) or local in published
     # available HER DURUMDA sayisal kiyaslanir: uzak <= yerel ise "yeni surum"
     # YOKTUR (2026-09-12: known=False dali remote'u kiyaslamadan True verip
     # 1.60'a "Yeni versiyon 1.55" onerdi). known yalniz bilgi bayragidir.
     # Bilinmeyen yerel zaten en eski sayilir: _ver_tuple("") == ().
     available = bool(remote and _ver_tuple(remote) > _ver_tuple(local))
-    return local, remote, available, known
+    result = (local, remote, available, known)
+    with _check_lock:
+        _check_cache["ts"] = time.time()
+        _check_cache["data"] = result
+    return result
 
 
 def _write_version_file(number):
@@ -102,7 +200,7 @@ def _write_version_file(number):
 KNOWN_VERSIONS_TTL = 20 * 3600
 
 
-def _git_version_history(timeout=20):
+def _git_version_history(timeout=8):
     """Git'teki VERSION geçmişi: dosyaya dokunan commit'lerin içerikleri (GitHub API)."""
     out = set()
     headers = {"Accept": "application/vnd.github+json"}
@@ -175,7 +273,7 @@ def fetch_published_versions():
     return versions
 
 
-def fetch_remote_changelog(timeout=20):
+def fetch_remote_changelog(timeout=8):
     r = requests.get(REMOTE_CHANGELOG_URL, timeout=timeout)
     r.raise_for_status()
     return r.text

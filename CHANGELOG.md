@@ -1,6 +1,28 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 1.88 - 19/10/2026-02:09
+### TR
+- **Güncelleme ekranı artık anında açılıyor:** "NextEp Güncelleme" bölümüne girildiğinde **30 saniyeye varan bekleme** vardı; çünkü ilk yanıt GitHub raw `VERSION` + yayınlanmış sürüm geçmişini (her VERSION commit'i için ayrı API çağrısı) bekliyordu. Artık:
+  - Yeni **ağsız uç** `GET /api/app-update/version` → yerel sürüm (DB/dosya) + önbellekteki uzak sürüm; **anında** döner.
+  - Bölüm açılır açılmaz **"Mevcut sürüm"** yazılır, **Güncelle** düğmesi önbellekteki duruma göre doğru hâle gelir; **hiçbir düğme boşuna devre dışı kalmaz**. Ağa **yalnız "Kontrol Et"** ile çıkılır (basılınca yalnız o düğme kısa süre kilitlenir).
+  - `check_update()` sonucu **5 dk** önbelleklenir, "Kontrol Et" için **60 sn yenileme aralığı** vardır; fetch zaman aşımları **20 → 8 sn**; yayınlanmış sürüm listesi (`known`) yanıtı **bloklamaz** (arka planda tazelenir); ağ hatasında son bilinen uzak sürüme düşer.
+  - **Yerel sürüm değişince önbellek bayat sayılır** (yoksa `/version` ile `/check` farklı sürüm gösterebiliyordu).
+  - Sürümün gerçek kaynağı **DB `version` tablosudur**; `VERSION` dosyası ondan senkronlanır.
+- **Public Adres kendi akordeonunda:** `tp_base_url` yalnız Stremio kartı içinden düzenlenebiliyordu; artık **"Sunucu Bağlantı Ayarları" ile "Stremio" arasında** ayrı bir kart. Tek-açık akordeon, **admin'e** görünür; Stremio kartında yalnız "Kurulum Bağlantısı (URL)" satırı kaldı (kaydetme mantığı ve "değişiklik yoksa kaydetme" kuralı aynen korundu).
+- **"Kurulum Bağlantısı (URL)" artık LAN adresi göstermez:** (URL) çerçeveleri yalnız **public** adresten üretilir (`_public_base()`; eskiden public adres yoksa LAN adresine düşüyordu). Public adres tanımlı değilse çerçeve boş kalmaz, **"Public adres tanımlı değil"** yazar. "Bağlantıyı Kes" düğmesi artık adresin varlığına değil **kartın kurulu olmasına** bağlıdır (public adres yokken de bağlantı kesilebilir).
+- **Çeviri:** yeni anahtar `tp_public_missing` ("Public adres tanımlı değil") **14 dilde**; kullanılmayan `tp_install_url` silindi. Cache-buster: `settings.js?576`, `i18n.js?546`, `nextep.js?612` (`__NX_BUILD 540`), `style.css?611`.
+### EN
+- **The update screen now opens instantly:** entering "NextEp Update" used to take up to **30 seconds**, because the first response waited for the GitHub raw `VERSION` plus the published-version history (one API call per VERSION commit). Now:
+  - New **network-free endpoint** `GET /api/app-update/version` → local version (DB/file) + cached remote version; returns instantly.
+  - As soon as the section opens, **"Current version"** is rendered and the **Update** button gets its correct state from the cache; **no button is needlessly disabled**. The network is only touched through **"Check"** (and then only that button is briefly locked).
+  - The `check_update()` result is cached for **5 minutes** with a **60-second refresh window** for "Check"; fetch timeouts went **20 → 8 s**; the published-version list (`known`) no longer **blocks** the response (it is refreshed in the background); on a network error it falls back to the last known remote version.
+  - **A local version change marks the cache stale** (otherwise `/version` and `/check` could report different versions).
+  - The real source of truth for the version is the **DB `version` table**; the `VERSION` file is synchronised from it.
+- **Public Address has its own accordion:** `tp_base_url` could only be edited inside the Stremio card; it is now a separate card **between "Server Connection Settings" and "Stremio"** — single-open accordion, visible to **admins**; the Stremio card keeps only its "Install Link (URL)" row (the save logic and the "no change → no save" rule are unchanged).
+- **"Install Link (URL)" no longer shows a LAN address:** (URL) frames are built only from the **public** address (`_public_base()`; previously it fell back to the LAN address when the public one was missing). When no public address is set the frame does not stay empty — it shows **"Public address not set"**. The "Disconnect" button now depends on the card being **installed** rather than on the address being present (so you can disconnect even without a public address).
+- **Translations:** new key `tp_public_missing` ("Public address not set") in **14 languages**; unused `tp_install_url` removed. Cache-buster: `settings.js?576`, `i18n.js?546`, `nextep.js?612` (`__NX_BUILD 540`), `style.css?611`.
+
 ## 1.87 - 19/10/2026-01:52
 ### TR
 - **Emby API senkronu (yeni):** Emby webhook'u **Premiere** gerektirdiği için Emby kartı iki iç bölüme ayrıldı (**Webhook** / **API Key**) ve **API anahtarı ile senkron** eklendi. Anahtar **şifreli** saklanır (`crypto_util.encrypt_secret`); bağlantı **WebSocket** ile anlık, **15 dakikalık yoklama** ile yedeklidir. Kural: `PlayCount == 0` / `LastPlayedDate` yok = **elle işaretleme** → doğrudan yazılır; `PlayCount >= 1` = gerçek oynatma → **sor** akışına girer. API çerçevesinde "Durum", "Son sinyal" (+ "xyz izlendi"), taşıyıcı satırı (Anında/Kontrol · `{n} İzlenmiş`) ve API adresi/kullanıcı alanları bulunur.

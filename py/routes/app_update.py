@@ -2,14 +2,22 @@ import threading
 
 from flask import Blueprint, jsonify, request
 
-from app_update import check_update, apply_update, fetch_remote_changelog, changelog_between, _ver_tuple
+from app_update import check_update, apply_update, fetch_remote_changelog, changelog_between, _ver_tuple, cached_version_state
 
 app_update_bp = Blueprint("app_update", __name__)
 
 
+@app_update_bp.route("/api/app-update/version", methods=["GET"])
+def app_update_version():
+    """Hizli (AG YOK) surum durumu — modal acilisinda aninda gosterim icin. 1.87."""
+    local, remote, available, known = cached_version_state()
+    return jsonify({"local": local, "remote": remote, "available": available, "known": known, "cached": True})
+
+
 @app_update_bp.route("/api/app-update/check", methods=["GET"])
 def app_update_check():
-    local, remote, available, known = check_update()
+    force = str(request.args.get("force") or "") in ("1", "true", "yes")
+    local, remote, available, known = check_update(force=force)
     return jsonify({"local": local, "remote": remote, "available": available, "known": known})
 
 

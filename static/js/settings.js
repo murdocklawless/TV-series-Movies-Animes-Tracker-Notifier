@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=544";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=536";
-import { activateUtilityTab } from "./views.js?v=547";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=548";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=546";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=538";
+import { activateUtilityTab } from "./views.js?v=549";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=550";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=544");
+      const { errText: _err } = await import("./i18n.js?v=546");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=536");
-    const { openDetails } = await import("./components.js?v=548");
-    const { loadFollowed } = await import("./views.js?v=547");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=538");
+    const { openDetails } = await import("./components.js?v=550");
+    const { loadFollowed } = await import("./views.js?v=549");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=544");
+        const { t: _t } = await import("./i18n.js?v=546");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1419,7 +1419,7 @@ function renderAppVersion() {
   const runBtn = document.getElementById("appupdate-run");
   if (!el || !runBtn) return;
   const safe = (v) => String(v || "").replace(/[^0-9.]/g, "");
-  const cur = safe(lastAppVer.local);
+  const cur = safe(lastAppVer.local) || "—";
   let html = `${t("app_version_current")} ${cur}`;
   if (lastAppVer.available && lastAppVer.remote) {
     html += ` -&gt; <span class="new-version">${t("app_version_new")} ${safe(lastAppVer.remote)}</span>`;
@@ -1427,11 +1427,21 @@ function renderAppVersion() {
   el.innerHTML = html;
   runBtn.disabled = !lastAppVer.available;
 }
+async function loadAppVersionFast() {
+  // 1.87: AG YOK ucu — "Mevcut surum" satiri ANINDA yazilsin, butonlar dogru duruma gelsin.
+  try {
+    const r = await fetch("/api/app-update/version", { cache: "no-store" });
+    const j = await r.json();
+    lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available, changes: lastAppVer.changes || [] };
+  } catch (e) { /* sessiz: satir yine cizilir */ }
+  renderAppVersion();
+}
+
 async function checkAppUpdate(showToast) {
   const checkBtn = document.getElementById("appupdate-check");
-  if (checkBtn) checkBtn.disabled = true;
+  if (checkBtn) { checkBtn.disabled = true; checkBtn.classList.add("loading"); }
   try {
-    const r = await fetch("/api/app-update/check");
+    const r = await fetch("/api/app-update/check?force=1");
     const j = await r.json();
     lastAppVer = { local: j.local || "", remote: j.remote || "", available: !!j.available, changes: [] };
     renderAppVersion();
@@ -1450,7 +1460,7 @@ async function checkAppUpdate(showToast) {
   } catch (e) {
     if (showToast) showMsg(t("error"), false);
   } finally {
-    if (checkBtn) checkBtn.disabled = false;
+    if (checkBtn) { checkBtn.disabled = false; checkBtn.classList.remove("loading"); }
   }
 }
 (function initAppUpdate() {
@@ -1476,9 +1486,9 @@ async function checkAppUpdate(showToast) {
       runBtn.disabled = !!lastAppVer.available;
     }
   });
-  // Modal açılırken güncel durumu çek
+  // Modal acilirken: ONCE agsiz hizli durum (aninda "Mevcut surum"), aga YALNIZ "Kontrol Et" ile cikilir.
   const menuItem = document.querySelector('.settings-menu-item[data-target="settings-appupdate-modal"]');
-  if (menuItem) menuItem.addEventListener("click", () => setTimeout(() => checkAppUpdate(false), 0));
+  if (menuItem) menuItem.addEventListener("click", () => setTimeout(() => loadAppVersionFast(), 0));
   document.addEventListener("app:langchange", () => {
     renderAppVersion();
     const dm = document.getElementById("appupdate-detail-modal");
@@ -2050,7 +2060,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=564").then((m) => {
+  import("./notification.js?v=567").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2160,6 +2170,8 @@ let tpAskBeforeWatched = true;
 let tpAskSrc = { plex: "", jellyfin: "", emby: "" };
 // Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
 let tpVpsOpen = false;
+// 1.87: Public Adres kendi akordeonunda (Stremio karti icinden cikarildi).
+let tpPublicOpen = false;
 let tpRemoteOpen = false;
 let vpsProfile = null;
 let vpsGate = { configured: false, connected: false, everConnected: false, rootReady: false, rootVerified: false, loginUser: "" };
@@ -2229,13 +2241,15 @@ async function renderThirdPartyApps(opts = {}) {
     }
     vpsHtml = renderVpsSection();
   }
+  // 1.87: Public Adres karti — Sunucu Baglanti Ayarlari ile Stremio arasinda.
+  const publicHtml = renderPublicBaseCard();
   if (!apps.length) {
-    wrap.innerHTML = vpsHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
+    wrap.innerHTML = vpsHtml + publicHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
     bindThirdPartyEvents();
     restoreView();
     return;
   }
-  wrap.innerHTML = vpsHtml + apps
+  wrap.innerHTML = vpsHtml + publicHtml + apps
     .map((app) => {
       const renderer = thirdPartyAppRenderers[app.id];
       try {
@@ -2257,9 +2271,12 @@ const thirdPartyAppRenderers = {
     const stremioInstalled = !!(vpsProfile && vpsProfile.stremioInstalled);
     const installBtnDisabled = !(tpIsAdmin && rootOk && vpsGate.connected && (!stremioInstalled || !app.tunnelOk));
     const tunnelRemoveDisabled = !rootOk;
-    const stremioInstallLabel = app.installUrl ? `
-        <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
-          <div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+    // 1.87: "Kurulum Baglantisi (URL)" yalniz PUBLIC adresten uretilir; public adres
+    // tanimli degilse LAN adresi YAZILMAZ, "Public adres tanimli degil" notu gosterilir.
+    const stremioInstallLabel = (app.installUrl || app.installed) ? `
+        <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
+          ${app.installUrl ? `<div class="tp-url-box"><input id="tp-stremio-url" type="text" readonly value="${escAttr(app.installUrl)}" /><button id="tp-stremio-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
+            : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
         </label>` : "";
     return `
     <div class="channel-box accordion-box notif-type-box${tpStremioOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-stremio"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
@@ -2276,25 +2293,15 @@ const thirdPartyAppRenderers = {
           ${_note ? `<div class="tp-frame-note">${_note}</div>` : ""}
         </div>
         ${tpSignalBox(app.lastSignal, app.lastWatch)}
-        ${tpIsAdmin ? `
+        ${stremioInstallLabel ? `
         <div class="tp-sub-box">
-          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /></div>
-          </label>
           ${stremioInstallLabel}
-        </div>` : (tpBaseUrl || app.installUrl ? `
-        <div class="tp-sub-box">
-          ${tpBaseUrl ? `
-          <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span></span>
-            <div class="tp-url-box"><a id="tp-base-link" href="${escAttr(tpBaseUrl)}" target="_blank" rel="noopener">${escAttr(tpBaseUrl)}</a></div>
-          </label>` : ""}
-          ${stremioInstallLabel}
-        </div>` : "")}
+        </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
           ${vpsBtnOrTip(`<button id="tp-stremio-install" class="tab"${installBtnDisabled ? " disabled aria-disabled=\"true\"" : ""}>${stremioInstalled && !app.tunnelOk ? t("stremio_install_repair") : t("install_on_vps")}</button>`, installBtnDisabled, app.status === "connected")}
           <button id="tp-stremio-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
           ${tpIsAdmin && app.tunnelInstalled ? vpsBtnOrTip(`<button id="tp-stremio-tunnel-remove" class="tab" data-i18n="tunnel_remove_btn"${tunnelRemoveDisabled ? " disabled aria-disabled=\"true\"" : ""}>${t("tunnel_remove_btn")}</button>`, tunnelRemoveDisabled, app.status === "connected") : ""}
-          ${app.installUrl ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+          ${app.installed ? `<button id="tp-stremio-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
         ${tpIsAdmin ? `<pre id="tp-stremio-joblog" class="tp-joblog" style="display:none"></pre>` : ""}
       </div>
@@ -2315,16 +2322,17 @@ const thirdPartyAppRenderers = {
           </div>
           <div class="tp-frame-note">${t("tp_calendar_note")}</div>
         </div>
-        ${url ? `
+        ${app.installed ? `
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
-            <div class="tp-url-box"><input id="tp-calendar-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-calendar-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+            ${url ? `<div class="tp-url-box"><input id="tp-calendar-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-calendar-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
+              : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
           </label>
         </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
           ${tpVpsInstallBtn(app)}
           <button id="tp-calendar-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
-          ${url ? `<button id="tp-calendar-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+          ${app.installed ? `<button id="tp-calendar-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
       </div>
     </div>`;
@@ -2442,16 +2450,17 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const webhookHtml = `
           ${tpSignalBox(app.lastSignal, app.lastWatch)}
           ${lanHtml}
-          ${url ? `
+          ${app.installed ? `
           <div class="tp-sub-box">
             <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
-              <div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+              ${url ? `<div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
+                : `<div class="tp-frame-note">${t("tp_public_missing")}</div>`}
             </label>
           </div>` : ""}
           <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
             ${tpVpsInstallBtn(app)}
             <button id="tp-${escAttr(aid)}-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
-            ${url ? `<button id="tp-${escAttr(aid)}-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+            ${app.installed ? `<button id="tp-${escAttr(aid)}-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
           </div>`;
   // 1.87: API cercevesinin EN USTUNDE durum kutusu (yapilandirilmamis -> "Bagli degil",
   // yapilandirilmis ama senkron yok -> "Hazir", senkron var -> "Bagli").
@@ -2767,7 +2776,7 @@ async function flushTpBaseUrl() {
 
 function bindThirdPartyEvents() {
   // Tek-açık akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak Bağlantı.
-  [["vps-info-box", "vps"], ["tp-app-stremio", "stremio"], ["tp-app-calendar", "calendar"],
+  [["vps-info-box", "vps"], ["tp-public-box", "public"], ["tp-app-stremio", "stremio"], ["tp-app-calendar", "calendar"],
    ["tp-app-plex", "plex"], ["tp-app-jellyfin", "jellyfin"], ["tp-app-emby", "emby"],
    ["tp-app-remote", "remote"]].forEach(([id, which]) => {
     const box = document.getElementById(id);
@@ -3029,6 +3038,7 @@ function bindThirdPartyEvents() {
 function setTpAccordion(which) {
   const boxes = [
     { id: "vps-info-box", get: () => tpVpsOpen, set: (v) => { tpVpsOpen = v; } },
+    { id: "tp-public-box", get: () => tpPublicOpen, set: (v) => { tpPublicOpen = v; } },
     { id: "tp-app-stremio", get: () => tpStremioOpen, set: (v) => { tpStremioOpen = v; } },
     { id: "tp-app-calendar", get: () => tpCalendarOpen, set: (v) => { tpCalendarOpen = v; } },
     { id: "tp-app-plex", get: () => tpPlexOpen, set: (v) => { tpPlexOpen = v; } },
@@ -3036,7 +3046,7 @@ function setTpAccordion(which) {
     { id: "tp-app-emby", get: () => tpEmbyOpen, set: (v) => { tpEmbyOpen = v; } },
     { id: "tp-app-remote", get: () => tpRemoteOpen, set: (v) => { tpRemoteOpen = v; } },
   ];
-  const _idMap = { vps: "vps-info-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar",
+  const _idMap = { vps: "vps-info-box", public: "tp-public-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar",
                    plex: "tp-app-plex", jellyfin: "tp-app-jellyfin", emby: "tp-app-emby", remote: "tp-app-remote" };
   const cur = boxes.find((b) => b.id === (_idMap[which] || ""));
   if (!cur) return;
@@ -3080,6 +3090,26 @@ function vpsStoredPass(mode) {
   const p = vpsProfile || {};
   if (mode === "key") return !!(p.sudoHasSecret);
   return !!(p.configured && (p.auth_type || "key") !== "key");
+}
+
+// 1.87: Public Adres (tp_base_url) kendi akordeon cercevesi — kurulum baglantilarinin
+// (URL) cerceveleri bu adresten uretilir (LAN adresi ASLA buradan gelmez).
+// "Sunucu Baglanti Ayarlari" ile "Stremio" arasinda durur; yalniz admin duzenleyebilir.
+function renderPublicBaseCard() {
+  if (!tpIsAdmin) return "";
+  return `
+    <div class="channel-box accordion-box notif-type-box${tpPublicOpen ? " accordion-open" : ""}" id="tp-public-box">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid fa-globe"></i> ${escAttr(t("tp_base_url"))}</span>
+      </div>
+      <div class="notif-type-body" style="display:${tpPublicOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <label>
+            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          </label>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderVpsSection() {

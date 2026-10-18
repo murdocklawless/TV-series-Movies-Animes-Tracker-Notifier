@@ -181,12 +181,28 @@ def _cors(resp):
     return resp
 
 
+def _public_base():
+    """Public (https) taban adres. 1.87: LAN'a DUSMEZ — tanimli degilse "" doner.
+
+    (URL) cerceveleri yalniz bu adresten uretilir; boylece "Kurulum Baglantisi (URL)"
+    kutusuna ASLA LAN adresi yazilmaz (LAN icin ayri cerceve var: _lan_install_url).
+    """
+    try:
+        return (get_setting("tp_base_url") or "").strip().rstrip("/")
+    except Exception:
+        return ""
+
+
 def _install_url(app_id, u):
+    base = _public_base()
+    if not base:
+        # 1.87: public adres yok -> (URL) cercevesi "Public adres tanimli degil" gosterir.
+        return ""
     if app_id == "calendar":
-        return f"{_base_url()}/calendar/{u}/nextep.ics"
+        return f"{base}/calendar/{u}/nextep.ics"
     if app_id in WEBHOOK_APPS:
-        return f"{_base_url()}/webhook/{app_id}/{u}"
-    return f"{_base_url()}/{app_id}/{u}/manifest.json"
+        return f"{base}/webhook/{app_id}/{u}"
+    return f"{base}/{app_id}/{u}/manifest.json"
 
 
 def _lan_setting_raw():
