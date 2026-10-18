@@ -331,6 +331,40 @@ def init_db():
             ts INTEGER NOT NULL
         )"""
     )
+    # Izlendi-sor karar deposu (1.87): Evet/Hayir karari bildirim satirlarindan
+    # bagimsiz tutulur; "tum ask'leri temizle" yalniz bekleyenleri siler.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS ask_decisions (
+            dedupe TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL DEFAULT 0,
+            media_type TEXT,
+            tmdb_id INTEGER,
+            anilist_id INTEGER,
+            season INTEGER,
+            episode INTEGER,
+            state TEXT NOT NULL,
+            source TEXT,
+            ts INTEGER NOT NULL
+        )"""
+    )
+    # Tek seferlik goc (1.87): mevcut ask cevaplarini karar deposuna tasi.
+    # Yalniz tablo bosken calisir; ayni oge icin birden fazla ask satiri varsa
+    # en son cevap kazanir (ORDER BY created_at + INSERT OR REPLACE).
+    # Anahtar bicimi ask_store.ask_key ile ayni olmali: uid|media|tmdb|anilist|season|episode
+    try:
+        if conn.execute("SELECT COUNT(*) c FROM ask_decisions").fetchone()[0] == 0:
+            conn.execute(
+                "INSERT OR REPLACE INTO ask_decisions "
+                "(dedupe, user_id, media_type, tmdb_id, anilist_id, season, episode, state, source, ts) "
+                "SELECT CAST(user_id AS TEXT)||'|'||IFNULL(media_type,'')||'|'||IFNULL(CAST(tmdb_id AS TEXT),'')||'|'||"
+                "IFNULL(CAST(anilist_id AS TEXT),'')||'|'||IFNULL(CAST(season AS TEXT),'')||'|'||IFNULL(CAST(episode AS TEXT),''), "
+                "user_id, media_type, tmdb_id, anilist_id, season, episode, "
+                "CASE WHEN resolved=1 THEN 'watched' WHEN resolved=2 THEN 'rejected' ELSE 'pending' END, "
+                "source, IFNULL(created_at, 0) "
+                "FROM notifications WHERE type='watched_ask' ORDER BY created_at ASC, id ASC"
+            )
+    except Exception as e:
+        print(f"[db] ask_decisions goc atlandi: {e}", flush=True)
     # Harici anime ID eslemeleri (kitsu/tmdb/imdb/tvdb/trakt -> anilist_id). Kalici onbellek.
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_id_map (
@@ -622,6 +656,10 @@ PERSONAL_KEYS = {
     "rec_hidden",
     "rec_profile_fp",
     "ask_before_watched",
+    # 1.88: kaynak bazli "izlendi bilgisi sor" (bos ise genel ask_before_watched gecerli)
+    "ask_before_watched_plex",
+    "ask_before_watched_jellyfin",
+    "ask_before_watched_emby",
 }
 
 # Faz 32: yalniz admin yazabilir (uye POST'unda 403). GET'te uyeye salt-okunur gosterilir.

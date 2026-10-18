@@ -148,6 +148,16 @@ def nextep_ics(token):
         body = ics.build_calendar(_build_events(owner), cal_name="NextEp")
     except Exception:
         abort(500)
+    # 1.87: feed'in LAN'dan mi (yerel takvim istemcisi) yoksa URL'den mi (Google)
+    # cekildigi kaydedilir -> kart durumu "Bagli (LAN)" / "Bagli (URL)".
+    try:
+        import time as _t
+        from db import set_user_setting
+        from routes.webhook import request_via
+        set_user_setting(int(owner), "tp_calendar_verified_via", request_via())
+        set_user_setting(int(owner), "tp_calendar_verified_ts", str(int(_t.time())))
+    except Exception:
+        pass
     resp = Response(body, mimetype="text/calendar")
     resp.headers["Content-Type"] = "text/calendar; charset=utf-8"
     resp.headers["Content-Disposition"] = 'inline; filename="nextep.ics"'

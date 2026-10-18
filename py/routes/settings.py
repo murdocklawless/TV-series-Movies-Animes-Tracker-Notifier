@@ -348,6 +348,10 @@ def get_settings():
             "notif_center_hide_read": _pget("notif_center_hide_read") or "0",
             "notif_center_limit": _pget("notif_center_limit") or "50",
             "ask_before_watched": _pget("ask_before_watched") or "1",
+            # 1.88: kaynak bazli sor ayari (bos = genel ayar gecerli)
+            "ask_before_watched_plex": _pget("ask_before_watched_plex") or "",
+            "ask_before_watched_jellyfin": _pget("ask_before_watched_jellyfin") or "",
+            "ask_before_watched_emby": _pget("ask_before_watched_emby") or "",
             "discord_enabled": _pget("discord_enabled") or "1",
             "discord_webhook_url": _pget("discord_webhook_url") or "",
             "email_enabled": _pget("email_enabled") or "1",
@@ -363,6 +367,7 @@ def get_settings():
             "cache_ttl": get_setting("cache_ttl") or "3600",
             "early_watched_days": get_setting("early_watched_days") or "14",
             "tp_base_url": _pget("tp_base_url") or "",
+            "lan_base_url": _pget("lan_base_url") or "",
             "server_today": today_str(),
             "geo_country": get_setting("geo_country") or "",
             "geo_country_name": get_setting("geo_country_name") or "",
@@ -491,7 +496,7 @@ def save_settings():
                       "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
                       "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
                       "smtp_pass", "backup_rsync_pass", "backup_samba_pass", "backup_rsync_key",
-                      "early_watched_days", "tp_base_url")
+                      "early_watched_days", "tp_base_url", "lan_base_url")
         ]
         if blocked:
             return jsonify({"error": "auth_admin", "blocked": blocked}), 403
@@ -517,6 +522,19 @@ def save_settings():
         if host is not None and _check_host_status(host) == "unresolvable":
             return jsonify({"error": "Geçersiz public adres"}), 400
         body["tp_base_url"] = norm
+    # 1.87: LAN adresi (webhook'lar LAN uzerinden calisir).
+    if "lan_base_url" in body:
+        lv = str(body.get("lan_base_url") or "").strip()
+        if lv and not lv.startswith(("http://", "https://")):
+            lv = "http://" + lv
+        # Yalnizca sema + ana bilgisayar (+port) saklanir. Ikinci sema / bos ana bilgisayar
+        # / bosluk kabul edilmez. DNS cozumluluk kontrolu YAPILMAZ (LAN adlari cozulemeyebilir).
+        if lv:
+            m = re.match(r"^(https?)://([^/\s:]+|\[[0-9a-fA-F:]+\])(:\d+)?(/.*)?$", lv)
+            if not m or lv.count("://") != 1:
+                return jsonify({"error": "Geçersiz LAN adresi"}), 400
+            lv = m.group(1) + "://" + m.group(2) + (m.group(3) or "")
+        body["lan_base_url"] = lv
     if "early_watched_days" in body:
         if str(body.get("early_watched_days")) not in ("14", "21", "30", "60", "90"):
             return jsonify({"error": "gecersiz esik"}), 400
@@ -567,7 +585,12 @@ def save_settings():
         "cache_ttl",
         "early_watched_days",
         "tp_base_url",
+        "lan_base_url",
         "ask_before_watched",
+        # 1.88: kaynak bazli sor ayari
+        "ask_before_watched_plex",
+        "ask_before_watched_jellyfin",
+        "ask_before_watched_emby",
         *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:

@@ -2095,6 +2095,9 @@ input:-webkit-autofill:focus {
 .src-jellyfin { color: #00a4dc; }
 .src-emby { color: #52b54b; }
 .src-other { color: #9aa3b2; }
+/* Ozet modalindaki "Kaynak: X" satiri "Sure: ..." satiriyla ayni gorunur:
+   beyaz + normal kalinlik. Marka renkleri yalnizca ask damga satirinda kalir. */
+#episode-info-source-row .src { color: #FFFFFF; font-weight: 400; }
 .ask-actions {
   display: flex;
   justify-content: center;
@@ -2390,6 +2393,15 @@ input:-webkit-autofill:focus {
 }
 
 .accordion-box.accordion-open .notif-type-head::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* 1.87: Ic akordeonlar (Emby karti: Webhook / API Key) — ok yalniz KENDI
+   durumuna gore doner; dis kutu acikken ic oklar yanlis donmesin. */
+.notif-type-body .accordion-box:not(.accordion-open) .notif-type-head::after {
+  transform: translateY(-50%);
+}
+.notif-type-body .accordion-box.accordion-open .notif-type-head::after {
   transform: translateY(-50%) rotate(180deg);
 }
 
@@ -4044,6 +4056,15 @@ input:-webkit-autofill:focus {
   display: flex;
   gap: 8px;
   margin-top: 6px;
+}
+
+/* 1.87: LAN/URL kurulum cerceveleri — baslik + kutu her zaman SOLA yasli
+   (cerceve basligi URL cercevesiyle birebir ayni hizada gorunsun). */
+.tp-sub-box > label,
+.tp-sub-box > label .settings-label-head,
+.tp-sub-box > .tp-url-box {
+  text-align: left;
+  justify-content: flex-start;
 }
 
 .tp-url-box input {

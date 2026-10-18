@@ -194,22 +194,227 @@ def _backup(vps_run, path, ts):
     vps_run(f"[ -f {path} ] && cp -a {path} {path}.bak_{ts} || true", timeout=60)
 
 
-def _https_test(vps_run, log, domain, step="verify"):
-    """https://<domain>/stremio/install-info.json -> 200 bekler (retry)."""
+_TEST_PATH = {
+    "stremio": "/stremio/install-info.json",
+    "calendar": "/calendar/x/nextep.ics",
+    "webhook": "/webhook/jellyfin/x",
+}
+
+
+def _https_test(vps_run, log, domain, step="verify", profile="stremio"):
+    """https://<domain><profil yolu> -> istegi Pi (waitress) karsiladi mi?
+
+    Yol yoksa Caddy/nginx dosyayi sunar (404, Server: Caddy) -> 'waitress' basligi
+    YOK; yol varsa uc Pi'den gelir -> 'Server: Caddy, waitress' (kod 405/404/200
+    olabilir, yol olmadigindan ayirt eden sey waitress basligidir).
+    Stremio profilinde ayrica 200 beklenir (install-info public uctur).
+    """
+    path = _TEST_PATH.get((profile or "stremio").strip().lower(), _TEST_PATH["stremio"])
+    want200 = (profile or "stremio").strip().lower() == "stremio"
     for i in range(6):
         rc, out = vps_run(
-            f"curl -sk -o /dev/null -w '%{{http_code}}' --max-time 10 "
-            f"https://{domain}/stremio/install-info.json", timeout=40)
-        code = (out or "").strip().splitlines()[-1] if out else ""
-        if code.endswith("200"):
-            log(f"==> HTTPS testi OK: https://{domain}/stremio/install-info.json -> 200")
+            f"curl -sk -D - -o /dev/null -w '%{{http_code}}' --max-time 10 "
+            f"https://{domain}{path}", timeout=40)
+        text = (out or "")
+        code = text.strip().splitlines()[-1] if text.strip() else ""
+        routed = "waitress" in text.lower()
+        if routed and (code.endswith("200") or not want200):
+            log(f"==> HTTPS testi OK: https://{domain}{path} -> {code} (profil: {profile})")
             return True
         time.sleep(10)
-    log(f"UYARI: HTTPS testi 200 vermedi (son: {code})")
+    log(f"UYARI: HTTPS testi basarisiz (profil: {profile}, son kod: {code or '-'}, "
+        f"yol: {path}) — yonlendirme yok gibi")
     return False
 
 
-def install_caddy(vps_run, log, domain, backend, landing, logpath, email):
+# --------------------------------------------------------------------------
+# 1.87: PROFIL bazli EKLEMELI yapilandirma yamalama
+#   Her kart yalnizca KENDI ihtiyaci olan yolu kurar; mevcut yollar ASLA silinmez.
+# --------------------------------------------------------------------------
+
+PROFILES = {
+    "stremio": ("/stremio/",),
+    "calendar": ("/calendar/",),
+    "webhook": ("/webhook/",),
+}
+
+
+def _profile_paths(profile):
+    """Profil -> yol listesi (bilinmeyen profil -> stremio)."""
+    p = (profile or "stremio").strip().lower()
+    return PROFILES.get(p, PROFILES["stremio"])
+
+
+def _span_by_braces(lines, start):
+    """start satirindan baslayan susluparante dengeli blogun bitis indexi."""
+    depth = 0
+    for i in range(start, len(lines)):
+        depth += lines[i].count("{") - lines[i].count("}")
+        if depth <= 0:
+            return i
+    return len(lines) - 1
+
+
+def _caddy_find_site(lines, domain):
+    """Yonetilen/mevcut site blogunu bul -> (start, end) | None."""
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if s == f"{domain} {{":
+            return i, _span_by_braces(lines, i)
+        if MARK in ln and i + 1 < len(lines) and lines[i + 1].strip() == f"{domain} {{":
+            return i + 1, _span_by_braces(lines, i + 1)
+    return None
+
+
+def _caddy_block(domain, backend, landing, logpath, email, paths):
+    emailblock = f"    email {email}\n" if email else ""
+    if logpath and logpath.lower() not in ("kapali", "kapalı"):
+        logblock = f"    log {{\n        output file {logpath}\n    }}\n"
+    else:
+        logblock = ""
+    handles = "".join(
+        f"    handle {p}* {{\n        reverse_proxy {backend}\n    }}\n" for p in paths
+    )
+    return (f"# {MARK}: {domain}\n"
+            f"{domain} {{\n"
+            f"{emailblock}"
+            f"    encode zstd gzip\n"
+            f"    root * {landing}\n"
+            f"    file_server\n"
+            f"{handles}"
+            f"{logblock}"
+            f"}}\n")
+
+
+def _caddy_ensure(text, domain, backend, landing, logpath, email, paths):
+    """Site blogunu EKLEMELI guncelle. Degisiklik yoksa metin AYNEN doner."""
+    lines = (text or "").splitlines()
+    span = _caddy_find_site(lines, domain)
+    if not span:
+        head = "\n".join(lines).rstrip("\n")
+        sep = "\n\n" if head else ""
+        return head + sep + _caddy_block(domain, backend, landing, logpath, email, paths)
+    start, end = span
+    block = lines[start:end + 1]
+    add = []
+    for p in paths:
+        if not any(f"handle {p}" in ln for ln in block):
+            add.append(f"    handle {p}* {{\n        reverse_proxy {backend}\n    }}")
+    if not add:
+        return text
+    new_lines = lines[:end] + add + lines[end:]
+    return "\n".join(new_lines) + "\n"
+
+
+def _nginx_find_site(lines, domain):
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("server") and "{" in ln:
+            end = _span_by_braces(lines, i)
+            if any(f"server_name {domain}" in b for b in lines[i:end + 1]):
+                return i, end
+    return None
+
+
+def _nginx_block(domain, backend, landing, paths):
+    locs = "".join(
+        f"    location {p} {{\n"
+        f"        proxy_pass http://{backend};\n"
+        f"        proxy_set_header Host $host;\n"
+        f"        proxy_set_header X-Real-IP $remote_addr;\n"
+        f"    }}\n" for p in paths
+    )
+    return (f"# {MARK}: {domain}\n"
+            f"server {{\n"
+            f"    listen 80;\n"
+            f"    listen [::]:80;\n"
+            f"    server_name {domain};\n"
+            f"    root {landing};\n"
+            f"    index index.html;\n\n"
+            f"{locs}"
+            f"}}\n")
+
+
+def _nginx_ensure(text, domain, backend, landing, paths):
+    lines = (text or "").splitlines()
+    span = _nginx_find_site(lines, domain)
+    if not span:
+        head = "\n".join(lines).rstrip("\n")
+        sep = "\n\n" if head else ""
+        return head + sep + _nginx_block(domain, backend, landing, paths)
+    start, end = span
+    block = lines[start:end + 1]
+    add = []
+    for p in paths:
+        if not any(ln.strip().startswith(f"location {p}") for ln in block):
+            add.append(f"    location {p} {{\n"
+                       f"        proxy_pass http://{backend};\n"
+                       f"        proxy_set_header Host $host;\n"
+                       f"        proxy_set_header X-Real-IP $remote_addr;\n"
+                       f"    }}")
+    if not add:
+        return text
+    new_lines = lines[:end] + add + lines[end:]
+    return "\n".join(new_lines) + "\n"
+
+
+def _apache_vhost_block(domain, backend, landing, paths):
+    rules = "".join(
+        f"    ProxyPass {p} http://{backend}/\n"
+        f"    ProxyPassReverse {p} http://{backend}/\n" for p in paths
+    )
+    return (f"# {MARK}: {domain}\n"
+            f"<VirtualHost *:80>\n"
+            f"    ServerName {domain}\n"
+            f"    DocumentRoot {landing}\n\n"
+            f"    ProxyPreserveHost On\n"
+            f"{rules}\n"
+            f"    <Directory {landing}>\n"
+            f"        Require all granted\n"
+            f"    </Directory>\n"
+            f"</VirtualHost>\n")
+
+
+def _apache_ensure(text, domain, backend, landing, paths):
+    """Domain vhost'larina EKSIK ProxyPass satirlarini ekler (silme yok)."""
+    lines = (text or "").splitlines()
+    targets = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip().lower().startswith("<virtualhost"):
+            j = i
+            while j < len(lines) and "</virtualhost>" not in lines[j].strip().lower():
+                j += 1
+            if any(f"ServerName {domain}" in b for b in lines[i:j + 1]):
+                targets.append((i, j))
+            i = j + 1
+            continue
+        i += 1
+    if not targets:
+        head = "\n".join(lines).rstrip("\n")
+        sep = "\n\n" if head else ""
+        return head + sep + _apache_vhost_block(domain, backend, landing, paths)
+    add_map = {}
+    for start, end in targets:
+        block = lines[start:end + 1]
+        add = []
+        for p in paths:
+            if not any(f"ProxyPass {p}" in ln for ln in block):
+                add.append(f"    ProxyPass {p} http://{backend}/")
+                add.append(f"    ProxyPassReverse {p} http://{backend}/")
+        if add:
+            add_map[end] = add
+    if not add_map:
+        return text
+    out = []
+    for idx, ln in enumerate(lines):
+        if idx in add_map:
+            out.extend(add_map[idx])
+        out.append(ln)
+    return "\n".join(out) + "\n"
+
+
+def install_caddy(vps_run, log, domain, backend, landing, logpath, email, paths=None):
+    paths = tuple(paths or PROFILES["stremio"])
     if not shutil.which("curl"):
         pass
     rc, out = vps_run("command -v caddy >/dev/null 2>&1 || (apt-get update && apt-get install -y caddy)",
@@ -225,35 +430,14 @@ def install_caddy(vps_run, log, domain, backend, landing, logpath, email):
     _backup(vps_run, "/etc/caddy/Caddyfile", ts)
     rc, current = vps_run("cat /etc/caddy/Caddyfile 2>/dev/null || true", timeout=60)
     current = current or ""
-    # yonetilen eski bloklari + ayni domainin imzasiz blogunu temizle
-    kept = []
-    skip = False
-    for line in current.splitlines():
-        if MARK in line or line.strip() == f"{domain} {{":
-            skip = True
-        if skip:
-            if line.strip() == "}":
-                skip = False
-            continue
-        kept.append(line)
-    emailblock = f"    email {email}\n" if email else ""
     if logpath and logpath.lower() not in ("kapali", "kapalı"):
         vps_run(f"mkdir -p $(dirname {logpath}) 2>/dev/null || true", timeout=30)
-        logblock = f"    log {{\n        output file {logpath}\n    }}\n"
-    else:
-        logblock = ""
-    block = (f"# {MARK}: {domain} (stremio)\n"
-             f"{domain} {{\n"
-             f"{emailblock}"
-             f"    encode zstd gzip\n"
-             f"    root * {landing}\n"
-             f"    file_server\n"
-             f"    handle /stremio/* {{\n"
-             f"        reverse_proxy {backend}\n"
-             f"    }}\n"
-             f"{logblock}"
-             f"}}\n")
-    new_text = "\n".join(kept).rstrip("\n") + "\n\n" + block
+    # 1.87: EKLEMELI yama — yalnizca EKSIK prof yol(lari) eklenir; mevcut
+    # (baska profilin) handle'lari ASLA silinmez.
+    new_text = _caddy_ensure(current, domain, backend, landing, logpath, email, paths)
+    if new_text == current:
+        log("==> Caddyfile zaten guncel: prof yolu mevcut, yazma/reload atlandi")
+        return True, ""
     rc, out = vps_run("cat > /etc/caddy/Caddyfile", new_text, timeout=60)
     if rc != 0:
         return False, "caddyfile-write-failed"
@@ -270,7 +454,8 @@ def install_caddy(vps_run, log, domain, backend, landing, logpath, email):
     return True, ""
 
 
-def install_nginx(vps_run, log, domain, backend, landing, logpath, email):
+def install_nginx(vps_run, log, domain, backend, landing, logpath, email, paths=None):
+    paths = tuple(paths or PROFILES["stremio"])
     rc, out = vps_run("command -v nginx >/dev/null 2>&1 || (apt-get update && apt-get install -y nginx)",
                       timeout=900)
     log(out[-1500:])
@@ -279,22 +464,16 @@ def install_nginx(vps_run, log, domain, backend, landing, logpath, email):
     ok, err = _write_landing(vps_run, log, landing)
     if not ok:
         return False, "landing-failed"
-    conf = (f"# {MARK}: {domain} (stremio)\n"
-            f"server {{\n"
-            f"    listen 80;\n"
-            f"    listen [::]:80;\n"
-            f"    server_name {domain};\n"
-            f"    root {landing};\n"
-            f"    index index.html;\n\n"
-            f"    location /stremio/ {{\n"
-            f"        proxy_pass http://{backend};\n"
-            f"        proxy_set_header Host $host;\n"
-            f"        proxy_set_header X-Real-IP $remote_addr;\n"
-            f"    }}\n"
-            f"}}\n")
     ts = time.strftime("%Y%m%d_%H%M%S")
     path = f"/etc/nginx/sites-available/{domain}"
     _backup(vps_run, path, ts)
+    rc, current = vps_run(f"cat {path} 2>/dev/null || true", timeout=60)
+    current = current or ""
+    # 1.87: EKLEMELI yama (yalniz eksik location'lar eklenir).
+    conf = _nginx_ensure(current, domain, backend, landing, paths)
+    if conf == current:
+        log("==> nginx sitesi zaten guncel: profil yolu mevcut, yazma/reload atlandi")
+        return True, ""
     rc, out = vps_run(f"cat > {path}", conf, timeout=60)
     if rc != 0:
         return False, "nginx-write-failed"
@@ -312,7 +491,8 @@ def install_nginx(vps_run, log, domain, backend, landing, logpath, email):
     return True, ""
 
 
-def install_apache2(vps_run, log, domain, backend, landing, logpath, email):
+def install_apache2(vps_run, log, domain, backend, landing, logpath, email, paths=None):
+    paths = tuple(paths or PROFILES["stremio"])
     rc, out = vps_run("command -v apache2 >/dev/null 2>&1 || (apt-get update && apt-get install -y apache2)",
                       timeout=900)
     log(out[-1500:])
@@ -322,20 +502,16 @@ def install_apache2(vps_run, log, domain, backend, landing, logpath, email):
     if not ok:
         return False, "landing-failed"
     vps_run("a2enmod proxy proxy_http headers ssl rewrite >/dev/null 2>&1 || true", timeout=60)
-    conf = (f"# {MARK}: {domain} (stremio)\n"
-            f"<VirtualHost *:80>\n"
-            f"    ServerName {domain}\n"
-            f"    DocumentRoot {landing}\n\n"
-            f"    ProxyPreserveHost On\n"
-            f"    ProxyPass /stremio/ http://{backend}/\n"
-            f"    ProxyPassReverse /stremio/ http://{backend}/\n\n"
-            f"    <Directory {landing}>\n"
-            f"        Require all granted\n"
-            f"    </Directory>\n"
-            f"</VirtualHost>\n")
     ts = time.strftime("%Y%m%d_%H%M%S")
     path = f"/etc/apache2/sites-available/{domain}.conf"
     _backup(vps_run, path, ts)
+    rc, current = vps_run(f"cat {path} 2>/dev/null || true", timeout=60)
+    current = current or ""
+    # 1.87: EKLEMELI yama (yalniz eksik ProxyPass/ProxyPassReverse eklenir).
+    conf = _apache_ensure(current, domain, backend, landing, paths)
+    if conf == current:
+        log("==> apache sitesi zaten guncel: profil yolu mevcut, yazma/reload atlandi")
+        return True, ""
     rc, out = vps_run(f"cat > {path}", conf, timeout=60)
     if rc != 0:
         return False, "apache-write-failed"
@@ -376,13 +552,19 @@ def _certbot(vps_run, log, server, domain, email):
     return rc == 0
 
 
-def install_web_stack(vps_run, log, server, domain, backend, landing, logpath, email):
-    """Secilen web sunucusunu kurar. (ok, error_code) dondurur."""
+def install_web_stack(vps_run, log, server, domain, backend, landing, logpath, email, profile="stremio"):
+    """Secilen web sunucusunu kurar; YALNIZ profilin yollarini ekler (1.87).
+
+    profile: stremio | calendar | webhook — mevcut yollar korunur, silinmez.
+    (ok, error_code) dondurur.
+    """
     if server not in WEB_SERVERS:
         return False, "bad-web-server"
+    paths = _profile_paths(profile)
     _step(log, "webserver", "run")
+    log(f"==> profil: {profile} (yollar: {', '.join(paths)})")
     fn = {"caddy": install_caddy, "nginx": install_nginx, "apache2": install_apache2}[server]
-    ok, err = fn(vps_run, log, domain, backend, landing, logpath, email)
+    ok, err = fn(vps_run, log, domain, backend, landing, logpath, email, paths=paths)
     if not ok:
         _step(log, "webserver", "fail")
         return False, err
@@ -679,8 +861,8 @@ def setup_vps_wg(vps_run, log, vps_ip_hint=""):
 # --------------------------------------------------------------------------
 
 def check_vps(vps_run):
-    """{"caddy":bool,"stremio":bool,"wg":str,"web":detected} dondurur."""
-    out = {"caddy": False, "stremio": False, "wg": "", "web": None}
+    """{"caddy":bool,"stremio":bool,"wg":str,"web":detected,"routes":{...}} dondurur."""
+    out = {"caddy": False, "stremio": False, "wg": "", "web": None, "routes": {}}
     try:
         rc, o = vps_run("command -v caddy >/dev/null 2>&1 && systemctl is-active --quiet caddy && echo CADDY-OK || true",
                         timeout=30)
@@ -693,6 +875,21 @@ def check_vps(vps_run):
         out["stremio"] = "ST-OK" in o
     except Exception:
         pass
+    # 1.87: profil yollari (caddy/nginx/apache) — kartlarin "Kurulu mu?" durumu
+    try:
+        rc, o = vps_run(
+            "cat /etc/caddy/Caddyfile /etc/nginx/sites-enabled/* "
+            "/etc/apache2/sites-enabled/* 2>/dev/null "
+            "| grep -E 'handle /|location /|ProxyPass /' | head -60 || true",
+            timeout=30)
+        txt = o or ""
+        out["routes"] = {
+            "stremio": "/stremio/" in txt,
+            "calendar": "/calendar/" in txt,
+            "webhook": "/webhook/" in txt,
+        }
+    except Exception:
+        out["routes"] = {}
     try:
         rc, o = vps_run("grep -l 'nextep-vps-setup' /etc/wireguard/*.conf 2>/dev/null | head -1", timeout=30)
         base = os.path.basename((o or "").strip().splitlines()[0]) if (o or "").strip() else ""

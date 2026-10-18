@@ -1,9 +1,9 @@
 // asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
-import { t, errText } from "./i18n.js?v=530";
-import { escAttr, toast, CHECK_SVG } from "./utils.js?v=522";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=543";
-import { openAskClearConfirm, fmtDateTime } from "./components.js?v=534";
+import { t, errText } from "./i18n.js?v=544";
+import { escAttr, toast, CHECK_SVG } from "./utils.js?v=536";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=564";
+import { openAskClearConfirm, fmtDateTime } from "./components.js?v=548";
 
 let askEnabled = true;
 let askTimer = null;
@@ -95,10 +95,21 @@ async function fetchAskCount() {
 }
 
 function askThumb(a) {
-  const src = a.thumbnail_local || a.poster_local || "";
-  if (src) return `<img class="ask-poster-img" src="${escAttr(src)}" alt="" loading="lazy" onerror="this.style.display='none'" />`;
-  const first = (a.title || "?").trim().charAt(0).toUpperCase();
-  return `<div class="ask-poster-fallback">${escAttr(first || "?")}</div>`;
+  const thumb = a.thumbnail_local || "";
+  const full = a.poster_local || "";
+  const src = thumb || full;
+  if (!src) {
+    const first = (a.title || "?").trim().charAt(0).toUpperCase();
+    return `<div class="ask-poster-fallback">${escAttr(first || "?")}</div>`;
+  }
+  // 1.87: kirik kucuk resimde w500 postere dus. Eski hali resmi gizliyordu ve
+  // kucuk resim dosyasi silinmisse kartta hic poster gorunmuyordu.
+  const fb = (full && full !== src) ? full : "";
+  const fbAttr = fb ? ` data-fb="${escAttr(fb)}"` : "";
+  const onerr = fb
+    ? "if(!this.dataset.tried){this.dataset.tried='1';this.src=this.dataset.fb;}else{this.style.display='none';}"
+    : "this.style.display='none'";
+  return `<img class="ask-poster-img" src="${escAttr(src)}"${fbAttr} alt="" loading="lazy" onerror="${onerr}" />`;
 }
 
 function askItem(a) {

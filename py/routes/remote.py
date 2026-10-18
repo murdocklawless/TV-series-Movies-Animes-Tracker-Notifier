@@ -647,18 +647,29 @@ def _run_stremio_job(job_id, params):
         chosen = det.get("server") or options[0]
     _job_append(job_id, f"==> Seçilen web sunucusu: {chosen}")
 
-    # --- onar yolu: kurulu ve tunel saglikli ise tekrar kurma ---
-    if (_gs("stremio_vps_installed") or "") == "1" and vps_install.tunnel_active():
-        _job_append(job_id, "ABORT:already-installed (Stremio kurulu)")
+    # 1.87: profil (stremio | calendar | webhook) — her kart YALNIZ kendi yolunu
+    # kurar; mevcut yollar (baska profiller) korunur, silinmez.
+    prof = str(params.get("profile") or "stremio").strip().lower()
+    if prof not in vps_install.PROFILES:
+        prof = "stremio"
+    _job_append(job_id, f"==> Profil: {prof} (yol: {', '.join(vps_install._profile_paths(prof))})")
+
+    # --- onar yolu: profilin yolu kurulu ve tunel saglikli ise tekrar kurma ---
+    try:
+        routes = (vps_install.check_vps(vrun).get("routes") or {})
+    except Exception:
+        routes = {}
+    if routes.get(prof) and vps_install.tunnel_active():
+        _job_append(job_id, f"ABORT:already-installed ({prof} yolu kurulu)")
         _job_finish(job_id, "aborted", "ABORT:already-installed")
         return
-    if (_gs("stremio_vps_installed") or "") == "1":
-        _job_append(job_id, "==> Mevcut kurulum eksik (tünel yok) — onarım modu")
+    if routes.get(prof):
+        _job_append(job_id, "==> Yol kurulu ama tünel yok — onarım modu")
 
     # --- web sunucusu kurulumu ---
     _job_step(job_id, "webserver", "run", f"Web sunucusu kuruluyor ({chosen})")
     try:
-        ok, err = vps_install.install_web_stack(vrun, log, chosen, domain, backend, landing, logpath, email)
+        ok, err = vps_install.install_web_stack(vrun, log, chosen, domain, backend, landing, logpath, email, profile=prof)
     except Exception as e:
         _job_append(job_id, f"HATA: web sunucusu kurulumu: {str(e)[:300]}")
         _job_finish(job_id, "aborted", "ABORT:ssh-failed")
@@ -703,7 +714,7 @@ def _run_stremio_job(job_id, params):
             _job_append(job_id, ((pr.stdout or "") + (pr.stderr or ""))[-2000:])
         except Exception:
             pass
-    https_ok = vps_install._https_test(vrun, log, domain)
+    https_ok = vps_install._https_test(vrun, log, domain, profile=prof)
     if not https_ok and not degraded:
         degraded = "DEGRADED:backend-unreachable"
     _job_step(job_id, "verify", "fail" if degraded else "ok")
@@ -712,6 +723,12 @@ def _run_stremio_job(job_id, params):
         _ss("stremio_vps_installed", "1")
         _ss("tp_base_url", f"https://{domain}")
         _ss("stremio_web_server", chosen)
+        # 1.87: kartlarin "Kurulu mu?" durumu icin profil yollari onbellege alinir
+        import json as _json
+        try:
+            _ss("vps_routes", _json.dumps(vps_install.check_vps(vrun).get("routes") or {}))
+        except Exception:
+            pass
     except Exception:
         pass
     if degraded:
@@ -851,6 +868,16 @@ def remote_web_servers():
         saved = get_setting("stremio_web_server") or ""
     except Exception:
         saved = ""
+    # 1.87: profil yollari (stremio/calendar/webhook) -> kartlarin kurulu durumu
+    try:
+        routes = vps_install.check_vps(vrun).get("routes") or {}
+    except Exception:
+        routes = {}
+    try:
+        import json as _json
+        set_setting("vps_routes", _json.dumps(routes))
+    except Exception:
+        pass
     return jsonify({
         "ok": True,
         "http": det.get("http") or "",
@@ -864,6 +891,7 @@ def remote_web_servers():
         "tunnelInstalled": vps_install.tunnel_installed(),
         "tunnelActive": vps_install.tunnel_active(),
         "installed": (get_setting("stremio_vps_installed") or "") == "1",
+        "routes": routes,
     })
 
 

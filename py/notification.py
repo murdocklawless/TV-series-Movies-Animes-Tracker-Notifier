@@ -6,6 +6,7 @@ from db import get_db
 from auth import get_current_user
 from ramcache import list_cache, bump, gen, cached_response
 from poster_store import versioned_web_path
+from ask_store import clear_pending, record_decision
 
 notification_bp = Blueprint("notification", __name__)
 
@@ -79,16 +80,19 @@ def is_duplicate_notification(type_name, title, season=None, episode=None, tmdb_
         conn.close()
 
 
-def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None, user_id=0, source=None):
+def create_notification(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_local=None, thumbnail_local=None, remote_poster_url=None, kind_for_thumb=None, ident_for_thumb=None, notified_date=None, user_id=0, source=None, skip_dedupe=False):
     """Insert notification if not duplicate. Handles thumbnail generation.
     kind_for_thumb: tv/movie/anime, ident_for_thumb: tmdb_id/anilist_id
     remote_poster_url: fallback url (w500 or cover) to ensure thumb if w500 missing.
     user_id: 0 = herkese acik; >0 yalniz hedef kullaniciya (Faz 31 rol bildirimi).
     source (1.86): kaynak etiketi (stremio/plex/jellyfin/emby/other) — izlendi-sor penceresinde gosterilir.
+    skip_dedupe (1.87): True ise baslik/tarih dedupe'i atlanir. Yalniz izlendi-sor
+    (`_create_watched_ask`) kullanir: "Hayir" sonrasi AYNI GUN tekrar izlenen yapim
+    yeniden sorulabilsin diye; tekillestirmeyi bekleyen-ask kontrolu yapar.
     Returns new id or None if duplicate."""
     conn = get_db()
     try:
-        if is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date, user_id=user_id):
+        if not skip_dedupe and is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date, user_id=user_id):
             conn.close()
             return None
     except Exception:
@@ -237,6 +241,12 @@ def delete_all():
     conn.execute("DELETE FROM notifications WHERE (user_id=0 OR user_id=?)", (uid,))
     conn.commit()
     conn.close()
+    # 1.87: tum bildirimleri temizlemek ask kararlarini unutturmaz; yalniz
+    # bekleyen kararlar iptal edilir (Evet/Hayir kalici kalir).
+    try:
+        clear_pending(uid)
+    except Exception as e:
+        print(f"[notif] bekleyen karar temizleme hata: {e}", flush=True)
     bump()
     return jsonify({"ok": True})
 
@@ -399,6 +409,13 @@ def approve_ask(aid):
     if not row:
         return jsonify({"error": "ask bulunamadi"}), 404
     _mark_ask_watched(row)
+    # Kalici karar (ask_decisions): "Evet" — ask listesi temizlense de kalir.
+    try:
+        record_decision(row["user_id"], row["media_type"], "watched",
+                        tmdb_id=row["tmdb_id"], anilist_id=row["anilist_id"],
+                        season=row["season"], episode=row["episode"], source=_ask_source(row))
+    except Exception as e:
+        print(f"[asks] karar (watched) yazma hata: {e}", flush=True)
     conn = get_db()
     conn.execute("UPDATE notifications SET resolved=1, is_read=1 WHERE id=?", (aid,))
     conn.commit()
@@ -412,7 +429,7 @@ def reject_ask(aid):
     uid = _me_id()
     conn = get_db()
     row = conn.execute(
-        "SELECT id FROM notifications WHERE id=? AND type='watched_ask' AND user_id=?", (aid, uid)
+        "SELECT * FROM notifications WHERE id=? AND type='watched_ask' AND user_id=?", (aid, uid)
     ).fetchone()
     if not row:
         conn.close()
@@ -420,17 +437,33 @@ def reject_ask(aid):
     conn.execute("UPDATE notifications SET resolved=2, is_read=1 WHERE id=?", (aid,))
     conn.commit()
     conn.close()
+    # Kalici karar (ask_decisions): "Hayir" — bilgi korunur, ama yapim tekrar
+    # izlendiginde ask YENIDEN sorulur (ret engellemez).
+    try:
+        record_decision(row["user_id"], row["media_type"], "rejected",
+                        tmdb_id=row["tmdb_id"], anilist_id=row["anilist_id"],
+                        season=row["season"], episode=row["episode"], source=_ask_source(row))
+    except Exception as e:
+        print(f"[asks] karar (rejected) yazma hata: {e}", flush=True)
     bump()
     return jsonify({"ok": True})
 
 
 @notification_bp.route("/api/asks", methods=["DELETE"])
 def clear_asks():
-    """Izlendi-sor bildirimlerini (yalniz watched_ask) temizler."""
+    """Izlendi-sor bildirimlerini (yalniz watched_ask) temizler.
+
+    1.87: yalniz BEKLEYEN kararlar da silinir; "Evet"/"Hayir" kararlari kalici
+    kalir (temizlemek bilgiyi unutturmaz, yalniz bekleyeni iptal eder).
+    """
     uid = _me_id()
     conn = get_db()
     conn.execute("DELETE FROM notifications WHERE type='watched_ask' AND user_id=?", (uid,))
     conn.commit()
     conn.close()
+    try:
+        clear_pending(uid)
+    except Exception as e:
+        print(f"[asks] bekleyen karar temizleme hata: {e}", flush=True)
     bump()
     return jsonify({"ok": True})

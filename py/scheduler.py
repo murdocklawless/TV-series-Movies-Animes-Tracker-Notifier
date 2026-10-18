@@ -1324,6 +1324,15 @@ def db_maint_job():
         print("db maint failed:", e, flush=True)
 
 
+def emby_sync_job():
+    """Emby API senkronu (webhook'suz, 1.87) — yedek yoklama + durum tazeleme."""
+    try:
+        import emby_sync
+        emby_sync.sync_once()
+    except Exception as e:
+        print(f"[emby] senkron job hata: {e}", flush=True)
+
+
 def app_update_job():
     """Uygulama güncelleme cron'u (fail-soft): yeni sürüm + oto-açık ise günceller."""
     try:
@@ -1610,6 +1619,20 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
+    # 1.87: Emby API senkronu — WebSocket aninda tetikler, bu is yedek yoklama.
+    # Ayar yoksa hizli no-op'tur (configured() False).
+    if SCHEDULER.get_job("emby_sync"):
+        SCHEDULER.remove_job("emby_sync")
+    SCHEDULER.add_job(
+        emby_sync_job,
+        "interval",
+        minutes=15,
+        id="emby_sync",
+        misfire_grace_time=600,
+        max_instances=1,
+        coalesce=True,
+    )
+
     if not SCHEDULER.running:
         SCHEDULER.start()
     print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time, flush=True)
@@ -1647,4 +1670,11 @@ def start_scheduler():
         geo_refresh_job()
     except Exception:
         pass
+    # 1.87: Emby API modu (ayar varsa) — WS dinleyici + acilista bir senkron.
+    try:
+        import emby_sync
+        emby_sync.start_listener()
+        emby_sync.sync_async()
+    except Exception as e:
+        print(f"[emby] baslatma hata: {e}", flush=True)
     schedule_releases()

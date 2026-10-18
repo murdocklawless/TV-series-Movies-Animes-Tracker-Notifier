@@ -102,6 +102,8 @@ detect_caddy() {
 detect_stremio() {
   detect_caddy || return 1
   grep -q "handle /stremio/\*" "$CADDYFILE" 2>/dev/null || return 1
+  grep -q "handle /calendar/\*" "$CADDYFILE" 2>/dev/null || return 1
+  grep -q "handle /webhook/\*" "$CADDYFILE" 2>/dev/null || return 1
   caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1 || return 1
   return 0
 }
@@ -248,6 +250,12 @@ ${emailblock}
     root * $landing
     file_server
     handle /stremio/* {
+        reverse_proxy $backend
+    }
+    handle /calendar/* {
+        reverse_proxy $backend
+    }
+    handle /webhook/* {
         reverse_proxy $backend
     }
 ${logblock}

@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=530";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=522";
-import { activateUtilityTab } from "./views.js?v=533";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=534";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=544";
+import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=536";
+import { activateUtilityTab } from "./views.js?v=547";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=548";
 
 // ---- Search ----
 // ---- Settings ----
@@ -1031,7 +1031,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=530");
+      const { errText: _err } = await import("./i18n.js?v=544");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1040,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=522");
-    const { openDetails } = await import("./components.js?v=534");
-    const { loadFollowed } = await import("./views.js?v=533");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=536");
+    const { openDetails } = await import("./components.js?v=548");
+    const { loadFollowed } = await import("./views.js?v=547");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1078,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=530");
+        const { t: _t } = await import("./i18n.js?v=544");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2050,7 +2050,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=543").then((m) => {
+  import("./notification.js?v=564").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2144,9 +2144,20 @@ let tpCalendarOpen = false;
 let tpPlexOpen = false;
 let tpJellyfinOpen = false;
 let tpEmbyOpen = false;
+// 1.87: Emby kartinin IC akordeonlari (Webhook / API Key) — biri acilinca digeri kapanir.
+let tpEmbySection = "";
+// 1.87: Emby API alanlarinin SON KAYITLI degerleri. Sistem geneli kural: kutularda
+// DEGISIKLIK YOKSA kaydetme (bkz. flushTpBaseUrl deseni). Kart cizilirken sunucu
+// durumundan, basarili kayittan sonra POST yanitindan guncellenir.
+let tpEmbyApiUrl = "";
+let tpEmbyApiUser = "";
+let tpEmbyApiHasKey = false;
+let tpEmbyApiSaving = false;
 let tpBaseUrl = "";
 let tpIsAdmin = false;
 let tpAskBeforeWatched = true;
+// 1.88: kaynak bazli "izlendi bilgisi sor" degerleri ("" = genel ayar gecerli).
+let tpAskSrc = { plex: "", jellyfin: "", emby: "" };
 // Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
 let tpVpsOpen = false;
 let tpRemoteOpen = false;
@@ -2190,10 +2201,16 @@ async function renderThirdPartyApps(opts = {}) {
     tpBaseUrl = (s.ok && sj && sj.tp_base_url ? String(sj.tp_base_url) : "").trim();
     tpIsAdmin = !!(s.ok && sj && sj.is_admin);
     tpAskBeforeWatched = !!(s.ok && sj && (sj.ask_before_watched || "1") !== "0");
+    tpAskSrc = {
+      plex: String((s.ok && sj && sj.ask_before_watched_plex) || ""),
+      jellyfin: String((s.ok && sj && sj.ask_before_watched_jellyfin) || ""),
+      emby: String((s.ok && sj && sj.ask_before_watched_emby) || ""),
+    };
   } catch (_) {
     tpBaseUrl = "";
     tpIsAdmin = false;
     tpAskBeforeWatched = true;
+    tpAskSrc = { plex: "", jellyfin: "", emby: "" };
   }
   let vpsHtml = "";
   if (tpIsAdmin) {
@@ -2235,7 +2252,6 @@ async function renderThirdPartyApps(opts = {}) {
 const thirdPartyAppRenderers = {
   stremio: (app) => {
     const _note = tpStatusNote(app);
-    const _watch = tpWatchDetail(app);
     const rootOk = vpsRootReady();
     const cardDisabled = tpIsAdmin && !rootOk;
     const stremioInstalled = !!(vpsProfile && vpsProfile.stremioInstalled);
@@ -2251,12 +2267,7 @@ const thirdPartyAppRenderers = {
         <span class="notif-type-title"><i class="fa-solid fa-cubes"></i> ${escAttr(app.name || "Stremio")}</span>
       </div>
       <div class="notif-type-body" style="display:${tpStremioOpen ? "block" : "none"}">
-        <div class="tp-sub-box">
-          <div class="tp-status-row">
-            <span class="notify-name"><span data-i18n="ask_before_watched_label">${t("ask_before_watched_label")}</span></span>
-            <span class="ask-switch-area"><span class="saved-hint" id="ask-saved-hint" data-i18n="saved">${t("saved")}</span><label class="switch"><input type="checkbox" id="s-ask-before-watched" ${tpAskBeforeWatched ? "checked" : ""} /><span class="slider"></span></label></span>
-          </div>
-        </div>
+        ${tpAskToggle("stremio")}
         <div class="tp-sub-box">
           <div class="tp-status-row">
             <span class="notify-name">${t("tp_status")}</span>
@@ -2264,11 +2275,7 @@ const thirdPartyAppRenderers = {
           </div>
           ${_note ? `<div class="tp-frame-note">${_note}</div>` : ""}
         </div>
-        ${app.lastSignal ? `
-        <div class="tp-sub-box">
-          <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${formatSignalTime(app.lastSignal)}</span></div>
-          ${_watch ? `<div class="tp-frame-note tp-watch-detail" title="${_watch}">${_watch}</div>` : ""}
-        </div>` : ""}
+        ${tpSignalBox(app.lastSignal, app.lastWatch)}
         ${tpIsAdmin ? `
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_base_url">${t("tp_base_url")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
@@ -2310,11 +2317,12 @@ const thirdPartyAppRenderers = {
         </div>
         ${url ? `
         <div class="tp-sub-box">
-          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
+          <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
             <div class="tp-url-box"><input id="tp-calendar-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-calendar-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
           </label>
         </div>` : ""}
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          ${tpVpsInstallBtn(app)}
           <button id="tp-calendar-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
           ${url ? `<button id="tp-calendar-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
         </div>
@@ -2322,9 +2330,9 @@ const thirdPartyAppRenderers = {
     </div>`;
   },
   // 1.86: Plex / Jellyfin / Emby — webhook ile izleme sinyali (aynı iskelet).
-  plex: (app) => tpWebhookCard(app, tpPlexOpen, "fa-circle-play", "tp_plex_note"),
-  jellyfin: (app) => tpWebhookCard(app, tpJellyfinOpen, "fa-clapperboard", "tp_jellyfin_note"),
-  emby: (app) => tpWebhookCard(app, tpEmbyOpen, "fa-photo-film", "tp_emby_note"),
+  plex: (app) => tpWebhookCard(app, tpPlexOpen, "fa-circle-play", null),
+  jellyfin: (app) => tpWebhookCard(app, tpJellyfinOpen, "fa-clapperboard", null),
+  emby: (app) => tpWebhookCard(app, tpEmbyOpen, "fa-photo-film", null),
   remote: (app) => {    const isConn = app.status === "connected";
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
@@ -2368,35 +2376,143 @@ const thirdPartyAppRenderers = {
   },
 };
 
-// 1.86: webhook uygulama karti (Plex / Jellyfin / Emby). Adres = /webhook/<app>/<uuid>;
-// kullanici adresi uygulamanin webhook ayarina yapistirir. Durum "Hazir" -> ilk olay "Bagli".
+// 1.87: "Sunucuya Kur" (stremio | calendar | webhook).
+// Etiket her zaman "Sunucuya Kur". Durum "Bagli" ise daha once kurulmus demektir ->
+// dugme DISABLED kalir ve tooltip NEREDEN bagli oldugunu soyler:
+//   "Bagli (LAN)" -> "{app} Webhook LAN uzerinden bagli"
+//   "Bagli (URL)" -> "{app} Webhook URL uzerinden bagli"
+// Henuz olay gelmemis (kurulu + tunel saglam) -> disabled, tooltip "Kurulu".
+// Yol yok -> kurulum · yol var + tunel kopuk -> "Onar".
+function tpVpsInstallBtn(app) {
+  if (!tpIsAdmin || !app || !app.vpsProfile) return "";
+  const aid = String(app.id || "");
+  const routeOk = !!app.vpsRouteOk;
+  const tunOk = app.vpsTunnelOk !== false;
+  const isHook = app.vpsProfile === "webhook";
+  const via = String(app.verifiedVia || "").toLowerCase();
+  const nm = app.name || aid;
+  const repair = routeOk && !tunOk;
+  const connected = !!app.connected;
+  const idle = !repair && ((routeOk && tunOk) || (isHook && connected));
+  const label = repair ? t("stremio_install_repair") : t("install_on_vps");
+  let ttl = "";
+  if (!repair && isHook && connected && via === "lan") ttl = t("tp_lan_connected", { app: nm });
+  else if (!repair && isHook && connected && via === "url") ttl = t("tp_url_connected", { app: nm });
+  else if (routeOk && tunOk) ttl = t("vps_installed");
+  const dis = idle ? " disabled aria-disabled=\"true\"" : "";
+  const ttlAttr = ttl ? ` title="${escAttr(ttl)}"` : "";
+  return `<button id="tp-vps-install-${escAttr(aid)}" class="tab"${dis}${ttlAttr}>${label}</button>`;
+}
+
 function tpWebhookCard(app, open, icon, noteKey) {
   const aid = String(app.id || "");
   const url = app.installUrl || "";
-  return `
-    <div class="channel-box accordion-box notif-type-box${open ? " accordion-open" : ""}" id="tp-app-${escAttr(aid)}">
-      <div class="notif-type-head">
-        <span class="notif-type-title"><i class="fa-solid ${escAttr(icon)}"></i> ${escAttr(app.name || aid)}</span>
-      </div>
-      <div class="notif-type-body" style="display:${open ? "block" : "none"}">
+  const isEmby = aid === "emby";
+  // 1.87: baslik eki — Plex webhook'u Plex Pass gerektirir (PLEX (PLEX PASS)).
+  const titleSuffix = aid === "plex" ? " (" + t("tp_plex_pass") + ")" : "";
+  // 1.87: Emby kartinda IC akordeonlar (Webhook / API Key) — biri acilinca digeri kapanir.
+  const secOpen = (which) => isEmby && tpEmbySection === which;
+  if (isEmby) {
+    // Cizilen kutular = kayitli durum (degisiklik yoksa kaydetmeme kuralinin temeli).
+    tpEmbyApiUrl = app.apiUrl || "";
+    tpEmbyApiUser = app.apiUser || "";
+    tpEmbyApiHasKey = !!app.apiHasKey;
+  }
+  // Durum kutusu: Emby'de webhook cercevesinin en ustunde; diger (Plex/Jellyfin)
+  // kartlarda kart basliginin altinda kalir.
+  const statusSub = (extra = "") => `
         <div class="tp-sub-box">
           <div class="tp-status-row">
             <span class="notify-name">${t("tp_status")}</span>
             <span class="tp-status-value ${tpStatusClass(app)}">${tpStatusText(app)}</span>
           </div>
-          <div class="tp-frame-note">${t(noteKey)}</div>
-          <div class="tp-frame-note">${t("tp_webhook_recipe")}</div>
-        </div>
-        ${url ? `
-        <div class="tp-sub-box">
-          <label><span class="settings-label-head"><span data-i18n="tp_install_url">${t("tp_install_url")}</span></span>
-            <div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+          ${extra}
+        </div>`;
+  const notesHtml = noteKey ? `
+          <div class="tp-frame-note">${t(noteKey)}</div>` : "";
+  // 1.87: LAN cercevesi — yalnizca kartin TAM LAN linki (taban adres kutusu YOK).
+  // Baslik, URL cercevesiyle BIREBIR ayni markup/stilde (sola yasli) — istek #3/#4.
+  const lanUrl = app.lanInstallUrl || "";
+  const lanHtml = lanUrl ? `
+          <div class="tp-sub-box">
+            <label><span class="settings-label-head"><span data-i18n="tp_install_url_lan">${t("tp_install_url_lan")}</span></span>
+              <div class="tp-url-box"><input id="tp-${escAttr(aid)}-lanurl" type="text" readonly value="${escAttr(lanUrl)}" /><button id="tp-${escAttr(aid)}-lancopy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+            </label>
+          </div>` : "";
+  const webhookHtml = `
+          ${tpSignalBox(app.lastSignal, app.lastWatch)}
+          ${lanHtml}
+          ${url ? `
+          <div class="tp-sub-box">
+            <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
+              <div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+            </label>
+          </div>` : ""}
+          <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+            ${tpVpsInstallBtn(app)}
+            <button id="tp-${escAttr(aid)}-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
+            ${url ? `<button id="tp-${escAttr(aid)}-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
+          </div>`;
+  // 1.87: API cercevesinin EN USTUNDE durum kutusu (yapilandirilmamis -> "Bagli degil",
+  // yapilandirilmis ama senkron yok -> "Hazir", senkron var -> "Bagli").
+  // "API modu" gostergesi kaldirildi; WebSocket/yoklama bilgisi son senkron detayinda kalir.
+  const apiCls = app.lastSync ? "tp-connected" : (app.apiConfigured ? "tp-ready" : "tp-not-connected");
+  // 1.87: API durumu da nereden bagli oldugunu gosterir ("Bagli (LAN)"/"Bagli (URL)").
+  const apiViaTxt = app.apiVia === "lan" ? " " + t("tp_via_lan") : (app.apiVia === "url" ? " " + t("tp_via_url") : "");
+  const apiTxt = app.lastSync ? t("tp_connected") + apiViaTxt
+                : (app.apiConfigured ? t("tp_ready") : t("tp_not_connected"));
+  // 1.87: durum cercevesi + "Son sinyal" (zaman + "xyz izlendi") + tasiyici satiri
+  // (sol: Aninda/Kontrol(15 dk) · sag: {n} Izlenmis).
+  const apiMode = app.apiWsConnected ? t("tp_emby_mode_ws") : t("tp_emby_mode_poll");
+  const apiScan = (typeof app.apiScanCount === "number") ? t("tp_emby_scan_n", { n: app.apiScanCount }) : "—";
+  const apiHtml = `
+          <div class="tp-sub-box">
+            <div class="tp-status-row">
+              <span class="notify-name">${t("tp_status")}</span>
+              <span class="tp-status-value ${apiCls}">${apiTxt}</span>
+            </div>
+          </div>
+          ${tpSignalBox(app.apiLastSignal, app.apiLastWatch)}
+          ${app.apiConfigured ? `<div class="tp-sub-box">
+            <div class="tp-status-row">
+              <span class="notify-name">${apiMode}</span>
+              <span class="tp-status-value${typeof app.apiScanCount === "number" ? " tp-connected" : ""}">${apiScan}</span>
+            </div>
+          </div>` : ""}
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_url">${t("tp_emby_api_url")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
           </label>
-        </div>` : ""}
-        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
-          <button id="tp-${escAttr(aid)}-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
-          ${url ? `<button id="tp-${escAttr(aid)}-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>` : ""}
-        </div>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "••••••••" : "API Key"}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          </label>
+          <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+            <button id="tp-emby-api-test" class="tab">${t("tp_emby_api_test")}</button>
+            ${app.apiConfigured ? `<button id="tp-emby-api-sync" class="tab">${t("tp_emby_sync_now")}</button>` : ""}
+          </div>`;
+  const frame = (which, titleKey, inner) => `
+        <div class="channel-box accordion-box notif-type-box${secOpen(which) ? " accordion-open" : ""}" id="tp-emby-sec-${which}">
+          <div class="notif-type-head">
+            <span class="notif-type-title">${t(titleKey)}</span>
+          </div>
+          <div class="notif-type-body" style="display:${secOpen(which) ? "block" : "none"}">
+${inner}
+          </div>
+        </div>`;
+  return `
+    <div class="channel-box accordion-box notif-type-box${open ? " accordion-open" : ""}" id="tp-app-${escAttr(aid)}">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid ${escAttr(icon)}"></i> ${escAttr(app.name || aid)}${escAttr(titleSuffix)}</span>
+      </div>
+      <div class="notif-type-body" style="display:${open ? "block" : "none"}">
+        ${tpAskToggle(aid)}
+        ${isEmby ? "" : statusSub(notesHtml)}
+        ${isEmby
+          ? frame("webhook", "tp_emby_frame_webhook", statusSub() + notesHtml + webhookHtml)
+            + (tpIsAdmin ? frame("api", "tp_emby_api_key", apiHtml) : "")
+          : webhookHtml}
       </div>
     </div>`;
 }
@@ -2441,6 +2557,60 @@ async function tpRefreshUuid(aid, btn) {
   }
 }
 
+// 1.87: Emby API alanlari odaktan cikinca otomatik kaydedilir; sagda yesil
+// "Kaydedildi" (saved-hint) gosterilir. Bos anahtar = mevcut anahtar korunur.
+// Sistem geneli kural: DEGISIKLIK YOKSA kaydetme (flushTpBaseUrl deseni).
+function embyApiFocused() {
+  const a = document.activeElement;
+  return !!(a && a.id && a.id.indexOf("tp-emby-api-") === 0);
+}
+
+// Sunucunun normalize ettigi bicimle karsilastir (trim + sonda / + sema ekle).
+function _normEmbyUrl(u) {
+  let v = String(u || "").trim().replace(/\/+$/, "");
+  if (v && !/^https?:\/\//i.test(v)) v = "http://" + v;
+  return v;
+}
+
+async function flushEmbyApi(inputEl) {
+  if (tpEmbyApiSaving) return;
+  const url = ((document.getElementById("tp-emby-api-url") || {}).value || "").trim();
+  const key = ((document.getElementById("tp-emby-api-key") || {}).value || "").trim();
+  const user = ((document.getElementById("tp-emby-api-user") || {}).value || "").trim();
+  // Degisiklik kapisi: uc alan da kayitli degerle ayniysa HIC kaydetme (sessiz cikis).
+  const urlChanged = _normEmbyUrl(url) !== _normEmbyUrl(tpEmbyApiUrl);
+  const userChanged = user !== (tpEmbyApiUser || "");
+  const keyChanged = key !== "";
+  if (!urlChanged && !userChanged && !keyChanged) return;
+  tpEmbyApiSaving = true;
+  const hint = (inputEl && inputEl.closest("label")) ? inputEl.closest("label").querySelector(".saved-hint") : null;
+  try {
+    const r = await fetch("/api/thirdparty/emby/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, key, user }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "save");
+    // Kayitli degerleri yanittan tazele (ardisi blur'lar bosuna kaydetmesin).
+    tpEmbyApiUrl = j.apiUrl || url;
+    tpEmbyApiUser = j.apiUser || user;
+    tpEmbyApiHasKey = !!j.apiHasKey;
+    showSavedHint(hint);
+    // Durum kutusu tazelensin; ama yazarken araya girilmesin (odakta alan varsa atla).
+    setTimeout(() => {
+      try {
+        if (embyApiFocused()) return;
+        renderThirdPartyApps({ silent: true });
+      } catch (_) {}
+    }, 1500);
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  } finally {
+    tpEmbyApiSaving = false;
+  }
+}
+
 async function tpWebhookDisconnect(aid) {
   try {
     const r = await fetch(`/api/thirdparty/${encodeURIComponent(aid)}/disconnect`, {
@@ -2463,7 +2633,10 @@ function tpStatusClass(app) {
 }
 
 function tpStatusText(app) {
-  if (app.status === "connected") return t("tp_connected");
+  // 1.87: nereden bagli oldugunu goster: "Bagli (LAN)" / "Bagli (URL)".
+  const via = String(app.verifiedVia || "").toLowerCase();
+  const suffix = via === "lan" ? " " + t("tp_via_lan") : (via === "url" ? " " + t("tp_via_url") : "");
+  if (app.status === "connected") return t("tp_connected") + suffix;
   if (app.status === "ready") return t("tp_ready");
   return t("tp_not_connected");
 }
@@ -2478,14 +2651,41 @@ function tpStatusNote(app) {
   return "";
 }
 
-function tpWatchDetail(app) {
-  const w = app.lastWatch;
+function tpWatchDetail(w) {
   if (!w || !w.title) return "";
   if (w.kind === "tv" && w.season != null && w.episode != null)
     return escAttr(t("tp_watch_tv", { title: w.title, s: w.season, e: w.episode }));
   if (w.kind === "anime" && w.episode != null)
     return escAttr(t("tp_watch_anime", { title: w.title, e: w.episode }));
   return escAttr(t("tp_watch_movie", { title: w.title }));
+}
+
+function tpSignalBox(ts, watch) {
+  // 1.87: "Son sinyal" cercevesi — HER ZAMAN gorunur (Stremio kartiyla ayni gorunum).
+  // Sinyal yoksa: zaman yerine "—" ve altinda "Henuz sinyal yok".
+  const w = tpWatchDetail(watch);
+  return `
+          <div class="tp-sub-box">
+            <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${ts ? formatSignalTime(ts) : "—"}</span></div>
+            ${ts && w ? `<div class="tp-frame-note tp-watch-detail" title="${w}">${w}</div>`
+              : (ts ? "" : `<div class="tp-frame-note tp-watch-detail">${t("tp_no_signal_yet")}</div>`)}
+          </div>`;
+}
+
+function tpAskToggle(aid) {
+  // 1.88: "Izlendi bilgisi sor" anahtari — akordeon govdesinin EN USTUNDE.
+  // Stremio = genel ayar (ask_before_watched), Plex/Jellyfin/Emby = kaynak bazli
+  // (kaynak degeri bos ise genel ayar gosterilir).
+  const src = String(aid || "");
+  const raw = src === "stremio" ? "" : String((tpAskSrc && tpAskSrc[src]) || "");
+  const eff = raw !== "" ? raw !== "0" : tpAskBeforeWatched;
+  return `
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name"><span data-i18n="ask_before_watched_label">${t("ask_before_watched_label")}</span></span>
+            <span class="ask-switch-area"><span class="saved-hint" id="ask-saved-hint-${escAttr(src)}" data-i18n="saved">${t("saved")}</span><label class="switch"><input type="checkbox" id="s-ask-before-watched-${escAttr(src)}" data-ask-src="${escAttr(src)}" ${eff ? "checked" : ""} /><span class="slider"></span></label></span>
+          </div>
+        </div>`;
 }
 
 function formatRelativeAge(ts) {
@@ -2594,15 +2794,23 @@ function bindThirdPartyEvents() {
       flushTpBaseUrl();
     });
   }
-  const askToggle = document.getElementById("s-ask-before-watched");
-  if (askToggle) {
-    askToggle.addEventListener("change", async (e) => {
-      const hint = document.getElementById("ask-saved-hint");
-      const ok = await saveSettingsPartial({ ask_before_watched: e.target.checked ? "1" : "0" }, hint);
-      tpAskBeforeWatched = e.target.checked;
-      if (window.setAskEnabled) window.setAskEnabled(e.target.checked);
+  // 1.88: "Izlendi bilgisi sor" anahtarlari — Stremio genel, Plex/Jellyfin/Emby kaynak bazli.
+  document.querySelectorAll("input[data-ask-src]").forEach((el) => {
+    el.addEventListener("change", async (e) => {
+      const src = e.target.getAttribute("data-ask-src") || "stremio";
+      const val = e.target.checked ? "1" : "0";
+      const payload = src === "stremio" ? { ask_before_watched: val } : { ["ask_before_watched_" + src]: val };
+      const hint = document.getElementById("ask-saved-hint-" + src);
+      const ok = await saveSettingsPartial(payload, hint);
+      if (!ok) { e.target.checked = !e.target.checked; return; }
+      if (src === "stremio") {
+        tpAskBeforeWatched = e.target.checked;
+        if (window.setAskEnabled) window.setAskEnabled(e.target.checked);
+      } else if (tpAskSrc) {
+        tpAskSrc[src] = val;
+      }
     });
-  }
+  });
   const copyBtn = document.getElementById("tp-stremio-copy");
   if (copyBtn) {
     copyBtn.addEventListener("click", async () => {
@@ -2738,11 +2946,84 @@ function bindThirdPartyEvents() {
   [["plex", openPlexDisconnectConfirm], ["jellyfin", openJellyfinDisconnectConfirm], ["emby", openEmbyDisconnectConfirm]].forEach(([aid, confirmFn]) => {
     const copy = document.getElementById(`tp-${aid}-copy`);
     if (copy) copy.addEventListener("click", () => tpCopyInput(`tp-${aid}-url`));
+    const lcopy = document.getElementById(`tp-${aid}-lancopy`);
+    if (lcopy) lcopy.addEventListener("click", () => tpCopyInput(`tp-${aid}-lanurl`));
     const refresh = document.getElementById(`tp-${aid}-refresh`);
     if (refresh) refresh.addEventListener("click", () => tpRefreshUuid(aid, refresh));
     const disc = document.getElementById(`tp-${aid}-disconnect`);
     if (disc) disc.addEventListener("click", () => confirmFn(() => tpWebhookDisconnect(aid)));
   });
+  // --- 1.87: profil bazli "Sunucuya Kur" dugmeleri (calendar | webhook) ---
+  // Kurulu/bagli durumda dugme disabled'dir (bilgi tooltip'te) -> tiklanamaz.
+  [["calendar", "calendar"], ["plex", "webhook"], ["jellyfin", "webhook"],
+   ["emby", "webhook"]].forEach(([aid, prof]) => {
+    const b = document.getElementById(`tp-vps-install-${aid}`);
+    if (b) b.addEventListener("click", () => openInstallWizard(prof));
+  });
+  // --- 1.87: Emby karti ic akordeonlari (Webhook / API Key) — tek-acik ---
+  ["webhook", "api"].forEach((which) => {
+    const f = document.getElementById(`tp-emby-sec-${which}`);
+    if (!f) return;
+    const head = f.querySelector(".notif-type-head");
+    if (!head) return;
+    head.addEventListener("click", (e) => {
+      if (e.target.closest("input") || e.target.closest("button") || e.target.closest("a")) return;
+      tpEmbySection = (tpEmbySection === which) ? "" : which;
+      ["webhook", "api"].forEach((w) => {
+        const el = document.getElementById(`tp-emby-sec-${w}`);
+        if (!el) return;
+        const b = el.querySelector(".notif-type-body");
+        const on = tpEmbySection === w;
+        el.classList.toggle("accordion-open", on);
+        if (b) b.style.display = on ? "block" : "none";
+      });
+    });
+  });
+  // --- 1.87: Emby API alanlari — odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
+  ["tp-emby-api-url", "tp-emby-api-key", "tp-emby-api-user"].forEach((fid) => {
+    const el = document.getElementById(fid);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+    });
+    el.addEventListener("blur", () => flushEmbyApi(el));
+  });
+  const embyTestBtn = document.getElementById("tp-emby-api-test");
+  if (embyTestBtn) {
+    embyTestBtn.addEventListener("click", async () => {
+      embyTestBtn.disabled = true;
+      try {
+        const r = await fetch("/api/thirdparty/emby/test", { method: "POST" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "test");
+        const info = j.info || {};
+        toast(t("tp_emby_test_ok") + " · " + (info.serverName || "Emby") + (info.version ? " " + info.version : ""));
+      } catch (e) {
+        toast(errText((e && e.message) || "") || t("error"), true);
+      } finally {
+        embyTestBtn.disabled = false;
+      }
+    });
+  }
+  const embySyncBtn = document.getElementById("tp-emby-api-sync");
+  if (embySyncBtn) {
+    embySyncBtn.addEventListener("click", async () => {
+      embySyncBtn.disabled = true;
+      embySyncBtn.classList.add("loading");
+      try {
+        const r = await fetch("/api/thirdparty/emby/sync", { method: "POST" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "sync");
+        toast(t("tp_emby_sync_done") + (j.summary ? " · " + j.summary : ""));
+        renderThirdPartyApps({ silent: true });
+      } catch (e) {
+        toast(errText((e && e.message) || "") || t("error"), true);
+      } finally {
+        embySyncBtn.disabled = false;
+        embySyncBtn.classList.remove("loading");
+      }
+    });
+  }
 }
 
 function setTpAccordion(which) {
@@ -3292,6 +3573,8 @@ const SI_SERVERS = ["caddy", "nginx", "apache2"];
 let siState = null;
 let siJobId = null;
 let siTimer = null;
+// 1.87: kurulum profili (kart butonuna gore): stremio | calendar | webhook
+let siProfile = "stremio";
 
 function stripSteps(text) {
   return (text || "")
@@ -3363,7 +3646,8 @@ function siRenderWs(det) {
   }
 }
 
-async function openInstallWizard() {
+async function openInstallWizard(profile) {
+  siProfile = String(profile || "stremio").trim().toLowerCase();
   siJobId = null;
   clearTimeout(siTimer);
   let det = null;
@@ -3384,9 +3668,12 @@ async function openInstallWizard() {
   if (tog) tog.classList.remove("active");
   const start = document.getElementById("si-start");
   if (start) {
-    start.textContent = (det.installed && !det.tunnelActive)
-      ? t("stremio_install_repair") : t("stremio_install_start");
-    start.disabled = !!det.blocked || !(det.options && det.options.length);
+    // 1.87: profil durumuna gore etiket (Onar / Sunucuya Kur)
+    const routeOk = !!(det.routes && det.routes[siProfile]);
+    const tunOk = det.tunnelActive !== false;
+    start.textContent = (routeOk && !tunOk) ? t("stremio_install_repair") : t("install_on_vps");
+    if (routeOk && tunOk) start.title = t("vps_installed"); else start.removeAttribute("title");
+    start.disabled = !!det.blocked || !(det.options && det.options.length) || (routeOk && tunOk);
     start.onclick = siStart;
   }
   openStremioInstallModal();
@@ -3404,7 +3691,7 @@ async function siStart() {
   try {
     const r = await fetch("/api/remote/jobs", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "stremio", params: { domain, web_server: siState.chosen } }),
+      body: JSON.stringify({ kind: "stremio", params: { domain, web_server: siState.chosen, profile: siProfile } }),
     });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "job");

@@ -346,7 +346,13 @@ def ensure_thumbnail(kind, ident, remote_url=None):
     # if w500 exists, generate from it
     if w500_fs and os.path.exists(w500_fs):
         _generate_thumb(w500_fs, thumb_path, width=45)
-        return poster_local_path(k, ident, "thumbnail")
+        # 1.87: uretim BASARISIZ olabilir (bozuk dosya vb.) -> yol UYDURMA.
+        # poster_local_path() var olmayan dosya icin de yol dondurur; bu yuzden
+        # once gercekten olustu mu diye bakilir (aksi halde DB'ye kirik yol yazilir
+        # ve arayuzde resim 404 olup poster hic gorunmez).
+        if os.path.exists(thumb_path):
+            return poster_local_path(k, ident, "thumbnail")
+        print(f"[poster] thumb uretilemedi (w500'den): {k}:{ident}", flush=True)
     # else remote fetch w500 then thumb
     if remote_url:
         w500_web2, _ = download_poster(k, ident, remote_url)
@@ -355,7 +361,9 @@ def ensure_thumbnail(kind, ident, remote_url=None):
             if w500_fs2 and os.path.exists(w500_fs2):
                 thumb_path2 = os.path.join(thumb_dir, f"{ident}{os.path.splitext(w500_fs2)[1] or '.jpg'}")
                 _generate_thumb(w500_fs2, thumb_path2, width=45)
-                return poster_local_path(k, ident, "thumbnail")
+                if os.path.exists(thumb_path2):
+                    return poster_local_path(k, ident, "thumbnail")
+    print(f"[poster] thumb yok -> None: {k}:{ident}", flush=True)
     return None
 
 

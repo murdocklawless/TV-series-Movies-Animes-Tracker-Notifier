@@ -90,48 +90,64 @@ def delete_signals(dedupes):
         pass
 
 
-def last_signal_row(user_id=None):
+def _signal_filter(user_id=None, source=None):
+    """(where, params) — per-user + KAYNAK filtresi. 1.87.
+
+    source="stremio" -> stremio VEYA eski kayitsiz (NULL) satirlar; boylece Stremio
+    karti yalniz kendi addon'undan gelen sinyalleri gosterir (emby/jellyfin/plex
+    sinyalleri orada gorunmez).
+    """
+    where, params = "", []
+    if user_id is not None:
+        where += " AND user_id=?"
+        params.append(int(user_id))
+    if source:
+        if str(source) == "stremio":
+            where += " AND (source='stremio' OR source IS NULL)"
+        else:
+            where += " AND source=?"
+            params.append(str(source))
+    return where, tuple(params)
+
+
+def last_signal_row(user_id=None, source=None):
     """En son sinyal satirinin tamami (detay gosterimi icin) veya None. Faz 32b: per-user."""
-    try:
-        conn = get_db()
-        if user_id is not None:
+    where, params = _signal_filter(user_id, source)
+    # user_id kolonu olmayan cok eski DB'ler icin ikinci deneme (kolon haric).
+    for extra in (", user_id", ""):
+        try:
+            conn = get_db()
             try:
                 row = conn.execute(
-                    "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts, user_id"
-                    " FROM stremio_signals WHERE user_id=? ORDER BY ts DESC LIMIT 1",
-                    (int(user_id),),
+                    "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts" + extra +
+                    " FROM stremio_signals WHERE 1=1" + where + " ORDER BY ts DESC LIMIT 1",
+                    params,
                 ).fetchone()
-            except Exception:
-                row = conn.execute(
-                    "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts"
-                    " FROM stremio_signals ORDER BY ts DESC LIMIT 1"
-                ).fetchone()
-        else:
-            row = conn.execute(
-                "SELECT dedupe, kind, tmdb_id, anilist_id, season, episode, ts"
-                " FROM stremio_signals ORDER BY ts DESC LIMIT 1"
-            ).fetchone()
-        conn.close()
-        return dict(row) if row else None
-    except Exception:
-        return None
+            finally:
+                conn.close()
+            return dict(row) if row else None
+        except Exception:
+            continue
+    return None
 
 
-def last_signal_ts(user_id=None):
-    """En son sinyal zamani (epoch saniye) veya None. Faz 32: per-user."""
-    try:
-        conn = get_db()
-        if user_id is not None:
+def last_signal_ts(user_id=None, source=None):
+    """En son sinyal zamani (epoch saniye) veya None. Faz 32: per-user. 1.87: kaynak filtreli."""
+    where, params = _signal_filter(user_id, source)
+    where_old, params_old = _signal_filter(None, source)
+    for w, p in ((where, params), (where_old, params_old)):
+        try:
+            conn = get_db()
             try:
-                row = conn.execute("SELECT MAX(ts) m FROM stremio_signals WHERE user_id=?", (int(user_id),)).fetchone()
-            except Exception:
-                row = conn.execute("SELECT MAX(ts) m FROM stremio_signals").fetchone()
-        else:
-            row = conn.execute("SELECT MAX(ts) m FROM stremio_signals").fetchone()
-        conn.close()
-        return row["m"] if row and row["m"] is not None else None
-    except Exception:
-        return None
+                row = conn.execute(
+                    "SELECT MAX(ts) m FROM stremio_signals WHERE 1=1" + w, p
+                ).fetchone()
+            finally:
+                conn.close()
+            return row["m"] if row and row["m"] is not None else None
+        except Exception:
+            continue
+    return None
 
 
 def prune_signals(max_age=30 * 86400):
