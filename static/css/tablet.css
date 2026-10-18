@@ -90,6 +90,7 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
   html:not(.is-tv):not(.tv-mode) #tab-anime span,
   html:not(.is-tv):not(.tv-mode) #tab-unwatched span,
   html:not(.is-tv):not(.tv-mode) #tab-watched span,
+  html:not(.is-tv):not(.tv-mode) #tab-archive span,
   html:not(.is-tv):not(.tv-mode) #tab-recommend span,
   html:not(.is-tv):not(.tv-mode) #tab-search span {
     display: none;

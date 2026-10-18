@@ -737,8 +737,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #view-belgesel #belgesel-nextup-wrap .unwatched-section-title,
   html:not(.is-tv):not(.tv-mode) #view-anime #anime-nextup-wrap .unwatched-section-title { padding-right: 40px; }
   /* 1.85 mobil serit: 2 kart gorunur + yatay kaydirma (alt satir YOK),
-     poster %25 kucuk, isim TEK satir (uzunsa ... ile kesilir), sure gorunur. */
-  html:not(.is-tv):not(.tv-mode) .nextup-strip {
+     poster %25 kucuk, isim TEK satir (uzunsa ... ile kesilir), sure gorunur. */  html:not(.is-tv):not(.tv-mode) .nextup-strip {
     flex-wrap: nowrap;
     overflow-x: auto;
     justify-content: flex-start;
