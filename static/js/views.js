@@ -7,8 +7,8 @@ import {
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
 } from "./utils.js?v=521";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=532";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=528";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=533";
+import { renderChips, closeResultsModal, setMedia } from "./search.js?v=529";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -382,7 +382,6 @@ async function loadFollowed(view) {
             mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
             status: item.media_type === "movie" ? "" : followedStatusHTML(item),
           })}
-          ${isArchived ? archivedBadgeHTML() : ""}
           ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
         </div>
       </div>
@@ -530,7 +529,6 @@ async function loadBelgesel() {
             mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
             status: item.media_type === "movie" ? CARD_SLOT.status : followedStatusHTML(item),
           })}
-          ${isArchived ? archivedBadgeHTML() : ""}
           ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
         </div>
       </div>
@@ -703,7 +701,6 @@ async function loadAnime() {
             mid: animeEpMid(item),
             status: animeNextText(item.next_episode, item.status),
           })}
-          ${isArchived ? archivedBadgeHTML() : ""}
         </div>
       </div>
       <div class="poster-top">
@@ -1475,9 +1472,6 @@ function unarchiveAnimeItem(item, done) {
     body: JSON.stringify({ anime_id: item.id, archived: 0 }),
   }).then(() => { toast(t("unarchived_toast", { name: item.title })); if (done) done(); });
 }
-function archivedBadgeHTML() {
-  return `<div class="archived-line"><span class="badge badge-archived"><i class="fa-solid fa-box-archive"></i> ${t("archived_badge")}</span></div>`;
-}
 async function loadArchive() {
   const __run = __runToken("archive");
   const archView = document.getElementById("view-archive");
@@ -1549,7 +1543,6 @@ async function loadArchive() {
             status: tvStatusText(item),
             count: `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
-          ${archivedBadgeHTML()}
         </div>
       </div>
       <div class="poster-top">
@@ -1599,7 +1592,6 @@ async function loadArchive() {
             mid: dateLine,
             status: "",
           })}
-          ${archivedBadgeHTML()}
         </div>
       </div>
       <div class="poster-top">
@@ -1656,7 +1648,6 @@ async function loadArchive() {
             status: mt === "movie" ? CARD_SLOT.status : dateLine,
             count: mt === "movie" ? "" : `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
-          ${archivedBadgeHTML()}
         </div>
       </div>
       <div class="poster-top">
@@ -1702,7 +1693,6 @@ async function loadArchive() {
             status: animeNextText(null, item.status),
             count: `<div class="next-ep ep-count-line"><span>${t("watched_label")} <span class="ep-count-badge">${(item.total_eps && item.total_eps !== item.watched_eps) ? (item.watched_eps + "/" + item.total_eps) : item.watched_eps}</span></span></div>`,
           })}
-          ${archivedBadgeHTML()}
         </div>
       </div>
       <div class="poster-top">

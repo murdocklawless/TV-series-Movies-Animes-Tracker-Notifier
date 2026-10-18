@@ -2,9 +2,9 @@
 import { state } from "./state.js";
 import { t } from "./i18n.js?v=529";
 import { escAttr, tzLocale } from "./utils.js?v=521";
-import { openNotifClearConfirm } from "./components.js?v=532";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=550";
-import { isAdmin, loadAdminLists } from "./auth.js?v=526";
+import { openNotifClearConfirm } from "./components.js?v=533";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=551";
+import { isAdmin, loadAdminLists } from "./auth.js?v=527";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
