@@ -1645,6 +1645,12 @@ input:-webkit-autofill:focus {
   width: 100%;
 }
 
+/* Filtre butonu ↔ × mesafesi = bölüm butonlarının arasındaki görünür boşluk
+   (bölüm kümesi 30px adım − ~20px buton ≈ 10px). */
+.modal.local-modal .modal-header {
+  gap: 10px;
+}
+
 .local-search-count {
   font-size: 0.8rem;
   color: #8b90a0;
@@ -4621,7 +4627,10 @@ input:-webkit-autofill:focus {
   margin-top: 8px;
 }
 
-.section-filter {
+/* Bölüm filtresi + LOKAL ARA modal filtresi (2.19.8): stil tek kaynaktan paylaşılır
+   (bölüm filtresi stili değişirse modal butonu da aynı kalır). */
+.section-filter,
+.local-filter-btn {
   background: transparent;
   border: none;
   color: #B4B8C4;
@@ -4634,7 +4643,9 @@ input:-webkit-autofill:focus {
 }
 
 .section-filter:hover,
-.section-filter.active {
+.section-filter.active,
+.local-filter-btn:hover,
+.local-filter-btn.active {
   color: #FFFFFF;
 }
 
