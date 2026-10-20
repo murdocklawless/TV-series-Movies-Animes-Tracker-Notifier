@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.7 - 21/10/2026-00:30
+### TR
+- **Düzeltme — statik dosya kodlaması:** 2.19.6'daki `?v=` damgası PowerShell ile atıldığı için UTF-8 bozulmuştu (`•` → `â€¢`, `İ` → `Ä°`, `—` → `â€"`; 448 satır + 12 dosyaya BOM). Dosyalar pi yedeğinden geri alındı, damga artık **`py/jsver.py`** ile atılıyor (`2.19.6 rev2` commit'i). `nextep.js`/`components.js` içindeki eski bozuk karakterler (U+FFFD) de onarıldı — bölüm başlığı ayırıcısı `·` ve takvim tarih yer tutucusu `—` düzeldi. Yeni kural `md/AGENTS.md`'de.
+- **Yeni — şifre kutuları normal kutu oldu:** Emby (API Key, kullanıcı parolası, access token) ve Trakt (Client Secret) alanları artık `type="password"` **değil**; `autocomplete="off"` + `spellcheck="false"` + `autocapitalize="off"` + `data-lpignore` + `data-1p-ignore` + `data-form-type="other"` ile tarayıcı/şifre yöneticisi otomatik doldurma ve "güçlü şifre öner" pencereleri engellendi. "Kayıtlı" göstergesi artık ASCII `*******`.
+- **Yeni — üç yönlü aktarım seçimi:** Trakt kartındaki tek "çift yönlü aktarım" switch'i yerine **üç switch**: `⇄ Çift yönlü`, `NextEp → Trakt`, `Trakt → NextEp`. Aynı anda yalnız biri açık olabilir; açık olanı kapatmak da mümkündür (hepsi kapalı = **Trakt senkronu durur**, kartta "kapalı" notu görünür). Yeni uç: `POST /api/thirdparty/trakt/direction` (`both|out|in|none`); eski `two-way` ucu geriye uyum için korunur.
+- **Yön kapıları:** `NextEp → Trakt` modunda gelen yoklama ve mutabakat çalışmaz; `Trakt → NextEp` modunda giden aktarım (yeni izlemeler + kaldırma kuyruğu) çalışmaz; içeri alma kapalıysa havuz yoklama aralığı `0` olur (kartta "Kapalı").
+- **Kursor koruması:** içeri almayan bir moddan içeri alan moda geçildiğinde `tp_trakt_in_cursor` "şimdi"ye çekilir; aksi halde o dönemde Trakt'a düşen izlemeler toplu gelirdi.
+- **Göç:** mevcut ayar korunur — `tp_trakt_two_way=1 → ⇄ Çift yönlü`, `=0 → Trakt → NextEp`. Yön her değişimde eski anahtarla da eşitlenir.
+- **i18n:** 11 yeni anahtar ×14 dil (`tp_trakt_dir_*` etiket + mod notları).
+- **Cache-buster:** `py/jsver.py bump` → tüm JS `?v=641`, `__NX_BUILD 641`; `style.css?v=622` sabit.
+### EN
+- **Fix — static file encoding:** the `?v=` stamp in 2.19.6 was applied with PowerShell, which corrupted UTF-8 (`•` → `â€¢`, `İ` → `Ä°`, `—` → `â€"`; 448 lines plus a BOM in 12 files). Files were restored from the Pi backup and stamping now runs through **`py/jsver.py`** (`2.19.6 rev2` commit). Legacy broken characters (U+FFFD) in `nextep.js`/`components.js` were repaired too — the section-title separator `·` and the calendar date placeholder `—` render correctly again. New rule recorded in `md/AGENTS.md`.
+- **New — credential inputs are no longer password boxes:** Emby (API Key, user password, access token) and Trakt (Client Secret) fields are no longer `type="password"`; `autocomplete="off"` + `spellcheck="false"` + `autocapitalize="off"` + `data-lpignore` + `data-1p-ignore` + `data-form-type="other"` stop browser/password-manager autofill and "suggest strong password" pop-ups. The "stored" hint is now plain ASCII `*******`.
+- **New — three-way transfer direction:** the single "two-way sync" switch is replaced by **three switches**: `⇄ Two-way`, `NextEp → Trakt`, `Trakt → NextEp`. Only one can be on; the active one can also be switched off (all off = **Trakt sync paused**, the card shows an "off" note). New endpoint: `POST /api/thirdparty/trakt/direction` (`both|out|in|none`); the legacy `two-way` endpoint is kept for compatibility.
+- **Direction gates:** in `NextEp → Trakt` mode inbound polling and reconciliation do not run; in `Trakt → NextEp` mode outbound (new watches + removal queue) does not run; when inbound is off the pool interval is `0` (card shows "Off").
+- **Cursor protection:** switching from an inbound-less mode to an inbound mode resets `tp_trakt_in_cursor` to "now", otherwise every watch collected on Trakt meanwhile would arrive in one burst.
+- **Migration:** existing setting is preserved — `tp_trakt_two_way=1 → ⇄ Two-way`, `=0 → Trakt → NextEp`. The legacy key is kept in sync on every change.
+- **i18n:** 11 new keys ×14 languages (`tp_trakt_dir_*` labels and mode notes).
+- **Cache-buster:** `py/jsver.py bump` → all JS `?v=641`, `__NX_BUILD 641`; `style.css?v=622` unchanged.
+
 ## 2.19.6 - 20/10/2026-23:48
 ### TR
 - **Yeni — anlık senkron havuzu (`py/sync_pool.py`):** yerel izleme/kaldırma işlemleri artık **olayla** tetiklenir. `sync_events` tablosu kalıcı outbox'tır (restart'ta bekleyen iş kaybolmaz); havuz 2 sn toplayıp **tek POST** atar, hata olursa 5s → 30s → 2dk → 10dk backoff ile yeniden dener, 8 denemede `failed` işaretler. Trakt'ın 429/420 yanıtlarında `Retry-After` kadar beklenir (`rate-limit:<sn>` hata sınıfı `_get`/`_post` içine eklendi).

@@ -283,6 +283,64 @@ def poll_minutes(uid):
     return v if v in POLL_CHOICES else POLL_DEFAULT
 
 
+# ---------------------------------------------------------------------------
+# aktarim yonu (2.19.7): both | out | in | none
+# ---------------------------------------------------------------------------
+# both = cift yonlu, out = yalniz NextEp -> Trakt, in = yalniz Trakt -> NextEp,
+# none = senkron tamamen kapali. Eski `tp_trakt_two_way` anahtari geriye uyum
+# icin korunur (1 -> both, 0 -> in) ve her yon degisiminde esitlenir.
+
+DIR_CHOICES = ("both", "out", "in", "none")
+
+
+def direction(uid):
+    """Aktarim yonu (fail-soft -> 'in')."""
+    try:
+        d = (_uget(uid, "tp_trakt_dir") or "").strip().lower()
+    except Exception:
+        d = ""
+    if d in DIR_CHOICES:
+        return d
+    # Goc: yon ayari yoksa eski cift yon anahtarindan turet.
+    try:
+        return "both" if two_way(uid) else "in"
+    except Exception:
+        return "in"
+
+
+def out_enabled(uid):
+    """NextEp -> Trakt acik mi?"""
+    return direction(uid) in ("both", "out")
+
+
+def in_enabled(uid):
+    """Trakt -> NextEp acik mi?"""
+    return direction(uid) in ("both", "in")
+
+
+def set_direction(uid, mode):
+    """Yonu yaz. -> (ok, mode). Yalniz gecerli deger kabul edilir."""
+    m = str(mode or "").strip().lower()
+    if m not in DIR_CHOICES:
+        return False, direction(uid)
+    try:
+        uid = int(uid)
+    except (TypeError, ValueError):
+        return False, direction(uid)
+    # Ice alan bir moda gecilirken cursor'u "simdi"ye cek: "yalniz disa" modunda
+    # yoklama durdugu icin cursor ilerlemez; aksi halde o donemde Trakt'a dusen
+    # tum izlemeler toplu gelirdi.
+    try:
+        if m in ("both", "in") and not in_enabled(uid):
+            _uset(uid, "tp_trakt_in_cursor", _iso(int(time.time())) or "")
+    except Exception:
+        pass
+    _uset(uid, "tp_trakt_dir", m)
+    # Geriye uyum: eski surum/anahtar okuyan yerler dogru davransin.
+    _uset(uid, "tp_trakt_two_way", "1" if m == "both" else "0")
+    return True, m
+
+
 def connected(uid):
     return bool(access_token(uid))
 
@@ -1105,14 +1163,14 @@ def poll(uid, direct=False):
     if not _lock.acquire(blocking=False):
         return {"ok": False, "error": "busy"}
     try:
-        in_n = _inbound(uid, direct=direct)
+        in_n = _inbound(uid, direct=direct) if in_enabled(uid) else 0
         # 2.19.5: Trakt'ta kaldirilan izlemeleri yerelde de kaldir (mutabakat).
-        un_n = _reconcile(uid)
+        un_n = _reconcile(uid) if in_enabled(uid) else 0
         try:
             _uset(uid, "tp_trakt_reconcile_ts", str(int(time.time())))
         except Exception:
             pass
-        out_n = _outbound(uid) if two_way(uid) else 0
+        out_n = _outbound(uid) if out_enabled(uid) else 0
         _uset(uid, "tp_trakt_checked_ts", str(int(time.time())))
         return {"ok": True, "in": in_n, "out": out_n, "un": un_n}
     finally:
@@ -1127,6 +1185,8 @@ def poll_in(uid, direct=False):
     uid = int(uid)
     if not connected(uid):
         return {"ok": False, "error": "no-token"}
+    if not in_enabled(uid):
+        return {"ok": True, "in": 0, "skip": "in-off"}
     if not _lock.acquire(blocking=False):
         return {"ok": False, "error": "busy"}
     try:
@@ -1149,8 +1209,8 @@ def flush_out(uid):
     uid = int(uid)
     if not connected(uid):
         return True, "no-token"
-    if not two_way(uid):
-        return True, "one-way"
+    if not out_enabled(uid):
+        return True, "out-off"
     if not _lock.acquire(blocking=False):
         return False, "busy"
     try:
@@ -1178,6 +1238,8 @@ def reconcile_if_due(uid, minutes=15):
     """
     uid = int(uid)
     if not connected(uid):
+        return 0
+    if not in_enabled(uid):
         return 0
     try:
         last = int(float(_uget(uid, "tp_trakt_reconcile_ts") or 0))
@@ -1215,6 +1277,7 @@ def status(uid):
         "traktConnected": False,
         "traktUser": "",
         "traktTwoWay": two_way(uid),
+        "traktDirection": direction(uid),
         "traktPollMin": poll_minutes(uid),
         "traktLastSignal": None,
         "traktLastWatch": None,

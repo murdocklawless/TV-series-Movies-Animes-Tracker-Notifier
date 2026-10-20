@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=640";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=640";
-import { activateUtilityTab } from "./views.js?v=640";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=640";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=641";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=641";
+import { activateUtilityTab } from "./views.js?v=641";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=641";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1048,7 +1048,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=640");
+      const { errText: _err } = await import("./i18n.js?v=641");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1057,9 +1057,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=640");
-    const { openDetails } = await import("./components.js?v=640");
-    const { loadFollowed } = await import("./views.js?v=640");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=641");
+    const { openDetails } = await import("./components.js?v=641");
+    const { loadFollowed } = await import("./views.js?v=641");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1095,7 +1095,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=640");
+        const { t: _t } = await import("./i18n.js?v=641");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2081,7 +2081,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=640").then((m) => {
+  import("./notification.js?v=641").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2381,6 +2381,8 @@ const thirdPartyAppRenderers = {
     const urlActive = urlAvail && !lanActive;
     const user = app.traktUser || "";
     const twoWay = !!app.traktTwoWay;
+    // 2.19.7: yon (both|out|in|none) — eski tek switch alanindan turetilir.
+    const dir = String(app.traktDirection || (twoWay ? "both" : "in"));
     const pollMin = (typeof app.traktPollMin === "number") ? app.traktPollMin : 10;
     const st = String(app.traktStatus || "not-connected");
     const stCls = st === "connected" ? "tp-connected" : (st === "ready" ? "tp-ready" : "tp-not-connected");
@@ -2438,15 +2440,24 @@ const thirdPartyAppRenderers = {
             <div class="tp-url-box"><input id="tp-trakt-client-id" type="text" autocomplete="off" spellcheck="false" placeholder="Client ID" value="${escAttr(tpTraktClientId)}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_trakt_client_secret">${t("tp_trakt_client_secret")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-trakt-client-secret" type="password" autocomplete="new-password" placeholder="Client Secret" /></div>
+            <div class="tp-url-box"><input id="tp-trakt-client-secret" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="Client Secret" /></div>
           </label>
         </div>
         ${connected ? `
         <div class="tp-sub-box">
           <div class="notify-row">
-            <span class="notify-name">${t("tp_trakt_two_way")}</span>
-            <label class="switch"><input type="checkbox" id="tp-trakt-two-way" ${twoWay ? "checked" : ""} /><span class="slider"></span></label>
+            <span class="notify-name">${t("tp_trakt_dir_both")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="both" ${dir === "both" ? "checked" : ""} /><span class="slider"></span></label>
           </div>
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_dir_out")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="out" ${dir === "out" ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_dir_in")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="in" ${dir === "in" ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+          <div class="tp-frame-note">${t("tp_trakt_dir_note_" + dir)}</div>
         </div>
         <label><span class="settings-label-head"><span data-i18n="tp_trakt_poll">${t("tp_trakt_poll")}</span></span>
           <div class="provider-combobox">
@@ -2650,7 +2661,7 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "••••••••" : "API Key"}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-api-key" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${app.apiHasKey ? "*******" : "API Key"}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /></div>
@@ -2691,11 +2702,11 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-url-box"><input id="tp-emby-auth-user" type="text" autocomplete="username" value="${escAttr(tokUserName)}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_pass">${t("tp_emby_auth_pass")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="password" autocomplete="current-password" placeholder="${app.apiHasPassword ? "••••••••" : escAttr(t("tp_emby_auth_pass"))}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${app.apiHasPassword ? "*******" : escAttr(t("tp_emby_auth_pass"))}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_access_token">${t("tp_emby_access_token")}</span></span>
             <div class="tp-url-box">
-              <input id="tp-emby-access-token" type="password" autocomplete="new-password" spellcheck="false" placeholder="${tpEmbyTokenHas ? "••••••••" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
+              <input id="tp-emby-access-token" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${tpEmbyTokenHas ? "*******" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
               <button id="tp-emby-token-show" class="tab" type="button">${t("tp_emby_token_show")}</button>
             </div>
           </label>
@@ -3574,16 +3585,25 @@ function bindThirdPartyEvents() {
       finally { traktCheck.disabled = false; traktCheck.classList.remove("loading"); }
     });
   }
-  const traktTwoWay = document.getElementById("tp-trakt-two-way");
-  if (traktTwoWay) {
-    traktTwoWay.addEventListener("change", async () => {
+  // 2.19.7: aktarim yonu - 3 switch, tek secim (acik olani kapatmak -> none).
+  document.querySelectorAll("#tp-app-trakt .tp-trakt-dir").forEach((el) => {
+    el.addEventListener("change", async () => {
+      const mode = el.checked ? String(el.dataset.mode || "") : "none";
+      document.querySelectorAll("#tp-app-trakt .tp-trakt-dir").forEach((o) => { o.disabled = true; });
       try {
-        const r = await fetch("/api/thirdparty/trakt/two-way", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: traktTwoWay.checked }) });
-        if (!r.ok) throw new Error("two-way");
-        toast(t("saved"));
-      } catch (e) { traktTwoWay.checked = !traktTwoWay.checked; toast(t("error"), true); }
+        const r = await fetch("/api/thirdparty/trakt/direction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode }),
+        });
+        if (!r.ok) throw new Error("direction");
+        renderThirdPartyApps({ silent: true });
+      } catch (e) {
+        toast(tpTraktErrText((e && e.message) || ""), true);
+        renderThirdPartyApps({ silent: true });
+      }
     });
-  }
+  });
   const traktPoll = document.getElementById("tp-trakt-poll");
   if (traktPoll) {
     try { if (window.initPulldownCombobox) window.initPulldownCombobox("tp-trakt-poll", "tp-trakt-poll-list"); } catch (_) {}

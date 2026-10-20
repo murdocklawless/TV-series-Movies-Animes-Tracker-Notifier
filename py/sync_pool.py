@@ -178,6 +178,8 @@ def interval_seconds(uid):
         import trakt
         if not trakt.connected(uid):
             return 0
+        if not trakt.in_enabled(uid):
+            return 0
         minutes = trakt.poll_minutes(uid)
     except Exception:
         return 0

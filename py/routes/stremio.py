@@ -1837,10 +1837,28 @@ def thirdparty_trakt_disconnect():
 
 @stremio_bp.route("/api/thirdparty/trakt/two-way", methods=["POST"])
 def thirdparty_trakt_two_way():
+    """Geriye uyum (2.19.7): tek switch -> yon. 1 = both, 0 = in."""
     body = request.get_json(silent=True) or {}
     uid = _me_uid() or 1
-    set_user_setting(uid, "tp_trakt_two_way", "1" if body.get("enabled") else "0")
-    return jsonify({"ok": True, "enabled": bool(body.get("enabled"))})
+    import trakt
+    mode = "both" if body.get("enabled") else "in"
+    ok, applied = trakt.set_direction(uid, mode)
+    return jsonify({"ok": bool(ok), "enabled": applied == "both", "direction": applied})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/direction", methods=["POST"])
+def thirdparty_trakt_direction():
+    """Aktarim yonu (2.19.7): both | out | in | none."""
+    body = request.get_json(silent=True) or {}
+    uid = _me_uid() or 1
+    import trakt
+    mode = str(body.get("mode") or "").strip().lower()
+    if mode not in trakt.DIR_CHOICES:
+        return jsonify({"ok": False, "error": "bad-mode",
+                        "direction": trakt.direction(uid)}), 400
+    ok, applied = trakt.set_direction(uid, mode)
+    return jsonify({"ok": bool(ok), "direction": applied,
+                    "out": trakt.out_enabled(uid), "in": trakt.in_enabled(uid)})
 
 
 @stremio_bp.route("/api/thirdparty/trakt/poll-interval", methods=["POST"])
