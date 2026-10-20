@@ -602,7 +602,7 @@
                 <input id="s-backup-rsync-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" />
               </label>
               <label><span class="settings-label-head"><span data-i18n="backup_pass">Kullanıcı Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                <input id="s-backup-rsync-pass" type="password" autocomplete="new-password" spellcheck="false" data-lpignore="true" />
+                <input id="s-backup-rsync-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" />
               </label>
               <label><span class="settings-label-head"><span data-i18n="backup_ssh_key">SSH Key</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
                 <textarea id="s-backup-rsync-key-text" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea"></textarea>
@@ -634,7 +634,7 @@
                 <input id="s-backup-samba-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" />
               </label>
               <label><span class="settings-label-head"><span data-i18n="backup_samba_pass">Samba Kullanıcı Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                <input id="s-backup-samba-pass" type="password" autocomplete="new-password" spellcheck="false" data-lpignore="true" />
+                <input id="s-backup-samba-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" />
               </label>
             </div>
           </div>
@@ -647,14 +647,14 @@
     </div>
   </div>
 
-  <div id="settings-thirdparty-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+  <div id="settings-thirdparty-modal" class="modal-overlay settings-modal-overlay" style="display:none" autocomplete="off" data-form-type="other">
     <div class="modal settings-modal">
       <div class="modal-header">
         <h3 data-i18n="settings_thirdparty">Bağlantılar</h3>
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
-        <div id="thirdparty-apps"></div>
+        <div id="thirdparty-apps" autocomplete="off" data-form-type="other"></div>
       </div>
     </div>
   </div>
@@ -727,7 +727,7 @@
     </div>
   </div>
 
-  <div id="settings-notify-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+  <div id="settings-notify-modal" class="modal-overlay settings-modal-overlay" style="display:none" autocomplete="off" data-form-type="other">
     <div class="modal settings-modal">
       <div class="modal-header">
         <h3 data-i18n="settings_notify">Bildirim Ayarları</h3>
@@ -786,7 +786,7 @@
           <div id="discord-credentials" class="discord-credentials settings-form" style="display:none">
             <div class="channel-frame">
               <label><span class="settings-label-head"><span data-i18n="label_discord_webhook">Discord Webhook URL</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                <input id="s-discord-webhook" type="password" placeholder="https://discord.com/api/webhooks/..." autocomplete="off" spellcheck="false" data-lpignore="true" />
+                <input id="s-discord-hook" type="text" placeholder="https://discord.com/api/webhooks/..." autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" />
               </label>
               <div class="test-row">
                 <button id="test-discord" class="channel-test-btn"><i class="fa-brands fa-discord"></i> <span data-i18n="test_short">Test</span></button>
@@ -820,7 +820,7 @@
               <div id="email-provider-frame" class="email-frame" style="display:none">
               <div id="email-brevo-group">
                 <label><span class="settings-label-head"><span data-i18n="label_brevo_key">Brevo API Anahtarı</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                  <input id="s-brevo-key" type="password" placeholder="xkeysib-..." autocomplete="off" spellcheck="false" data-lpignore="true" />
+                  <input id="s-brevo-cred" type="text" placeholder="xkeysib-..." autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" />
                 </label>
               </div>
               <div id="email-smtp-group" style="display:none">
@@ -836,7 +836,7 @@
                   <input id="s-smtp-user" type="text" placeholder="kullanici@ornek.com" autocomplete="off" spellcheck="false" data-lpignore="true" />
                 </label>
                 <label><span class="settings-label-head"><span data-i18n="label_smtp_pass">Şifre / Uygulama Şifresi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
-                  <input id="s-smtp-pass" type="password" placeholder="••••••••" autocomplete="new-password" />
+                  <input id="s-smtp-cred" type="text" placeholder="*******" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" />
                 </label>
                 <p id="email-app-password-hint" class="settings-hint" style="display:none" data-i18n="hint_app_password"></p>
               </div>
@@ -1527,6 +1527,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=642"></script>
+  <script type="module" src="/static/js/nextep.js?v=643"></script>
 </body>
 </html>

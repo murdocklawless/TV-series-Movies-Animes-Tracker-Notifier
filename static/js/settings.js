@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=642";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=642";
-import { activateUtilityTab } from "./views.js?v=642";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=642";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=643";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=643";
+import { activateUtilityTab } from "./views.js?v=643";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=643";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -645,7 +645,7 @@ async function loadSettings() {
   if (rsPath) rsPath.value = s.backup_rsync_path || "";
   const rsU = document.getElementById("s-backup-rsync-user");
   if (rsU) rsU.value = s.backup_rsync_user || "";
-  const rsPass = document.getElementById("s-backup-rsync-pass");
+  const rsPass = document.getElementById("s-backup-rsync-cred");
   if (rsPass) rsPass.value = "";
   const rsKey = document.getElementById("s-backup-rsync-key-text");
   if (rsKey) rsKey.value = s.has_backup_key ? "••••••••" : "";
@@ -658,18 +658,18 @@ async function loadSettings() {
   if (smShare) smShare.value = s.backup_samba_share || "";
   const smU = document.getElementById("s-backup-samba-user");
   if (smU) smU.value = s.backup_samba_user || "";
-  const smPass = document.getElementById("s-backup-samba-pass");
+  const smPass = document.getElementById("s-backup-samba-cred");
   if (smPass) smPass.value = "";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
-  document.getElementById("s-discord-webhook").value = s.discord_webhook_url || "";
-  document.getElementById("s-brevo-key").value = s.brevo_api_key || "";
+  document.getElementById("s-discord-hook").value = s.discord_webhook_url || "";
+  document.getElementById("s-brevo-cred").value = s.brevo_api_key || "";
   document.getElementById("s-email-from").value = s.email_from || "";
   document.getElementById("s-email-to").value = s.email_to || "";
   document.getElementById("s-email-provider").value = s.email_provider || "brevo";
   document.getElementById("s-smtp-host").value = s.smtp_host || "";
   document.getElementById("s-smtp-port").value = s.smtp_port || "";
   document.getElementById("s-smtp-user").value = s.smtp_user || "";
-  document.getElementById("s-smtp-pass").value = "";
+  document.getElementById("s-smtp-cred").value = "";
   state.hasSmtpPass = !!s.has_smtp_pass;
   applyEmailProviderUI();
   await loadTimezones();
@@ -738,24 +738,24 @@ function applyReadonlyGlobals(s) {
     backup_rsync_port: ["s-backup-rsync-port"],
     backup_rsync_path: ["s-backup-rsync-path"],
     backup_rsync_user: ["s-backup-rsync-user"],
-    backup_rsync_pass: ["s-backup-rsync-pass"],
+    backup_rsync_pass: ["s-backup-rsync-cred"],
     backup_rsync_key: ["s-backup-rsync-key-text"],
     backup_samba_host: ["s-backup-samba-host"],
     backup_samba_port: ["s-backup-samba-port"],
     backup_samba_share: ["s-backup-samba-share"],
     backup_samba_user: ["s-backup-samba-user"],
-    backup_samba_pass: ["s-backup-samba-pass"],
+    backup_samba_pass: ["s-backup-samba-cred"],
     app_auto_update: ["s-appupdate-auto"],
     cache_ttl: ["s-cache-ttl"],
     early_watched_days: ["s-early-watched-days"],
-    brevo_api_key: ["s-brevo-key"],
+    brevo_api_key: ["s-brevo-cred"],
     email_from: ["s-email-from"],
     email_provider: ["s-email-provider"],
     smtp_preset: ["s-smtp-preset"],
     smtp_host: ["s-smtp-host"],
     smtp_port: ["s-smtp-port"],
     smtp_user: ["s-smtp-user"],
-    smtp_pass: ["s-smtp-pass"],
+    smtp_pass: ["s-smtp-cred"],
   };
   const ro = new Set(s && s.readonly_global ? s.readonly_global : []);
   Object.entries(keyToIds).forEach(([key, ids]) => {
@@ -795,15 +795,15 @@ function updateNotifyToggleStates() {
   const token = (document.getElementById("s-token").value || "").trim();
   const chat = (document.getElementById("s-chat").value || "").trim();
   const ntfy = (document.getElementById("s-ntfy").value || "").trim();
-  const discordUrl = (document.getElementById("s-discord-webhook").value || "").trim();
-  const brevoKey = (document.getElementById("s-brevo-key").value || "").trim();
+  const discordUrl = (document.getElementById("s-discord-hook").value || "").trim();
+  const brevoKey = (document.getElementById("s-brevo-cred").value || "").trim();
   const emailFrom = (document.getElementById("s-email-from").value || "").trim();
   const emailTo = (document.getElementById("s-email-to").value || "").trim();
   const provider = document.getElementById("s-email-provider").value;
   const smtpHost = (document.getElementById("s-smtp-host").value || "").trim();
   const smtpPort = (document.getElementById("s-smtp-port").value || "").trim();
   const smtpUser = (document.getElementById("s-smtp-user").value || "").trim();
-  const smtpPassEntered = (document.getElementById("s-smtp-pass").value || "").trim();
+  const smtpPassEntered = (document.getElementById("s-smtp-cred").value || "").trim();
   const tg = document.getElementById("s-telegram-enabled");
   const nf = document.getElementById("s-ntfy-enabled");
   const dc = document.getElementById("s-discord-enabled");
@@ -1048,7 +1048,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=642");
+      const { errText: _err } = await import("./i18n.js?v=643");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1057,9 +1057,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=642");
-    const { openDetails } = await import("./components.js?v=642");
-    const { loadFollowed } = await import("./views.js?v=642");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=643");
+    const { openDetails } = await import("./components.js?v=643");
+    const { loadFollowed } = await import("./views.js?v=643");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1095,7 +1095,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=642");
+        const { t: _t } = await import("./i18n.js?v=643");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1255,7 +1255,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
     });
   });
   // şifreler: boş bırakılırsa gönderme, doluysa kaydet
-  ["s-backup-rsync-pass", "s-backup-samba-pass"].forEach((id) => {
+  ["s-backup-rsync-cred", "s-backup-samba-cred"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
     const key = id.replace("s-", "").replace(/-/g, "_");
@@ -1657,20 +1657,20 @@ bindAutoSave("s-tmdb", "tmdb_api_key", (v) => v.trim());
 bindAutoSave("s-token", "telegram_bot_token", (v) => v.trim());
 bindAutoSave("s-chat", "telegram_chat_id", (v) => v.trim());
 bindAutoSave("s-ntfy", "ntfy_topic", (v) => v.trim());
-bindAutoSave("s-discord-webhook", "discord_webhook_url", (v) => v.trim());
-bindAutoSave("s-brevo-key", "brevo_api_key", (v) => v.trim());
+bindAutoSave("s-discord-hook", "discord_webhook_url", (v) => v.trim());
+bindAutoSave("s-brevo-cred", "brevo_api_key", (v) => v.trim());
 bindAutoSave("s-email-from", "email_from", (v) => v.trim());
 bindAutoSave("s-email-to", "email_to", (v) => v.trim());
 bindAutoSave("s-smtp-host", "smtp_host", (v) => v.trim());
 bindAutoSave("s-smtp-port", "smtp_port", (v) => v.trim());
 bindAutoSave("s-smtp-user", "smtp_user", (v) => v.trim());
-bindAutoSave("s-smtp-pass", "smtp_pass", (v) => v);
+bindAutoSave("s-smtp-cred", "smtp_pass", (v) => v);
 
-["s-token", "s-chat", "s-ntfy", "s-discord-webhook", "s-brevo-key", "s-email-from", "s-email-to", "s-smtp-host", "s-smtp-port", "s-smtp-user", "s-smtp-pass"].forEach((id) => {
+["s-token", "s-chat", "s-ntfy", "s-discord-hook", "s-brevo-cred", "s-email-from", "s-email-to", "s-smtp-host", "s-smtp-port", "s-smtp-user", "s-smtp-cred"].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener("blur", () => {
-    if (id === "s-smtp-pass" && el.value.trim()) state.hasSmtpPass = true;
+    if (id === "s-smtp-cred" && el.value.trim()) state.hasSmtpPass = true;
     updateNotifyToggleStates();
   });
 });
@@ -1981,7 +1981,7 @@ document.getElementById("test-ntfy").onclick = () => {
 };
 
 document.getElementById("test-discord").onclick = () => {
-  runChannelTest({ channel: "discord", discord_webhook_url: fieldVal("s-discord-webhook") });
+  runChannelTest({ channel: "discord", discord_webhook_url: fieldVal("s-discord-hook") });
 };
 
 document.getElementById("test-email").onclick = async () => {
@@ -1992,12 +1992,12 @@ document.getElementById("test-email").onclick = async () => {
     email_to: fieldVal("s-email-to"),
   };
   if (body.email_provider === "brevo") {
-    body.brevo_api_key = fieldVal("s-brevo-key");
+    body.brevo_api_key = fieldVal("s-brevo-cred");
   } else {
     body.smtp_host = fieldVal("s-smtp-host");
     body.smtp_port = fieldVal("s-smtp-port");
     body.smtp_user = fieldVal("s-smtp-user");
-    const pass = document.getElementById("s-smtp-pass").value;
+    const pass = document.getElementById("s-smtp-cred").value;
     if (pass) body.smtp_pass = pass;
   }
   await runChannelTest(body);
@@ -2081,7 +2081,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=642").then((m) => {
+  import("./notification.js?v=643").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2440,7 +2440,7 @@ const thirdPartyAppRenderers = {
             <div class="tp-url-box"><input id="tp-trakt-client-id" type="text" autocomplete="off" spellcheck="false" placeholder="Client ID" value="${escAttr(tpTraktClientId)}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_trakt_client_secret">${t("tp_trakt_client_secret")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-trakt-client-secret" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="Client Secret" /></div>
+            <div class="tp-url-box"><input id="tp-trakt-client-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" placeholder="Client Secret" /></div>
           </label>
         </div>
         ${connected ? `
@@ -2661,7 +2661,7 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-key" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${app.apiHasKey ? "*******" : "API Key"}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-api-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" placeholder="${app.apiHasKey ? "*******" : "API Key"}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /></div>
@@ -2699,14 +2699,14 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-status-row"><span class="notify-name">${t("tp_emby_token_last_renew")}</span><span class="tp-last-signal">${tokLastRenew}</span></div>
           </div>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_user">${t("tp_emby_auth_user")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-auth-user" type="text" autocomplete="username" value="${escAttr(tokUserName)}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-auth-name" type="text" autocomplete="off" data-form-type="other" value="${escAttr(tokUserName)}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_pass">${t("tp_emby_auth_pass")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${app.apiHasPassword ? "*******" : escAttr(t("tp_emby_auth_pass"))}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-auth-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" placeholder="${app.apiHasPassword ? "*******" : escAttr(t("tp_emby_auth_pass"))}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_access_token">${t("tp_emby_access_token")}</span></span>
             <div class="tp-url-box">
-              <input id="tp-emby-access-token" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-form-type="other" placeholder="${tpEmbyTokenHas ? "*******" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
+              <input id="tp-emby-access-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" placeholder="${tpEmbyTokenHas ? "*******" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
               <button id="tp-emby-token-show" class="tab" type="button">${t("tp_emby_token_show")}</button>
             </div>
           </label>
@@ -2800,7 +2800,7 @@ function _normEmbyUrl(u) {
 async function flushEmbyApi(inputEl) {
   if (tpEmbyApiSaving) return;
   const url = ((document.getElementById("tp-emby-api-url") || {}).value || "").trim();
-  const key = ((document.getElementById("tp-emby-api-key") || {}).value || "").trim();
+  const key = ((document.getElementById("tp-emby-api-cred") || {}).value || "").trim();
   const user = ((document.getElementById("tp-emby-api-user") || {}).value || "").trim();
   // Degisiklik kapisi: uc alan da kayitli degerle ayniysa HIC kaydetme (sessiz cikis).
   const urlChanged = _normEmbyUrl(url) !== _normEmbyUrl(tpEmbyApiUrl);
@@ -2840,15 +2840,15 @@ async function flushEmbyApi(inputEl) {
 let tpTraktClientSaving = false;
 function traktClientFocused() {
   const a = document.activeElement;
-  return !!(a && (a.id === "tp-trakt-client-id" || a.id === "tp-trakt-client-secret"));
+  return !!(a && (a.id === "tp-trakt-client-id" || a.id === "tp-trakt-client-cred"));
 }
 async function flushTraktClient(inputEl) {
   if (tpTraktClientSaving) return;
   const cid = ((document.getElementById("tp-trakt-client-id") || {}).value || "").trim();
-  const csec = ((document.getElementById("tp-trakt-client-secret") || {}).value || "").trim();
+  const csec = ((document.getElementById("tp-trakt-client-cred") || {}).value || "").trim();
   // 2.10: Alanlar BAGIMSIZ kaydedilir (backend kismi kaydi destekler: if cid / if csec).
   // Tetikleyen alan bos ise; ya da id degismediyse kaydetme.
-  const isSecret = !!(inputEl && inputEl.id === "tp-trakt-client-secret");
+  const isSecret = !!(inputEl && inputEl.id === "tp-trakt-client-cred");
   if (isSecret) {
     if (!csec) return;
   } else {
@@ -2902,10 +2902,10 @@ function tpEmbyTokenErrMsg(code) {
 
 function tpEmbyTokenInputs() {
   return {
-    user: ((document.getElementById("tp-emby-auth-user") || {}).value || "").trim(),
+    user: ((document.getElementById("tp-emby-auth-name") || {}).value || "").trim(),
     // Parola bas/son bosluk icerebilir; trim etme.
-    pass: ((document.getElementById("tp-emby-auth-pass") || {}).value || ""),
-    token: ((document.getElementById("tp-emby-access-token") || {}).value || "").trim(),
+    pass: ((document.getElementById("tp-emby-auth-cred") || {}).value || ""),
+    token: ((document.getElementById("tp-emby-access-cred") || {}).value || "").trim(),
     url: (((document.getElementById("tp-emby-api-url") || {}).value || "").trim() || tpEmbyApiUrl),
   };
 }
@@ -2937,7 +2937,7 @@ async function tpEmbyTokenFetch(btn) {
     tpEmbyTokenHas = true;
     tpEmbyTokenUser = j.tokenUser || v.user;
     tpEmbyTokenDirty = false;
-    const passEl = document.getElementById("tp-emby-auth-pass");
+    const passEl = document.getElementById("tp-emby-auth-cred");
     if (passEl) passEl.value = "";
     toast(t("tp_emby_token_saved"));
     renderThirdPartyApps({ silent: true });
@@ -3387,7 +3387,7 @@ function bindThirdPartyEvents() {
     });
   });
   // --- 1.87: Emby API alanlari — odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
-  ["tp-emby-api-url", "tp-emby-api-key", "tp-emby-api-user"].forEach((fid) => {
+  ["tp-emby-api-url", "tp-emby-api-cred", "tp-emby-api-user"].forEach((fid) => {
     const el = document.getElementById(fid);
     if (!el) return;
     el.addEventListener("keydown", (e) => {
@@ -3396,7 +3396,7 @@ function bindThirdPartyEvents() {
     el.addEventListener("blur", () => flushEmbyApi(el));
   });
   // --- 1.94: Access Token alanlari — parola blur / Enter ile otomatik token ---
-  const authPassEl = document.getElementById("tp-emby-auth-pass");
+  const authPassEl = document.getElementById("tp-emby-auth-cred");
   if (authPassEl) {
     authPassEl.addEventListener("input", () => { tpEmbyTokenDirty = true; });
     authPassEl.addEventListener("keydown", (e) => {
@@ -3418,7 +3418,7 @@ function bindThirdPartyEvents() {
       tpEmbyTokenFetch(document.getElementById("tp-emby-token-get"));
     });
   }
-  const accessTokenEl = document.getElementById("tp-emby-access-token");
+  const accessTokenEl = document.getElementById("tp-emby-access-cred");
   if (accessTokenEl) {
     accessTokenEl.addEventListener("input", () => { tpEmbyTokenDirty = true; });
     accessTokenEl.addEventListener("keydown", (e) => {
@@ -3509,7 +3509,7 @@ function bindThirdPartyEvents() {
     });
   }
   // --- 2.03 / 2.09: Trakt karti — Client ID/Secret odaktan cikinca OTOMATIK kayit ---
-  ["tp-trakt-client-id", "tp-trakt-client-secret"].forEach((fid) => {
+  ["tp-trakt-client-id", "tp-trakt-client-cred"].forEach((fid) => {
     const el = document.getElementById(fid);
     if (!el) return;
     el.addEventListener("keydown", (e) => {
@@ -3826,8 +3826,8 @@ function renderVpsSection() {
         <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" value="${escAttr(uname)}" placeholder="root" /></div>
         </label>
-        <label style="margin-top:3px"><span class="settings-label-head"><span id="vps-pass-label">${escAttr(passLabel)}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
-          <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${escAttr(passPlaceholder)}" data-has="${passStored ? "1" : "0"}" /></div>
+        <label style="margin-top:3px"><span class="settings-label-head"><span id="vps-cred-label">${escAttr(passLabel)}</span><span class="saved-hint" id="vps-cred-saved" data-i18n="saved">${t("saved")}</span></span>
+          <div class="tp-url-box"><input id="vps-cred" type="text" autocomplete="off" spellcheck="false" autocapitalize="off" data-lpignore="true" data-1p-ignore data-bwignore data-form-type="other" data-protonpass-ignore="true" value="" placeholder="${escAttr(passPlaceholder)}" data-has="${passStored ? "1" : "0"}" /></div>
         </label>
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}; margin-top:6px">
           <label>
@@ -3861,7 +3861,7 @@ function vpsGateState() {
   const keyEl = document.getElementById("vps-key");
   const keyTxt = keyEl ? (keyEl.value || "").trim() : "";
   const keyOk = !!keyEl && (keyTxt !== "" || keyEl.getAttribute("data-has") === "1");
-  const passEl = document.getElementById("vps-pass");
+  const passEl = document.getElementById("vps-cred");
   const passTxt = passEl ? (passEl.value || "") : "";
   const passOk = (passTxt !== "" && passTxt !== "••••••••")
     || !!(passEl && passEl.getAttribute("data-has") === "1");
@@ -3891,7 +3891,7 @@ function updateVpsTestGate() {
   }
   const userEl = document.getElementById("vps-user");
   const isRoot = (((userEl && userEl.value) || "root").trim().toLowerCase() === "root");
-  const passEl = document.getElementById("vps-pass");
+  const passEl = document.getElementById("vps-cred");
   if (passEl) {
     const lockPass = vpsAuth === "key" && isRoot;   // root -> parola gerekmez
     passEl.disabled = lockPass;
@@ -3929,7 +3929,7 @@ async function flushVpsProfile(hintId) {
       secret = k ? k.value.trim() : "";
       fieldEmpty = secret === "" && (!k || k.getAttribute("data-has") !== "1");
     } else {
-      const pe = document.getElementById("vps-pass");
+      const pe = document.getElementById("vps-cred");
       secret = pe ? pe.value : "";
       fieldEmpty = (secret === "" || secret === "••••••••")
         && (!pe || pe.getAttribute("data-has") !== "1");
@@ -3938,7 +3938,7 @@ async function flushVpsProfile(hintId) {
     let sudoSecret = null;   // null = dokunma, "" = temizle
     if (isRoot && saved && saved.sudoHasSecret) sudoSecret = "";
     else if (!isRoot && vpsAuth === "key") {
-      const pe = document.getElementById("vps-pass");
+      const pe = document.getElementById("vps-cred");
       const v = pe ? pe.value : "";
       if (v !== "" && v !== "••••••••") sudoSecret = v;
     }
@@ -4025,9 +4025,9 @@ function bindVpsAuthToggle() {
     if (kb) kb.classList.toggle("active", mode === "key");
     if (pb) pb.classList.toggle("active", mode !== "key");
     // Parola alani iki modda farkli anlam tasir: etiket + kayitli deger sifirlanir.
-    const lbl = document.getElementById("vps-pass-label");
+    const lbl = document.getElementById("vps-cred-label");
     if (lbl) lbl.textContent = mode === "key" ? t("vps_sudo_pass") : t("vps_auth_pass");
-    const pe = document.getElementById("vps-pass");
+    const pe = document.getElementById("vps-cred");
     if (pe) {
       pe.value = "";
       pe.setAttribute("data-has", vpsStoredPass(mode) ? "1" : "0");
@@ -4450,7 +4450,7 @@ function bindVpsRemoteEvents() {
     "vps-host": "vps-host-saved",
     "vps-port": "vps-port-saved",
     "vps-user": "vps-user-saved",
-    "vps-pass": "vps-pass-saved",
+    "vps-cred": "vps-cred-saved",
     "vps-key": "vps-key-saved",
   };
   Object.entries(flushMap).forEach(([id, hintId]) => {
