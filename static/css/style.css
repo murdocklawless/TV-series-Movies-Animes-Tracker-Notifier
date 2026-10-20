@@ -2624,7 +2624,8 @@ input:-webkit-autofill:focus {
 .settings-form select#s-cache-ttl,
 .settings-form select#s-early-watched-days,
 .settings-form select#s-email-provider,
-.settings-form select#s-notif-limit {
+.settings-form select#s-notif-limit,
+.settings-form select#tp-trakt-poll {
   padding: 12px 30px 12px 14px;
   appearance: none;
   -webkit-appearance: none;
