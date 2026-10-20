@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=643";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=643";
-import { activateUtilityTab } from "./views.js?v=643";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=643";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=644";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=644";
+import { activateUtilityTab } from "./views.js?v=644";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=644";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1048,7 +1048,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=643");
+      const { errText: _err } = await import("./i18n.js?v=644");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1057,9 +1057,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=643");
-    const { openDetails } = await import("./components.js?v=643");
-    const { loadFollowed } = await import("./views.js?v=643");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=644");
+    const { openDetails } = await import("./components.js?v=644");
+    const { loadFollowed } = await import("./views.js?v=644");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1095,7 +1095,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=643");
+        const { t: _t } = await import("./i18n.js?v=644");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -2081,7 +2081,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=643").then((m) => {
+  import("./notification.js?v=644").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2428,9 +2428,42 @@ const thirdPartyAppRenderers = {
           </div>
           ${user ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_user")}</span><span class="tp-status-value">${escAttr(user)}</span></div>` : ""}
           ${connected ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_last_check")}</span><span class="tp-last-signal">${app.traktCheckedTs ? formatSignalTime(app.traktCheckedTs) : "—"}</span></div>` : ""}
+          ${connected ? `
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_trakt_pool")}</span>
+            <span class="tp-last-signal">${escAttr(poolTxt)}</span>
+          </div>
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_trakt_poll_effective")}</span>
+            <span class="tp-last-signal">${escAttr(poolIntTxt)}</span>
+          </div>
+          ${poolLast ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_pool_last")}</span><span class="tp-last-signal">${escAttr(poolLast)}</span></div>` : ""}` : ""}
           ${errTxt ? `<div class="tp-frame-note tp-warn">${escAttr(errTxt)}</div>` : ""}
+          ${app.traktPoolLastError ? `<div class="tp-frame-note tp-warn">${escAttr(tpTraktErrText(String(app.traktPoolLastError)))}</div>` : ""}
         </div>
         ${tpSignalBox(app.traktLastSignal, app.traktLastWatch)}
+        ${connected ? `
+        <div class="tp-sub-box">
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_dir_both")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="both" ${dir === "both" ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_dir_out")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="out" ${dir === "out" ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_dir_in")}</span>
+            <label class="switch"><input type="checkbox" class="tp-trakt-dir" data-mode="in" ${dir === "in" ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+          <div class="tp-frame-note">${t("tp_trakt_dir_note_" + dir)}</div>
+        </div>
+        <label><span class="settings-label-head"><span data-i18n="tp_trakt_poll">${t("tp_trakt_poll")}</span></span>
+          <div class="provider-combobox">
+            <select id="tp-trakt-poll">${pollOpts}</select>
+            <div id="tp-trakt-poll-list" class="provider-list" style="display:none"></div>
+          </div>
+        </label>` : ""}
         <div class="tp-sub-box">
           ${redirRow("lan", "tp_trakt_redirect_lan", app.traktRedirectUriLan, lanActive)}
           ${urlAvail ? redirRow("url", "tp_trakt_redirect_url", app.traktRedirectUriUrl, urlActive) : ""}
@@ -2465,18 +2498,6 @@ const thirdPartyAppRenderers = {
             <div id="tp-trakt-poll-list" class="provider-list" style="display:none"></div>
           </div>
         </label>
-        <div class="tp-sub-box">
-          <div class="tp-status-row">
-            <span class="notify-name">${t("tp_trakt_pool")}</span>
-            <span class="tp-status-value">${escAttr(poolTxt)}</span>
-          </div>
-          <div class="tp-status-row">
-            <span class="notify-name">${t("tp_trakt_poll")}</span>
-            <span class="tp-status-value">${escAttr(poolIntTxt)}</span>
-          </div>
-          ${poolLast ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_pool_last")}</span><span class="tp-status-value">${escAttr(poolLast)}</span></div>` : ""}
-          ${app.traktPoolLastError ? `<div class="tp-frame-note tp-warn">${escAttr(tpTraktErrText(String(app.traktPoolLastError)))}</div>` : ""}
-        </div>
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
           ${tpVpsInstallBtn(app)}
           <button id="tp-trakt-check" class="tab">${t("tp_trakt_sync_now")}</button>

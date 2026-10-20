@@ -1,7 +1,7 @@
 // history.js — "H" navbar butonu + İzleme Geçmişi takvimi (İstatistik modalı deseni).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=643";
-import { toast, CHECK_SVG, tzLocale, srcKey, srcName } from "./utils.js?v=643";
+import { t } from "./i18n.js?v=644";
+import { toast, CHECK_SVG, tzLocale, srcKey, srcName } from "./utils.js?v=644";
 
 const KIND_COLOR = { shows: "#60a5fa", movies: "#22c55e", docs: "#faef15", anime: "#f472b6", marked: "#9ca3af" };
 const KIND_ORDER = ["shows", "movies", "docs", "anime", "marked"];
