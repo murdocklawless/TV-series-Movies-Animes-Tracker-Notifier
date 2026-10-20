@@ -1638,6 +1638,28 @@ input:-webkit-autofill:focus {
   gap: 6px;
 }
 
+/* 2.19.8 LOKAL ARA sonuç modalı: Ara/Çoklu Ara blok genişliğiyle aynı (800px).
+   .results-modal sınıfı KULLANILMAZ (kart paritesi: haplar nowrap + ellipsis kalır). */
+.modal.local-modal {
+  max-width: 800px;
+  width: 100%;
+}
+
+.local-search-count {
+  font-size: 0.8rem;
+  color: #8b90a0;
+  padding: 0 20px 8px;
+}
+
+.local-search-empty {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 28px 20px;
+  color: #8b90a0;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
 #view-search .search-bar {
   margin-bottom: 0;
 }

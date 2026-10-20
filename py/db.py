@@ -512,6 +512,7 @@ def init_db():
                     genres TEXT,
                     start_date TEXT,
                     in_watched INTEGER DEFAULT 0,
+                    deferred INTEGER DEFAULT 0,
                     poster_local TEXT,
                     poster_local_w185 TEXT,
                     archived INTEGER DEFAULT 0,
@@ -522,11 +523,11 @@ def init_db():
                 """INSERT OR IGNORE INTO anime_new
                     (id, user_id, anilist_id, title, cover_url, episodes, status, score,
                      notified, studios, banner, description, format, duration, genres,
-                     start_date, in_watched, poster_local, poster_local_w185, archived)
+                     start_date, in_watched, deferred, poster_local, poster_local_w185, archived)
                     SELECT id, COALESCE(user_id, 1), anilist_id, title, cover_url, episodes,
                      status, score, notified, studios, banner, description, format, duration,
-                     genres, start_date, in_watched, poster_local, poster_local_w185,
-                     COALESCE(archived, 0)
+                     genres, start_date, in_watched, COALESCE(deferred, 0), poster_local,
+                     poster_local_w185, COALESCE(archived, 0)
                     FROM anime"""
             )
             conn.execute("DROP TABLE anime")

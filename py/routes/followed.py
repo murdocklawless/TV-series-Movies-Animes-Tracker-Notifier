@@ -144,7 +144,20 @@ def followed():
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    arch_sql = "COALESCE(archived,0)=1" if only_archived else "COALESCE(archived,0)=0"
+    items = build_followed_items(conn, uid, only_archived)
+    conn.close()
+    list_cache.set(key, items)
+    return cached_response(items, False)
+
+
+def build_followed_items(conn, uid, archived=False):
+    """followed satirlarini kartlarin bekledigi alanlarla dondurur.
+    archived: False=yalniz aktif, True=yalniz arsivli, None=hepsi.
+    /api/followed ve /api/local-search (2.19.8) ayni uretimi paylasir."""
+    if archived is None:
+        arch_sql = "1=1"
+    else:
+        arch_sql = "COALESCE(archived,0)=1" if archived else "COALESCE(archived,0)=0"
     rows = conn.execute(
         f"SELECT * FROM followed WHERE user_id=? AND {arch_sql} ORDER BY id DESC", (uid,)
     ).fetchall()
@@ -239,9 +252,7 @@ def followed():
                 final = False
             item["can_move_watched"] = bool(item.get("watched") == 1 or early or final)
         items.append(item)
-    conn.close()
-    list_cache.set(key, items)
-    return cached_response(items, False)
+    return items
 
 
 @followed_bp.route("/api/unwatched")

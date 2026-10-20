@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=644";
+import { t } from "./i18n.js?v=645";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=644";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=644";
-import { renderChips, closeResultsModal, setMedia } from "./search.js?v=644";
+} from "./utils.js?v=645";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=645";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=645";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -55,6 +55,7 @@ function switchView(name) {
     state.chips.length = 0;
     renderChips();
     closeResultsModal();
+    try { closeLocalSearchModal(); } catch (_) {}
   }
   Object.keys(views).forEach((k) => views[k].classList.remove("active"));
   views[name].classList.add("active");
@@ -314,6 +315,115 @@ function animeEpMid(item) {
   return `<span class="episode-count">${n} ${t("col_episode")}</span>`;
 }
 
+// Takip kartı üreticisi (2.19.8): dizi/film/belgesel bölümleri ve LOKAL ARA
+// sonuç modalı AYNI kartı kullanır (kart paritesi). opts:
+//   view        : "dizi" | "film" | "belgesel" (rozet/mid/status seçimi)
+//   isDoc       : belgesel rozeti (docBadge) + filmde durum yer tutucusu
+//   refresh     : işlem sonrası listeyi tazeleyen fonksiyon
+//   sectionMain : taşıma sonrası hedef bölüm (lokal aramada null)
+//   sectionLater: sonra-izlenecek hedef bölüm (lokal aramada null)
+function makeFollowedCard(item, opts) {
+  const o = opts || {};
+  const view = o.view || (item.media_type === "movie" ? "film" : "dizi");
+  const isDoc = !!o.isDoc;
+  const refresh = o.refresh || (() => {});
+  const secMain = o.sectionMain !== undefined ? o.sectionMain : view;
+  const secLater = o.sectionLater !== undefined ? o.sectionLater : view + "-later";
+  const cardKind = view === "belgesel" ? "docs" : view === "film" ? "movies" : "shows";
+  const div = document.createElement("div");
+  const todayNow =
+    (item.media_type === "tv" && item.next_episode && isReleaseToday({ date: item.next_episode.air_date })) ||
+    (item.media_type === "movie" && isReleaseToday({ date: item.release_date }));
+  div.className = todayNow ? "card today-release-card" : "card";
+  setTvCardAttrs(div, item);
+  setFollowSortAttrs(div, item);
+  const isArchived = item.archived == 1;
+  if (isArchived) div.classList.add("is-archived");
+  const isMovieWatched = item.media_type === "movie" && item.watched == 1;
+  const isTvCompleted = item.media_type === "tv" && item.completed;
+  const showBadge = isMovieWatched || isTvCompleted;
+  const showMoveBtn = showBadge || !!item.can_move_watched;
+  div.innerHTML = `
+    ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185, true)}
+    <div class="info">
+      <div class="title">${item.title}</div>
+      <div class="meta">
+        ${cardRows({
+          type: isDoc ? docBadge() : `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`,
+          score: scoreTag(item.vote_average),
+          net: platformTag(item.networks),
+          mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
+          status: item.media_type === "movie" ? (isDoc ? CARD_SLOT.status : "") : followedStatusHTML(item),
+        })}
+        ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
+      </div>
+    </div>
+    <div class="poster-top">
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+      ${isArchived
+        ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
+        : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
+      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+    </div>
+  `;
+  div.querySelector(".remove").onclick = (e) => {
+    e.stopPropagation();
+    openTvUnfollowConfirm(
+      t("unfollow_confirm", { title: item.title }),
+      async () => {
+        await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+        refresh();
+        toast(t("unfollowed", { name: item.title }));
+      }
+    );
+  };
+  div.querySelector(".calendar-btn").onclick = (e) => {
+    e.stopPropagation();
+    openReleases(item.media_type, item.tmdb_id, item.title);
+  };
+  const archBtn = div.querySelector(".archive-btn");
+  if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveFollowedItem(item, refresh); };
+  const unarchBtn = div.querySelector(".unarchive-btn");
+  if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, refresh); };
+  const infoBtn = div.querySelector(".info-btn");
+  if (infoBtn) infoBtn.onclick = (e) => { e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
+  const moveBtn = div.querySelector(".move-btn");
+  if (moveBtn) {
+    moveBtn.onclick = (e) => {
+      e.stopPropagation();
+      const target = isDeferred(item) ? secLater : secMain;
+      optimisticMoveCard(
+        div,
+        () => fetch("/api/followed/move-watched", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: item.media_type,
+            watched: 1,
+          }),
+        }),
+        t("moved_to_watched", { name: item.title }),
+        target,
+        target == null ? refresh : undefined
+      );
+    };
+  }
+  div.onclick = () => {
+    openDetails(item.media_type, item.tmdb_id, item.title);
+  };
+  if (isDeferred(item)) div.classList.add("is-deferred");
+  const _pw = div.querySelector(".poster-wrap");
+  if (_pw) {
+    _pw.insertAdjacentHTML("beforeend", deferBtnHTML(item));
+    const _df = _pw.querySelector(".defer-btn");
+    if (_df) _df.onclick = (e) => { e.stopPropagation(); toggleDefer(item, false, refresh); };
+  }
+  tagCardStats(div, item, cardKind, item.runtime);
+  return div;
+}
+
 async function loadFollowed(view) {
   const __run = __runToken("followed:" + view);
   if (view === "dizi") {
@@ -337,7 +447,6 @@ async function loadFollowed(view) {
   try { await ensureArchiveState(); } catch (_) {}
   try { updateArchiveUi(); } catch (_) {}
   const isTv = view === "dizi";
-  const cardKind = isTv ? "shows" : "movies";
   items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && (!(i.in_watched == 1) || i.archived == 1) && !isDocItem(i));
   items = applySortDeferred(items);
   const grid = document.getElementById(isTv ? "poster-grid-shows" : "poster-grid-movies");
@@ -357,95 +466,13 @@ async function loadFollowed(view) {
   empty.style.display = items.length ? "none" : "block";
 
   items.forEach((item) => {
-    const div = document.createElement("div");
-    const todayNow =
-      (item.media_type === "tv" && item.next_episode && isReleaseToday({ date: item.next_episode.air_date })) ||
-      (item.media_type === "movie" && isReleaseToday({ date: item.release_date }));
-    div.className = todayNow ? "card today-release-card" : "card";
-    setTvCardAttrs(div, item);
-    setFollowSortAttrs(div, item);
-    const isArchived = item.archived == 1;
-    if (isArchived) div.classList.add("is-archived");
-    const isMovieWatched = item.media_type === "movie" && item.watched == 1;
-    const isTvCompleted = item.media_type === "tv" && item.completed;
-    const showBadge = isMovieWatched || isTvCompleted;
-    const showMoveBtn = showBadge || !!item.can_move_watched;
-    div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185, true)}
-      <div class="info">
-        <div class="title">${item.title}</div>
-        <div class="meta">
-          ${cardRows({
-            type: `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`,
-            score: scoreTag(item.vote_average),
-            net: platformTag(item.networks),
-            mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
-            status: item.media_type === "movie" ? "" : followedStatusHTML(item),
-          })}
-          ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
-        </div>
-      </div>
-      <div class="poster-top">
-        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-        ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-        ${isArchived
-          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
-          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
-        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
-      </div>
-    `;
-    div.querySelector(".remove").onclick = (e) => {
-      e.stopPropagation();
-      openTvUnfollowConfirm(
-        t("unfollow_confirm", { title: item.title }),
-        async () => {
-          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
-          loadFollowed(view);
-          toast(t("unfollowed", { name: item.title }));
-        }
-      );
-    };
-    div.querySelector(".calendar-btn").onclick = (e) => {
-      e.stopPropagation();
-      openReleases(item.media_type, item.tmdb_id, item.title);
-    };
-    const archBtn = div.querySelector(".archive-btn");
-    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveFollowedItem(item, () => loadFollowed(view)); };
-    const unarchBtn = div.querySelector(".unarchive-btn");
-    if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, () => loadFollowed(view)); };
-    const infoBtn = div.querySelector(".info-btn");
-    if(infoBtn) infoBtn.onclick = (e)=>{ e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
-    const moveBtn = div.querySelector(".move-btn");
-    if (moveBtn) {
-      moveBtn.onclick = (e) => {
-        e.stopPropagation();
-        optimisticMoveCard(
-          div,
-          () => fetch("/api/followed/move-watched", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tmdb_id: item.tmdb_id,
-              media_type: item.media_type,
-              watched: 1,
-            }),
-          }),
-          t("moved_to_watched", { name: item.title }),
-          isDeferred(item) ? secLater : secMain
-        );
-      };
-    }
-    div.onclick = () => {
-      openDetails(item.media_type, item.tmdb_id, item.title);
-    };
-    if (isDeferred(item)) div.classList.add("is-deferred");
-    const _pw = div.querySelector(".poster-wrap");
-    if (_pw) {
-      _pw.insertAdjacentHTML("beforeend", deferBtnHTML(item));
-      const _df = _pw.querySelector(".defer-btn");
-      if (_df) _df.onclick = (e) => { e.stopPropagation(); toggleDefer(item, false, () => loadFollowed(view)); };
-    }
-    tagCardStats(div, item, cardKind, item.runtime);
+    const div = makeFollowedCard(item, {
+      view,
+      isDoc: false,
+      refresh: () => loadFollowed(view),
+      sectionMain: secMain,
+      sectionLater: secLater,
+    });
     if (laterGrid && isDeferred(item)) laterGrid.appendChild(div);
     else grid.appendChild(div);
     applyTitleHint(div);
@@ -504,95 +531,13 @@ async function loadBelgesel() {
   empty.style.display = items.length ? "none" : "block";
 
   items.forEach((item) => {
-    const div = document.createElement("div");
-    const todayNow =
-      (item.media_type === "tv" && item.next_episode && isReleaseToday({ date: item.next_episode.air_date })) ||
-      (item.media_type === "movie" && isReleaseToday({ date: item.release_date }));
-    div.className = todayNow ? "card today-release-card" : "card";
-    setTvCardAttrs(div, item);
-    setFollowSortAttrs(div, item);
-    const isArchived = item.archived == 1;
-    if (isArchived) div.classList.add("is-archived");
-    const isMovieWatched = item.media_type === "movie" && item.watched == 1;
-    const isTvCompleted = item.media_type === "tv" && item.completed;
-    const showBadge = isMovieWatched || isTvCompleted;
-    const showMoveBtn = showBadge || !!item.can_move_watched;
-    div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185, true)}
-      <div class="info">
-        <div class="title">${item.title}</div>
-        <div class="meta">
-          ${cardRows({
-            type: docBadge(),
-            score: scoreTag(item.vote_average),
-            net: platformTag(item.networks),
-            mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
-            status: item.media_type === "movie" ? CARD_SLOT.status : followedStatusHTML(item),
-          })}
-          ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}
-        </div>
-      </div>
-      <div class="poster-top">
-        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-        ${showMoveBtn ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-        ${isArchived
-          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
-          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
-        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
-      </div>
-    `;
-    div.querySelector(".remove").onclick = (e) => {
-      e.stopPropagation();
-      openTvUnfollowConfirm(
-        t("unfollow_confirm", { title: item.title }),
-        async () => {
-          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
-          loadBelgesel();
-          toast(t("unfollowed", { name: item.title }));
-        }
-      );
-    };
-    div.querySelector(".calendar-btn").onclick = (e) => {
-      e.stopPropagation();
-      openReleases(item.media_type, item.tmdb_id, item.title);
-    };
-    const archBtn = div.querySelector(".archive-btn");
-    if (archBtn) archBtn.onclick = (e) => { e.stopPropagation(); archiveFollowedItem(item, loadBelgesel); };
-    const unarchBtn = div.querySelector(".unarchive-btn");
-    if (unarchBtn) unarchBtn.onclick = (e) => { e.stopPropagation(); unarchiveFollowedItem(item, loadBelgesel); };
-    const infoBtn = div.querySelector(".info-btn");
-    if (infoBtn) infoBtn.onclick = (e) => { e.stopPropagation(); openDetails(item.media_type, item.tmdb_id, item.title); };
-    const moveBtn = div.querySelector(".move-btn");
-    if (moveBtn) {
-      moveBtn.onclick = (e) => {
-        e.stopPropagation();
-        optimisticMoveCard(
-          div,
-          () => fetch("/api/followed/move-watched", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tmdb_id: item.tmdb_id,
-              media_type: item.media_type,
-              watched: 1,
-            }),
-          }),
-          t("moved_to_watched", { name: item.title }),
-          isDeferred(item) ? "belgesel-later" : "belgesel"
-        );
-      };
-    }
-    div.onclick = () => {
-      openDetails(item.media_type, item.tmdb_id, item.title);
-    };
-    if (isDeferred(item)) div.classList.add("is-deferred");
-    const _pwDoc = div.querySelector(".poster-wrap");
-    if (_pwDoc) {
-      _pwDoc.insertAdjacentHTML("beforeend", deferBtnHTML(item));
-      const _dfDoc = _pwDoc.querySelector(".defer-btn");
-      if (_dfDoc) _dfDoc.onclick = (e) => { e.stopPropagation(); toggleDefer(item, false, loadBelgesel); };
-    }
-    tagCardStats(div, item, "docs", item.runtime);
+    const div = makeFollowedCard(item, {
+      view: "belgesel",
+      isDoc: true,
+      refresh: loadBelgesel,
+      sectionMain: "belgesel",
+      sectionLater: "belgesel-later",
+    });
     if (laterGridDoc && isDeferred(item)) laterGridDoc.appendChild(div);
     else grid.appendChild(div);
     applyTitleHint(div);
@@ -648,6 +593,96 @@ function animeStatusLabel(status) {
   return s;
 }
 
+// Anime kartı üreticisi (2.19.8): anime bölümü ve LOKAL ARA sonuç modalı AYNI
+// kartı kullanır. opts: { refresh, sectionMain, sectionLater } (lokal aramada null).
+function makeAnimeCard(item, opts) {
+  const o = opts || {};
+  const refresh = o.refresh || (() => {});
+  const secMain = o.sectionMain !== undefined ? o.sectionMain : "anime-list";
+  const secLater = o.sectionLater !== undefined ? o.sectionLater : "anime-list-later";
+  const div = document.createElement("div");
+  const animeToday = !!item.next_episode && isReleaseToday({ air_time: item.next_episode.airing_at });
+  const animeCompleted = !!item.completed;
+  const animeMoveable = animeCompleted || !!item.can_move_watched;
+  const isArchived = item.archived == 1;
+  div.className = animeToday ? "card today-release-card" : "card";
+  if (isArchived) div.classList.add("is-archived");
+  setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true});
+  setFollowSortAttrs(div, item, "anime");
+  div.innerHTML = `
+    ${animePosterHTML(item.cover_url, item.title, animeCompleted, item.poster_local, item.poster_local_w185, true)}
+    <div class="info">
+      <div class="title">${item.title}</div>
+      <div class="meta">
+        ${cardRows({
+          type: `<span class="badge badge-anime">${t("tab_anime")}</span>`,
+          score: item.score ? scoreTag(item.score / 10) : "",
+          net: platformTag(item.studios),
+          mid: animeEpMid(item),
+          status: animeNextText(item.next_episode, item.status),
+        })}
+      </div>
+    </div>
+    <div class="poster-top">
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      ${animeMoveable ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
+      ${isArchived
+        ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
+        : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
+      <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
+    </div>
+  `;
+  div.querySelector(".remove").onclick = (e) => {
+    e.stopPropagation();
+    openAnimeUnfollowConfirm(
+      t("unfollow_confirm", { title: item.title }),
+      async () => {
+        await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
+        refresh();
+        toast(t("unfollowed", { name: item.title }));
+      }
+    );
+  };
+  div.querySelector(".calendar-btn").onclick = (e) => {
+    e.stopPropagation();
+    openAnimeSchedule(item.id, item.title);
+  };
+  const archBtnA = div.querySelector(".archive-btn");
+  if (archBtnA) archBtnA.onclick = (e) => { e.stopPropagation(); archiveAnimeItem(item, refresh); };
+  const unarchBtnA = div.querySelector(".unarchive-btn");
+  if (unarchBtnA) unarchBtnA.onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, refresh); };
+  const infoBtnA = div.querySelector(".info-btn");
+  if(infoBtnA) infoBtnA.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(item.id, item.anilist_id, item.title); };
+  const animeMoveBtn = div.querySelector(".move-btn");
+  if (animeMoveBtn) {
+    animeMoveBtn.onclick = (e) => {
+      e.stopPropagation();
+      const target = isDeferred(item) ? secLater : secMain;
+      optimisticMoveCard(
+        div,
+        () => fetch("/api/anime/move-watched", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anime_id: item.id, watched: 1 }),
+        }),
+        t("moved_to_watched", { name: item.title }),
+        target,
+        target == null ? refresh : undefined
+      );
+    };
+  }
+  div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
+  if (isDeferred(item)) div.classList.add("is-deferred");
+  const _pwA = div.querySelector(".poster-wrap");
+  if (_pwA) {
+    _pwA.insertAdjacentHTML("beforeend", deferBtnHTML(item));
+    const _dfA = _pwA.querySelector(".defer-btn");
+    if (_dfA) _dfA.onclick = (e) => { e.stopPropagation(); toggleDefer(item, true, refresh); };
+  }
+  tagCardStats(div, item, "anime", item.duration);
+  return div;
+}
+
 async function loadAnime() {
   const __run = __runToken("anime");
   try { await loadNextUp(); } catch (_) {}
@@ -680,84 +715,11 @@ async function loadAnime() {
   empty.style.display = items.length ? "none" : "block";
 
   items.forEach((item) => {
-    const div = document.createElement("div");
-    const animeToday = !!item.next_episode && isReleaseToday({ air_time: item.next_episode.airing_at });
-    const animeCompleted = !!item.completed;
-    const animeMoveable = animeCompleted || !!item.can_move_watched;
-    const isArchived = item.archived == 1;
-    div.className = animeToday ? "card today-release-card" : "card";
-    if (isArchived) div.classList.add("is-archived");
-    setTvCardAttrs(div, {title:item.title, tmdb_id:item.anilist_id, anilist_id:item.anilist_id, media_type:"anime", id:item.id, isAnime:true});
-    setFollowSortAttrs(div, item, "anime");
-    div.innerHTML = `
-      ${animePosterHTML(item.cover_url, item.title, animeCompleted, item.poster_local, item.poster_local_w185, true)}
-      <div class="info">
-        <div class="title">${item.title}</div>
-        <div class="meta">
-          ${cardRows({
-            type: `<span class="badge badge-anime">${t("tab_anime")}</span>`,
-            score: item.score ? scoreTag(item.score / 10) : "",
-            net: platformTag(item.studios),
-            mid: animeEpMid(item),
-            status: animeNextText(item.next_episode, item.status),
-          })}
-        </div>
-      </div>
-      <div class="poster-top">
-        <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-        ${animeMoveable ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
-        ${isArchived
-          ? `<button class="unarchive-btn" data-tip="${t("unarchive")}"><i class="fa-solid fa-box-open"></i></button>`
-          : `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`}
-        <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
-      </div>
-    `;
-    div.querySelector(".remove").onclick = (e) => {
-      e.stopPropagation();
-      openAnimeUnfollowConfirm(
-        t("unfollow_confirm", { title: item.title }),
-        async () => {
-          await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
-          loadAnime();
-          toast(t("unfollowed", { name: item.title }));
-        }
-      );
-    };
-    div.querySelector(".calendar-btn").onclick = (e) => {
-      e.stopPropagation();
-      openAnimeSchedule(item.id, item.title);
-    };
-    const archBtnA = div.querySelector(".archive-btn");
-    if (archBtnA) archBtnA.onclick = (e) => { e.stopPropagation(); archiveAnimeItem(item, loadAnime); };
-    const unarchBtnA = div.querySelector(".unarchive-btn");
-    if (unarchBtnA) unarchBtnA.onclick = (e) => { e.stopPropagation(); unarchiveAnimeItem(item, loadAnime); };
-    const infoBtnA = div.querySelector(".info-btn");
-    if(infoBtnA) infoBtnA.onclick = (e)=>{ e.stopPropagation(); openAnimeDetails(item.id, item.anilist_id, item.title); };
-    const animeMoveBtn = div.querySelector(".move-btn");
-    if (animeMoveBtn) {
-      animeMoveBtn.onclick = (e) => {
-        e.stopPropagation();
-        optimisticMoveCard(
-          div,
-          () => fetch("/api/anime/move-watched", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ anime_id: item.id, watched: 1 }),
-          }),
-          t("moved_to_watched", { name: item.title }),
-          isDeferred(item) ? "anime-list-later" : "anime-list"
-        );
-      };
-    }
-    div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
-    if (isDeferred(item)) div.classList.add("is-deferred");
-    const _pwA = div.querySelector(".poster-wrap");
-    if (_pwA) {
-      _pwA.insertAdjacentHTML("beforeend", deferBtnHTML(item));
-      const _dfA = _pwA.querySelector(".defer-btn");
-      if (_dfA) _dfA.onclick = (e) => { e.stopPropagation(); toggleDefer(item, true, loadAnime); };
-    }
-    tagCardStats(div, item, "anime", item.duration);
+    const div = makeAnimeCard(item, {
+      refresh: loadAnime,
+      sectionMain: "anime-list",
+      sectionLater: "anime-list-later",
+    });
     if (laterGridA && isDeferred(item)) laterGridA.appendChild(div);
     else grid.appendChild(div);
     applyTitleHint(div);
@@ -2917,6 +2879,8 @@ function ensureSectionSummary(wrap) {
 
 function renderSectionSummary(grid) {
   if (!grid) return;
+  // 2.19.8: modal icindeki gridler (LOKAL ARA / Ara sonuc) bolum ozeti almaz.
+  try { if (grid.closest && grid.closest(".modal")) return; } catch (_) {}
   const wrap = rowSectionWrap(grid);
   if (wrap && wrap.closest && wrap.closest("#view-recommend")) return;
   const summary = ensureSectionSummary(wrap);
@@ -2977,7 +2941,7 @@ function refreshSectionAfterCardRemove(sectionKey, grid) {
   }
 }
 
-function optimisticMoveCard(div, reqFn, okMsg, sectionKey) {
+function optimisticMoveCard(div, reqFn, okMsg, sectionKey, after) {
   const grid = div.parentElement;
   const next = div.nextElementSibling;
   const rollback = () => {
@@ -2985,21 +2949,23 @@ function optimisticMoveCard(div, reqFn, okMsg, sectionKey) {
     else if (grid) grid.appendChild(div);
   };
   div.remove();
-  refreshSectionAfterCardRemove(sectionKey, grid);
+  // sectionKey null (LOKAL ARA): bolum yenilemesi yok; basarida after() listeyi tazeler.
+  if (sectionKey) refreshSectionAfterCardRemove(sectionKey, grid);
   reqFn().then(async (r) => {
     let j = {};
     try { j = await r.json(); } catch (_) { j = {}; }
     if (!r.ok) {
       rollback();
-      refreshSectionAfterCardRemove(sectionKey, grid);
+      if (sectionKey) refreshSectionAfterCardRemove(sectionKey, grid);
       toast((j && j.error) || t("error"));
       return;
     }
     if (okMsg) toast(okMsg);
     notifyListsRefreshed();
+    if (after) { try { after(); } catch (_) {} }
   }).catch(() => {
     rollback();
-    refreshSectionAfterCardRemove(sectionKey, grid);
+    if (sectionKey) refreshSectionAfterCardRemove(sectionKey, grid);
     toast(t("error"));
   });
 }
@@ -3611,4 +3577,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, refreshListsAfterWatch, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab };
+export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, refreshListsAfterWatch, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab, makeFollowedCard, makeAnimeCard };

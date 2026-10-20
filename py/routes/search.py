@@ -1,10 +1,25 @@
 from flask import Blueprint, jsonify, request, send_from_directory
 
+import unicodedata
+
 from config import STATIC_DIR
+from auth import get_current_user
+from db import get_db
+from routes.followed import build_followed_items, _is_doc_genres
+from routes.anime import build_anime_followed_items
 from tmdb import tmdb_request, _tmdb_adv_results, _genre_names_to_ids, _genre_ids_for_media
 from anilist import _anime_adv_results, _anime_title, _anime_cover, _anime_next_ep, _resolve_anime_staff_ids
 
 search_bp = Blueprint("search", __name__)
+
+
+def _uid():
+    """Oturumdaki kullanici id'si (Faz 32 izolasyon). Yoksa 0."""
+    try:
+        u = get_current_user()
+        return int(u["id"]) if u else 0
+    except Exception:
+        return 0
 
 
 @search_bp.route("/")
@@ -322,3 +337,54 @@ def director_credits(person_id):
         entry["job"] = item.get("job") or "Director"
         results.append(entry)
     return jsonify(results)
+
+
+# 2.19.8 LOKAL ARA: NextEp icindeki kartlari (takip + izlenen + arsiv + belgesel +
+# anime; Oneriler HARIC) baslikta arar. Eslesme Python tarafinda _fold ile:
+# casefold + NFKD aksan soyma + noktasiz i -> i. Boylece 'iç'/'İç'/'ic' esitlenir
+# ('İ'.casefold() birlesik nokta urettigi icin duz casefold 'iç' -> 'İçerde'
+# eslesmesini kacirir; SQLite LIKE Turkce icin guvenilmez).
+def _fold(s):
+    s = unicodedata.normalize("NFKD", str(s or "").casefold())
+    s = "".join(ch for ch in s if not unicodedata.combining(ch))
+    return s.replace("\u0131", "i")
+
+
+@search_bp.route("/api/local-search")
+def local_search():
+    uid = _uid()
+    q = (request.args.get("q") or "").strip()
+    try:
+        limit = int(request.args.get("limit") or 200)
+    except (TypeError, ValueError):
+        limit = 200
+    limit = max(1, min(limit, 500))
+    if len(q) < 2:
+        return jsonify({"ok": True, "q": q, "count": 0, "items": [], "truncated": False})
+    needle = _fold(q)
+    conn = get_db()
+    try:
+        items = []
+        for it in build_followed_items(conn, uid, None):
+            title = str(it.get("title") or "")
+            if needle not in _fold(title):
+                continue
+            if _is_doc_genres(it.get("genres") or []):
+                it["kind"] = "belgesel"
+            else:
+                it["kind"] = "dizi" if it.get("media_type") == "tv" else "film"
+            items.append(it)
+        for it in build_anime_followed_items(conn, uid, None):
+            title = str(it.get("title") or "")
+            if needle not in _fold(title):
+                continue
+            it["kind"] = "anime"
+            items.append(it)
+    finally:
+        conn.close()
+    # Sunucu A-Z siralar; tur onceligi istemcide uygulanir (filtre).
+    items.sort(key=lambda x: str(x.get("title") or "").casefold())
+    truncated = len(items) > limit
+    if truncated:
+        items = items[:limit]
+    return jsonify({"ok": True, "q": q, "count": len(items), "items": items, "truncated": truncated})

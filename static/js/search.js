@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=644";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=645";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=644";
-import { loadFollowed, loadBelgesel, loadAnime } from "./views.js?v=644";
+} from "./utils.js?v=645";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard } from "./views.js?v=645";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=644";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=645";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1276,6 +1276,188 @@ document.getElementById("picker-go").onclick = () => {
 };
 
 
+/* ===== 2.19.8 LOKAL ARA: NextEp içi kart arama (adanmış sonuç modalı) ===== */
+let localSearchState = { q: "", kind: "all", items: [], truncated: false, seq: 0, timer: null };
+
+function localSearchInput() { return document.getElementById("local-search-input"); }
+function localSearchModalEl() { return document.getElementById("local-search-modal"); }
+
+function updateLocalFilterMenu() {
+  const menu = document.getElementById("local-search-filter-menu");
+  if (!menu) return;
+  menu.querySelectorAll(".sort-item").forEach((btn) => {
+    btn.classList.toggle("active", (btn.dataset.kind || "all") === (localSearchState.kind || "all"));
+  });
+}
+
+function toggleLocalFilterMenu(on) {
+  const menu = document.getElementById("local-search-filter-menu");
+  const btn = document.getElementById("local-search-filter-btn");
+  if (!menu || !btn) return;
+  const open = typeof on === "boolean" ? on : !menu.classList.contains("open");
+  menu.classList.toggle("open", open);
+  btn.classList.toggle("active", open);
+}
+
+function openLocalSearchModal() {
+  const modal = localSearchModalEl();
+  if (!modal) return;
+  if (modal.style.display === "none") {
+    // Filtre kalıcılığı yok: modal her açılışta "Tümü"ye döner (oturum içi).
+    localSearchState.kind = "all";
+    updateLocalFilterMenu();
+  }
+  modal.style.display = "flex";
+}
+
+function closeLocalSearchModal() {
+  const modal = localSearchModalEl();
+  if (modal) modal.style.display = "none";
+  toggleLocalFilterMenu(false);
+}
+
+const LOCAL_KIND_ORDER = ["dizi", "film", "belgesel", "anime"];
+
+function localKindOf(it) {
+  if (it && it.kind) return it.kind;
+  if (it && it.anilist_id) return "anime";
+  return it && it.media_type === "movie" ? "film" : "dizi";
+}
+
+// "Tümü" → Dizi, Film, Belgesel, Anime; filtre seçiliyse seçilen tür önde,
+// kalanlar varsayılan sırayla arkada.
+function localSortRank(kind, k) {
+  const idx = LOCAL_KIND_ORDER.indexOf(k);
+  const rest = idx < 0 ? LOCAL_KIND_ORDER.length : idx;
+  if (kind === "all") return rest;
+  return k === kind ? -1 : rest;
+}
+
+function localTitleCmp(a, b) {
+  const x = String((a && a.title) || ""), y = String((b && b.title) || "");
+  try { return x.localeCompare(y, "tr", { sensitivity: "base" }); } catch (_) {
+    const xl = x.toLocaleLowerCase(), yl = y.toLocaleLowerCase();
+    return xl < yl ? -1 : xl > yl ? 1 : 0;
+  }
+}
+
+async function runLocalSearch() {
+  const inp = localSearchInput();
+  const q = (inp ? inp.value : "").trim();
+  if (q.length < 2) { closeLocalSearchModal(); return; }
+  localSearchState.q = q;
+  const seq = ++localSearchState.seq;
+  let data = null;
+  try {
+    const res = await fetch(`/api/local-search?q=${encodeURIComponent(q)}&limit=200`);
+    data = await res.json();
+  } catch (_) { return; }
+  if (seq !== localSearchState.seq) return; // yarış koruması: eski yanıt yeni sonucu ezmesin
+  if (!data || !data.ok) return;
+  localSearchState.items = Array.isArray(data.items) ? data.items : [];
+  localSearchState.truncated = !!data.truncated;
+  openLocalSearchModal();
+  renderLocalResults();
+}
+
+function renderLocalResults() {
+  const grid = document.getElementById("local-search-grid");
+  const count = document.getElementById("local-search-count");
+  if (!grid) return;
+  const kind = localSearchState.kind || "all";
+  const items = localSearchState.items.slice().sort((a, b) => {
+    const ra = localSortRank(kind, localKindOf(a)), rb = localSortRank(kind, localKindOf(b));
+    if (ra !== rb) return ra - rb;
+    return localTitleCmp(a, b);
+  });
+  grid.innerHTML = "";
+  if (count) {
+    if (items.length) {
+      count.textContent = t("search_local_count", { n: items.length })
+        + (localSearchState.truncated ? " · " + t("search_local_truncated", { n: 200 }) : "");
+    } else {
+      count.textContent = "";
+    }
+  }
+  if (!items.length) {
+    const row = document.createElement("div");
+    row.className = "local-search-empty";
+    row.textContent = t("search_local_empty");
+    grid.appendChild(row);
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  items.forEach((item) => {
+    const k = localKindOf(item);
+    let card = null;
+    try {
+      if (k === "anime") {
+        card = makeAnimeCard(item, { refresh: runLocalSearch, sectionMain: null, sectionLater: null });
+      } else {
+        card = makeFollowedCard(item, { view: k, isDoc: k === "belgesel", refresh: runLocalSearch, sectionMain: null, sectionLater: null });
+      }
+    } catch (_) { card = null; }
+    if (card) {
+      frag.appendChild(card);
+      try { applyTitleHint(card); } catch (_) {}
+    }
+  });
+  grid.appendChild(frag);
+}
+
+(function wireLocalSearch() {
+  const inp = localSearchInput();
+  const modal = localSearchModalEl();
+  if (!inp || !modal) return;
+  inp.addEventListener("input", () => {
+    const q = (inp.value || "").trim();
+    if (localSearchState.timer) { clearTimeout(localSearchState.timer); localSearchState.timer = null; }
+    if (q.length < 2) { closeLocalSearchModal(); return; } // 2 karakterin altı: sessizce kapan
+    localSearchState.timer = setTimeout(runLocalSearch, 250);
+  });
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const q = (inp.value || "").trim();
+      if (q.length < 2) { toast(t("search_local_min"), true); return; } // kırmızı toast yalnız Enter'da
+      if (localSearchState.timer) { clearTimeout(localSearchState.timer); localSearchState.timer = null; }
+      runLocalSearch();
+    } else if (e.key === "Escape") {
+      closeLocalSearchModal();
+    }
+  });
+  const closeBtn = document.getElementById("local-search-close");
+  if (closeBtn) closeBtn.onclick = () => closeLocalSearchModal();
+  modal.addEventListener("click", (e) => { if (e.target === modal) closeLocalSearchModal(); });
+  const filterBtn = document.getElementById("local-search-filter-btn");
+  const menu = document.getElementById("local-search-filter-menu");
+  if (filterBtn) filterBtn.onclick = (e) => { e.stopPropagation(); toggleLocalFilterMenu(); };
+  if (menu) {
+    menu.querySelectorAll(".sort-item").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        localSearchState.kind = btn.dataset.kind || "all";
+        updateLocalFilterMenu();
+        toggleLocalFilterMenu(false);
+        renderLocalResults();
+      };
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const m = document.getElementById("local-search-filter-menu");
+    if (!m || !m.classList.contains("open")) return;
+    const el = e.target;
+    if (el && el.closest && el.closest("#local-search-filter-menu, #local-search-filter-btn")) return;
+    toggleLocalFilterMenu(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const m = localSearchModalEl();
+    if (m && m.style.display !== "none") closeLocalSearchModal();
+  });
+})();
+
+
 export { currentMedia, setMedia, comboSource, setComboSource, updateComboActorLabel, renderChips, openValueModal, setSearchBtnLoading,
          runSearch, runNormalSearch, doTitleSearch, doAnimeTitleSearch,
-         setResultsTitle, openResultsModal, closeResultsModal, comboTitle, doComboSearch, openPicker };
+         setResultsTitle, openResultsModal, closeResultsModal, comboTitle, doComboSearch, openPicker, closeLocalSearchModal };

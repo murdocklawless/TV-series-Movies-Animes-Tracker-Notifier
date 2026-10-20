@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=623" />
+  <link rel="stylesheet" href="/static/css/style.css?v=624" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=514" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=545" />
   <link rel="stylesheet" href="/static/css/tv.css?v=560" />
@@ -366,6 +366,12 @@
         </div>
         <div class="search-area">
           <div class="search-block">
+            <h3 class="search-block-title" data-i18n="search_local_title">LOKAL ARA</h3>
+            <div class="search-bar">
+              <input id="local-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" placeholder="NextEp içinde ara..." data-i18n="search_local_ph" />
+            </div>
+          </div>
+          <div class="search-block">
             <h3 class="search-block-title" data-i18n="search_basic">Ara</h3>
             <div class="media-toggle">
               <button id="media-dizi" class="active" data-i18n="tab_dizi"><span data-i18n="tab_dizi">Dizi</span></button>
@@ -422,6 +428,28 @@
         </div>
         <div id="search-results" class="poster-grid modal-body"></div>
         <div id="anime-results" class="poster-grid modal-body" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Local search results modal (2.19.8 LOKAL ARA) -->
+    <div id="local-search-modal" class="modal-overlay" style="display:none">
+      <div class="modal local-modal">
+        <div class="modal-header">
+          <h3 data-i18n="search_local_title">LOKAL ARA</h3>
+          <div class="sort-wrap">
+            <button id="local-search-filter-btn" class="hidden-header-btn" data-i18n-title="search_local_filter"><i class="fa-solid fa-filter"></i></button>
+            <div id="local-search-filter-menu" class="sort-menu">
+              <button class="sort-item active" data-kind="all" data-i18n="search_local_all">Tümü</button>
+              <button class="sort-item" data-kind="dizi" data-i18n="tab_dizi">Dizi</button>
+              <button class="sort-item" data-kind="film" data-i18n="tab_film">Film</button>
+              <button class="sort-item" data-kind="belgesel" data-i18n="tab_belgesel">Belgesel</button>
+              <button class="sort-item" data-kind="anime" data-i18n="tab_anime">Anime</button>
+            </div>
+          </div>
+          <button id="local-search-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+        </div>
+        <div id="local-search-count" class="local-search-count"></div>
+        <div id="local-search-grid" class="poster-grid modal-body"></div>
       </div>
     </div>
 
@@ -1527,6 +1555,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=644"></script>
+  <script type="module" src="/static/js/nextep.js?v=645"></script>
 </body>
 </html>

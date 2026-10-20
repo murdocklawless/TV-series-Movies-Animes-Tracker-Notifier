@@ -177,7 +177,20 @@ def anime_followed():
     if hit is not None:
         return cached_response(hit, True)
     conn = get_db()
-    arch_sql = "COALESCE(archived,0)=1" if only_archived else "COALESCE(archived,0)=0"
+    result = build_anime_followed_items(conn, uid, only_archived)
+    conn.close()
+    list_cache.set(key, result)
+    return cached_response(result, False)
+
+
+def build_anime_followed_items(conn, uid, archived=False):
+    """anime satirlarini kartlarin bekledigi alanlarla dondurur.
+    archived: False=yalniz aktif, True=yalniz arsivli, None=hepsi.
+    /api/anime/followed ve /api/local-search (2.19.8) ayni uretimi paylasir."""
+    if archived is None:
+        arch_sql = "1=1"
+    else:
+        arch_sql = "COALESCE(archived,0)=1" if archived else "COALESCE(archived,0)=0"
     rows = conn.execute(
         f"SELECT * FROM anime WHERE user_id=? AND {arch_sql} ORDER BY id DESC", (uid,)
     ).fetchall()
@@ -228,9 +241,7 @@ def anime_followed():
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )
-    conn.close()
-    list_cache.set(key, result)
-    return cached_response(result, False)
+    return result
 
 
 def _anime_followed_counts(conn, anime_id):
