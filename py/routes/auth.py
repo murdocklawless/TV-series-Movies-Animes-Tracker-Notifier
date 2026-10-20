@@ -320,6 +320,23 @@ def auth_ping():
     return jsonify({"ok": True, "now": now})
 
 
+@auth_bp.route("/api/presence", methods=["POST"])
+@login_required
+def presence_ping():
+    """2.19.6: Gorunur sekme ping'i (30 sn).
+
+    Son 60 sn icinde ping varsa Trakt gelen yoklamasi 10 sn'ye iner (havuz:
+    sync_pool); yoksa kullanici araligi gecerli olur.
+    """
+    try:
+        user = get_current_user()
+        import sync_pool
+        sync_pool.presence(user["id"])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)[:120]})
+
+
 @auth_bp.route("/api/auth/exit", methods=["POST"])
 @login_required
 def auth_exit():

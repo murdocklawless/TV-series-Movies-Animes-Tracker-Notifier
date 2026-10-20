@@ -245,10 +245,34 @@ def build_user_jobs(uid):
             id=jid,
             misfire_grace_time=3600,
         )
+        # 2.19.6: Trakt yoklamasi senkron havuzunda (sync-pool-in). Burada
+        # yalnizca eski surumden kalan per-user job temizlenir.
+        try:
+            _tjid = f"trakt_poll_{uid}"
+            if SCHEDULER.get_job(_tjid):
+                SCHEDULER.remove_job(_tjid)
+        except Exception as _te:
+            print(f"trakt job cleanup uid={uid} failed: {_te}", flush=True)
         return True
     except Exception as e:
         print(f"user job build uid={uid} failed: {e}", flush=True)
         return False
+
+
+def _run_trakt_poll(uid):
+    """2.03: Trakt yoklama (inbound + mutabakat + cift yon ise outbound).
+
+    2.19.6: periyodik yoklama artik havuzda; bu islev yalniz elle/manuel
+    tetikleme icin korunur.
+    """
+    try:
+        import trakt as _trakt
+        res = _trakt.poll(uid)
+        if res.get("ok") and (res.get("in") or res.get("out") or res.get("un")):
+            print(f"[trakt] poll uid={uid} in={res.get('in')} un={res.get('un')} "
+                  f"out={res.get('out')}", flush=True)
+    except Exception as e:
+        print(f"[trakt] poll hata uid={uid}: {e}", flush=True)
 
 
 def remove_user_jobs(uid):
@@ -1333,6 +1357,23 @@ def emby_sync_job():
         print(f"[emby] senkron job hata: {e}", flush=True)
 
 
+def emby_token_health_job():
+    """1.94 — Access Token gecerlilik kontrolu + otomatik yenileme."""
+    try:
+        import emby_sync
+        # Token/parola hic yoksa sessizce gec.
+        if not emby_sync.access_token() and not emby_sync.auth_password():
+            return
+        # force=False: yanlis parola sonrasi backoff'a uy (hesap kilitlenmesini onle).
+        res = emby_sync.ensure_token(force=False)
+        if not res.get("ok") and res.get("error") not in ("skipped",):
+            print(f"[emby] token kontrol: {res.get('error')}", flush=True)
+        elif res.get("renewed"):
+            print("[emby] access token otomatik yenilendi", flush=True)
+    except Exception as e:
+        print(f"[emby] token kontrol hata: {e}", flush=True)
+
+
 def app_update_job():
     """Uygulama güncelleme cron'u (fail-soft): yeni sürüm + oto-açık ise günceller."""
     try:
@@ -1374,6 +1415,35 @@ def app_update_job():
             rollback(reason=f"{from_ver} → {to_ver} sonrası sağlık kontrolü başarısız")
     except Exception as e:
         print(f"app_update_job failed: {e}", flush=True)
+
+
+def jsver_check_job():
+    """2.19: JS damga zinciri denetimi (fail-soft).
+
+    Ayni modul iki farkli ?v= ile yuklenirse tarayici modulu iki kez degerlendirir;
+    modul govdesindeki toggle dinleyicileri birbirini iptal eder (disli menusu /
+    akordeonlar acilmaz). Bozuk zincir sessiz kalmasin: gunde 1 kez kanallara bildirim.
+    """
+    try:
+        from jsver import check_root
+        from db import set_setting
+
+        probs = check_root()
+        if not probs:
+            print("[ui] js kontrol: temiz", flush=True)
+            return
+        msg = " | ".join(probs)
+        print(f"[ui] UYARI js surum zinciri bozuk: {msg}", flush=True)
+        sig = f"{today_str()}|{msg}"
+        if (get_setting("jsver_last_alert") or "").strip() == sig:
+            return
+        set_setting("jsver_last_alert", sig)
+        notify_all(
+            "NextEp: JS sürüm damgası bozuk — Ayarlar (dişli) gibi butonlar çalışmayabilir. "
+            "Sunucuda: python3 py/jsver.py bump"
+        )
+    except Exception as e:
+        print(f"[ui] js kontrol hatasi: {e}", flush=True)
 
 
 def backup_job():
@@ -1619,6 +1689,27 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
+    # 2.19: JS damga zinciri denetimi — acilista 90 sn sonra + gunde 1 (bildirim gunde 1)
+    for _jid in ("jsver_check_boot", "jsver_check_daily"):
+        if SCHEDULER.get_job(_jid):
+            SCHEDULER.remove_job(_jid)
+    SCHEDULER.add_job(
+        jsver_check_job,
+        "date",
+        run_date=datetime.datetime.now(tz) + datetime.timedelta(seconds=90),
+        id="jsver_check_boot",
+        misfire_grace_time=300,
+    )
+    SCHEDULER.add_job(
+        jsver_check_job,
+        "cron",
+        hour=6,
+        minute=10,
+        timezone=tz,
+        id="jsver_check_daily",
+        misfire_grace_time=3600,
+    )
+
     # 1.87: Emby API senkronu — WebSocket aninda tetikler, bu is yedek yoklama.
     # Ayar yoksa hizli no-op'tur (configured() False).
     if SCHEDULER.get_job("emby_sync"):
@@ -1629,6 +1720,19 @@ def schedule_releases():
         minutes=15,
         id="emby_sync",
         misfire_grace_time=600,
+        max_instances=1,
+        coalesce=True,
+    )
+
+    # 1.94: Access Token 5 dk'da bir kontrol edilir; 401/403'te otomatik yenilenir.
+    if SCHEDULER.get_job("emby_token_health"):
+        SCHEDULER.remove_job("emby_token_health")
+    SCHEDULER.add_job(
+        emby_token_health_job,
+        "interval",
+        minutes=5,
+        id="emby_token_health",
+        misfire_grace_time=120,
         max_instances=1,
         coalesce=True,
     )
@@ -1662,6 +1766,10 @@ def schedule_releases():
         print("next app update:", SCHEDULER.get_job("app_update_job").next_run_time, flush=True)
     except Exception:
         pass
+    try:
+        print("next jsver check:", SCHEDULER.get_job("jsver_check_daily").next_run_time, flush=True)
+    except Exception:
+        pass
 
 
 def start_scheduler():
@@ -1671,8 +1779,13 @@ def start_scheduler():
     except Exception:
         pass
     # 1.87: Emby API modu (ayar varsa) — WS dinleyici + acilista bir senkron.
+    # 1.94: once access token'i kontrol/yenile, sonra WS'i token ile ac.
     try:
         import emby_sync
+        try:
+            emby_sync.ensure_token()
+        except Exception as _te:
+            print(f"[emby] acilis token kontrol hata: {_te}", flush=True)
         emby_sync.start_listener()
         emby_sync.sync_async()
     except Exception as e:

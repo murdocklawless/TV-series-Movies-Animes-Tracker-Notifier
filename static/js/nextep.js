@@ -1,22 +1,22 @@
-// Faz 4: tracker.js � giri� noktas�. T�m mant�k mod�llere b�l�nd�; bu dosya
-// mod�lleri ba�lar, ba�lang�� y�klemelerini yapar ve genel (global) olaylar� kurar.
-window.__NX_BUILD = "541";
+﻿// Faz 4: tracker.js ï¿½ giriï¿½ noktasï¿½. Tï¿½m mantï¿½k modï¿½llere bï¿½lï¿½ndï¿½; bu dosya
+// modï¿½lleri baï¿½lar, baï¿½langï¿½ï¿½ yï¿½klemelerini yapar ve genel (global) olaylarï¿½ kurar.
+window.__NX_BUILD = "640";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang, t } from "./i18n.js?v=546";
-import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=549";
-import { closeResultsModal } from "./search.js?v=546";
-import "./settings.js?v=577";
-import "./notification.js?v=568";
-import "./asks.js?v=574";
-import "./stats.js?v=560";
-  import "./history.js?v=569";
-  import "./tv.js?v=531";
-  import "./rowview.js?v=36";
-import { bootAuth } from "./auth.js?v=544";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=640";
+import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=640";
+import { closeResultsModal } from "./search.js?v=640";
+import "./settings.js?v=640";
+import "./notification.js?v=640";
+import "./asks.js?v=640";
+import "./stats.js?v=640";
+  import "./history.js?v=640";
+  import "./tv.js?v=640";
+  import "./rowview.js?v=640";
+import { bootAuth } from "./auth.js?v=640";
 
-// ---- Ba�lang�� g�r�n�m� (son se�ilen sekmeyi geri y�kle) ----
-// Faz 30: oturum yoksa auth.js giri� ekran�n� g�sterir; uygulama
-// verileri yaln�z giri� sonras� (auth:ready) y�klenir.
+// ---- Baï¿½langï¿½ï¿½ gï¿½rï¿½nï¿½mï¿½ (son seï¿½ilen sekmeyi geri yï¿½kle) ----
+// Faz 30: oturum yoksa auth.js giriï¿½ ekranï¿½nï¿½ gï¿½sterir; uygulama
+// verileri yalnï¿½z giriï¿½ sonrasï¿½ (auth:ready) yï¿½klenir.
 let _appStarted = false;
 function startApp() {
   if (_appStarted) return;
@@ -32,9 +32,9 @@ function startApp() {
 document.addEventListener("auth:ready", startApp);
 bootAuth();
 
-// Dil de�i�ince aktif g�r�n�m� yenile (applyLang, i18n.js'ten olay yayar)
+// Dil deï¿½iï¿½ince aktif gï¿½rï¿½nï¿½mï¿½ yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
-  // Oturumsuzken veri �ekilmez (401 + ��kme �retmemek i�in).
+  // Oturumsuzken veri ï¿½ekilmez (401 + ï¿½ï¿½kme ï¿½retmemek iï¿½in).
   try {
     if (document.body.classList.contains("logged-out")) return;
   } catch (_) {}
@@ -48,7 +48,7 @@ document.addEventListener("app:langchange", () => {
   if (views.recommend.classList.contains("active")) loadRecommendations();
 });
 
-// ---- �lk veri y�klemeleri (yaln�z giri� sonras�) ----
+// ---- ï¿½lk veri yï¿½klemeleri (yalnï¿½z giriï¿½ sonrasï¿½) ----
 function loadInitialData() {
   (async () => {
   try {
@@ -63,7 +63,7 @@ function loadInitialData() {
     checkTmdbKey(state.tmdbKeySet);
     maybeShowGeoBanner(s);
   } catch (e) {
-    /* varsay�lan dil */
+    /* varsayï¿½lan dil */
   }
 })();
 
@@ -108,7 +108,7 @@ function loadInitialData() {
 })();
 } // loadInitialData
 
-// ---- �zel tooltip ----
+// ---- ï¿½zel tooltip ----
 let tipEl = null;
 function showTip(text, x, y) {
   if (!tipEl) {
@@ -213,7 +213,7 @@ document.addEventListener("mousemove", (e) => {
 
 document.addEventListener("mouseout", (e) => {
   if (!e.target.closest("[data-tip]")) return;
-  // i� i�e i -> button ge�i�lerinde relatedTarget ayn� data-tip i�indeyse gizleme
+  // iï¿½ iï¿½e i -> button geï¿½iï¿½lerinde relatedTarget aynï¿½ data-tip iï¿½indeyse gizleme
   if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest("[data-tip]")) return;
   hideTip();
 });

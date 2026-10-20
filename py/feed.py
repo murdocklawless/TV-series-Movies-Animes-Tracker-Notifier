@@ -56,6 +56,9 @@ TMDB_SOURCE_LABEL = {"trend": "trend", "popular": "popular", "top_rated": "top_r
 
 # Cache güvenlik süresi (haftalık cron gecikirse on-demand yenilenir)
 FEED_TTL = 8 * 86400
+# 2.00: Bos sonucun cache omru (anime + AMC+/Apple TV+/Paramount gibi gercekten
+# bos donen kaynaklar her bakista sorgulanmasin; 24 saat sonra yeniden denenir).
+FEED_EMPTY_TTL = 24 * 3600
 
 _feed_lock = threading.Lock()
 
@@ -133,25 +136,32 @@ def _cache_get(key, max_age=FEED_TTL):
             conn.close()
         if not row:
             return None
-        if max_age and (time.time() - (row["ts"] or 0)) > max_age:
-            return None
         items = json.loads(row["payload"] or "[]")
-        # Bos sonuc = cache miss: gecici hata (429/timeout) kalici bos olmasin
-        return items if (isinstance(items, list) and items) else None
+        if not isinstance(items, list):
+            return None
+        age = time.time() - (row["ts"] or 0)
+        if items:
+            # Dolu havuz: max_age=0 ise sinirsiz, degilse max_age.
+            if max_age and age > max_age:
+                return None
+            return items
+        # 2.00: Bos havuz da cache'lenir; FEED_EMPTY_TTL icinde sorgusuz [] doner.
+        if age > FEED_EMPTY_TTL:
+            return None
+        return []
     except Exception:
         return None
 
 
 def _cache_put(key, items):
-    # Bos havuzu yazma: gecici TMDB/AniList hatasi kalici bos olarak sabitlenmesin
-    if not items:
-        return
+    # 2.00: Bos havuz da yazilir (tekrar sorgulanmasin). _cache_get bos kaydi
+    # FEED_EMPTY_TTL ile sinirlar; boylece gecici hata kalici bos olmaz.
     try:
         conn = get_db()
         try:
             conn.execute(
                 "INSERT OR REPLACE INTO feed_cache (key, payload, ts) VALUES (?, ?, ?)",
-                (key, json.dumps(items, ensure_ascii=False), time.time()),
+                (key, json.dumps(items or [], ensure_ascii=False), time.time()),
             )
             conn.commit()
         finally:
@@ -383,12 +393,19 @@ def _blocked_sets(conn, uid):
 
 
 def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=False):
-    """Seçilen medya+kaynak için, dışlanmış 18 kart üretir. Cache'li ham havuz."""
+    """Seçilen medya+kaynak için, dışlanmış 18 kart üretir.
+
+    force=False: cache-first, yaş sınırı YOK. Havuz feed_cache'te varsa
+    sorgusuz kullanılır; yoksa çekilip cache'lenir. Kart detayları da
+    rec_detail'te varsa sorgusuz kullanılır, yoksa çekilir.
+    force=True: havuz + detaylar her zaman yeniden çekilir (refresh butonu).
+    """
     if media not in MEDIA_KINDS or source not in FEED_SOURCES:
         return []
     uid = _rec_uid(user_id)
     key = _cache_key(media, source)
-    pool = None if force else _cache_get(key)
+    # 1.99: cache-first, yas siniri yok. Cache yoksa cek + cache'le.
+    pool = None if force else _cache_get(key, max_age=0)
     if pool is None:
         pool = _fetch_pool(media, source)
         _cache_put(key, pool)
@@ -421,9 +438,9 @@ def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=Fal
     tv_items = [c for c in chosen if c.get("media_type") == "tv"]
     mv_items = [c for c in chosen if c.get("media_type") == "movie"]
     if tv_items:
-        _attach_tv_details(tv_items)
+        _attach_tv_details(tv_items, force=force)
     if mv_items:
-        _attach_movie_details(mv_items)
+        _attach_movie_details(mv_items, force=force)
     for c in chosen:
         try:
             c["can_move_watched"] = _can_move_watched(c)
@@ -433,12 +450,26 @@ def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=Fal
 
 
 def refresh_feed_source(source):
-    """Bir kaynağın ham cache'lerini yeniler (scheduler)."""
+    """Bir kaynağın ham cache'lerini + kart detaylarini yeniler (scheduler).
+
+    1.99: Gösterim sorgusuz olsun diye havuzla birlikte kart detaylari
+    (networks/status, yapimci) da rec_detail'e on-Isitilir.
+    """
     if source not in FEED_SOURCES:
         return
     try:
         for media in MEDIA_ORDER:
-            _cache_put(f"{media}:{source}", _fetch_pool(media, source))
+            pool = _fetch_pool(media, source)
+            _cache_put(f"{media}:{source}", pool)
+            try:
+                tv_items = [c for c in pool if c.get("media_type") == "tv"]
+                mv_items = [c for c in pool if c.get("media_type") == "movie"]
+                if tv_items:
+                    _attach_tv_details(tv_items, force=True)
+                if mv_items:
+                    _attach_movie_details(mv_items, force=True)
+            except Exception:
+                pass
     except Exception as e:
         print(f"[feed] refresh hata ({source}): {e}", flush=True)
 

@@ -5,6 +5,7 @@ from db import init_db, get_setting
 from ramcache import list_cache, end_startup
 from rate_track import set_startup_grace
 from scheduler import backfill_votes, start_scheduler
+from jsver import startup_report  # 2.19: damga zinciri denetimi (tek kaynak, sh yok)
 
 from routes.search import search_bp
 from routes.followed import followed_bp
@@ -41,6 +42,7 @@ from auth import init_auth
 init_auth(app)  # Faz 30: gizli anahtar + global giris kapisi (Stremio muaf)
 
 init_db()
+startup_report()  # 2.19: acilista damga zinciri durumu (temiz / UYARI) — py/jsver.py
 try:
     # İlk açılış tohumu: version tablosu boşsa dosyadaki formatı-düzgün değer yazılır.
     # Dolu tablo asla ezilmez; anlamsal doğrulama (yayınlanmış küme) her check_update'te
@@ -63,6 +65,14 @@ if ttl > 0:
     list_cache.restore_from_db()   # restart sonrasi kalici cache geri yükleme
 backfill_votes()                    # startup zarfi: bump'lar bastirilir
 start_scheduler()
+# 2.19.6: senkron havuzu (outbox + Trakt gelen yoklama + Emby WS oge kuyrugu).
+# Scheduler'dan sonra baslar: giden isler olayla, gelen yoklama 10 sn aktif /
+# kullanici araligi bossa.
+try:
+    import sync_pool
+    sync_pool.start()
+except Exception as e:
+    print(f"sync_pool baslatma hata: {e}", flush=True)
 end_startup()                       # artik bump'lar gecerli
 set_startup_grace(False)            # acilis zarfi bitti: kayitlar bara isler
 

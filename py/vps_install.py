@@ -198,6 +198,8 @@ _TEST_PATH = {
     "stremio": "/stremio/install-info.json",
     "calendar": "/calendar/x/nextep.ics",
     "webhook": "/webhook/jellyfin/x",
+    # 2.16: Trakt callback (kodsuz istekte de 200 + waitress doner).
+    "trakt": "/trakt/callback",
 }
 
 
@@ -236,6 +238,10 @@ PROFILES = {
     "stremio": ("/stremio/",),
     "calendar": ("/calendar/",),
     "webhook": ("/webhook/",),
+    # 2.16: Trakt Authorization Code + PKCE donus yolu. Yildizsiz handle'lar
+    # (/callback, /trakt/callback) mevcut kurulumda aynen korunur; _caddy_ensure
+    # "handle /callback" satirini gordugu icin taze kurulum disinda yazma olmaz.
+    "trakt": ("/callback", "/trakt/callback"),
 }
 
 
@@ -880,13 +886,16 @@ def check_vps(vps_run):
         rc, o = vps_run(
             "cat /etc/caddy/Caddyfile /etc/nginx/sites-enabled/* "
             "/etc/apache2/sites-enabled/* 2>/dev/null "
-            "| grep -E 'handle /|location /|ProxyPass /' | head -60 || true",
+            "| grep -E 'handle /|location /|ProxyPass /' | head -100 || true",
             timeout=30)
         txt = o or ""
         out["routes"] = {
             "stremio": "/stremio/" in txt,
             "calendar": "/calendar/" in txt,
             "webhook": "/webhook/" in txt,
+            # 2.16: "/callback" tek basina "/trakt/callback" satirinda da gecer;
+            # trakt ancak IKI yol da bulundugunda kurulu sayilir.
+            "trakt": "/callback" in txt and "/trakt/callback" in txt,
         }
     except Exception:
         out["routes"] = {}

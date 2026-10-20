@@ -92,48 +92,55 @@ def create_notification(title, message, type_name, media_type=None, tmdb_id=None
     Returns new id or None if duplicate."""
     conn = get_db()
     try:
-        if not skip_dedupe and is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date, user_id=user_id):
-            conn.close()
-            return None
-    except Exception:
-        pass
-
-    # ensure thumbnail
-    thumb = thumbnail_local
-    if not thumb and kind_for_thumb and ident_for_thumb:
         try:
-            from poster_store import ensure_thumbnail
-            thumb = ensure_thumbnail(kind_for_thumb, ident_for_thumb, remote_poster_url)
-        except Exception:
-            thumb = None
-
-    # ensure poster_local if missing and remote exists? keep as is
-    if not poster_local and remote_poster_url and kind_for_thumb:
-        # try to ensure w500
-        try:
-            from poster_store import download_poster
-            # download_poster will create w500/w185, but we already have thumb logic
-            # attempt to ensure w500
-            from poster_store import poster_local_path, filesystem_path_from_web
-            import os
-            w500 = poster_local_path(kind_for_thumb, ident_for_thumb, "w500")
-            if w500:
-                import os
-                fs = filesystem_path_from_web(w500)
-                if not fs or not os.path.exists(fs):
-                    from poster_store import download_poster as dp
-                    dp(kind_for_thumb, ident_for_thumb, remote_poster_url)
-                    poster_local = poster_local_path(kind_for_thumb, ident_for_thumb, "w500")
+            if not skip_dedupe and is_duplicate_notification(type_name, title, season=season, episode=episode, tmdb_id=tmdb_id, anilist_id=anilist_id, notified_date=notified_date, user_id=user_id):
+                return None
         except Exception:
             pass
 
-    conn.execute(
-        "INSERT INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at, user_id, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts(), user_id or 0, source),
-    )
-    conn.commit()
-    nid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    conn.close()
+        # ensure thumbnail
+        thumb = thumbnail_local
+        if not thumb and kind_for_thumb and ident_for_thumb:
+            try:
+                from poster_store import ensure_thumbnail
+                thumb = ensure_thumbnail(kind_for_thumb, ident_for_thumb, remote_poster_url)
+            except Exception:
+                thumb = None
+
+        # ensure poster_local if missing and remote exists? keep as is
+        if not poster_local and remote_poster_url and kind_for_thumb:
+            # try to ensure w500
+            try:
+                from poster_store import poster_local_path, filesystem_path_from_web
+                import os
+                w500 = poster_local_path(kind_for_thumb, ident_for_thumb, "w500")
+                if w500:
+                    fs = filesystem_path_from_web(w500)
+                    if not fs or not os.path.exists(fs):
+                        from poster_store import download_poster as dp
+                        dp(kind_for_thumb, ident_for_thumb, remote_poster_url)
+                        poster_local = poster_local_path(kind_for_thumb, ident_for_thumb, "w500")
+            except Exception:
+                pass
+
+        # 1.90: OR IGNORE — watched_ask kismi UNIQUE index'i (db.init_db)
+        # mukerrer satiri reddeder; rowcount=0 -> cagiran mevcut satirin
+        # id'sini bulur. Diger bildirim tiplerinde boyle bir index yok.
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO notifications (type, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumbnail_local, is_read, notified_date, created_at, user_id, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (type_name, title, message, tmdb_id, anilist_id, media_type, season, episode, poster_local, thumb, 0, notified_date, _now_ts(), user_id or 0, source),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            print(f"[notification] unique index reddetti: type={type_name} user={user_id} "
+                  f"tmdb={tmdb_id} anilist={anilist_id} s{season} e{episode}", flush=True)
+            return None
+        nid = cur.lastrowid
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
     bump()
     return nid
 
@@ -363,16 +370,17 @@ def _mark_ask_watched(row):
                 conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (arow["id"],))
             else:
                 conn.execute(
-                    "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source) VALUES (?,?,1,?,?) "
+                    "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source, direct_mark) "
+                    "VALUES (?,?,1,?,?,0) "
                     "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
-                    "source=COALESCE(excluded.source, source)",
+                    "source=COALESCE(excluded.source, source), direct_mark=0",
                     (arow["id"], episode, ts, src),
                 )
         elif media == "movie":
             # mevcut saat varsa (dogrudan isaretleme) korunur, yoksa ask zamani yazilir
             conn.execute(
                 "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?), "
-                "watched_source=COALESCE(?, watched_source) "
+                "watched_source=COALESCE(?, watched_source), direct_mark=0 "
                 "WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
                 (ts, src, uid, row["tmdb_id"]),
             )
@@ -383,9 +391,10 @@ def _mark_ask_watched(row):
             ).fetchone()
             if frow and season is not None and episode is not None:
                 conn.execute(
-                    "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) VALUES (?,?,?,1,?,?) "
+                    "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source, direct_mark) "
+                    "VALUES (?,?,?,1,?,?,0) "
                     "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
-                    "source=COALESCE(excluded.source, source)",
+                    "source=COALESCE(excluded.source, source), direct_mark=0",
                     (frow["id"], season, episode, ts, src),
                 )
         conn.commit()

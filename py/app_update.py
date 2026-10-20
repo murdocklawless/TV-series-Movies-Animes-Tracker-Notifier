@@ -425,6 +425,20 @@ def apply_update(remote_url=None):
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
             timeout=300, check=True,
         )
+        # 2.19: JS damga kapisi — bozuk zincirli surum canliya alinmaz.
+        # Sira onemli: klon -> kontrol -> snapshot -> kopyalama. Boylece bozuk
+        # yayin ne kurulur ne snapshot'i kirletir; calisan surum bozulmaz.
+        try:
+            from jsver import check_root as _jsver_problems
+            _js_probs = _jsver_problems(tmp)
+        except Exception as e:
+            print(f"[ui] guncelleme js kontrolu atlandi: {e}", flush=True)
+            _js_probs = []
+        if _js_probs:
+            raise RuntimeError(
+                "JS sürüm zinciri bozuk (" + "; ".join(_js_probs) + ")"
+                " — güncelleme durduruldu. Yayını düzeltin: python3 py/jsver.py check"
+            )
         new_req = os.path.join(tmp, "requirements", "requirements.txt")
         old_req = os.path.join(BASE_DIR, "requirements", "requirements.txt")
         pip_needed = _file_hash(new_req) != _file_hash(old_req)
@@ -456,9 +470,12 @@ def apply_update(remote_url=None):
         t.daemon = True
         t.start()
         return local, to_ver
-    except Exception:
+    except Exception as e:
         try:
-            notify_all("NextEp güncellemesi başarısız oldu, sistem eski sürümde çalışmaya devam ediyor.")
+            notify_all(
+                "NextEp güncellemesi başarısız oldu, sistem eski sürümde çalışmaya devam ediyor. "
+                f"Sebep: {e}"
+            )
         except Exception:
             pass
         raise

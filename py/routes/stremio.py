@@ -58,6 +58,11 @@ from ask_store import record_decision, reset_decision
 
 stremio_bp = Blueprint("stremio", __name__)
 
+# 1.90: watched_ask dedupe yarisi. Stremio ayni oynatma icin altyazi ucunu
+# birden fazla kez cagirir; her istek ayri thread'de process_signal calistirir
+# (waitress threads=8). Kilit, dedupe SELECT + INSERT'i seri hale getirir.
+_ASK_LOCK = threading.Lock()
+
 # Eklenti logosu ayni-kaynaktan servis edilir (/stremio/logo.png — manifestle
 # ayni host/politika; ucuncu parti host kirilganligi yok). Dosya:
 # static/images/stremio_nextep_plugin.png
@@ -69,6 +74,7 @@ THIRDPARTY_APPS = [
     {"id": "plex", "name": "Plex", "protocol": "webhook"},
     {"id": "jellyfin", "name": "Jellyfin", "protocol": "webhook"},
     {"id": "emby", "name": "Emby", "protocol": "webhook"},
+    {"id": "trakt", "name": "Trakt", "protocol": "oauth"},
     {"id": "calendar", "name": "Takvim (ICS)", "protocol": "ics"},
     {"id": "remote", "name": "Uzak Bağlantı", "protocol": "wireguard"},
 ]
@@ -324,7 +330,9 @@ def _tunnel_installed():
 
 # 1.87: VPS kurulum profilleri -> kart durumu ("Kurulu/Kur/Onar").
 # Paylasimli profil: plex/jellyfin/emby ucu de ayni "webhook" yolunu kullanir.
+# 2.16: trakt kendi "trakt" profili (Authorization Code + PKCE callback yolu).
 _PROFILE_OF_APP = {"stremio": "stremio", "calendar": "calendar",
+                   "trakt": "trakt",
                    "plex": "webhook", "jellyfin": "webhook", "emby": "webhook"}
 _VPS_MEMO = {"ts": 0.0, "tunnel": None, "routes": None}
 
@@ -556,7 +564,7 @@ def parse_stremio_id(media_id):
 # Hibrit selale (D1): anime/dizi ayrimi + cozumleme + yazim
 # ---------------------------------------------------------------------------
 
-def process_signal(parsed, owner_id=0, source="stremio", direct=False):
+def _process_signal_impl(parsed, owner_id=0, source="stremio", direct=False):
     """Sinyali cozumleyip ilgili kola yazar. source (1.86): kaynak etiketi.
 
     direct (1.87): kullanici uygulamada "izlendi" olarak ISARETLEDI (Jellyfin
@@ -627,6 +635,24 @@ def process_signal(parsed, owner_id=0, source="stremio", direct=False):
                 conn.close()
         except Exception:
             pass
+
+
+def process_signal(parsed, owner_id=0, source="stremio", direct=False):
+    """`_process_signal_impl` + Trakt giden tetigi (2.19.6).
+
+    Kaynak `trakt` ise tetik atilmaz (echo korumasi: Trakt'tan gelen izleme
+    tekrar Trakt'a gitmez). Diger kaynaklarda islem bittikten sonra havuz
+    uyandirilir; havuz 2 sn toplayip tek POST atar. Yazilacak kayit yoksa bos
+    tetik zararsizdir (sorgu bos doner).
+    """
+    _process_signal_impl(parsed, owner_id=owner_id, source=source, direct=direct)
+    if str(source or "").strip().lower() == "trakt":
+        return
+    try:
+        import sync_pool
+        sync_pool.kick_trakt_out(int(owner_id or 0))
+    except Exception:
+        pass
 
 
 def _resolve_anime(conn, source, external_id):
@@ -889,7 +915,24 @@ def _ask_poster_fields(conn, uid, kind, tmdb_id, anilist_id):
     return poster_local, remote
 
 
-def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False, source=None, lock_prev=None):
+_ASK_LIVE_SQL = (
+    "SELECT id, source FROM notifications WHERE type='watched_ask' AND user_id=? AND media_type=? "
+    "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+    "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+    "AND IFNULL(CAST(season AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+    "AND IFNULL(CAST(episode AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+    "AND COALESCE(resolved,0)<>2 LIMIT 1"
+)
+
+
+def _find_live_ask(conn, uid, kind, tmdb_id=None, anilist_id=None, season=None, episode=None):
+    """Ayni oge icin bekleyen/onaylanmis ask satiri (1.90: dedupe + fallback ortak)."""
+    return conn.execute(
+        _ASK_LIVE_SQL, (uid, kind, tmdb_id, anilist_id, season, episode)
+    ).fetchone()
+
+
+def _create_watched_ask_unlocked(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False, source=None, lock_prev=None):
     """ask_before_watched ON iken watched_ask bildirimi olusturur (poster/thumbs dahil).
 
     source (1.86): kaynak etiketi (stremio/plex/jellyfin/emby/other) — pencerede
@@ -914,17 +957,9 @@ def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=
     try:
         conn = get_db()
         try:
-            dup = conn.execute(
-                # CAST (TEXT) sart: IFNULL() fonksiyon sonucu kolon affinity'sini kaybeder,
-                # bu yuzden metin "95396" ile int 95396 eslesmez (1.86'da webhook testinde yakalandi).
-                "SELECT id, source FROM notifications WHERE type='watched_ask' AND user_id=? AND media_type=? "
-                "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
-                "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
-                "AND IFNULL(CAST(season AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
-                "AND IFNULL(CAST(episode AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
-                "AND COALESCE(resolved,0)<>2 LIMIT 1",
-                (uid, kind, tmdb_id, anilist_id, season, episode),
-            ).fetchone()
+            # CAST (TEXT) sart: IFNULL() fonksiyon sonucu kolon affinity'sini kaybeder,
+            # bu yuzden metin "95396" ile int 95396 eslesmez (1.86'da webhook testinde yakalandi).
+            dup = _find_live_ask(conn, uid, kind, tmdb_id, anilist_id, season, episode)
             if dup and source and (dup["source"] or None) != source:
                 # Ayni bolum icin baska kaynaktan sinyal geldi -> son kaynak kazanir.
                 conn.execute("UPDATE notifications SET source=? WHERE id=?", (source, dup["id"]))
@@ -975,10 +1010,37 @@ def _create_watched_ask(uid, kind, title, tmdb_id=None, anilist_id=None, season=
         if nid:
             record_decision(uid, kind, "pending", tmdb_id=tmdb_id, anilist_id=anilist_id,
                             season=season, episode=episode, source=source)
+            return nid
+        # 1.90: DB UNIQUE index (db.init_db) cok prosesli yarista INSERT'i
+        # reddettiyse mevcut satiri dondur; kullanici yine tek kart gorur.
+        try:
+            conn2 = get_db()
+            try:
+                row = _find_live_ask(conn2, uid, kind, tmdb_id, anilist_id, season, episode)
+            finally:
+                conn2.close()
+            if row:
+                record_decision(uid, kind, "pending", tmdb_id=tmdb_id, anilist_id=anilist_id,
+                                season=season, episode=episode, source=source or row["source"])
+                return row["id"]
+        except Exception as e:
+            print(f"[stremio] ask fallback hata: {e}", flush=True)
         return nid
     except Exception as e:
         print(f"[stremio] ask olusturma hata: {e}", flush=True)
         return None
+
+
+def _create_watched_ask(*args, **kwargs):
+    """1.90: ask uretimini kilitli kritik bolgede calistirir.
+
+    Kilit yokken iki eszamanli sinyal ayni anahtar icin dedupe SELECT'ini
+    birlikte gecip iki watched_ask satiri yazabiliyordu (pi: Organize Isler
+    S1E1, ids 171/172, ayni saniye). DB tarafindaki kismi UNIQUE index
+    (db.init_db: ux_notif_watched_ask) ikinci savunmadir.
+    """
+    with _ASK_LOCK:
+        return _create_watched_ask_unlocked(*args, **kwargs)
 
 
 def _ask_enabled(uid, source=None):
@@ -1120,7 +1182,8 @@ def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, so
                 if str(row["watched_source"] or "").strip().lower() != src:
                     return "source-mismatch"
                 conn.execute(
-                    "UPDATE followed SET watched=0, in_watched=0, watched_at=NULL, watched_source=NULL WHERE id=?",
+                    "UPDATE followed SET watched=0, in_watched=0, watched_at=NULL, "
+                    "watched_source=NULL, direct_mark=0 WHERE id=?",
                     (row["id"],),
                 )
             else:
@@ -1138,7 +1201,7 @@ def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, so
                 if str(row["source"] or "").strip().lower() != src:
                     return "source-mismatch"
                 conn.execute(
-                    "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL "
+                    "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 "
                     "WHERE follow_id=? AND season=? AND episode=?",
                     (frow["id"], season, episode),
                 )
@@ -1215,9 +1278,10 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0, s
         return  # yazma yok, tampon yok
     record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid, source=source)
     conn.execute(
-        "INSERT INTO anime_episodes (anime_id, episode, watched, source) VALUES (?,?,1,?) "
-        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, source=excluded.source",
-        (anime_db_id, episode, source),
+        "INSERT INTO anime_episodes (anime_id, episode, watched, source, direct_mark) VALUES (?,?,1,?,?) "
+        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, source=excluded.source, "
+        "direct_mark=excluded.direct_mark",
+        (anime_db_id, episode, source, 1 if direct else 0),
     )
     conn.commit()
     _stamp_verified_ts(uid)
@@ -1265,10 +1329,10 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0, source="stremio", dir
     import time as _t
     _now = int(_t.time())
     conn.execute(
-        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) VALUES (?,?,?,1,?,?) "
+        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source, direct_mark) VALUES (?,?,?,1,?,?,?) "
         "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
-        "source=excluded.source",
-        (follow_id, season, episode, _now, source),
+        "source=excluded.source, direct_mark=excluded.direct_mark",
+        (follow_id, season, episode, _now, source, 1 if direct else 0),
     )
     conn.commit()
     _stamp_verified_ts(uid)
@@ -1301,8 +1365,9 @@ def _movie_branch(conn, tmdb_id, owner_id=0, source="stremio", direct=False):
     import time as _t
     _now = int(_t.time())
     conn.execute(
-        "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?), watched_source=? WHERE id=?",
-        (_now, source, movie_id),
+        "UPDATE followed SET watched=1, in_watched=1, watched_at=COALESCE(watched_at, ?), "
+        "watched_source=?, direct_mark=? WHERE id=?",
+        (_now, source, 1 if direct else 0, movie_id),
     )
     conn.commit()
     _stamp_verified_ts(uid)
@@ -1529,6 +1594,14 @@ def _app_status(app):
         "installUrl": None,
     }
     base.update(_vps_card_state(aid))
+    if aid == "trakt":
+        # 2.03: Trakt OAuth (UUID yok). Durum + son sinyal (per-user).
+        try:
+            import trakt as _trakt
+            base.update(_trakt.status(_me_uid() or 1))
+        except Exception as _e:
+            print(f"[stremio] trakt durum hata: {_e}", flush=True)
+        return base
     uid = _me_uid() or 1
     u = _get_uuid(aid, user_id=uid)
     if not u:
@@ -1562,6 +1635,13 @@ def _app_status(app):
             base["verifiedVia"] = (_gusw2(uid, f"tp_{aid}_verified_via") or "").strip() or None
         except Exception:
             base["verifiedVia"] = None
+        # 2.07: kurulum linki tercihi (lan/url) — kullanici+uygulama bazinda; varsayilan LAN.
+        try:
+            from db import get_user_setting as _guslm
+            _lm = (_guslm(uid, f"tp_{aid}_link_mode") or "").strip().lower()
+            base["linkMode"] = _lm if _lm in ("lan", "url") else "lan"
+        except Exception:
+            base["linkMode"] = "lan"
         # 1.87: kartta "Son sinyal" + "xyz izlendi" (webhook'tan gelen son izleme).
         try:
             from db import get_user_setting as _guslw
@@ -1684,6 +1764,201 @@ def thirdparty_calendar_disconnect():
     return jsonify({"ok": True})
 
 
+# --- Trakt (2.03) — OAuth device code ---
+
+@stremio_bp.route("/api/thirdparty/trakt/client", methods=["POST"])
+def thirdparty_trakt_client():
+    """Global Trakt uygulama kimligi (client_id + client_secret)."""
+    body = request.get_json(silent=True) or {}
+    cid = (body.get("client_id") or "").strip()
+    csec = (body.get("client_secret") or "").strip()
+    try:
+        if cid:
+            set_setting("trakt_client_id", cid)
+        if csec:
+            set_setting("trakt_client_secret", csec)
+    except Exception as e:
+        return jsonify({"error": str(e)[:200]}), 400
+    import trakt
+    return jsonify({"ok": True, "configured": trakt.configured()})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/connect", methods=["POST"])
+def thirdparty_trakt_connect():
+    import trakt
+    ok, data = trakt.device_start()
+    if not ok:
+        return jsonify({"error": data or "device"}), 400
+    return jsonify({"ok": True, "device": data})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/connect/poll", methods=["POST"])
+def thirdparty_trakt_connect_poll():
+    body = request.get_json(silent=True) or {}
+    code = (body.get("device_code") or "").strip()
+    if not code:
+        return jsonify({"error": "eksik"}), 400
+    import trakt
+    st, data = trakt.device_poll(code)
+    if st == "pending":
+        return jsonify({"ok": True, "pending": True})
+    if st == "error":
+        return jsonify({"error": data or "token"}), 400
+    uid = _me_uid() or 1
+    if not trakt._save_token(uid, data, freeze=True):
+        return jsonify({"error": "kaydedilemedi"}), 400
+    uname = ""
+    try:
+        okm, uname = trakt.me(uid)
+        if okm and uname:
+            set_user_setting(uid, "tp_trakt_user", uname)
+    except Exception:
+        pass
+    try:
+        from scheduler import reschedule_user_jobs
+        reschedule_user_jobs(uid)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "user": uname or ""})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/disconnect", methods=["POST"])
+def thirdparty_trakt_disconnect():
+    uid = _me_uid() or 1
+    import trakt
+    trakt.clear_token(uid)
+    try:
+        from scheduler import reschedule_user_jobs
+        reschedule_user_jobs(uid)
+    except Exception:
+        pass
+    return jsonify({"ok": True})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/two-way", methods=["POST"])
+def thirdparty_trakt_two_way():
+    body = request.get_json(silent=True) or {}
+    uid = _me_uid() or 1
+    set_user_setting(uid, "tp_trakt_two_way", "1" if body.get("enabled") else "0")
+    return jsonify({"ok": True, "enabled": bool(body.get("enabled"))})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/poll-interval", methods=["POST"])
+def thirdparty_trakt_poll_interval():
+    body = request.get_json(silent=True) or {}
+    uid = _me_uid() or 1
+    import trakt
+    try:
+        v = int(body.get("minutes"))
+    except Exception:
+        v = trakt.POLL_DEFAULT
+    if v not in trakt.POLL_CHOICES:
+        v = trakt.POLL_DEFAULT
+    set_user_setting(uid, "tp_trakt_poll_min", str(v))
+    try:
+        from scheduler import reschedule_user_jobs
+        reschedule_user_jobs(uid)
+    except Exception:
+        pass
+    return jsonify({"ok": True, "minutes": v})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/check", methods=["POST"])
+def thirdparty_trakt_check():
+    """Manuel yoklama (2.17): Trakt kartindaki "Simdi kontrol et" butonu.
+
+    Buton manuel isaretleme sayilir (Jellyfin poster "izlendi" gibi) ->
+    direct=True: Trakt'tan gelen izlemeler "Izlendi mi?" sorusu uretmeden
+    dogrudan izlendi yazilir. Otomatik periyodik yoklama ask akisini korur.
+    """
+    uid = _me_uid() or 1
+    import time as _time
+    import trakt
+    if not trakt.connected(uid):
+        return jsonify({"error": "no-token"}), 400
+    res = trakt.poll(uid, direct=True)
+    if not res.get("ok"):
+        return jsonify({"error": res.get("error") or "poll"}), 409
+    return jsonify({"ok": True, "in": res.get("in", 0), "out": res.get("out", 0),
+                    "checked": int(_time.time())})
+
+
+@stremio_bp.route("/api/thirdparty/trakt/redirect-mode", methods=["POST"])
+def thirdparty_trakt_redirect_mode():
+    """Aktif redirect modu (lan/url) - kullanici secimi; token yenilemede kullanilir."""
+    body = request.get_json(silent=True) or {}
+    import trakt
+    if not trakt.set_redirect_mode(body.get("mode")):
+        return jsonify({"error": "gecersiz"}), 400
+    return jsonify({"ok": True, "mode": trakt.redirect_mode()})
+
+
+# --- 2.12: Trakt OAuth Authorization Code + PKCE (yeni app'lerde secret YOK) ---
+
+@stremio_bp.route("/api/thirdparty/trakt/authorize", methods=["GET"])
+def thirdparty_trakt_authorize():
+    """PKCE onay URL'i (frontend yeni sekmede acar)."""
+    uid = _me_uid() or 1
+    import trakt
+    ok, url = trakt.authorize_url(uid)
+    if not ok:
+        return jsonify({"error": url or "authorize"}), 400
+    return jsonify({"ok": True, "url": url, "redirect_uri": trakt.auth_redirect_uri()})
+
+
+def _trakt_callback_page(title, msg, ok):
+    """Trakt callback sonucu icin basit HTML sayfasi."""
+    from flask import Response
+    color = "#22c55e" if ok else "#ef4444"
+    html = (
+        "<!doctype html><html lang=\"tr\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>NextEp &middot; Trakt</title><style>"
+        "body{background:#0f1117;color:#e6e8ee;font-family:system-ui,-apple-system,sans-serif;"
+        "display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}"
+        ".c{max-width:420px;padding:28px 24px;text-align:center}"
+        "h1{font-size:1.1rem;color:%s;margin:0 0 10px}p{font-size:.9rem;color:#aab;line-height:1.6}"
+        "</style></head><body><div class=\"c\"><h1>%s</h1><p>%s</p></div></body></html>"
+    ) % (color, title, msg)
+    return Response(html, mimetype="text/html")
+
+
+@stremio_bp.route("/callback", methods=["GET"])
+@stremio_bp.route("/trakt/callback", methods=["GET"])
+def trakt_callback():
+    """Trakt authorization code callback (PKCE; secret gerekmez)."""
+    import trakt
+    err = (request.args.get("error") or "").strip()
+    if err:
+        return _trakt_callback_page("Trakt baglanamadi", "Trakt: " + err, False)
+    code = (request.args.get("code") or "").strip()
+    state = (request.args.get("state") or "").strip()
+    if not code:
+        return _trakt_callback_page("Trakt baglanamadi", "Kod alinamadi.", False)
+    ok, e = trakt.exchange_code(code, state)
+    if not ok:
+        return _trakt_callback_page("Trakt baglanamadi", "Hata: " + (e or "?"), False)
+    try:
+        from scheduler import reschedule_user_jobs
+        reschedule_user_jobs(_me_uid() or 1)
+    except Exception:
+        pass
+    return _trakt_callback_page("Trakt baglandi", "Bu sekmeyi kapatip NextEp'e donebilirsiniz.", True)
+
+
+@stremio_bp.route("/api/thirdparty/webhook-link-mode", methods=["POST"])
+def thirdparty_webhook_link_mode():
+    """Webhook kurulum linki tercihi (lan/url) - kullanici+uygulama bazinda."""
+    body = request.get_json(silent=True) or {}
+    app_id = (body.get("app") or "").strip().lower()
+    mode = (body.get("mode") or "").strip().lower()
+    if app_id not in WEBHOOK_APPS or mode not in ("lan", "url"):
+        return jsonify({"error": "gecersiz"}), 400
+    uid = _me_uid() or 1
+    set_user_setting(uid, f"tp_{app_id}_link_mode", mode)
+    return jsonify({"ok": True, "app": app_id, "mode": mode})
+
+
 # --- Webhook uygulamalari (Plex / Jellyfin / Emby) — 1.86 ---
 # Adres: {base}/webhook/<app>/<uuid>. Jenerik uclar (Stremio/Takvim deseninin kardesi).
 
@@ -1763,7 +2038,7 @@ def _clear_apply_tv(conn, tmdb_id, owner_id=0):
     ).fetchone()
     if not follow:
         return jsonify({"error": "Takip bulunamadı"}), 404
-    conn.execute("UPDATE episodes SET watched=0, watched_at=NULL, source=NULL WHERE follow_id=?", (follow["id"],))
+    conn.execute("UPDATE episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 WHERE follow_id=?", (follow["id"],))
     conn.commit()
     signals = sorted(
         signals_for_tv(tmdb_id, user_id=uid),
@@ -1779,9 +2054,9 @@ def _clear_apply_tv(conn, tmdb_id, owner_id=0):
             print(f"[stremio] clear-apply kilit atlandi: S{s['season']}E{s['episode']}", flush=True)
             continue
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) VALUES (?,?,?,1,?,?) "
+            "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source, direct_mark) VALUES (?,?,?,1,?,?,0) "
             "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
-            "source=excluded.source",
+            "source=excluded.source, direct_mark=0",
             (follow["id"], s["season"], s["episode"], _now, s.get("source")),
         )
         applied.append({"season": s["season"], "episode": s["episode"]})
@@ -1797,7 +2072,7 @@ def _clear_apply_anime(conn, anilist_id, owner_id=0):
     arow = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
     if not arow:
         return jsonify({"error": "Takip bulunamadı"}), 404
-    conn.execute("UPDATE anime_episodes SET watched=0, source=NULL WHERE anime_id=?", (arow["id"],))
+    conn.execute("UPDATE anime_episodes SET watched=0, source=NULL, direct_mark=0 WHERE anime_id=?", (arow["id"],))
     conn.commit()
     signals = sorted(signals_for_anime(anilist_id, user_id=uid), key=lambda s: (s.get("episode") or 0))
     applied = []
@@ -1808,8 +2083,8 @@ def _clear_apply_anime(conn, anilist_id, owner_id=0):
             print(f"[stremio] clear-apply kilit atlandi anime ep={s['episode']}", flush=True)
             continue
         conn.execute(
-            "INSERT INTO anime_episodes (anime_id, episode, watched, source) VALUES (?,?,1,?) "
-            "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, source=excluded.source",
+            "INSERT INTO anime_episodes (anime_id, episode, watched, source, direct_mark) VALUES (?,?,1,?,0) "
+            "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, source=excluded.source, direct_mark=0",
             (arow["id"], s["episode"], s.get("source")),
         )
         applied.append({"episode": s["episode"]})

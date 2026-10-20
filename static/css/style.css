@@ -2094,6 +2094,7 @@ input:-webkit-autofill:focus {
 .src-plex { color: #e5a00d; }
 .src-jellyfin { color: #00a4dc; }
 .src-emby { color: #52b54b; }
+.src-trakt { color: #ed1c24; }
 .src-other { color: #9aa3b2; }
 /* Ozet modalindaki "Kaynak: X" satiri "Sure: ..." satiriyla ayni gorunur:
    beyaz + normal kalinlik. Marka renkleri yalnizca ask damga satirinda kalir. */
@@ -2595,7 +2596,7 @@ input:-webkit-autofill:focus {
 .settings-form label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   font-weight: 500;
   color: #aab;
   font-size: 0.9rem;
@@ -3924,6 +3925,31 @@ input:-webkit-autofill:focus {
   box-sizing: border-box;
 }
 
+/* 2.13: Trakt "cift yonlu aktarim" satiri — global .notify-row (gap 100px, max-width 400px)
+   + .settings-form label (display:flex) switch'i gerip satiri 3 satira boluyor ve switch
+   modal disina tasiyordu. Yuksek ozgullukle sabitle. */
+#tp-app-trakt .tp-sub-box .notify-row {
+  gap: 12px;
+  max-width: none;
+  margin: 0;
+  padding: 8px 0;
+  flex-wrap: nowrap;
+}
+#tp-app-trakt .tp-sub-box .notify-row .notify-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#tp-app-trakt .tp-sub-box .notify-row .switch {
+  display: inline-block;
+  width: 41px;
+  max-width: 41px;
+  min-width: 41px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+  position: relative;
+}
+
 .tp-card-disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -4060,21 +4086,18 @@ input:-webkit-autofill:focus {
 .tp-url-box {
   display: flex;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 0;
 }
 
-/* 1.87: LAN/URL kurulum cerceveleri — baslik + kutu her zaman SOLA yasli
-   (cerceve basligi URL cercevesiyle birebir ayni hizada gorunsun). */
-.tp-sub-box > label,
-.tp-sub-box > label .settings-label-head,
-.tp-sub-box > .tp-url-box {
-  text-align: left;
-  justify-content: flex-start;
-}
+/* 1.96: LAN/URL basliklari da global .settings-label-head kuralini kullanir
+   (baslik solda, "Kaydedildi" sagda). 1.87'nin zorla-sola kurali kaldirildi. */
 
 .tp-url-box input {
   flex: 1;
   min-width: 0;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
   font-family: inherit;
   font-size: 0.95rem;
   padding: 8px 10px;
@@ -4084,15 +4107,89 @@ input:-webkit-autofill:focus {
   color: #c9cedb;
 }
 
+/* 1.94: Third Party Apps kutulari cerceve genisligine yayilsin (Public Adres vb.);
+   .settings-form label/input 440px siniri bu modalda kaldirilir. */
+#settings-thirdparty-modal .settings-form label,
+#settings-thirdparty-modal .settings-form input,
+#settings-thirdparty-modal .settings-form select,
+#settings-thirdparty-modal .settings-form textarea {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 /* root kullanicisinda parola alani kilitli (kullanici adi root iken) */
 .tp-url-box input:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+.tp-url-box button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 2.05: pasif (disabled) kurulum/redirect kutusu soluk */
+.tp-url-box.tp-muted {
+  opacity: 0.45;
+}
+
+/* 2.06: redirect modu secici — aktif: yesil tick, pasif: kirmizi x (tiklaninca gecirir) */
+.tp-redir-btn {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tp-redir-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+.tp-redir-btn.on {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  cursor: default;
+}
+.tp-redir-btn.off {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.tp-redir-btn.off:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+/* 2.05: tek cercevede ust uste kurulum kutulari (LAN + URL) arasi bosluk */
+.tp-sub-box > label + label {
+  margin-top: 10px;
+}
+
 .tp-url-box button {
   font-size: 0.95rem;
   padding: 8px 10px;
+}
+
+/* 2.06b: .tp-url-box button (0,1,1) kurali .tp-redir-btn (0,1,0) padding'ini eziyordu
+   (box-sizing: border-box + padding -> ikon 6x10px'e sikisip NOKTA gorunuyordu).
+   Yuksek ozgullukle sifirla; ayrica .tp-url-box align-items: stretch oldugu icin ikon
+   ust kenara yapisiyordu -> align-self: center ile dikey ortala. */
+.tp-url-box button.tp-redir-btn {
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+  align-self: center;
 }
 
 .tp-url-box a {
@@ -5357,6 +5454,10 @@ select#s-email-provider.email-lit {
   gap: 8px;
   width: 100%;
   padding: 10px 12px;
+  box-sizing: border-box;
+  /* 2.01: blok yuksekligi "Bildirim Saati" input'uyla esit olsun
+     (genis masaustu input ~43px -> toggle 41px + 1px alt/ust border = 43px). */
+  min-height: 41px;
   background: #171a23;
   border: none;
   border-top-left-radius: 9px;
@@ -5450,7 +5551,7 @@ select#s-email-provider.email-lit {
 .channel-frame label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .channel-frame > div {
@@ -6168,7 +6269,7 @@ body.logged-out main { padding: 0; }
   padding: 8px 10px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
   min-width: 0;
-  max-width: min(560px, calc(100vw - 24px));
+  max-width: min(680px, calc(100vw - 24px));
   pointer-events: auto;
   overflow-y: auto;
   overflow-x: auto;
@@ -6197,9 +6298,6 @@ body.logged-out main { padding: 0; }
   margin: 0 8px;
   font-weight: 400;
 }
-.history-tip-cell.history-tip-mark::before {
-  content: none;
-}
 .history-tip-row + .history-tip-row .history-tip-cell {
   border-top: 1px dotted #f97316;
   padding-top: 4px;
@@ -6210,7 +6308,7 @@ body.logged-out main { padding: 0; }
   white-space: nowrap;
 }
 .history-tip-mark {
-  padding-left: 8px;
+  padding-left: 0;
 }
 .history-tip-row.marked .history-tip-cell:not(.history-tip-mark) {
   color: #9ca3af;

@@ -1,14 +1,31 @@
-// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
+﻿// Faz 4: settings â€” ayarlar menÃ¼sÃ¼, zaman dilimi / saat seÃ§icileri, favori listeleri, otomatik kaydetme, bildirim anahtarlarÄ±.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=546";
-import { toast, escAttr, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=538";
-import { activateUtilityTab } from "./views.js?v=549";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=550";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=640";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=640";
+import { activateUtilityTab } from "./views.js?v=640";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=640";
+
+// 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
+// Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
+// modul govdesindeki toggle dinleyicileri iki kez baglaniyor ve birbirini iptal
+// ediyordu (disli menusu / akordeonlar acilip aninda kapaniyordu). nxOnce ayni
+// anahtarin yalniz bir kez baglanmasini garanti eder.
+function nxOnce(key) {
+  try {
+    const k = "__nx_" + key;
+    if (window[k]) {
+      try { console.warn("[nx] cift modul yuklemesi: " + key); } catch (_) {}
+      return false;
+    }
+    window[k] = 1;
+  } catch (_) {}
+  return true;
+}
 
 // ---- Search ----
 // ---- Settings ----
 
-// Bildirim tipleri — py/scheduler.py NOTIF_TYPES ile birebir aynı
+// Bildirim tipleri â€” py/scheduler.py NOTIF_TYPES ile birebir aynÄ±
 const NOTIF_TYPES = [
   ["episode_today", "tv"], ["season_start", "tv"], ["season_planned", "tv"],
   ["season_production", "tv"], ["status_ended", "tv"], ["status_canceled", "tv"],
@@ -58,7 +75,7 @@ function renderNotifTypes() {
       saveSettingsPartial({ [`notif_${k}`]: e.target.checked ? "1" : "0" }, hint);
     });
   });
-  // Tek grup açık: bir head'e tiklaninca digerleri kapanir
+  // Tek grup aÃ§Ä±k: bir head'e tiklaninca digerleri kapanir
   NOTIF_GROUPS.forEach(([g]) => {
     const box = document.getElementById(`notif-type-box-${g}`);
     if (!box) return;
@@ -75,7 +92,7 @@ async function loadTimezones() {
     const res = await fetch("/api/timezones");
     state.allTimezones = await res.json();
   } catch (e) {
-    console.error("timezone yükleme hatası", e);
+    console.error("timezone yÃ¼kleme hatasÄ±", e);
   }
 }
 
@@ -284,13 +301,13 @@ function closeTzList() {
   }
 }
 
-// MERKEZLİ BÜYÜME: liste açılınca modal iki yöne büyür ve overlay'in doğal
-// align-items:center'ı ile dikey ortalanır (eski flex-start anchor + marginTop
-// dengelemesi kaldırıldı — aşağı-büyü modeli ekran altından taşıyordu).
-// Hedef yükseklik ekranın üst/alt boşluğuna clamp'lenir; taşan kısım listenin
-// kendi içi scroll'una kalır (inline maxHeight, her açılışta taze hesaplanır).
-// TEK AKTİF PULLDOWN: yeni liste açılınca öncekinin odası tabana indirilir;
-// kapanınca body minHeight overlay'in kaydettiği TABAN değere döner.
+// MERKEZLÄ° BÃœYÃœME: liste aÃ§Ä±lÄ±nca modal iki yÃ¶ne bÃ¼yÃ¼r ve overlay'in doÄŸal
+// align-items:center'Ä± ile dikey ortalanÄ±r (eski flex-start anchor + marginTop
+// dengelemesi kaldÄ±rÄ±ldÄ± â€” aÅŸaÄŸÄ±-bÃ¼yÃ¼ modeli ekran altÄ±ndan taÅŸÄ±yordu).
+// Hedef yÃ¼kseklik ekranÄ±n Ã¼st/alt boÅŸluÄŸuna clamp'lenir; taÅŸan kÄ±sÄ±m listenin
+// kendi iÃ§i scroll'una kalÄ±r (inline maxHeight, her aÃ§Ä±lÄ±ÅŸta taze hesaplanÄ±r).
+// TEK AKTÄ°F PULLDOWN: yeni liste aÃ§Ä±lÄ±nca Ã¶ncekinin odasÄ± tabana indirilir;
+// kapanÄ±nca body minHeight overlay'in kaydettiÄŸi TABAN deÄŸere dÃ¶ner.
 let activePdList = null;
 
 function ensureModalRoom(list, desired) {
@@ -303,7 +320,7 @@ function ensureModalRoom(list, desired) {
     body.style.minHeight = overlay.dataset.pdBaseMinH || "";
   }
   if (!activePdList) {
-    // taban yalnızca overlay TAMAMEN serbestken yakalanır (takeover kirlenmesi)
+    // taban yalnÄ±zca overlay TAMAMEN serbestken yakalanÄ±r (takeover kirlenmesi)
     if (!overlay.dataset.pdRoomOpen) {
       overlay.dataset.pdBaseMinH = body.style.minHeight || "";
       overlay.dataset.pdRoomOpen = "1";
@@ -311,7 +328,7 @@ function ensureModalRoom(list, desired) {
     list.dataset.pdAnchored = "1";
     activePdList = list;
   }
-  // MOBIL: s-tz-list modal alt sınırına kadar uzasın (desktop gMax clamp'i atla)
+  // MOBIL: s-tz-list modal alt sÄ±nÄ±rÄ±na kadar uzasÄ±n (desktop gMax clamp'i atla)
   if (window.innerWidth <= 768 && list.id === "s-tz-list") {
     const relTopM = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
     const viewportAvail = window.innerHeight - list.getBoundingClientRect().top - 24;
@@ -322,7 +339,7 @@ function ensureModalRoom(list, desired) {
     if (neededM > body.offsetHeight) body.style.minHeight = neededM + "px";
     return;
   }
-  // DESKTOP: s-tz-list alt border'ı modal alt sınırına yapışsın (mobil gibi)
+  // DESKTOP: s-tz-list alt border'Ä± modal alt sÄ±nÄ±rÄ±na yapÄ±ÅŸsÄ±n (mobil gibi)
   if (window.innerWidth > 768 && list.id === "s-tz-list") {
     const relTopD = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
     const viewportAvailD = window.innerHeight - list.getBoundingClientRect().top - 24;
@@ -334,7 +351,7 @@ function ensureModalRoom(list, desired) {
     return;
   }
   const bodyRect = body.getBoundingClientRect();
-  // merkezleme büyümeyi iki yarıya böldüğü için her yönün payı 2 kat sayılır
+  // merkezleme bÃ¼yÃ¼meyi iki yarÄ±ya bÃ¶ldÃ¼ÄŸÃ¼ iÃ§in her yÃ¶nÃ¼n payÄ± 2 kat sayÄ±lÄ±r
   const gMax = Math.max(120, Math.min(
     2 * (window.innerHeight - 24 - bodyRect.bottom),
     2 * (bodyRect.top - 24)
@@ -342,7 +359,7 @@ function ensureModalRoom(list, desired) {
   const target = Math.min(Math.max(desired, 0), gMax);
   if (target <= 0) return;
   list.style.maxHeight = Math.max(120, target - 16) + "px";
-  // relTop merkezlemeden etkilenmez (body içi göreç konum)
+  // relTop merkezlemeden etkilenmez (body iÃ§i gÃ¶reÃ§ konum)
   const relTop = Math.round(list.getBoundingClientRect().top - bodyRect.top);
   const needed = relTop + target;
   if (needed > body.offsetHeight) {
@@ -631,7 +648,7 @@ async function loadSettings() {
   const rsPass = document.getElementById("s-backup-rsync-pass");
   if (rsPass) rsPass.value = "";
   const rsKey = document.getElementById("s-backup-rsync-key-text");
-  if (rsKey) rsKey.value = s.has_backup_key ? "••••••••" : "";
+  if (rsKey) rsKey.value = s.has_backup_key ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "";
   rsKey.dataset.hasKey = s.has_backup_key ? "1" : "0";
   const smH = document.getElementById("s-backup-samba-host");
   if (smH) smH.value = s.backup_samba_host || "";
@@ -705,7 +722,7 @@ async function loadSettings() {
 
 function applyReadonlyGlobals(s) {
   // Faz 32: uye global anahtarlari salt-okunur gorur (admin yonetir).
-  // notification_hour kisisel oldugundan haric — uye duzenleyebilir.
+  // notification_hour kisisel oldugundan haric â€” uye duzenleyebilir.
   const keyToIds = {
     tmdb_api_key: ["s-tmdb"],
     telegram_bot_token: ["s-token"],
@@ -1014,7 +1031,7 @@ async function renderFavGenresList() {
   } catch (e) {}
 }
 
-// Favori liste modalı — person-modal ile aynı boyut/grid, cache'li
+// Favori liste modalÄ± â€” person-modal ile aynÄ± boyut/grid, cache'li
 async function openFavListing(kind, ident, title) {
   const modal = document.getElementById("fav-listing-modal");
   const body = document.getElementById("fav-listing-body");
@@ -1031,7 +1048,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=546");
+      const { errText: _err } = await import("./i18n.js?v=640");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1040,9 +1057,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=538");
-    const { openDetails } = await import("./components.js?v=550");
-    const { loadFollowed } = await import("./views.js?v=549");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=640");
+    const { openDetails } = await import("./components.js?v=640");
+    const { loadFollowed } = await import("./views.js?v=640");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1078,7 +1095,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=546");
+        const { t: _t } = await import("./i18n.js?v=640");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1099,7 +1116,7 @@ async function openFavListing(kind, ident, title) {
   }
 }
 
-(function initFavListingModal() {
+if (nxOnce("fav_listing_modal")) (function initFavListingModal() {
   const modal = document.getElementById("fav-listing-modal");
   if (!modal) return;
   const close = () => { modal.style.display = "none"; };
@@ -1109,8 +1126,8 @@ async function openFavListing(kind, ident, title) {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.style.display !== "none") close(); });
 })();
 
-// Yedekleme: sabit çerçeve 2 switch (biri açılırsa diğeri kapanır) + Rsync/Samba akordeonları
-(function initBackupSwitches() {
+// Yedekleme: sabit Ã§erÃ§eve 2 switch (biri aÃ§Ä±lÄ±rsa diÄŸeri kapanÄ±r) + Rsync/Samba akordeonlarÄ±
+if (nxOnce("backup_switches")) (function initBackupSwitches() {
   const dbSw = document.getElementById("s-backup-db");
   const fullSw = document.getElementById("s-backup-full");
   if (!dbSw || !fullSw) return;
@@ -1134,12 +1151,12 @@ async function openFavListing(kind, ident, title) {
       saveSettingsPartial({ backup_mode: "db" }, fullSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
     }
   });
-  // switch tıklaması akordeonu tetiklemesin
+  // switch tÄ±klamasÄ± akordeonu tetiklemesin
   [dbSw, fullSw].forEach((sw) => sw.addEventListener("click", (e) => e.stopPropagation()));
 })();
 
-// Yedekleme Rsync/Samba akordeonları + port autofill + SSH key textarea/file
-(function initBackupAccordion() {
+// Yedekleme Rsync/Samba akordeonlarÄ± + port autofill + SSH key textarea/file
+if (nxOnce("backup_accordion")) (function initBackupAccordion() {
   [["backup-rsync-box", "backup-rsync-body", "s-backup-rsync-port", "22"], ["backup-samba-box", "backup-samba-body", "s-backup-samba-port", "445"]].forEach(([boxId, bodyId, portId, defPort]) => {
     const box = document.getElementById(boxId);
     const body = document.getElementById(bodyId);
@@ -1163,22 +1180,22 @@ async function openFavListing(kind, ident, title) {
       }
     });
   });
-  // SSH key textarea autosave (bulanıklaşınca)
+  // SSH key textarea autosave (bulanÄ±klaÅŸÄ±nca)
   const keyText = document.getElementById("s-backup-rsync-key-text");
   if (keyText) {
-    // placeholder key gösteriliyorsa ilk odaklanmada temizle
+    // placeholder key gÃ¶steriliyorsa ilk odaklanmada temizle
     keyText.addEventListener("focus", () => {
-      if (keyText.dataset.hasKey === "1" && keyText.value === "••••••••") {
+      if (keyText.dataset.hasKey === "1" && keyText.value === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") {
         keyText.value = "";
         keyText.dataset.hasKey = "0";
       }
     });
     keyText.addEventListener("blur", async () => {
       const v = keyText.value.trim();
-      if (!v || v === "••••••••") return;
-      // OpenSSH format kontrolü (başlık)
+      if (!v || v === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") return;
+      // OpenSSH format kontrolÃ¼ (baÅŸlÄ±k)
       if (!v.includes("BEGIN") || !v.includes("PRIVATE KEY")) {
-        toast("OpenSSH formatında olmalı (-----BEGIN OPENSSH PRIVATE KEY-----)", true);
+        toast("OpenSSH formatÄ±nda olmalÄ± (-----BEGIN OPENSSH PRIVATE KEY-----)", true);
         return;
       }
       const hint = keyText.closest("label").querySelector(".saved-hint");
@@ -1218,7 +1235,7 @@ async function openFavListing(kind, ident, title) {
       await saveSettingsPartial({ backup_rsync_key: "" }, hint);
     });
   }
-  // backup alanları autosave (blur)
+  // backup alanlarÄ± autosave (blur)
   [
     ["s-backup-rsync-host", "backup_rsync_host"],
     ["s-backup-rsync-port", "backup_rsync_port"],
@@ -1237,7 +1254,7 @@ async function openFavListing(kind, ident, title) {
       await saveSettingsPartial({ [key]: v }, hint);
     });
   });
-  // şifreler: boş bırakılırsa gönderme, doluysa kaydet
+  // ÅŸifreler: boÅŸ bÄ±rakÄ±lÄ±rsa gÃ¶nderme, doluysa kaydet
   ["s-backup-rsync-pass", "s-backup-samba-pass"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1250,7 +1267,7 @@ async function openFavListing(kind, ident, title) {
       if (ok) el.value = "";
     });
   });
-  // Yedekle / Geri Yükle butonları - hedef mantığı (tablo)
+  // Yedekle / Geri YÃ¼kle butonlarÄ± - hedef mantÄ±ÄŸÄ± (tablo)
   function isRsyncDolu() {
     const v = document.getElementById("s-backup-rsync-host")?.value.trim();
     return !!v;
@@ -1277,13 +1294,13 @@ async function openFavListing(kind, ident, title) {
     let target = null;
     let tipKey = null;
     let disabled = false;
-    // Tek taraf dolu -> hedef belli, seçim/tooltip yok
+    // Tek taraf dolu -> hedef belli, seÃ§im/tooltip yok
     if (rDolu && !sDolu) {
       target = "rsync";
     } else if (!rDolu && sDolu) {
       target = "samba";
     } else if (rDolu && sDolu) {
-      // İkisi dolu -> açık akordeon belirler
+      // Ä°kisi dolu -> aÃ§Ä±k akordeon belirler
       if (!open) {
         disabled = true;
         tipKey = "tip_backup_choose";
@@ -1292,17 +1309,17 @@ async function openFavListing(kind, ident, title) {
         tipKey = target === "rsync" ? "tip_backup_rsync" : "tip_backup_samba";
       }
     } else {
-      // Hiçbiri dolu değil
+      // HiÃ§biri dolu deÄŸil
       disabled = true;
       tipKey = "tip_backup_empty";
     }
     // Yedekle butonu
     nowBtn.disabled = disabled;
     restoreBtn.disabled = disabled;
-    // Güncelleme modalındaki Yedekleme Saati: hedef yoksa kapalı + bilgi tooltip'i
-    // (data-tip satırın tamamına yazılır: disabled input fare olayı üretmez,
-    //  başlık span'i ise input üzerinden hover'da atlanır; satır kapsayınca
-    //  özel tooltip her noktada çalışır)
+    // GÃ¼ncelleme modalÄ±ndaki Yedekleme Saati: hedef yoksa kapalÄ± + bilgi tooltip'i
+    // (data-tip satÄ±rÄ±n tamamÄ±na yazÄ±lÄ±r: disabled input fare olayÄ± Ã¼retmez,
+    //  baÅŸlÄ±k span'i ise input Ã¼zerinden hover'da atlanÄ±r; satÄ±r kapsayÄ±nca
+    //  Ã¶zel tooltip her noktada Ã§alÄ±ÅŸÄ±r)
     const backupHourInput = document.getElementById("s-backup-hour");
     if (backupHourInput) {
       const hourBlocked = !rDolu && !sDolu;
@@ -1332,7 +1349,7 @@ async function openFavListing(kind, ident, title) {
       restoreBtn.setAttribute("data-i18n", "backup_restore");
       restoreBtn.textContent = t("backup_restore");
     }
-    // Tooltip - sadece gerektiğinde
+    // Tooltip - sadece gerektiÄŸinde
     if (tipKey) {
       const tip = t(tipKey);
       nowBtn.setAttribute("data-tip", tip);
@@ -1345,21 +1362,21 @@ async function openFavListing(kind, ident, title) {
     nowBtn.dataset.target = target || "";
     restoreBtn.dataset.target = target || "";
   }
-  // Akordeon toggle sonrası güncelle (port autofill sonrası da)
+  // Akordeon toggle sonrasÄ± gÃ¼ncelle (port autofill sonrasÄ± da)
   const _origBoxes = ["backup-rsync-box", "backup-samba-box"].map((id) => document.getElementById(id)).filter(Boolean);
   _origBoxes.forEach((box) => box.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0)));
-  // Host/share input blur sonrası (dolu değişebilir)
+  // Host/share input blur sonrasÄ± (dolu deÄŸiÅŸebilir)
   ["s-backup-rsync-host", "s-backup-samba-host", "s-backup-samba-share"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("blur", () => setTimeout(updateBackupButtonsState, 300));
     if (el) el.addEventListener("input", () => setTimeout(updateBackupButtonsState, 0));
   });
-  // Modal açılırken ve ayarlar yüklenince
+  // Modal aÃ§Ä±lÄ±rken ve ayarlar yÃ¼klenince
   const backupMenuItem = document.querySelector('.settings-menu-item[data-target="settings-backup-modal"]');
   if (backupMenuItem) backupMenuItem.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0));
-  // loadSettings sonrası için global hook
+  // loadSettings sonrasÄ± iÃ§in global hook
   window.updateBackupButtonsState = updateBackupButtonsState;
-  // İlk durum + dil değişiminde güncelle
+  // Ä°lk durum + dil deÄŸiÅŸiminde gÃ¼ncelle
   setTimeout(updateBackupButtonsState, 0);
   document.addEventListener("app:langchange", updateBackupButtonsState);
 
@@ -1383,7 +1400,7 @@ async function openFavListing(kind, ident, title) {
   });
 })();
 
-// NextEp Güncelleme: versiyon satırı + ayrıntı modalı + kontrol/güncelle butonları
+// NextEp GÃ¼ncelleme: versiyon satÄ±rÄ± + ayrÄ±ntÄ± modalÄ± + kontrol/gÃ¼ncelle butonlarÄ±
 let lastAppVer = { local: "", remote: "", available: false, changes: [] };
 let lastDetailEntries = [];
 function fillAppUpdateDetail(entries) {
@@ -1400,7 +1417,7 @@ function fillAppUpdateDetail(entries) {
   verEl.textContent = "";
   ul.innerHTML = entries.map((entry) => {
     const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
-    const head = entry.date ? `VERSION ${entry.version} · ${entry.date}` : `VERSION ${entry.version}`;
+    const head = entry.date ? `VERSION ${entry.version} Â· ${entry.date}` : `VERSION ${entry.version}`;
     return `<li class="app-change-ver">${esc(head)}</li>` +
       (items.length
         ? items.map((it) => `<li>${esc(it)}</li>`).join("")
@@ -1419,7 +1436,7 @@ function renderAppVersion() {
   const runBtn = document.getElementById("appupdate-run");
   if (!el || !runBtn) return;
   const safe = (v) => String(v || "").replace(/[^0-9.]/g, "");
-  const cur = safe(lastAppVer.local) || "—";
+  const cur = safe(lastAppVer.local) || "â€”";
   let html = `${t("app_version_current")} ${cur}`;
   if (lastAppVer.available && lastAppVer.remote) {
     html += ` -&gt; <span class="new-version">${t("app_version_new")} ${safe(lastAppVer.remote)}</span>`;
@@ -1428,7 +1445,7 @@ function renderAppVersion() {
   runBtn.disabled = !lastAppVer.available;
 }
 async function loadAppVersionFast() {
-  // 1.87: AG YOK ucu — "Mevcut surum" satiri ANINDA yazilsin, butonlar dogru duruma gelsin.
+  // 1.87: AG YOK ucu â€” "Mevcut surum" satiri ANINDA yazilsin, butonlar dogru duruma gelsin.
   try {
     const r = await fetch("/api/app-update/version", { cache: "no-store" });
     const j = await r.json();
@@ -1453,7 +1470,7 @@ async function checkAppUpdate(showToast) {
       } catch (e) {
         lastAppVer.changes = [];
       }
-      // Sistem sürümünden sonraki TÜM sürümlerin notları, yalnız kullanıcı kontrol istediyse
+      // Sistem sÃ¼rÃ¼mÃ¼nden sonraki TÃœM sÃ¼rÃ¼mlerin notlarÄ±, yalnÄ±z kullanÄ±cÄ± kontrol istediyse
       if (showToast) openAppUpdateDetail(lastAppVer.changes);
     }
     if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
@@ -1463,7 +1480,7 @@ async function checkAppUpdate(showToast) {
     if (checkBtn) { checkBtn.disabled = false; checkBtn.classList.remove("loading"); }
   }
 }
-(function initAppUpdate() {
+if (nxOnce("app_update")) (function initAppUpdate() {
   const checkBtn = document.getElementById("appupdate-check");
   if (checkBtn) checkBtn.addEventListener("click", () => checkAppUpdate(true));
   const runBtn = document.getElementById("appupdate-run");
@@ -1496,8 +1513,8 @@ async function checkAppUpdate(showToast) {
   });
 })();
 
-// Favoriler: 3 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
-(function initFavoritesAccordion() {
+// Favoriler: 3 kutu doÄŸrudan modal-body'de alt alta, dÄ±ÅŸ Ã§erÃ§eve yok
+if (nxOnce("fav_accordion")) (function initFavoritesAccordion() {
   [["fav-actors-box", "fav-actors-body"], ["fav-directors-box", "fav-directors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
     const box = document.getElementById(boxId);
     const body = document.getElementById(bodyId);
@@ -1521,6 +1538,7 @@ async function checkAppUpdate(showToast) {
   });
 })();
 
+if (nxOnce("settings_menu")) {
 document.getElementById("tab-settings").addEventListener("click", (e) => {
   e.stopPropagation();
   const menu = document.getElementById("settings-menu");
@@ -1530,9 +1548,9 @@ document.getElementById("tab-settings").addEventListener("click", (e) => {
   } else {
     activateUtilityTab(document.getElementById("tab-settings"));
     menu.classList.add("open");
-    // Desktop: pencere-sol bildirim butonu soluna, pencere-sağ dişli butonu sağına dayanır
-    // (pencere = dişliSağ - bildirimSol kadar genişler). Mesafe dile/yakınlaştırmaya bağlı
-    // olduğundan açılış anında ölçülür; mobil/TV'de menü dişli altında dar kalır.
+    // Desktop: pencere-sol bildirim butonu soluna, pencere-saÄŸ diÅŸli butonu saÄŸÄ±na dayanÄ±r
+    // (pencere = diÅŸliSaÄŸ - bildirimSol kadar geniÅŸler). Mesafe dile/yakÄ±nlaÅŸtÄ±rmaya baÄŸlÄ±
+    // olduÄŸundan aÃ§Ä±lÄ±ÅŸ anÄ±nda Ã¶lÃ§Ã¼lÃ¼r; mobil/TV'de menÃ¼ diÅŸli altÄ±nda dar kalÄ±r.
     if (window.matchMedia("(min-width: 769px)").matches && !document.documentElement.classList.contains("is-tv") && !document.documentElement.classList.contains("tv-mode")) {
       const notif = document.getElementById("tab-notif");
       const wrap = document.querySelector(".settings-wrap");
@@ -1561,6 +1579,8 @@ document.addEventListener("click", (e) => {
   const wrap = document.querySelector(".settings-wrap");
   if (wrap && !wrap.contains(e.target)) closeSettingsMenu();
 });
+}
+if (nxOnce("settings_modals")) {
 document.querySelectorAll(".settings-modal-close").forEach((btn) => {
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -1575,6 +1595,7 @@ document.querySelectorAll(".settings-modal-overlay").forEach((ov) => {
     if (e.target === ov) { flushTpBaseUrl(); flushVpsProfile(); ov.style.display = "none"; }
   });
 });
+}
 
 function showSavedHint(el) {
   if (!el) return;
@@ -2021,7 +2042,7 @@ function setCenterVisible(on) {
   box.classList.toggle("accordion-open", on);
 }
 
-(function initAccordions() {
+if (nxOnce("notif_accordions")) (function initAccordions() {
   [
     ["telegram-box", "telegram-credentials", "s-telegram-enabled", setTelegramVisible],
     ["ntfy-box", "ntfy-credentials", "s-ntfy-enabled", setNtfyVisible],
@@ -2042,9 +2063,9 @@ function setCenterVisible(on) {
   });
 })();
 
-// Faz 24b: Bildirim Kanallari dis akordeonu — 5 kanal kutusunu saran cerceve.
+// Faz 24b: Bildirim Kanallari dis akordeonu â€” 5 kanal kutusunu saran cerceve.
 // Ic kanal akordeonlari (initAccordions) aynen korunur; ic kutu tiklamalari dis akordeonu tetiklemez.
-(function initChannelsAccordion() {
+if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
   const box = document.getElementById("channels-accordion");
   const body = document.getElementById("channels-body");
   if (!box || !body) return;
@@ -2060,7 +2081,7 @@ function setCenterVisible(on) {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=568").then((m) => {
+  import("./notification.js?v=640").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
@@ -2154,7 +2175,9 @@ let tpCalendarOpen = false;
 let tpPlexOpen = false;
 let tpJellyfinOpen = false;
 let tpEmbyOpen = false;
-// 1.87: Emby kartinin IC akordeonlari (Webhook / API Key) — biri acilinca digeri kapanir.
+let tpTraktOpen = false;
+let tpTraktClientId = "";
+// 1.87: Emby kartinin IC akordeonlari (Webhook / API Key / Access Token) â€” biri acilinca digeri kapanir.
 let tpEmbySection = "";
 // 1.87: Emby API alanlarinin SON KAYITLI degerleri. Sistem geneli kural: kutularda
 // DEGISIKLIK YOKSA kaydetme (bkz. flushTpBaseUrl deseni). Kart cizilirken sunucu
@@ -2163,12 +2186,19 @@ let tpEmbyApiUrl = "";
 let tpEmbyApiUser = "";
 let tpEmbyApiHasKey = false;
 let tpEmbyApiSaving = false;
+// 1.94: Access Token alanlari. Token yalnizca POST yanitindan/elle giriÅŸten
+// sonra gorunur; sayfa yenilenince GET token dondurmedigi icin bos gelir.
+let tpEmbyTokenVisible = "";
+let tpEmbyTokenHas = false;
+let tpEmbyTokenUser = "";
+let tpEmbyTokenSaving = false;
+let tpEmbyTokenDirty = false;
 let tpBaseUrl = "";
 let tpIsAdmin = false;
 let tpAskBeforeWatched = true;
 // 1.88: kaynak bazli "izlendi bilgisi sor" degerleri ("" = genel ayar gecerli).
 let tpAskSrc = { plex: "", jellyfin: "", emby: "" };
-// Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
+// Uzak BaÄŸlantÄ± (VPS): profil + Uzak BaÄŸlantÄ± kartÄ± + telefon peer'leri.
 let tpVpsOpen = false;
 // 1.87: Public Adres kendi akordeonunda (Stremio karti icinden cikarildi).
 let tpPublicOpen = false;
@@ -2241,7 +2271,7 @@ async function renderThirdPartyApps(opts = {}) {
     }
     vpsHtml = renderVpsSection();
   }
-  // 1.87: Public Adres karti — Sunucu Baglanti Ayarlari ile Stremio arasinda.
+  // 1.87: Public Adres karti â€” Sunucu Baglanti Ayarlari ile Stremio arasinda.
   const publicHtml = renderPublicBaseCard();
   if (!apps.length) {
     wrap.innerHTML = vpsHtml + publicHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
@@ -2337,10 +2367,122 @@ const thirdPartyAppRenderers = {
       </div>
     </div>`;
   },
-  // 1.86: Plex / Jellyfin / Emby — webhook ile izleme sinyali (aynı iskelet).
+  // 1.86: Plex / Jellyfin / Emby â€” webhook ile izleme sinyali (aynÄ± iskelet).
   plex: (app) => tpWebhookCard(app, tpPlexOpen, "fa-circle-play", null),
   jellyfin: (app) => tpWebhookCard(app, tpJellyfinOpen, "fa-clapperboard", null),
   emby: (app) => tpWebhookCard(app, tpEmbyOpen, "fa-photo-film", null),
+  // 2.03: Trakt â€” OAuth device code; tek/Ã§ift yÃ¶n; per-user yoklama.
+  trakt: (app) => {
+    const configured = !!app.traktConfigured;
+    const connected = !!app.traktConnected;
+    tpTraktClientId = app.traktClientId || "";
+    const urlAvail = !!String(app.traktRedirectUriUrl || "").trim();
+    const lanActive = urlAvail ? (String(app.traktRedirectMode || "lan") === "lan") : true;
+    const urlActive = urlAvail && !lanActive;
+    const user = app.traktUser || "";
+    const twoWay = !!app.traktTwoWay;
+    const pollMin = (typeof app.traktPollMin === "number") ? app.traktPollMin : 10;
+    const st = String(app.traktStatus || "not-connected");
+    const stCls = st === "connected" ? "tp-connected" : (st === "ready" ? "tp-ready" : "tp-not-connected");
+    const stTxt = t("tp_trakt_status_" + st.replace(/-/g, "_"));
+    const err = String(app.traktError || "");
+    const errTxt = err ? tpTraktErrText(err) : "";
+    // 2.19.6: senkron havuzu durumu (kuyruk + yoklama araligi).
+    const poolPending = Number(app.traktPoolPending || 0);
+    const poolFailed = Number(app.traktPoolFailed || 0);
+    const poolInterval = Number(app.traktPoolInterval || 0);
+    const poolActive = !!app.traktPoolActive;
+    const poolLast = app.traktPoolLastTs
+      ? new Date(Number(app.traktPoolLastTs) * 1000).toLocaleTimeString() : "";
+    let poolTxt = poolPending
+      ? t("tp_trakt_pool_pending", { n: poolPending })
+      : t("tp_trakt_pool_idle");
+    if (poolFailed) poolTxt += " Â· " + t("tp_trakt_pool_failed", { n: poolFailed });
+    const poolIntTxt = poolInterval > 0
+      ? (poolActive
+          ? t("tp_trakt_pool_active", { n: poolInterval })
+          : t("tp_trakt_pool_passive", { n: Math.max(1, Math.round(poolInterval / 60)) }))
+      : t("tp_trakt_poll_off");
+    const pollOpts = [0, 1, 5, 10, 15, 30, 60].map((n) => {
+      const label = n === 0 ? t("tp_trakt_poll_off") : (n + " " + t("tp_trakt_min"));
+      return `<option value="${n}"${pollMin === n ? " selected" : ""}>${escAttr(label)}</option>`;
+    }).join("");
+    const redirRow = (mode, labelKey, uri, active) => {
+      const tip = escAttr(t(active ? "tp_trakt_redirect_active" : "tp_trakt_redirect_activate", { mode: mode.toUpperCase() }));
+      return `<label><span class="settings-label-head"><span data-i18n="${labelKey}">${t(labelKey)}</span></span>
+            <div class="tp-url-box"><input id="tp-trakt-redirect-${mode}" type="text" readonly value="${escAttr(uri || "")}"${active ? "" : " disabled"} /><button type="button" class="tp-redir-btn ${active ? "on" : "off"}" data-mode="${mode}" data-tip="${tip}">${active ? CHECK_SVG : ROLE_X_SVG}</button><button id="tp-trakt-redirect-${mode}-copy" class="tab" data-i18n="tp_copy"${active ? "" : " disabled"}>${t("tp_copy")}</button></div>
+          </label>`;
+    };
+    return `
+    <div class="channel-box accordion-box notif-type-box${tpTraktOpen ? " accordion-open" : ""}" id="tp-app-trakt">
+      <div class="notif-type-head">
+        <span class="notif-type-title"><i class="fa-solid fa-clapperboard"></i> ${escAttr(app.name || "Trakt")}</span>
+      </div>
+      <div class="notif-type-body" style="display:${tpTraktOpen ? "block" : "none"}">
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_status")}</span>
+            <span class="tp-status-value ${stCls}">${escAttr(stTxt)}</span>
+          </div>
+          ${user ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_user")}</span><span class="tp-status-value">${escAttr(user)}</span></div>` : ""}
+          ${connected ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_last_check")}</span><span class="tp-last-signal">${app.traktCheckedTs ? formatSignalTime(app.traktCheckedTs) : "â€”"}</span></div>` : ""}
+          ${errTxt ? `<div class="tp-frame-note tp-warn">${escAttr(errTxt)}</div>` : ""}
+        </div>
+        ${tpSignalBox(app.traktLastSignal, app.traktLastWatch)}
+        <div class="tp-sub-box">
+          ${redirRow("lan", "tp_trakt_redirect_lan", app.traktRedirectUriLan, lanActive)}
+          ${urlAvail ? redirRow("url", "tp_trakt_redirect_url", app.traktRedirectUriUrl, urlActive) : ""}
+        </div>
+        <div class="tp-sub-box">
+          <label><span class="settings-label-head"><span data-i18n="tp_trakt_client_id">${t("tp_trakt_client_id")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-trakt-client-id" type="text" autocomplete="off" spellcheck="false" placeholder="Client ID" value="${escAttr(tpTraktClientId)}" /></div>
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="tp_trakt_client_secret">${t("tp_trakt_client_secret")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-trakt-client-secret" type="password" autocomplete="new-password" placeholder="Client Secret" /></div>
+          </label>
+        </div>
+        ${connected ? `
+        <div class="tp-sub-box">
+          <div class="notify-row">
+            <span class="notify-name">${t("tp_trakt_two_way")}</span>
+            <label class="switch"><input type="checkbox" id="tp-trakt-two-way" ${twoWay ? "checked" : ""} /><span class="slider"></span></label>
+          </div>
+        </div>
+        <label><span class="settings-label-head"><span data-i18n="tp_trakt_poll">${t("tp_trakt_poll")}</span></span>
+          <div class="provider-combobox">
+            <select id="tp-trakt-poll">${pollOpts}</select>
+            <div id="tp-trakt-poll-list" class="provider-list" style="display:none"></div>
+          </div>
+        </label>
+        <div class="tp-sub-box">
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_trakt_pool")}</span>
+            <span class="tp-status-value">${escAttr(poolTxt)}</span>
+          </div>
+          <div class="tp-status-row">
+            <span class="notify-name">${t("tp_trakt_poll")}</span>
+            <span class="tp-status-value">${escAttr(poolIntTxt)}</span>
+          </div>
+          ${poolLast ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_pool_last")}</span><span class="tp-status-value">${escAttr(poolLast)}</span></div>` : ""}
+          ${app.traktPoolLastError ? `<div class="tp-frame-note tp-warn">${escAttr(tpTraktErrText(String(app.traktPoolLastError)))}</div>` : ""}
+        </div>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          ${tpVpsInstallBtn(app)}
+          <button id="tp-trakt-check" class="tab">${t("tp_trakt_sync_now")}</button>
+          <button id="tp-trakt-disconnect" class="tab" data-i18n="tp_disconnect">${t("tp_disconnect")}</button>
+        </div>` : (configured ? `
+        <label><span class="settings-label-head"><span data-i18n="tp_trakt_callback_uri">${t("tp_trakt_callback_uri")}</span></span>
+          <div class="tp-url-box"><input id="tp-trakt-callback-uri" type="text" readonly value="${escAttr(app.traktAuthRedirectUri || "")}" /><button id="tp-trakt-callback-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
+        </label>
+        <div class="tp-frame-note">${t("tp_trakt_callback_note")}</div>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+          ${tpVpsInstallBtn(app)}
+          <button id="tp-trakt-connect" class="tab">${t("tp_trakt_connect")}</button>
+        </div>
+        <div id="tp-trakt-device" class="tp-sub-box" style="display:none"></div>` : "")}
+      </div>
+    </div>`;
+  },
   remote: (app) => {    const isConn = app.status === "connected";
     const cls = isConn ? "tp-connected" : "tp-not-connected";
     const txt = isConn ? t("tp_connected") : t("tp_not_connected");
@@ -2358,7 +2500,7 @@ const thirdPartyAppRenderers = {
     return `
     <div class="channel-box accordion-box notif-type-box${tpRemoteOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-remote"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
-        <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak Bağlantı")}</span>
+        <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak BaÄŸlantÄ±")}</span>
       </div>
       <div class="notif-type-body" style="display:${tpRemoteOpen ? "block" : "none"}">
         <div class="tp-sub-box">
@@ -2390,7 +2532,7 @@ const thirdPartyAppRenderers = {
 //   "Bagli (LAN)" -> "{app} Webhook LAN uzerinden bagli"
 //   "Bagli (URL)" -> "{app} Webhook URL uzerinden bagli"
 // Henuz olay gelmemis (kurulu + tunel saglam) -> disabled, tooltip "Kurulu".
-// Yol yok -> kurulum · yol var + tunel kopuk -> "Onar".
+// Yol yok -> kurulum Â· yol var + tunel kopuk -> "Onar".
 function tpVpsInstallBtn(app) {
   if (!tpIsAdmin || !app || !app.vpsProfile) return "";
   const aid = String(app.id || "");
@@ -2416,15 +2558,17 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const aid = String(app.id || "");
   const url = app.installUrl || "";
   const isEmby = aid === "emby";
-  // 1.87: baslik eki — Plex webhook'u Plex Pass gerektirir (PLEX (PLEX PASS)).
+  // 1.87: baslik eki â€” Plex webhook'u Plex Pass gerektirir (PLEX (PLEX PASS)).
   const titleSuffix = aid === "plex" ? " (" + t("tp_plex_pass") + ")" : "";
-  // 1.87: Emby kartinda IC akordeonlar (Webhook / API Key) — biri acilinca digeri kapanir.
+  // 1.87: Emby kartinda IC akordeonlar (Webhook / API Key) â€” biri acilinca digeri kapanir.
   const secOpen = (which) => isEmby && tpEmbySection === which;
   if (isEmby) {
     // Cizilen kutular = kayitli durum (degisiklik yoksa kaydetmeme kuralinin temeli).
     tpEmbyApiUrl = app.apiUrl || "";
     tpEmbyApiUser = app.apiUser || "";
     tpEmbyApiHasKey = !!app.apiHasKey;
+    tpEmbyTokenHas = !!app.apiHasToken;
+    tpEmbyTokenUser = app.apiTokenUser || app.apiUser || "";
   }
   // Durum kutusu: Emby'de webhook cercevesinin en ustunde; diger (Plex/Jellyfin)
   // kartlarda kart basliginin altinda kalir.
@@ -2438,25 +2582,36 @@ function tpWebhookCard(app, open, icon, noteKey) {
         </div>`;
   const notesHtml = noteKey ? `
           <div class="tp-frame-note">${t(noteKey)}</div>` : "";
-  // 1.87: LAN cercevesi — yalnizca kartin TAM LAN linki (taban adres kutusu YOK).
-  // Baslik, URL cercevesiyle BIREBIR ayni markup/stilde (sola yasli) — istek #3/#4.
+  // 1.87: LAN cercevesi â€” yalnizca kartin TAM LAN linki (taban adres kutusu YOK).
+  // Baslik, URL cercevesiyle BIREBIR ayni markup/stilde (sola yasli) â€” istek #3/#4.
   const lanUrl = app.lanInstallUrl || "";
-  const lanHtml = lanUrl ? `
-          <div class="tp-sub-box">
+  // 2.07: kurulum linki tercihi â€” aktif satir yesil tick, pasif satir kirmizi x (tiklayinca gecirir).
+  const lanAvail = !!lanUrl;
+  const urlAvail = !!(url && app.installed);
+  let linkMode = String(app.linkMode || "lan").toLowerCase() === "url" ? "url" : "lan";
+  if (!lanAvail && urlAvail) linkMode = "url";
+  if (!urlAvail) linkMode = "lan";
+  const lanActive = linkMode === "lan";
+  const urlActive = linkMode === "url";
+  const linkBtn = (mode, active) => `<button type="button" class="tp-redir-btn ${active ? "on" : "off"}" data-link-app="${escAttr(aid)}" data-link-mode="${mode}" data-tip="${escAttr(t(active ? "tp_install_link_active" : "tp_install_link_activate", { mode: mode.toUpperCase() }))}">${active ? CHECK_SVG : ROLE_X_SVG}</button>`;
+  const lanLabel = lanUrl ? `
             <label><span class="settings-label-head"><span data-i18n="tp_install_url_lan">${t("tp_install_url_lan")}</span></span>
-              <div class="tp-url-box"><input id="tp-${escAttr(aid)}-lanurl" type="text" readonly value="${escAttr(lanUrl)}" /><button id="tp-${escAttr(aid)}-lancopy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>
-            </label>
+              <div class="tp-url-box"><input id="tp-${escAttr(aid)}-lanurl" type="text" readonly value="${escAttr(lanUrl)}"${lanActive ? "" : " disabled"} />${linkBtn("lan", lanActive)}<button id="tp-${escAttr(aid)}-lancopy" class="tab" data-i18n="tp_copy"${lanActive ? "" : " disabled"}>${t("tp_copy")}</button></div>
+            </label>` : "";
+  const urlLabel = app.installed ? `
+            <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
+              ${url ? `<div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}"${urlActive ? "" : " disabled"} />${linkBtn("url", urlActive)}<button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy"${urlActive ? "" : " disabled"}>${t("tp_copy")}</button></div>`
+                : `<div class="tp-frame-note tp-warn">${t("tp_public_missing")}</div>`}
+            </label>` : "";
+  // 2.05: LAN + URL kurulum cerceveleri TEK kutu icinde.
+  const linksHtml = (lanLabel || urlLabel) ? `
+          <div class="tp-sub-box">
+            ${lanLabel}
+            ${urlLabel}
           </div>` : "";
   const webhookHtml = `
           ${tpSignalBox(app.lastSignal, app.lastWatch)}
-          ${lanHtml}
-          ${app.installed ? `
-          <div class="tp-sub-box">
-            <label><span class="settings-label-head"><span data-i18n="tp_install_url_pub">${t("tp_install_url_pub")}</span></span>
-              ${url ? `<div class="tp-url-box"><input id="tp-${escAttr(aid)}-url" type="text" readonly value="${escAttr(url)}" /><button id="tp-${escAttr(aid)}-copy" class="tab" data-i18n="tp_copy">${t("tp_copy")}</button></div>`
-                : `<div class="tp-frame-note tp-warn">${t("tp_public_missing")}</div>`}
-            </label>
-          </div>` : ""}
+          ${linksHtml}
           <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
             ${tpVpsInstallBtn(app)}
             <button id="tp-${escAttr(aid)}-refresh" class="tab" data-i18n="tp_refresh_uuid">${t("tp_refresh_uuid")}</button>
@@ -2471,9 +2626,12 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const apiTxt = app.lastSync ? t("tp_connected") + apiViaTxt
                 : (app.apiConfigured ? t("tp_ready") : t("tp_not_connected"));
   // 1.87: durum cercevesi + "Son sinyal" (zaman + "xyz izlendi") + tasiyici satiri
-  // (sol: Aninda/Kontrol(15 dk) · sag: {n} Izlenmis).
-  const apiMode = app.apiWsConnected ? t("tp_emby_mode_ws") : t("tp_emby_mode_poll");
-  const apiScan = (typeof app.apiScanCount === "number") ? t("tp_emby_scan_n", { n: app.apiScanCount }) : "—";
+  // (sol: Aninda/Kontrol(15 dk) Â· sag: {n} Izlenmis).
+  // 1.94: yalnizca kullanici token'i ile bagli WS "Aninda" sayilir; API key
+  // ile kurulan kullanici oturumsuz WS yedek yoklama sayilir.
+  const apiMode = (app.apiWsConnected && app.apiWsAuth === "token")
+    ? t("tp_emby_mode_ws") : t("tp_emby_mode_poll");
+  const apiScan = (typeof app.apiScanCount === "number") ? t("tp_emby_scan_n", { n: app.apiScanCount }) : "â€”";
   const apiHtml = `
           <div class="tp-sub-box">
             <div class="tp-status-row">
@@ -2488,18 +2646,64 @@ function tpWebhookCard(app, open, icon, noteKey) {
               <span class="tp-status-value${typeof app.apiScanCount === "number" ? " tp-connected" : ""}">${apiScan}</span>
             </div>
           </div>` : ""}
-          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_url">${t("tp_emby_api_url")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_url">${t("tp_emby_api_url")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /></div>
           </label>
-          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "••••••••" : "API Key"}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "API Key"}" /></div>
           </label>
-          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /></div>
           </label>
           <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
             <button id="tp-emby-api-test" class="tab">${t("tp_emby_api_test")}</button>
             ${app.apiConfigured ? `<button id="tp-emby-api-sync" class="tab">${t("tp_emby_sync_now")}</button>` : ""}
+          </div>`;
+  // 1.94: Access Token â€” kullaniciya bagli WebSocket icin. API Key yedek
+  // yoklama olarak kalir. Token/parola GET'te donmez; yalnizca var/yok bilgisi.
+  const tokStatus = String(app.apiTokenStatus || "off");
+  const tokCls = tokStatus === "connected" ? "tp-connected"
+    : (tokStatus === "ready" ? "tp-ready" : "tp-not-connected");
+  const tokTxt = t("tp_emby_token_status_" + tokStatus.replace(/-/g, "_"));
+  const tokErr = tpEmbyTokenErrText(app);
+  const tokNext = Number(app.apiTokenNextTry || 0);
+  const tokBackoff = tokNext && tokNext > Math.floor(Date.now() / 1000)
+    ? `<div class="tp-frame-note">${escAttr(t("tp_emby_token_backoff", { time: formatSignalTime(tokNext) }))}</div>`
+    : "";
+  const tokLastCheck = app.apiTokenLastCheck ? formatSignalTime(app.apiTokenLastCheck) : "â€”";
+  const tokLastRenew = app.apiTokenLastRenew ? formatSignalTime(app.apiTokenLastRenew) : "â€”";
+  const tokUserName = tpEmbyTokenUser || app.apiTokenUser || app.apiUser || "";
+  const tokenHtml = `
+          <div class="tp-sub-box">
+            <div class="tp-status-row">
+              <span class="notify-name">${t("tp_status")}</span>
+              <span class="tp-status-value ${tokCls}">${tokTxt}</span>
+            </div>
+            ${tokErr ? `<div class="tp-frame-note tp-warn">${escAttr(tokErr)}</div>` : ""}
+            ${tokBackoff}
+          </div>
+          ${tpSignalBox(app.apiTokenLastSignal, app.apiTokenLastWatch)}
+          <div class="tp-sub-box">
+            <div class="tp-status-row"><span class="notify-name">${t("tp_emby_token_last_check")}</span><span class="tp-last-signal">${tokLastCheck}</span></div>
+            <div class="tp-status-row"><span class="notify-name">${t("tp_emby_token_last_renew")}</span><span class="tp-last-signal">${tokLastRenew}</span></div>
+          </div>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_user">${t("tp_emby_auth_user")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-auth-user" type="text" autocomplete="username" value="${escAttr(tokUserName)}" /></div>
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_pass">${t("tp_emby_auth_pass")}</span></span>
+            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="password" autocomplete="current-password" placeholder="${app.apiHasPassword ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : escAttr(t("tp_emby_auth_pass"))}" /></div>
+          </label>
+          <label><span class="settings-label-head"><span data-i18n="tp_emby_access_token">${t("tp_emby_access_token")}</span></span>
+            <div class="tp-url-box">
+              <input id="tp-emby-access-token" type="password" autocomplete="new-password" spellcheck="false" placeholder="${tpEmbyTokenHas ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
+              <button id="tp-emby-token-show" class="tab" type="button">${t("tp_emby_token_show")}</button>
+            </div>
+          </label>
+          <div class="tp-frame-note">${t("tp_emby_token_note")}</div>
+          <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px; flex-wrap:wrap;">
+            <button id="tp-emby-token-get" class="tab">${t("tp_emby_token_get")}</button>
+            ${(app.apiHasToken || app.apiHasPassword) ? `<button id="tp-emby-token-check" class="tab">${t("tp_emby_token_check")}</button>` : ""}
+            ${(app.apiHasToken || app.apiHasPassword) ? `<button id="tp-emby-token-clear" class="tab">${t("tp_emby_token_clear")}</button>` : ""}
           </div>`;
   const frame = (which, titleKey, inner) => `
         <div class="channel-box accordion-box notif-type-box${secOpen(which) ? " accordion-open" : ""}" id="tp-emby-sec-${which}">
@@ -2521,6 +2725,7 @@ ${inner}
         ${isEmby
           ? frame("webhook", "tp_emby_frame_webhook", statusSub() + notesHtml + webhookHtml)
             + (tpIsAdmin ? frame("api", "tp_emby_api_key", apiHtml) : "")
+            + (tpIsAdmin ? frame("token", "tp_emby_frame_token", tokenHtml) : "")
           : webhookHtml}
       </div>
     </div>`;
@@ -2620,6 +2825,174 @@ async function flushEmbyApi(inputEl) {
   }
 }
 
+// 2.09: Trakt Client ID/Secret â€” odaktan cikinca OTOMATIK kayit (Emby API deseni).
+let tpTraktClientSaving = false;
+function traktClientFocused() {
+  const a = document.activeElement;
+  return !!(a && (a.id === "tp-trakt-client-id" || a.id === "tp-trakt-client-secret"));
+}
+async function flushTraktClient(inputEl) {
+  if (tpTraktClientSaving) return;
+  const cid = ((document.getElementById("tp-trakt-client-id") || {}).value || "").trim();
+  const csec = ((document.getElementById("tp-trakt-client-secret") || {}).value || "").trim();
+  // 2.10: Alanlar BAGIMSIZ kaydedilir (backend kismi kaydi destekler: if cid / if csec).
+  // Tetikleyen alan bos ise; ya da id degismediyse kaydetme.
+  const isSecret = !!(inputEl && inputEl.id === "tp-trakt-client-secret");
+  if (isSecret) {
+    if (!csec) return;
+  } else {
+    if (!cid || cid === (tpTraktClientId || "")) return;
+  }
+  tpTraktClientSaving = true;
+  const hint = (inputEl && inputEl.closest("label")) ? inputEl.closest("label").querySelector(".saved-hint") : null;
+  try {
+    const r = await fetch("/api/thirdparty/trakt/client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: cid, client_secret: csec }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "client");
+    if (cid) tpTraktClientId = cid;
+    showSavedHint(hint);
+    // Kaydedildi -> durum kutusu/akis tazelensin ama yazarken araya girme.
+    setTimeout(() => {
+      try {
+        if (traktClientFocused()) return;
+        renderThirdPartyApps({ silent: true });
+      } catch (_) {}
+    }, 1500);
+  } catch (e) {
+    toast(tpTraktErrText((e && e.message) || ""), true);
+  } finally {
+    tpTraktClientSaving = false;
+  }
+}
+
+// 1.94: Access Token durum/hata metinleri.
+function tpEmbyTokenErrText(app) {
+  const e = String((app && app.apiTokenError) || "");
+  if (!e) return "";
+  if (e === "auth") return t("tp_emby_token_err_auth");
+  if (e === "credentials-missing") return t("tp_emby_token_err_missing");
+  if (e.indexOf("unreachable") === 0) return t("tp_emby_token_err_unreachable");
+  if (e.indexOf("HTTP ") === 0) return t("tp_emby_token_err_http", { code: e.slice(5) });
+  return t("tp_emby_token_err_generic");
+}
+
+function tpEmbyTokenErrMsg(code) {
+  const c = String(code || "");
+  if (c === "auth" || c === "token-gecersiz") return t("tp_emby_token_err_auth");
+  if (c.indexOf("unreachable") === 0) return t("tp_emby_token_err_unreachable");
+  if (c === "eksik" || c === "kullanici") return t("tp_emby_token_err_missing");
+  if (c.indexOf("HTTP ") === 0) return t("tp_emby_token_err_http", { code: c.slice(5) });
+  return errText(c) || t("tp_emby_token_err_generic");
+}
+
+function tpEmbyTokenInputs() {
+  return {
+    user: ((document.getElementById("tp-emby-auth-user") || {}).value || "").trim(),
+    // Parola bas/son bosluk icerebilir; trim etme.
+    pass: ((document.getElementById("tp-emby-auth-pass") || {}).value || ""),
+    token: ((document.getElementById("tp-emby-access-token") || {}).value || "").trim(),
+    url: (((document.getElementById("tp-emby-api-url") || {}).value || "").trim() || tpEmbyApiUrl),
+  };
+}
+
+async function tpEmbyTokenFetch(btn) {
+  if (tpEmbyTokenSaving) return;
+  const v = tpEmbyTokenInputs();
+  if (!v.user) { toast(t("tp_emby_token_err_missing"), true); return; }
+  if (!v.pass && !v.token) { toast(t("tp_emby_token_err_missing"), true); return; }
+  tpEmbyTokenSaving = true;
+  const old = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("loading");
+    btn.textContent = t("tp_emby_token_fetching");
+  }
+  try {
+    const body = { url: v.url, user: v.user };
+    if (v.pass) body.password = v.pass;
+    else body.token = v.token;
+    const r = await fetch("/api/thirdparty/emby/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "token");
+    tpEmbyTokenVisible = j.accessToken || v.token || "";
+    tpEmbyTokenHas = true;
+    tpEmbyTokenUser = j.tokenUser || v.user;
+    tpEmbyTokenDirty = false;
+    const passEl = document.getElementById("tp-emby-auth-pass");
+    if (passEl) passEl.value = "";
+    toast(t("tp_emby_token_saved"));
+    renderThirdPartyApps({ silent: true });
+    // WS handshake birkac saniye surer; durum satirini tekrar tazele.
+    // Kullanici bu sirada alana yaziyorsa DOM'u degistirme.
+    setTimeout(() => {
+      try {
+        const a = document.activeElement;
+        if (a && a.id && a.id.indexOf("tp-emby-") === 0) return;
+        renderThirdPartyApps({ silent: true });
+      } catch (_) {}
+    }, 2500);
+  } catch (e) {
+    toast(tpEmbyTokenErrMsg((e && e.message) || ""), true);
+  } finally {
+    tpEmbyTokenSaving = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("loading");
+      btn.textContent = old || t("tp_emby_token_get");
+    }
+  }
+}
+
+async function tpEmbyTokenCheck(btn) {
+  if (tpEmbyTokenSaving) return;
+  tpEmbyTokenSaving = true;
+  if (btn) { btn.disabled = true; btn.classList.add("loading"); }
+  try {
+    const r = await fetch("/api/thirdparty/emby/token/check", { method: "POST" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "check");
+    const res = j.result || {};
+    if (res.renewed) tpEmbyTokenVisible = "";
+    toast(res.ok ? t("tp_emby_token_check_ok") : tpEmbyTokenErrMsg(res.error || ""));
+    renderThirdPartyApps({ silent: true });
+  } catch (e) {
+    toast(tpEmbyTokenErrMsg((e && e.message) || ""), true);
+  } finally {
+    tpEmbyTokenSaving = false;
+    if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+  }
+}
+
+async function tpEmbyTokenClear(btn) {
+  if (tpEmbyTokenSaving) return;
+  if (!window.confirm(t("tp_emby_token_clear_confirm"))) return;
+  tpEmbyTokenSaving = true;
+  if (btn) { btn.disabled = true; btn.classList.add("loading"); }
+  try {
+    const r = await fetch("/api/thirdparty/emby/token/clear", { method: "POST" });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "clear");
+    tpEmbyTokenVisible = "";
+    tpEmbyTokenHas = false;
+    tpEmbyTokenDirty = false;
+    toast(t("tp_emby_token_cleared"));
+    renderThirdPartyApps({ silent: true });
+  } catch (e) {
+    toast(errText((e && e.message) || "") || t("error"), true);
+  } finally {
+    tpEmbyTokenSaving = false;
+    if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+  }
+}
+
 async function tpWebhookDisconnect(aid) {
   try {
     const r = await fetch(`/api/thirdparty/${encodeURIComponent(aid)}/disconnect`, {
@@ -2670,19 +3043,19 @@ function tpWatchDetail(w) {
 }
 
 function tpSignalBox(ts, watch) {
-  // 1.87: "Son sinyal" cercevesi — HER ZAMAN gorunur (Stremio kartiyla ayni gorunum).
-  // Sinyal yoksa: zaman yerine "—" ve altinda "Henuz sinyal yok".
+  // 1.87: "Son sinyal" cercevesi â€” HER ZAMAN gorunur (Stremio kartiyla ayni gorunum).
+  // Sinyal yoksa: zaman yerine "â€”" ve altinda "Henuz sinyal yok".
   const w = tpWatchDetail(watch);
   return `
           <div class="tp-sub-box">
-            <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${ts ? formatSignalTime(ts) : "—"}</span></div>
+            <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${ts ? formatSignalTime(ts) : "â€”"}</span></div>
             ${ts && w ? `<div class="tp-frame-note tp-watch-detail" title="${w}">${w}</div>`
               : (ts ? "" : `<div class="tp-frame-note tp-watch-detail">${t("tp_no_signal_yet")}</div>`)}
           </div>`;
 }
 
 function tpAskToggle(aid) {
-  // 1.88: "Izlendi bilgisi sor" anahtari — akordeon govdesinin EN USTUNDE.
+  // 1.88: "Izlendi bilgisi sor" anahtari â€” akordeon govdesinin EN USTUNDE.
   // Stremio = genel ayar (ask_before_watched), Plex/Jellyfin/Emby = kaynak bazli
   // (kaynak degeri bos ise genel ayar gosterilir).
   const src = String(aid || "");
@@ -2715,10 +3088,10 @@ function formatRelativeAge(ts) {
 function formatSignalTime(ts) {
   try {
     const d = new Date(ts * 1000);
-    if (isNaN(d.getTime())) return "—";
+    if (isNaN(d.getTime())) return "â€”";
     return d.toLocaleString();
   } catch (e) {
-    return "—";
+    return "â€”";
   }
 }
 
@@ -2775,9 +3148,9 @@ async function flushTpBaseUrl() {
 }
 
 function bindThirdPartyEvents() {
-  // Tek-açık akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak Bağlantı.
+  // Tek-aÃ§Ä±k akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak BaÄŸlantÄ±.
   [["vps-info-box", "vps"], ["tp-public-box", "public"], ["tp-app-stremio", "stremio"], ["tp-app-calendar", "calendar"],
-   ["tp-app-plex", "plex"], ["tp-app-jellyfin", "jellyfin"], ["tp-app-emby", "emby"],
+   ["tp-app-plex", "plex"], ["tp-app-jellyfin", "jellyfin"], ["tp-app-emby", "emby"], ["tp-app-trakt", "trakt"],
    ["tp-app-remote", "remote"]].forEach(([id, which]) => {
     const box = document.getElementById(id);
     if (!box) return;
@@ -2803,7 +3176,7 @@ function bindThirdPartyEvents() {
       flushTpBaseUrl();
     });
   }
-  // 1.88: "Izlendi bilgisi sor" anahtarlari — Stremio genel, Plex/Jellyfin/Emby kaynak bazli.
+  // 1.88: "Izlendi bilgisi sor" anahtarlari â€” Stremio genel, Plex/Jellyfin/Emby kaynak bazli.
   document.querySelectorAll("input[data-ask-src]").forEach((el) => {
     el.addEventListener("change", async (e) => {
       const src = e.target.getAttribute("data-ask-src") || "stremio";
@@ -2885,7 +3258,7 @@ function bindThirdPartyEvents() {
       }, { yes: t("confirm_yes") });
     });
   }
-  // --- Takvim (ICS) — 1.85 ---
+  // --- Takvim (ICS) â€” 1.85 ---
   const calCopy = document.getElementById("tp-calendar-copy");
   if (calCopy) {
     calCopy.addEventListener("click", async () => {
@@ -2951,26 +3324,40 @@ function bindThirdPartyEvents() {
       });
     });
   }
-  // --- Webhook uygulamaları (Plex / Jellyfin / Emby) — 1.86 ---
+  // --- Webhook uygulamalarÄ± (Plex / Jellyfin / Emby) â€” 1.86 ---
   [["plex", openPlexDisconnectConfirm], ["jellyfin", openJellyfinDisconnectConfirm], ["emby", openEmbyDisconnectConfirm]].forEach(([aid, confirmFn]) => {
     const copy = document.getElementById(`tp-${aid}-copy`);
     if (copy) copy.addEventListener("click", () => tpCopyInput(`tp-${aid}-url`));
     const lcopy = document.getElementById(`tp-${aid}-lancopy`);
     if (lcopy) lcopy.addEventListener("click", () => tpCopyInput(`tp-${aid}-lanurl`));
+    // 2.07: kurulum linki tercihi (LAN/URL) â€” pasif satirdaki kirmizi x'e tiklayinca gecir.
+    document.querySelectorAll(`#tp-app-${aid} .tp-redir-btn.off[data-link-app]`).forEach((b) => {
+      b.addEventListener("click", async () => {
+        const mode = b.getAttribute("data-link-mode") || "";
+        b.disabled = true;
+        try {
+          const r = await fetch("/api/thirdparty/webhook-link-mode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ app: aid, mode }) });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || "link-mode");
+          toast(t("saved"));
+          renderThirdPartyApps({ silent: true });
+        } catch (e) { toast(errText((e && e.message) || "") || t("error"), true); b.disabled = false; }
+      });
+    });
     const refresh = document.getElementById(`tp-${aid}-refresh`);
     if (refresh) refresh.addEventListener("click", () => tpRefreshUuid(aid, refresh));
     const disc = document.getElementById(`tp-${aid}-disconnect`);
     if (disc) disc.addEventListener("click", () => confirmFn(() => tpWebhookDisconnect(aid)));
   });
-  // --- 1.87: profil bazli "Sunucuya Kur" dugmeleri (calendar | webhook) ---
+  // --- 1.87: profil bazli "Sunucuya Kur" dugmeleri (calendar | webhook | trakt) ---
   // Kurulu/bagli durumda dugme disabled'dir (bilgi tooltip'te) -> tiklanamaz.
-  [["calendar", "calendar"], ["plex", "webhook"], ["jellyfin", "webhook"],
-   ["emby", "webhook"]].forEach(([aid, prof]) => {
+  [["calendar", "calendar"], ["trakt", "trakt"], ["plex", "webhook"],
+   ["jellyfin", "webhook"], ["emby", "webhook"]].forEach(([aid, prof]) => {
     const b = document.getElementById(`tp-vps-install-${aid}`);
     if (b) b.addEventListener("click", () => openInstallWizard(prof));
   });
-  // --- 1.87: Emby karti ic akordeonlari (Webhook / API Key) — tek-acik ---
-  ["webhook", "api"].forEach((which) => {
+  // --- 1.87: Emby karti ic akordeonlari (Webhook / API Key / Access Token) â€” tek-acik ---
+  ["webhook", "api", "token"].forEach((which) => {
     const f = document.getElementById(`tp-emby-sec-${which}`);
     if (!f) return;
     const head = f.querySelector(".notif-type-head");
@@ -2978,7 +3365,7 @@ function bindThirdPartyEvents() {
     head.addEventListener("click", (e) => {
       if (e.target.closest("input") || e.target.closest("button") || e.target.closest("a")) return;
       tpEmbySection = (tpEmbySection === which) ? "" : which;
-      ["webhook", "api"].forEach((w) => {
+      ["webhook", "api", "token"].forEach((w) => {
         const el = document.getElementById(`tp-emby-sec-${w}`);
         if (!el) return;
         const b = el.querySelector(".notif-type-body");
@@ -2988,7 +3375,7 @@ function bindThirdPartyEvents() {
       });
     });
   });
-  // --- 1.87: Emby API alanlari — odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
+  // --- 1.87: Emby API alanlari â€” odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
   ["tp-emby-api-url", "tp-emby-api-key", "tp-emby-api-user"].forEach((fid) => {
     const el = document.getElementById(fid);
     if (!el) return;
@@ -2997,6 +3384,83 @@ function bindThirdPartyEvents() {
     });
     el.addEventListener("blur", () => flushEmbyApi(el));
   });
+  // --- 1.94: Access Token alanlari â€” parola blur / Enter ile otomatik token ---
+  const authPassEl = document.getElementById("tp-emby-auth-pass");
+  if (authPassEl) {
+    authPassEl.addEventListener("input", () => { tpEmbyTokenDirty = true; });
+    authPassEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        tpEmbyTokenDirty = false;
+        tpEmbyTokenFetch(document.getElementById("tp-emby-token-get"));
+      }
+    });
+    authPassEl.addEventListener("blur", (e) => {
+      // Token bolumundeki dugmeye tiklandiysa blur otomatik islemi tetiklemesin;
+      // dugmenin kendi islemi (kontrol/temizle) calissin.
+      const rt = e && e.relatedTarget;
+      if (rt && rt.id && rt.id.indexOf("tp-emby-token-") === 0) return;
+      if (!tpEmbyTokenDirty) return;
+      const v = tpEmbyTokenInputs();
+      if (!v.user || !v.pass) return;
+      tpEmbyTokenDirty = false;
+      tpEmbyTokenFetch(document.getElementById("tp-emby-token-get"));
+    });
+  }
+  const accessTokenEl = document.getElementById("tp-emby-access-token");
+  if (accessTokenEl) {
+    accessTokenEl.addEventListener("input", () => { tpEmbyTokenDirty = true; });
+    accessTokenEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); accessTokenEl.blur(); }
+    });
+    accessTokenEl.addEventListener("blur", (e) => {
+      const rt = e && e.relatedTarget;
+      if (rt && rt.id && rt.id.indexOf("tp-emby-token-") === 0) return;
+      if (!tpEmbyTokenDirty) return;
+      const v = tpEmbyTokenInputs();
+      if (!v.token || v.token === tpEmbyTokenVisible) return;
+      tpEmbyTokenDirty = false;
+      tpEmbyTokenFetch(document.getElementById("tp-emby-token-get"));
+    });
+  }
+  const tokenShowBtn = document.getElementById("tp-emby-token-show");
+  if (tokenShowBtn && accessTokenEl) {
+    tokenShowBtn.addEventListener("click", async () => {
+      const showing = accessTokenEl.type === "text";
+      // 1.97: kayitli token GET /api'de donmez. "Goster" acik istek uzerine
+      // admin-only reveal ucundan cekilip kutuya doldurulur; sonra tip metne
+      // cevrilir. Ayni oturumda token zaten bellekteyse istek yapilmaz.
+      if (!showing && !accessTokenEl.value && tpEmbyTokenHas) {
+        tokenShowBtn.disabled = true;
+        try {
+          const r = await fetch("/api/thirdparty/emby/token/reveal", { cache: "no-store" });
+          const j = await r.json();
+          if (r.ok && j && j.accessToken) {
+            accessTokenEl.value = j.accessToken;
+            tpEmbyTokenVisible = j.accessToken;
+            tpEmbyTokenDirty = false;
+          } else {
+            toast(t("tp_emby_token_err_generic"), true);
+            return;
+          }
+        } catch (_) {
+          toast(t("tp_emby_token_err_generic"), true);
+          return;
+        } finally {
+          tokenShowBtn.disabled = false;
+        }
+      }
+      accessTokenEl.type = showing ? "password" : "text";
+      tokenShowBtn.textContent = t(showing ? "tp_emby_token_show" : "tp_emby_token_hide");
+      tokenShowBtn.setAttribute("aria-pressed", showing ? "false" : "true");
+    });
+  }
+  const tokenGetBtn = document.getElementById("tp-emby-token-get");
+  if (tokenGetBtn) tokenGetBtn.addEventListener("click", () => tpEmbyTokenFetch(tokenGetBtn));
+  const tokenCheckBtn = document.getElementById("tp-emby-token-check");
+  if (tokenCheckBtn) tokenCheckBtn.addEventListener("click", () => tpEmbyTokenCheck(tokenCheckBtn));
+  const tokenClearBtn = document.getElementById("tp-emby-token-clear");
+  if (tokenClearBtn) tokenClearBtn.addEventListener("click", () => tpEmbyTokenClear(tokenClearBtn));
   const embyTestBtn = document.getElementById("tp-emby-api-test");
   if (embyTestBtn) {
     embyTestBtn.addEventListener("click", async () => {
@@ -3006,7 +3470,7 @@ function bindThirdPartyEvents() {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "test");
         const info = j.info || {};
-        toast(t("tp_emby_test_ok") + " · " + (info.serverName || "Emby") + (info.version ? " " + info.version : ""));
+        toast(t("tp_emby_test_ok") + " Â· " + (info.serverName || "Emby") + (info.version ? " " + info.version : ""));
       } catch (e) {
         toast(errText((e && e.message) || "") || t("error"), true);
       } finally {
@@ -3023,7 +3487,7 @@ function bindThirdPartyEvents() {
         const r = await fetch("/api/thirdparty/emby/sync", { method: "POST" });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "sync");
-        toast(t("tp_emby_sync_done") + (j.summary ? " · " + j.summary : ""));
+        toast(t("tp_emby_sync_done") + (j.summary ? " Â· " + j.summary : ""));
         renderThirdPartyApps({ silent: true });
       } catch (e) {
         toast(errText((e && e.message) || "") || t("error"), true);
@@ -3033,6 +3497,166 @@ function bindThirdPartyEvents() {
       }
     });
   }
+  // --- 2.03 / 2.09: Trakt karti â€” Client ID/Secret odaktan cikinca OTOMATIK kayit ---
+  ["tp-trakt-client-id", "tp-trakt-client-secret"].forEach((fid) => {
+    const el = document.getElementById(fid);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+    });
+    el.addEventListener("blur", () => flushTraktClient(el));
+    // 2.10: blur bazi durumlarda kacarsa change de yakalar (kilit cift kaydi engeller).
+    el.addEventListener("change", () => flushTraktClient(el));
+  });
+  const traktRedirLanCopy = document.getElementById("tp-trakt-redirect-lan-copy");
+  if (traktRedirLanCopy) traktRedirLanCopy.addEventListener("click", () => tpCopyInput("tp-trakt-redirect-lan"));
+  const traktRedirUrlCopy = document.getElementById("tp-trakt-redirect-url-copy");
+  if (traktRedirUrlCopy) traktRedirUrlCopy.addEventListener("click", () => tpCopyInput("tp-trakt-redirect-url"));
+  document.querySelectorAll("#tp-app-trakt .tp-redir-btn.off").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const mode = b.getAttribute("data-mode") || "";
+      b.disabled = true;
+      try {
+        const r = await fetch("/api/thirdparty/trakt/redirect-mode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "redirect");
+        toast(t("saved"));
+        renderThirdPartyApps({ silent: true });
+      } catch (e) { toast(tpTraktErrText((e && e.message) || ""), true); b.disabled = false; }
+    });
+  });
+  const traktConnect = document.getElementById("tp-trakt-connect");
+  if (traktConnect) {
+    traktConnect.addEventListener("click", async () => {
+      traktConnect.disabled = true;
+      traktConnect.classList.add("loading");
+      try {
+        const r = await fetch("/api/thirdparty/trakt/authorize", { cache: "no-store" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "authorize");
+        const w = window.open(j.url, "_blank");
+        if (!w) toast(t("tp_trakt_popup_blocked"), true);
+        tpTraktAwaitConnect();
+      } catch (e) { toast(tpTraktErrText((e && e.message) || ""), true); }
+      finally { traktConnect.disabled = false; traktConnect.classList.remove("loading"); }
+    });
+  }
+  const traktCallbackCopy = document.getElementById("tp-trakt-callback-copy");
+  if (traktCallbackCopy) traktCallbackCopy.addEventListener("click", () => tpCopyInput("tp-trakt-callback-uri"));
+  const traktDisconnect = document.getElementById("tp-trakt-disconnect");
+  if (traktDisconnect) {
+    traktDisconnect.addEventListener("click", async () => {
+      traktDisconnect.disabled = true;
+      try {
+        const r = await fetch("/api/thirdparty/trakt/disconnect", { method: "POST" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "disconnect");
+        toast(t("tp_disconnected"));
+        renderThirdPartyApps({ silent: true });
+      } catch (e) { toast(tpTraktErrText((e && e.message) || ""), true); }
+      finally { traktDisconnect.disabled = false; }
+    });
+  }
+  // 2.17: "Simdi kontrol et" â€” Trakt history'sini hemen cek. Manuel isaretleme
+  // sayilir (direct=True): soru uretmeden dogrudan izlendi yazilir.
+  const traktCheck = document.getElementById("tp-trakt-check");
+  if (traktCheck) {
+    traktCheck.addEventListener("click", async () => {
+      traktCheck.disabled = true;
+      traktCheck.classList.add("loading");
+      try {
+        const r = await fetch("/api/thirdparty/trakt/check", { method: "POST" });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || "check");
+        toast(t("tp_trakt_check_done", { n: j.in || 0 }));
+        renderThirdPartyApps({ silent: true });
+      } catch (e) { toast(tpTraktErrText((e && e.message) || ""), true); }
+      finally { traktCheck.disabled = false; traktCheck.classList.remove("loading"); }
+    });
+  }
+  const traktTwoWay = document.getElementById("tp-trakt-two-way");
+  if (traktTwoWay) {
+    traktTwoWay.addEventListener("change", async () => {
+      try {
+        const r = await fetch("/api/thirdparty/trakt/two-way", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: traktTwoWay.checked }) });
+        if (!r.ok) throw new Error("two-way");
+        toast(t("saved"));
+      } catch (e) { traktTwoWay.checked = !traktTwoWay.checked; toast(t("error"), true); }
+    });
+  }
+  const traktPoll = document.getElementById("tp-trakt-poll");
+  if (traktPoll) {
+    try { if (window.initPulldownCombobox) window.initPulldownCombobox("tp-trakt-poll", "tp-trakt-poll-list"); } catch (_) {}
+    traktPoll.addEventListener("change", async () => {
+      const minutes = parseInt(traktPoll.value, 10);
+      try {
+        const r = await fetch("/api/thirdparty/trakt/poll-interval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minutes: isNaN(minutes) ? 10 : minutes }) });
+        if (!r.ok) throw new Error("poll");
+        toast(t("saved"));
+      } catch (e) { toast(t("error"), true); }
+    });
+  }
+}
+
+async function tpTraktAwaitConnect() {
+  const box = document.getElementById("tp-trakt-device");
+  if (box) { box.style.display = ""; box.innerHTML = `<div class="tp-frame-note">${t("tp_trakt_waiting")}</div>`; }
+  const started = Date.now();
+  const tick = async () => {
+    if (Date.now() - started > 180000) {
+      if (box) box.innerHTML = `<div class="tp-frame-note tp-warn">${t("tp_trakt_err_expired")}</div>`;
+      return;
+    }
+    try {
+      const r = await fetch("/api/thirdparty/status", { cache: "no-store" });
+      const j = await r.json();
+      const tr = ((j.apps || []).find((a) => a.id === "trakt") || {});
+      if (tr.traktConnected) {
+        toast(t("tp_trakt_connected", { user: tr.traktUser || "" }));
+        renderThirdPartyApps({ silent: true });
+        return;
+      }
+    } catch (_) {}
+    setTimeout(tick, 3000);
+  };
+  setTimeout(tick, 3000);
+}
+
+async function tpTraktDevicePoll(device) {
+  const box = document.getElementById("tp-trakt-device");
+  if (!box) return;
+  const code = device.user_code || "";
+  const url = device.verification_url || "https://trakt.tv/activate";
+  const dc = device.device_code || "";
+  const interval = Math.max(3, parseInt(device.interval, 10) || 5) * 1000;
+  const expires = (parseInt(device.expires_in, 10) || 600) * 1000;
+  box.style.display = "";
+  box.innerHTML = `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_device_code")}</span><span class="tp-status-value tp-ready">${escAttr(code)}</span></div>
+    <div class="tp-frame-note">${t("tp_trakt_device_note")} <a href="${escAttr(url)}" target="_blank" rel="noopener">${escAttr(url)}</a></div>`;
+  const started = Date.now();
+  const tick = async () => {
+    if (Date.now() - started > expires) { box.innerHTML = `<div class="tp-frame-note tp-warn">${t("tp_trakt_err_expired")}</div>`; return; }
+    try {
+      const r = await fetch("/api/thirdparty/trakt/connect/poll", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device_code: dc }) });
+      const j = await r.json();
+      if (r.ok && j && j.pending) { setTimeout(tick, interval); return; }
+      if (!r.ok) throw new Error(j.error || "poll");
+      toast(t("tp_trakt_connected", { user: j.user || "" }));
+      renderThirdPartyApps({ silent: true });
+    } catch (e) {
+      box.innerHTML = `<div class="tp-frame-note tp-warn">${escAttr(tpTraktErrText((e && e.message) || ""))}</div>`;
+    }
+  };
+  setTimeout(tick, interval);
+}
+
+function tpTraktErrText(code) {
+  const c = String(code || "");
+  if (c === "auth" || c === "no-token") return t("tp_trakt_err_auth");
+  if (c === "client-id") return t("tp_trakt_err_client");
+  if (c === "busy") return t("tp_trakt_err_busy");
+  if (c.indexOf("HTTP") === 0) return c;
+  return t("tp_trakt_err_generic");
 }
 
 function setTpAccordion(which) {
@@ -3044,10 +3668,11 @@ function setTpAccordion(which) {
     { id: "tp-app-plex", get: () => tpPlexOpen, set: (v) => { tpPlexOpen = v; } },
     { id: "tp-app-jellyfin", get: () => tpJellyfinOpen, set: (v) => { tpJellyfinOpen = v; } },
     { id: "tp-app-emby", get: () => tpEmbyOpen, set: (v) => { tpEmbyOpen = v; } },
+    { id: "tp-app-trakt", get: () => tpTraktOpen, set: (v) => { tpTraktOpen = v; } },
     { id: "tp-app-remote", get: () => tpRemoteOpen, set: (v) => { tpRemoteOpen = v; } },
   ];
   const _idMap = { vps: "vps-info-box", public: "tp-public-box", stremio: "tp-app-stremio", calendar: "tp-app-calendar",
-                   plex: "tp-app-plex", jellyfin: "tp-app-jellyfin", emby: "tp-app-emby", remote: "tp-app-remote" };
+                   plex: "tp-app-plex", jellyfin: "tp-app-jellyfin", emby: "tp-app-emby", trakt: "tp-app-trakt", remote: "tp-app-remote" };
   const cur = boxes.find((b) => b.id === (_idMap[which] || ""));
   if (!cur) return;
   const willOpen = !cur.get();
@@ -3092,7 +3717,7 @@ function vpsStoredPass(mode) {
   return !!(p.configured && (p.auth_type || "key") !== "key");
 }
 
-// 1.87: Public Adres (tp_base_url) kendi akordeon cercevesi — kurulum baglantilarinin
+// 1.87: Public Adres (tp_base_url) kendi akordeon cercevesi â€” kurulum baglantilarinin
 // (URL) cerceveleri bu adresten uretilir (LAN adresi ASLA buradan gelmez).
 // "Sunucu Baglanti Ayarlari" ile "Stremio" arasinda durur; yalniz admin duzenleyebilir.
 function renderPublicBaseCard() {
@@ -3104,8 +3729,8 @@ function renderPublicBaseCard() {
       </div>
       <div class="notif-type-body" style="display:${tpPublicOpen ? "block" : "none"}">
         <div class="tp-sub-box">
-          <label>
-            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /><span class="saved-hint" data-i18n="saved">${t("saved")}</span></div>
+          <label><span class="settings-label-head"><span data-i18n="tp_base_url_field">${t("tp_base_url_field")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
+            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://â€¦" value="${escAttr(tpBaseUrl)}" /></div>
           </label>
         </div>
       </div>
@@ -3116,7 +3741,7 @@ function renderVpsSection() {
   const p = vpsProfile || { host: "", port: 22, username: "root", auth_type: "key", configured: false, connected: false, lastTestTs: null, fingerprint: "" };
   const stCls = p.connected && p.configured ? "tp-connected" : "tp-not-connected";
   const stTxt = !(p.configured) ? t("vps_unknown") : (p.connected ? t("tp_connected") : t("tp_not_connected"));
-  const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "—";
+  const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "â€”";
   const hasSecret = !!p.configured;
   const showKey = vpsAuth === "key";
   const uname = p.username || "root";
@@ -3127,7 +3752,7 @@ function renderVpsSection() {
   const rootVerified = !!p.rootVerified || loginUser === "root";
   const reasonCode = String(p.lastReason || "");
   let rootCls = "tp-not-connected";
-  let rootTxt = "—";
+  let rootTxt = "â€”";
   if (connOk && rootVerified && loginUser === "root") {
     rootCls = "tp-connected";
     rootTxt = t("vps_root_direct");
@@ -3145,7 +3770,7 @@ function renderVpsSection() {
   }[reasonCode];
   const rootReasonTxt = rootReasonKey ? t(rootReasonKey) : "";
   const passStored = vpsStoredPass(vpsAuth);
-  const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "••••••••" : "");
+  const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "");
   const passLabel = showKey ? t("vps_sudo_pass") : t("vps_auth_pass");
   return `
   <div class="channel-box accordion-box notif-type-box${tpVpsOpen ? " accordion-open" : ""}" id="vps-info-box">
@@ -3168,7 +3793,7 @@ function renderVpsSection() {
         <label><span class="settings-label-head"><span>${escAttr(t("vps_host"))}</span><span class="saved-hint" id="vps-host-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-host" type="text" autocomplete="off" spellcheck="false" value="${escAttr(p.host || "")}" placeholder="80.211.22.203" /></div>
         </label>
-        <label style="margin-top:6px"><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint" id="vps-port-saved" data-i18n="saved">${t("saved")}</span></span>
+        <label style="margin-top:3px"><span class="settings-label-head"><span>${escAttr(t("vps_port"))}</span><span class="saved-hint" id="vps-port-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-port" type="number" min="1" max="65535" value="${escAttr(String(p.port || 22))}" /></div>
         </label>
       </div>
@@ -3181,13 +3806,13 @@ function renderVpsSection() {
         <label><span class="settings-label-head"><span>${escAttr(t("vps_user"))}</span><span class="saved-hint" id="vps-user-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-user" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" value="${escAttr(uname)}" placeholder="root" /></div>
         </label>
-        <label style="margin-top:6px"><span class="settings-label-head"><span id="vps-pass-label">${escAttr(passLabel)}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
+        <label style="margin-top:3px"><span class="settings-label-head"><span id="vps-pass-label">${escAttr(passLabel)}</span><span class="saved-hint" id="vps-pass-saved" data-i18n="saved">${t("saved")}</span></span>
           <div class="tp-url-box"><input id="vps-pass" type="password" autocomplete="new-password" value="" placeholder="${escAttr(passPlaceholder)}" data-has="${passStored ? "1" : "0"}" /></div>
         </label>
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}; margin-top:6px">
           <label>
             <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
-            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
+            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : ""}</textarea>
           </label>
           <div class="backup-key-actions">
             <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
@@ -3218,7 +3843,7 @@ function vpsGateState() {
   const keyOk = !!keyEl && (keyTxt !== "" || keyEl.getAttribute("data-has") === "1");
   const passEl = document.getElementById("vps-pass");
   const passTxt = passEl ? (passEl.value || "") : "";
-  const passOk = (passTxt !== "" && passTxt !== "••••••••")
+  const passOk = (passTxt !== "" && passTxt !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢")
     || !!(passEl && passEl.getAttribute("data-has") === "1");
   if (!host) return { canTest: false, reason: "host" };
   if (keyMode) {
@@ -3252,7 +3877,7 @@ function updateVpsTestGate() {
     passEl.disabled = lockPass;
     if (lockPass && passEl.value) passEl.value = "";
     passEl.placeholder = lockPass ? t("vps_pass_root_na")
-      : (vpsStoredPass(vpsAuth) ? "••••••••" : "");
+      : (vpsStoredPass(vpsAuth) ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "");
   }
 }
 
@@ -3286,7 +3911,7 @@ async function flushVpsProfile(hintId) {
     } else {
       const pe = document.getElementById("vps-pass");
       secret = pe ? pe.value : "";
-      fieldEmpty = (secret === "" || secret === "••••••••")
+      fieldEmpty = (secret === "" || secret === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢")
         && (!pe || pe.getAttribute("data-has") !== "1");
     }
     // sudo parolasi: root'ta tutulmaz; key modunda ayri, parola modunda login parolasi.
@@ -3295,9 +3920,9 @@ async function flushVpsProfile(hintId) {
     else if (!isRoot && vpsAuth === "key") {
       const pe = document.getElementById("vps-pass");
       const v = pe ? pe.value : "";
-      if (v !== "" && v !== "••••••••") sudoSecret = v;
+      if (v !== "" && v !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") sudoSecret = v;
     }
-    const secretChanged = secret !== "" && secret !== "••••••••";
+    const secretChanged = secret !== "" && secret !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢";
     const willClear = fieldEmpty && !!(saved && saved.configured);
     const unchanged =
       !!saved &&
@@ -3308,8 +3933,8 @@ async function flushVpsProfile(hintId) {
       !secretChanged && !willClear && sudoSecret === null;
     if (unchanged) return;
     const body = { host, port, username, auth_type: vpsAuth };
-    // Boş secret -> backend eskiyi korur; "••••••••" korunur; temizleme acikca "" ile.
-    if (secret !== "" && secret !== "••••••••") body.secret = secret;
+    // BoÅŸ secret -> backend eskiyi korur; "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" korunur; temizleme acikca "" ile.
+    if (secret !== "" && secret !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") body.secret = secret;
     else if (willClear) body.secret = "";
     if (sudoSecret !== null) body.sudo_secret = sudoSecret;
     const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -3337,13 +3962,13 @@ async function testVpsConnection() {
   // Sonuc gelince renderThirdPartyApps butonu yeniden olusturur -> finally'de
   // buton tekrar sorgulanip etiket geri yazilir.
   const btn = document.getElementById("vps-test");
-  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = t("vps_test") + " …"; }
+  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = t("vps_test") + " â€¦"; }
   try {
     const r = await fetch("/api/remote/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "test");
     if (j.connected) {
-      toast(t("vps_test_ok") + (j.sudo ? " — " + t("vps_sudo_ok") : ""));
+      toast(t("vps_test_ok") + (j.sudo ? " â€” " + t("vps_sudo_ok") : ""));
     } else {
       const reasonKey = {
         "sudo-pass-required": "vps_sudo_required",
@@ -3622,7 +4247,7 @@ function siRenderSteps(steps) {
   if (!el) return;
   el.innerHTML = SI_STEP_ORDER.map((n) => {
     const st = (steps && steps[n]) || "idle";
-    const icon = st === "ok" ? "✔" : st === "fail" ? "✕" : st === "run" ? "…" : "○";
+    const icon = st === "ok" ? "âœ”" : st === "fail" ? "âœ•" : st === "run" ? "â€¦" : "â—‹";
     return `<li class="si-step si-step-${st}"><span class="si-step-icon">${icon}</span><span>${siStepLabel(n)}</span></li>`;
   }).join("");
 }

@@ -943,6 +943,13 @@ def backup_restore():
             if mode == "db":
                 dest = os.path.join(restore_dir, "nextep.db")
                 shutil.copy2(tmp_path, dest)
+                # 1.98: geri yuklenen DB'nin yaninda eski WAL/SHM kalmasin.
+                for side in (dest + "-wal", dest + "-shm"):
+                    try:
+                        if os.path.exists(side):
+                            os.unlink(side)
+                    except Exception:
+                        pass
                 files = ["nextep.db"]
             else:
                 exclude_dirs = {"venv", "__pycache__", ".git", "bak", "backup", "tmp_push", ".opencode", "restore", "md"}
@@ -957,7 +964,12 @@ def backup_restore():
                         parts = name.split("/")
                         if parts[0] in exclude_dirs:
                             continue
-                        if os.path.basename(name) in exclude_files or name.endswith(".bak"):
+                        base = os.path.basename(name)
+                        if base in exclude_files or name.endswith(".bak"):
+                            continue
+                        # 1.98: WAL/SHM yan dosyalari geri yuklenmesin (SQLite -shm'i
+                        # kendisi olusturur; eski -wal yanlis commit getirebilir).
+                        if base.endswith(".db-wal") or base.endswith(".db-shm"):
                             continue
                         # tar extract
                         tf.extract(m, path=restore_dir)

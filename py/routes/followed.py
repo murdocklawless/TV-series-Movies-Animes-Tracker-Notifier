@@ -681,6 +681,8 @@ def followed_move_watched():
                     conn.close()
                     return jsonify({"error": "Dizi henüz tamamlanmadı"}), 400
     now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    removed_eps = []          # 2.19.6: geri alinan bolumler -> Trakt kuyrugu
+    removed_movie = False
     if watched:
         if media_type == "tv":
             # Tüm sezon/bölümleri otomatik izlenmiş yap; önceden izlenmemiş
@@ -695,7 +697,7 @@ def followed_move_watched():
                 auto = []
             if auto:
                 conn.execute(
-                    "UPDATE episodes SET watched=1, source=COALESCE(source, 'other') WHERE follow_id=? AND watched=0",
+                    "UPDATE episodes SET watched=1, source=COALESCE(source, 'other'), direct_mark=0 WHERE follow_id=? AND watched=0",
                     (follow["id"],),
                 )
                 save_watch_snapshot(conn, uid, "tv", follow["id"], auto)
@@ -707,10 +709,10 @@ def followed_move_watched():
             conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
         else:  # movie
             if int(follow["watched"] or 0) != 1:
-                conn.execute("UPDATE followed SET watched=1, watched_source='other' WHERE id=?", (follow["id"],))
+                conn.execute("UPDATE followed SET watched=1, watched_source='other', direct_mark=0 WHERE id=?", (follow["id"],))
                 save_watch_snapshot(conn, uid, "movie", follow["id"], ["1"])
             conn.execute(
-                "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?) WHERE id=?",
+                "UPDATE followed SET in_watched=?, watched_at=COALESCE(watched_at, ?), direct_mark=0 WHERE id=?",
                 (watched, now_ts, follow["id"]),
             )
     else:
@@ -724,9 +726,10 @@ def followed_move_watched():
                 try:
                     for s, e in snap:
                         conn.execute(
-                            "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL WHERE follow_id=? AND season=? AND episode=?",
+                            "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 WHERE follow_id=? AND season=? AND episode=?",
                             (follow["id"], s, e),
                         )
+                        removed_eps.append((s, e))
                 except Exception:
                     pass
             conn.execute(
@@ -740,10 +743,19 @@ def followed_move_watched():
             except Exception:
                 snap = None
             if snap and "1" in snap:
-                conn.execute("UPDATE followed SET watched=0, watched_at=NULL, watched_source=NULL WHERE id=?", (follow["id"],))
+                conn.execute("UPDATE followed SET watched=0, watched_at=NULL, watched_source=NULL, direct_mark=0 WHERE id=?", (follow["id"],))
+                removed_movie = True
             conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
+    # 2.19.6: liste tasima da Trakt'a yansir (izlendi -> gonderim, izlenmedi -> kaldirma).
+    if watched:
+        _kick_trakt_out(uid)
+    else:
+        for s, e in removed_eps:
+            _queue_trakt_unwatch(uid, "tv", tmdb_id, s, e)
+        if removed_movie:
+            _queue_trakt_unwatch(uid, "movie", tmdb_id)
     bump()
     return jsonify({"ok": True, "watched": watched})
 
@@ -1158,6 +1170,46 @@ def episode_info():
     return cached_response(payload, False)
 
 
+def _kick_trakt_out(uid):
+    """2.19.6: yerel izleme isaretlemesi -> Trakt'a aninda gonderim (havuz).
+
+    Havuz 2 sn toplayip tek POST atar; token yok / cift yon kapali ise no-op.
+    """
+    try:
+        import sync_pool
+        sync_pool.kick_trakt_out(uid)
+    except Exception:
+        pass
+
+
+def _queue_trakt_unwatch(uid, kind, tmdb_id, season=None, episode=None):
+    """2.19.4: yerelde izlendi -> izlenmedi gecisi.
+
+    Cift yonlu Trakt senkronu icin kaldirmayi kuyruga yazar ve bekleyen sinyal
+    tamponu satirini siler (clear-apply eski sinyali geri yazmasin). Fail-soft.
+    """
+    try:
+        tmdb = int(tmdb_id)
+    except Exception:
+        return
+    try:
+        import trakt
+        trakt.queue_remove(uid, kind, tmdb, season, episode)
+    except Exception:
+        pass
+    # 2.19.6: kaldirma aninda Trakt'a gitsin (havuz 2 sn toplayip tek POST atar).
+    try:
+        import sync_pool
+        sync_pool.kick_trakt_out(uid)
+    except Exception:
+        pass
+    try:
+        import stremio_buffer as sb
+        sb.delete_signals([sb._dedupe(kind, tmdb, None, season, episode, uid)])
+    except Exception:
+        pass
+
+
 @followed_bp.route("/api/episode/watch", methods=["POST"])
 def episode_watch():
     body = request.get_json()
@@ -1178,17 +1230,27 @@ def episode_watch():
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 400
 
+    prev = conn.execute(
+        "SELECT watched FROM episodes WHERE follow_id=? AND season=? AND episode=?",
+        (follow["id"], season, episode),
+    ).fetchone()
+
     conn.execute(
-        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
+        "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source, direct_mark) "
+        "VALUES (?, ?, ?, ?, ?, ?, 0) "
         "ON CONFLICT(follow_id, season, episode) "
-        "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, source=excluded.source",
+        "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, "
+        "source=excluded.source, direct_mark=0",
         (follow["id"], season, episode, watched,
          int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
          "other" if watched else None),
     )
     conn.commit()
     conn.close()
+    if not watched and prev and prev["watched"]:
+        _queue_trakt_unwatch(uid, "tv", tmdb_id, season, episode)
+    elif watched:
+        _kick_trakt_out(uid)
     bump()
     return jsonify({"ok": True, "watched": watched})
 
@@ -1229,6 +1291,13 @@ def season_watch():
                 tvmaze_times = _tvmaze_episode_times(t)
                 if tvmaze_times is not None:
                     break
+    prev_eps = []
+    if not watched:
+        prev_rows = conn.execute(
+            "SELECT episode FROM episodes WHERE follow_id=? AND season=? AND watched=1",
+            (follow["id"], season),
+        ).fetchall()
+        prev_eps = [int(r["episode"]) for r in prev_rows]
     count = 0
     for ep in season_data.get("episodes", []):
         ep_num = ep.get("episode_number")
@@ -1265,10 +1334,11 @@ def season_watch():
                 except (ValueError, OSError, OverflowError):
                     pass
         conn.execute(
-            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at, runtime, source) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "INSERT INTO episodes (follow_id, season, episode, air_date, watched, watched_at, runtime, source, direct_mark) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0) "
             "ON CONFLICT(follow_id, season, episode) "
-            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date, runtime=excluded.runtime, source=excluded.source",
+            "DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, air_date=excluded.air_date, "
+            "runtime=excluded.runtime, source=excluded.source, direct_mark=0",
             (follow["id"], season, ep_num, air_date, watched,
              int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
              ep.get("runtime"),
@@ -1277,6 +1347,10 @@ def season_watch():
         count += 1
     conn.commit()
     conn.close()
+    for ep_num in prev_eps:
+        _queue_trakt_unwatch(uid, "tv", tmdb_id, season, ep_num)
+    if watched:
+        _kick_trakt_out(uid)
     bump()
     return jsonify({"ok": True, "count": count})
 
@@ -1297,7 +1371,10 @@ def movie_watch():
     if not follow:
         conn.close()
         return jsonify({"error": "Takip bulunamadı"}), 400
-    conn.execute("UPDATE followed SET watched=?, watched_at=?, watched_source=? WHERE id=?", (
+    prev = conn.execute(
+        "SELECT watched FROM followed WHERE id=?", (follow["id"],)
+    ).fetchone()
+    conn.execute("UPDATE followed SET watched=?, watched_at=?, watched_source=?, direct_mark=0 WHERE id=?", (
         watched,
         int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
         "other" if watched else None,
@@ -1305,6 +1382,10 @@ def movie_watch():
     ))
     conn.commit()
     conn.close()
+    if not watched and prev and prev["watched"]:
+        _queue_trakt_unwatch(uid, "movie", tmdb_id)
+    elif watched:
+        _kick_trakt_out(uid)
     bump()
     return jsonify({"ok": True, "watched": watched})
 
@@ -1578,7 +1659,8 @@ def watch_history():
     items = []
     try:
         rows = conn.execute(
-            """SELECT f.title, f.media_type, f.genres, e.season, e.episode, e.watched_at AS ts
+            """SELECT f.title, f.media_type, f.genres, e.season, e.episode,
+                      e.watched_at AS ts, e.source, e.direct_mark
                FROM episodes e JOIN followed f ON f.id=e.follow_id
                WHERE f.user_id=? AND e.watched=1 AND e.watched_at IS NOT NULL""",
             (uid,),
@@ -1590,9 +1672,12 @@ def watch_history():
                 "title": r["title"] or "",
                 "season": r["season"],
                 "episode": r["episode"],
+                "source": r["source"],
+                "direct": bool(r["direct_mark"]),
             })
         rows = conn.execute(
-            """SELECT title, genres, watched_at AS ts FROM followed
+            """SELECT title, genres, watched_at AS ts, watched_source, direct_mark
+               FROM followed
                WHERE user_id=? AND media_type='movie' AND watched=1 AND watched_at IS NOT NULL""",
             (uid,),
         ).fetchall()
@@ -1603,9 +1688,11 @@ def watch_history():
                 "title": r["title"] or "",
                 "season": None,
                 "episode": None,
+                "source": r["watched_source"],
+                "direct": bool(r["direct_mark"]),
             })
         rows = conn.execute(
-            """SELECT a.title, ae.episode, ae.watched_at AS ts
+            """SELECT a.title, ae.episode, ae.watched_at AS ts, ae.source, ae.direct_mark
                FROM anime_episodes ae JOIN anime a ON a.id=ae.anime_id
                WHERE a.user_id=? AND ae.watched=1 AND ae.watched_at IS NOT NULL""",
             (uid,),
@@ -1617,6 +1704,8 @@ def watch_history():
                 "title": r["title"] or "",
                 "season": None,
                 "episode": r["episode"],
+                "source": r["source"],
+                "direct": bool(r["direct_mark"]),
             })
         rows = conn.execute(
             """SELECT wm.marked_at AS ts, wm.season, f.title, f.genres

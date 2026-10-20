@@ -1,6 +1,452 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.6 - 20/10/2026-23:48
+### TR
+- **Yeni — anlık senkron havuzu (`py/sync_pool.py`):** yerel izleme/kaldırma işlemleri artık **olayla** tetiklenir. `sync_events` tablosu kalıcı outbox'tır (restart'ta bekleyen iş kaybolmaz); havuz 2 sn toplayıp **tek POST** atar, hata olursa 5s → 30s → 2dk → 10dk backoff ile yeniden dener, 8 denemede `failed` işaretler. Trakt'ın 429/420 yanıtlarında `Retry-After` kadar beklenir (`rate-limit:<sn>` hata sınıfı `_get`/`_post` içine eklendi).
+- **Yeni — yoklama artık aktifken 10 sn:** Trakt gelen yoklaması havuzda çalışır; uygulama **aktifken** (görünür sekme, son 60 sn'de ping) **10 saniye**, boşta kullanıcının seçtiği aralık (varsayılan 10 dk). Yeni `POST /api/presence` + `auth.js` 30 sn'lik görünür-sekme ping'i; `/api/auth/ping` çevrimiçi durumunu beslemeye devam eder (değişmedi).
+- **Yeni — Emby WS öğe bazlı hızlı yol:** `UserDataChanged` mesajındaki `ItemId`'ler 2 sn toplanıp **doğrudan** işlenir (öğe başına tek API çağrısı; 200'lük tam tarama beklenmez). Mesaj ayrıştırılamazsa eski **5 sn debounce'lu tam tarama yedeği** aynen çalışır; öğe işleri de havuz kuyruğundan geçtiği için retry + restart dayanıklılığı kazanır.
+- **Düzeltme — Trakt gelen sayfalama:** `_inbound` artık 20'lik sayfalar hâlinde en fazla 5 sayfa (100 kayıt) okur ve cursor'dan eski kayda rastlayınca durur. Eski tek sayfalık okuma, tek yoklamada 100'den fazla yeni izleme varsa **eskileri sessizce atlıyordu**.
+- **Düzeltme — aynı dakikadaki izlemeler:** Trakt `watched_at` saniyeleri sıfırladığı için `<=` karşılaştırması aynı dakikadaki ikinci kaydı atlıyordu; artık eşit damgalı kayıtlar yeniden işlenir (tekrarlar `process_signal` tarafında idempotent).
+- **Mutabakat sıklığı:** `/sync/watched` karşılaştırması artık her yoklamada değil, en fazla **15 dakikada bir** çalışır (`reconcile_if_due`); "Senkron Et" butonu aynı yolu kullanır ve zaman damgasını tazeler. Trakt'ta silinen izlemeler yine geri alınır, yanlış silme koruması (`source='trakt'` / `trakt_out_pushed` eşleşme kaydı) aynen geçerli.
+- **Liste taşıma kancası:** "İzlenenler"e taşıma/geri taşıma da Trakt'a yansır (izlendi → gönderim, izlenmedi → kaldırma kuyruğu + anında tetik).
+- **Scheduler:** per-user `trakt_poll_*` işleri kaldırıldı (yoklamayı havuz devraldı); eski işler açılışta temizlenir. `_run_trakt_poll` elle tetikleme için korunur.
+- **UI:** Trakt kartında **Kuyruk** satırı (bekleyen/hata), **Kontrol aralığı (boşta)** etiketi, son aktarım saati ve havuz hatası; 7 yeni i18n anahtarı ×14 dil.
+- **Cache-buster:** tüm JS modülleri +1 (`?v=640`), `__NX_BUILD 640`; `style.css?v=622` sabit.
+### EN
+- **New — instant sync pool (`py/sync_pool.py`):** local watch/unwatch actions are now **event-driven**. The `sync_events` table is a durable outbox (pending work survives restarts); the pool coalesces 2 s and sends a **single POST**, retries with 5s → 30s → 2m → 10m backoff and marks `failed` after 8 attempts. Trakt 429/420 responses honour `Retry-After` (new `rate-limit:<sec>` error class in `_get`/`_post`).
+- **New — 10 s polling while active:** Trakt inbound polling runs in the pool; while the app is **active** (visible tab, pinged within 60 s) it polls every **10 seconds**, otherwise the user's chosen interval (default 10 min). New `POST /api/presence` + a 30 s visible-tab ping in `auth.js`; `/api/auth/ping` still feeds online status (unchanged).
+- **New — Emby WS item-level fast path:** `ItemId`s from `UserDataChanged` are collected for 2 s and processed **directly** (one API call per item; no 200-item full scan wait). If the message cannot be parsed, the previous **5 s debounced full scan** fallback still runs; item jobs also go through the pool queue for retry + restart durability.
+- **Fix — Trakt inbound pagination:** `_inbound` now reads 20-item pages, up to 5 pages (100 records), and stops when it reaches an item older than the cursor. The old single-page read **silently skipped older new watches** when more than 100 arrived in one poll window.
+- **Fix — same-minute watches:** because Trakt zeroes the seconds of `watched_at`, the `<=` comparison skipped the second record of the same minute; equal timestamps are processed again now (duplicates are idempotent in `process_signal`).
+- **Reconcile frequency:** the `/sync/watched` comparison now runs at most **every 15 minutes** (`reconcile_if_due`) instead of on every poll; the "Sync now" button uses the same path and refreshes the timestamp. Watches deleted on Trakt are still reverted, and the wrong-deletion guard (`source='trakt'` / `trakt_out_pushed` ledger) is unchanged.
+- **List-move hooks:** moving to/from the "Watched" list now propagates to Trakt as well (watched → push, unwatched → removal queue + instant kick).
+- **Scheduler:** per-user `trakt_poll_*` jobs removed (the pool took over polling); stale jobs are cleaned at startup. `_run_trakt_poll` is kept for manual triggers.
+- **UI:** Trakt card now shows a **Queue** row (pending/failed), a **Check interval (idle)** label, last transfer time and pool error; 7 new i18n keys ×14 languages.
+- **Cache-buster:** all JS modules +1 (`?v=640`), `__NX_BUILD 640`; `style.css?v=622` unchanged.
+
+## 2.19.5 - 20/10/2026-05:55
+### TR
+- **Yeni — ters yön tamamlandı (Trakt'ta "izlenmedi" → NextEp):** Trakt'ta bir film/bölüm izlenmedi yapıldığında bu artık NextEp'e de yansıyor. Trakt, silinen geçmişi hiçbir listede göstermediği için çözüm **mutabakat**: her yoklamada `GET /sync/watched/shows?extended=progress` + `GET /sync/watched/movies` ile Trakt'ın **güncel izlenen kümesi** alınır, yerelde izlendi görünen satırlarla karşılaştırılır; Trakt'ta olmayanlar yerelde de kaldırılır (`watched=0`, `watched_at=NULL`, kaynak temiz, sinyal tamponu silinir) ve log düşer: `[trakt] geri alindi (Trakt'ta izlenmedi): …`.
+- **Yeni — eşleşme kaydı (`trakt_out_pushed`):** dışa aktarımda **Trakt'ın kabul ettiği** her öğe işaretlenir. Mutabakat yalnız `source='trakt'` olan veya bu kayıtta bulunan satırları kaldırma adayı sayar. Böylece: tek yönlü modda / hiç gönderilmemiş yerel işaretler, Emby-Jellyfin kaynaklı izlemeler ve **eski sürümde sessizce kabul edilmeyen gönderimler** asla silinmez. Trakt'ta görünen yerel izlemeler her turda "eşleşik" diye tohumlanır (eski doğru gönderimler de kapsanır).
+- **Yeni — "kısmen kabul" koruması:** `/sync/history` yanıtında `not_found` varsa öğeler eşleşik işaretlenmez (mutabakat yerel işareti yanlışlıkla silmez) ve durum loglanır.
+- **Sağlamlaştırma:** dışa aktarım sorguları `watched_at` artan sıralı; 100 öğe sınırına takılırsa `tp_trakt_out_ts` "şimdi"ye değil **son gönderilen damgaya** çekilir, kalanlar sonraki turda gider.
+- **Sıra:** yoklama artık **inbound → mutabakat → outbound** çalışır; buton ve otomatik yoklama aynı yolu kullanır. API hatasında hiçbir şey silinmez (`tp_trakt_error`).
+- **Sürüm kaynağı düzeltmesi:** uygulama her güncelleme kontrolünde `VERSION` dosyasını DB'deki sürüme geri yazıyordu (DB'de `1.93` kalmıştı). Bu sürümde hem dosya hem DB sürümü **2.19.5** yapıldı; dosya artık geri dönmüyor.
+- **Damga:** JS değişmedi → tüm modüller `?v=639`, `__NX_BUILD 639`.
+### EN
+- **New — reverse direction completed (Trakt "unwatched" → NextEp):** marking a movie/episode unwatched on Trakt now propagates to NextEp. Trakt never lists deleted history, so the fix is **reconciliation**: every poll fetches the current watched set via `GET /sync/watched/shows?extended=progress` + `GET /sync/watched/movies`, compares it with local watched rows and clears those missing on Trakt (`watched=0`, `watched_at=NULL`, source cleared, signal-buffer row removed) with a log line: `[trakt] geri alindi (Trakt'ta izlenmedi): …`.
+- **New — mirror ledger (`trakt_out_pushed`):** every item **accepted by Trakt** during outbound is recorded. Reconciliation only considers rows with `source='trakt'` or a ledger entry. So one-way mode marks, never-pushed local marks, Emby/Jellyfin-sourced watches and **items silently rejected by the old code** are never removed. Local watches visible on Trakt are seeded as mirrored each run (legacy correct pushes are covered too).
+- **New — partial-accept guard:** if `/sync/history` returns `not_found`, those items are not marked as mirrored (reconciliation cannot wrongly clear the local mark) and the condition is logged.
+- **Hardening:** outbound queries are `watched_at` ascending; when the 100-item cap is hit, `tp_trakt_out_ts` moves to the **last sent timestamp** instead of "now", so the remainder goes out on the next run.
+- **Order:** polling now runs **inbound → reconcile → outbound**; the button and the automatic poll share the path. On API errors nothing is removed (`tp_trakt_error`).
+- **Version source fix:** on every update check the app rewrote `VERSION` from the DB version (which was stuck at `1.93`). Both the file and the DB version are now **2.19.5**, so it no longer reverts.
+- **Stamp:** no JS changes → every module `?v=639`, `__NX_BUILD 639`.
+
+## 2.19.4 - 20/10/2026-05:35
+### TR
+- **Çift yönlü senkron tamamlandı (Trakt → dışa "izlenmedi"):** yerelde bir film/bölüm **izlendi → izlenmedi** yapıldığında bu değişiklik artık Trakt'a da yansıyor. Yeni `trakt_out_remove` kuyruğu (`user_id, kind, tmdb_id, season, episode, ts`) kaldırmaları tutar; dışa aktarım önce kuyruğu `POST /sync/history/remove` ile boşaltır, **sonra** yeni izlemeleri yazar — "kaldır → tekrar izle" senaryosunda son durum izlendi kalır.
+- **Kanca noktaları:** `POST /api/episode/watch` (watched=0), `POST /api/season/watch` (toplu izlenmedi) ve `POST /api/movie/watch` (watched=0). Kaldırma yalnız gerçek bir **izlendi → izlenmedi** geçişinde kuyruğa girer; ayrıca ilgili **sinyal tamponu** satırı silinir (clear-apply eski sinyali geri yazmaz).
+- **Güvenlik:** kuyruk yalnız çift yön açıkken (poll/buton) boşaltılır. Gönderim sırasında yerelde yeniden izlenmiş öğe atlanır ve kuyruktan düşülür. HTTP hatasında satırlar kalır (`tp_trakt_error`), bir sonraki yoklamada yeniden denenir; Trakt'ın `not_found` yanıtı da başarı sayılır (hedef zaten "yok").
+- **Düzeltme — bölüm ekleme gövdesi:** dışa aktarım bölümleri artık Trakt'ın kanonik **`shows > seasons > episodes`** biçimiyle gönderiyor (`{"shows":[{"ids":{"tmdb":X},"seasons":[…]}],"movies":[…]}`). Eski `episodes` dizisi biçimi terk edildi; ekleme ve kaldırma aynı şekli kullanıyor.
+- **Kapsam dışı (bilerek):** Emby/Jellyfin `unwatch_from_source` ve toplu `clear-apply` Trakt'tan silme **göndermez** (dış sunucu durumu Trakt geçmişini silmesin). Yalnız kullanıcının arayüzden yaptığı kaldırmalar aktarılır.
+- **Damga:** JS değişmedi → tüm modüller `?v=639`, `__NX_BUILD 639`.
+### EN
+- **Two-way sync completed (Trakt ← outgoing "unwatched"):** when a movie/episode is toggled **watched → unwatched** locally, the change now propagates to Trakt. A new `trakt_out_remove` queue (`user_id, kind, tmdb_id, season, episode, ts`) stores removals; the outbound step flushes it via `POST /sync/history/remove` **before** writing new watches — in the "unwatch → re-watch" case the final state stays watched.
+- **Hook points:** `POST /api/episode/watch` (watched=0), `POST /api/season/watch` (bulk unwatch) and `POST /api/movie/watch` (watched=0). A removal is queued only on a real **watched → unwatched** transition; the matching **signal buffer** row is deleted too (so clear-apply cannot resurrect it).
+- **Safety:** the queue is flushed only when two-way sync is enabled (poll/button). Items that are locally watched again at send time are skipped and dropped from the queue. On HTTP failure rows are kept (`tp_trakt_error`) and retried on the next poll; Trakt's `not_found` response counts as success (the goal is "absent").
+- **Fix — episode add payload:** outbound episodes now use Trakt's canonical **`shows > seasons > episodes`** shape (`{"shows":[{"ids":{"tmdb":X},"seasons":[…]}],"movies":[…]}`). The old `episodes` array shape is gone; add and remove share the same shape.
+- **Out of scope (by design):** Emby/Jellyfin `unwatch_from_source` and bulk `clear-apply` do **not** send removals to Trakt (an external server must not wipe Trakt history). Only user-initiated UI unwatches propagate.
+- **Stamp:** no JS changes → every module `?v=639`, `__NX_BUILD 639`.
+
+## 2.19.3 - 20/10/2026-05:08
+### TR
+- **Kritik düzeltme (Trakt dizi senkronu):** Trakt `/sync/history` yanıtında dizi öğelerinde `show` nesnesi öğenin **üst düzeyinde** gelir; kod `episode` içinde arıyordu (`ep.get("show")`) → `tmdb` boş kalıyor ve **her bölüm sessizce atlanıyordu** (yalnız filmler aktarılıyordu). Artık `it["show"]` okunur (eski biçim için `ep["show"]` yedeği var).
+- **Cursor koruması:** Trakt'ta ileri saatli bir damga cursor'ı geleceğe taşıyıp tüm aktarımı kilitleyebiliyordu (canlıda `02:30Z` = yerel 05:30 olayı). Yazılan cursor artık "şimdi"den ileri olamaz; kırpıldığında log düşer ve öğe sonraki yoklamada yeniden denenir.
+- **Görünürlük:** kimlik/sezon-bölüm bilgisi eksik olduğu için atlanan öğeler artık loglanır: `[trakt] atlandi (id/se eksik): …` — bir daha sessiz kayıp olmaz.
+- **Veri onarımı (tek seferlik):** takılı kalan cursor `2026-10-19T00:00:00.000Z` değerine çekildi; Trakt'ta işaretlenen **Tracker S01E01** (tmdb 211288) senkronla NextEp'e düştü.
+- Buton davranışı: "Senkron Et" doğrudan yazar (ask sormaz); otomatik yoklama bölümleri ilk kez yakalarsa "İzlendi mi?" sorusu üretebilir (ask ayarı açık).
+### EN
+- **Critical fix (Trakt episode sync):** in `/sync/history`, episode items carry the `show` object at the **top level**, not inside `episode`; the code read `ep.get("show")` → `tmdb` was empty and **every episode was silently skipped** (only movies came through). It now reads `it["show"]` (with an `ep["show"]` fallback for older shapes).
+- **Cursor guard:** a future-dated item could push the cursor into the future and lock all syncing (live case: `02:30Z` = 05:30 local). The stored cursor is now capped at "now"; when capped, a log line is emitted and the item is retried on the next poll.
+- **Visibility:** items skipped for missing ids/season/episode are now logged: `[trakt] atlandi (id/se eksik): …` — no more silent drops.
+- **One-time data repair:** the stuck cursor was reset to `2026-10-19T00:00:00.000Z`; **Tracker S01E01** (tmdb 211288) marked on Trakt was synced into NextEp.
+- Button behaviour: "Sync now" writes directly (no ask); the automatic poll may still raise a "Did you watch it?" ask the first time it sees an episode (ask setting enabled).
+
+## 2.19.2 - 20/10/2026-04:50
+### TR
+- **Anahtarlar ayrıldı:** Trakt butonu artık kendi anahtarını kullanıyor — **`tp_trakt_sync_now`** = "Senkron Et" (14 dil). Emby **Access Token** kartındaki buton **`tp_emby_token_check`** anahtarına döndü ve metni **"Token Kontrol"** oldu (14 dil). 2.17'den beri Trakt'ın Emby anahtarını ödünç alması sona erdi; anahtar adı ile işlevi artık uyumlu.
+- **Davranış değişmedi:** Trakt butonu `POST /api/thirdparty/trakt/check`, Emby butonu `POST /api/thirdparty/emby/token/check` (sonrasında "Token geçerli" bildirimi). Emby API anahtarı kartındaki "Bağlantıyı test et" / "Şimdi senkronla" butonlarına dokunulmadı.
+- **Damga:** tüm modüller `?v=639`, `__NX_BUILD 639`.
+### EN
+- **Keys split:** the Trakt button now has its own key — **`tp_trakt_sync_now`** = "Sync now" (14 languages). The Emby **Access Token** card's button is back on **`tp_emby_token_check`** with the text **"Check token"** (14 languages). Trakt no longer borrows the Emby key (a leftover from 2.17); key name and purpose now match.
+- **No behaviour change:** the Trakt button calls `POST /api/thirdparty/trakt/check`, the Emby button calls `POST /api/thirdparty/emby/token/check` (followed by the "Token is valid" toast). The Emby API-key card's "Test connection" / "Sync now" buttons are untouched.
+- **Stamp:** every module `?v=639`, `__NX_BUILD 639`.
+
+## 2.19.1 - 20/10/2026-04:42
+### TR
+- **Metin:** Trakt kartındaki ve Emby **Access Token** kartındaki "Şimdi kontrol et" butonu artık **"Senkron Et"**. İki buton aynı anahtarı (`tp_emby_token_check`) paylaştığı için tek değişiklikle ikisi birden güncellendi; 14 dilin tamamı yenilendi (Toplu çeviriler `tp_emby_sync_now` ile aynı: "Sync now", "Jetzt synchronisieren", "Synchroniser maintenant", …).
+- **Davranış değişmedi:** Trakt butonu `POST /api/thirdparty/trakt/check` (history'yi çekip izlendi yazar), Emby butonu `POST /api/thirdparty/emby/token/check` (token'ı doğrular/yeniler). Emby API anahtarı kartındaki "Bağlantıyı test et" ve "Şimdi senkronla" butonları aynen duruyor.
+- **Arayüz:** Trakt kartındaki **"Redirect URI" başlığı kaldırıldı** — altındaki `Redirect URI (LAN)` / `Redirect URI (URL)` satırları ve kopyalama butonları korunuyor (başlık, satırlarla tekrar ediyordu).
+- **Damga:** tüm modüller `?v=638`, `__NX_BUILD 638`.
+### EN
+- **Copy:** the "Check now" button on the Trakt card and on the Emby **Access Token** card is now **"Sync now"**. Both buttons share the same key (`tp_emby_token_check`), so one change updated both; all 14 languages were refreshed (translations match `tp_emby_sync_now`: "Sync now", "Jetzt synchronisieren", "Synchroniser maintenant", …).
+- **No behaviour change:** the Trakt button calls `POST /api/thirdparty/trakt/check` (pulls history and writes watched), the Emby button calls `POST /api/thirdparty/emby/token/check` (validates/renews the token). The Emby API-key card's "Test connection" and "Sync now" buttons are untouched.
+- **UI:** the **"Redirect URI" heading on the Trakt card was removed** — the `Redirect URI (LAN)` / `Redirect URI (URL)` rows and their copy buttons stay (the heading duplicated those rows).
+- **Stamp:** every module `?v=638`, `__NX_BUILD 638`.
+
+## 2.19 - 20/10/2026-04:30
+### TR
+- **Taşıma — `sh/jsver.sh` kaldırıldı, yerine `py/jsver.py`:** damga işlemlerinin tamamı artık Python: `check [klasör]`, `bump`, `set N`, `hooks`, `release "mesaj"`. `sh/` klasöründe bundan sonra yalnız kurulum/kaldırma scriptleri olacak (mevcut diğer scriptler şimdilik yerinde).
+- **Yeni — güncelleme kapısı (durdurucu):** `py/app_update.py` GitHub'dan sürümü klonladıktan **hemen sonra**, kopyalama ve snapshot'tan **önce** damga zincirini denetler. Bozuksa güncelleme **hiç uygulanmaz**: canlı ağaç değişmez, snapshot alınmaz, sebep log'a ve bildirim kanallarına yazılır, manuel "Güncelle" butonunda hata olarak görünür. Eski şema (build satırı olmayan v1.x) engellenmez; yalnız "bir modül 2+ sürüm" ve "damga ≠ build" kapıyı kapatır.
+- **Yeni — zamanlı denetim:** `py/scheduler.py` → `jsver_check_boot` (açılıştan 90 sn sonra) + `jsver_check_daily` (06:10). Bozuk zincirde günde 1 kez kanallara bildirim (aynı imza 24 saat içinde tekrarlanmaz).
+- **Yeni — push kilidi:** `python3 py/jsver.py hooks` → `.git/hooks/pre-push`. Damga zinciri bozuksa `git push` reddedilir; kanca yalnızca mekanik zarftır, mantık `py/jsver.py` içinde. `/etc/nextep` klonuna kuruldu.
+- **Açılış denetimi** aynı kaynağı kullanıyor: `py/nextep.py` → `jsver.startup_report()` (tek kural, tek çıktı).
+- **Doğrulama:** sahte bozuk klonla `apply_update` → `RuntimeError`, canlı `static/js` md5 değişmedi, yeni snapshot yok; sahte bozuk repoda `git push` → reddedildi; düzeltilmiş repoda push geçti.
+- **Damga:** tüm modüller `?v=637`, `__NX_BUILD 637`.
+- **Kural:** yeni işlevler `py/` altında Python; `sh/` yalnız kurulum + kaldırma.
+### EN
+- **Moved — `sh/jsver.sh` is gone, replaced by `py/jsver.py`:** all stamping now lives in Python: `check [folder]`, `bump`, `set N`, `hooks`, `release "message"`. From now on `sh/` holds only install/uninstall scripts (the other existing scripts stay for now).
+- **New — update gate (blocking):** right after cloning a release from GitHub and **before** any copy/snapshot, `py/app_update.py` validates the stamp chain. If it is broken the update is **not applied at all**: the live tree is untouched, no snapshot is taken, the reason goes to the log and to the notification channels, and the manual "Update" button shows the error. Pre-scheme releases (no build line, v1.x) are not blocked; only "a module with 2+ versions" and "stamp ≠ build" close the gate.
+- **New — scheduled check:** `py/scheduler.py` → `jsver_check_boot` (90 s after boot) + `jsver_check_daily` (06:10). A broken chain triggers one channel notification per day (same signature is not repeated within 24 hours).
+- **New — push lock:** `python3 py/jsver.py hooks` → `.git/hooks/pre-push`. A broken stamp chain makes `git push` fail; the hook is only a mechanical wrapper, the logic lives in `py/jsver.py`. Installed in the `/etc/nextep` clone.
+- **Startup check** now uses the same source: `py/nextep.py` → `jsver.startup_report()` (one rule, one output).
+- **Verified:** `apply_update` on a fake broken clone → `RuntimeError`, live `static/js` md5 unchanged, no new snapshot; `git push` in a fake broken repo → rejected; fixed repo pushed fine.
+- **Stamp:** every module `?v=637`, `__NX_BUILD 637`.
+- **Rule:** new features go under `py/` in Python; `sh/` is only install + uninstall.
+
+## 2.18 - 20/10/2026-04:15
+### TR
+- **Yapısal (A) — tek build damgası:** `sh/jsver.sh` eklendi. `bump` build numarasını büyütüp **tüm** `?v=` damgalarını (`static/js/*.js` importları + `index.html` → `nextep.js` + `__NX_BUILD`) tek numaraya çeker; `check` ise bir modülün birden fazla sürümü varsa veya build ile uyuşmayan damga varsa hata verir. Modül başına ayrı numara tutma dönemi kapandı: "bir importçuyu atlamak" artık yayın öncesi yakalanıyor.
+- **Yapısal (B) — idempotent bağlama:** `settings.js`'e `nxOnce()` koruması eklendi; dişli/menü, ayar modalları, Favoriler akordeonu, bildirim akordeonları, kanal akordeonu, yedekleme anahtarları/akordeonu, uygulama güncelleme ve favori liste modalı **tek sefer** bağlanıyor. `notification.js` init'i de tek seferlik. Aynı modül yine iki kez yüklenirse toggle birbirini iptal etmiyor; konsola `[nx] çift modül yüklemesi: <ad>` uyarısı düşüyor.
+- **Yapısal (C) — açılış kontrolü:** Sunucu açılışta `static/js` damgalarını tarar; çok sürümlü modül veya build ile uyuşmayan sürüm varsa log'a `[ui] UYARI ...` yazar, temizse `[ui] js surum zinciri temiz (build=..., N modul)` satırı görünür.
+- **Yayın akışı:** JS değişikliğinden sonra `sh/jsver.sh bump && systemctl restart nextep`; yayın öncesi `sh/jsver.sh check`. (`style.css` kendi damgasını korur.)
+- **Damga:** tüm modüller `?v=636`, `__NX_BUILD 636`.
+### EN
+- **Structural (A) — single build stamp:** added `sh/jsver.sh`. `bump` increments the build number and pulls **every** `?v=` stamp (all `static/js/*.js` imports + `index.html` → `nextep.js` + `__NX_BUILD`) to that single number; `check` fails if any module carries more than one version or if a stamp disagrees with the build. Per-module version numbers are gone, so "missed one importer" is caught before release.
+- **Structural (B) — idempotent binding:** `settings.js` now has an `nxOnce()` guard; the gear/menu, settings modals, Favorites accordion, notification accordions, channel accordion, backup switches/accordion, app-update block and favorite-listing modal bind **once**. `notification.js` init is one-shot too. If a module still loads twice, toggles no longer cancel each other and the console logs `[nx] çift modül yüklemesi: <name>`.
+- **Structural (C) — startup check:** on boot the server scans `static/js` stamps; multi-version modules or stamps that disagree with the build are logged as `[ui] UYARI ...`, and a clean tree prints `[ui] js surum zinciri temiz (build=..., N modul)`.
+- **Release flow:** after any JS change run `sh/jsver.sh bump && systemctl restart nextep`; run `sh/jsver.sh check` before publishing. (`style.css` keeps its own stamp.)
+- **Stamp:** every module `?v=636`, `__NX_BUILD 636`.
+
+## 2.17.1 - 20/10/2026-04:02
+### TR
+- **Düzeltme — Ayarlar (dişli) butonu çalışmıyordu:** 2.17'de `settings.js` iki farklı sürümle yükleniyordu (`nextep.js` → `?v=596`, `notification.js` → `?v=595`). Tarayıcı aynı modülü **iki kez** değerlendirdiği için `#tab-settings` tıklaması iki kez bağlandı: birinci dinleyici menüyü açıyor, ikincisi "açık" görüp hemen kapatıyordu. Aynı sebeple `initFavoritesAccordion` iki kez koştuğu için **Favoriler akordeonu** da açılıp kapanıyordu.
+- **Düzeltme:** zincir hizalandı — `settings.js?v=597` (`nextep.js` + `notification.js`), `notification.js?v=585` (`nextep.js` + `settings.js` + `asks.js`), `asks.js?v=589` (`nextep.js`), `__NX_BUILD 563`, `index.html` → `nextep.js?v=635`. Böylece her modülün **tek örneği** var (2.16'dan kalan `notification.js` 582/584 ikiliği de giderildi).
+- **Cache-buster:** `settings.js?v=597`, `notification.js?v=585`, `asks.js?v=589`, `nextep.js?v=635`, `__NX_BUILD 563`; `i18n.js?v=558` ve `style.css?v=622` sabit.
+### EN
+- **Fix — the Settings (gear) button did nothing:** in 2.17 `settings.js` was loaded under two different versions (`nextep.js` → `?v=596`, `notification.js` → `?v=595`). The browser evaluated the module **twice**, so the `#tab-settings` click was bound twice: the first listener opened the menu, the second saw it open and closed it immediately. For the same reason `initFavoritesAccordion` ran twice and the **Favorites accordion** toggled itself shut.
+- **Fix:** the chain is aligned — `settings.js?v=597` (`nextep.js` + `notification.js`), `notification.js?v=585` (`nextep.js` + `settings.js` + `asks.js`), `asks.js?v=589` (`nextep.js`), `__NX_BUILD 563`, `index.html` → `nextep.js?v=635`. Every module now has exactly **one** instance (this also clears the leftover `notification.js` 582/584 split from 2.16).
+- **Cache-buster:** `settings.js?v=597`, `notification.js?v=585`, `asks.js?v=589`, `nextep.js?v=635`, `__NX_BUILD 563`; `i18n.js?v=558` and `style.css?v=622` unchanged.
+
+## 2.17 - 20/10/2026-03:52
+### TR
+- **Trakt kartına "Şimdi kontrol et" butonu (manuel yoklama):** Bağlı durumdaki kartta "Bağlantıyı Kes"in yanında yeni buton. Basınca `POST /api/thirdparty/trakt/check` anında `trakt.poll(uid, direct=True)` çalıştırır — 15 dakikalık zamanlayıcıyı beklemeden Trakt geçmişi çekilir. Sonuç toast ile bildirilir ("Trakt kontrol edildi · N yeni izleme"), kart tazelenir ve "Son kontrol" satırı güncellenir. Buton etiketi mevcut `tp_emby_token_check` anahtarından gelir ("Şimdi kontrol et").
+- **Manuel = onaylı (soru sorulmaz):** Buton, Plex/Jellyfin/Emby'de posterden "izlendi" işaretlemesi gibi davranır: `direct=True` sayesinde gelen izlemeler "İzlendi mi?" sorusuna düşmeden doğrudan İzlenenler'e yazılır (`watched_source='trakt'`, `direct_mark=1`); o öğe için bekleyen soru varsa `_confirm_watched` kapatır. **Otomatik 15 dk'lık yoklama değişmedi** — hâlâ ask akışına düşer. TV'de E-1 kilidi (önceki bölüm izlenmemişse soru) korunur.
+- **`direct` zinciri (varsayılan davranış aynı):** `trakt.poll(uid, direct=False)` → `_inbound(uid, direct=)` → `_mark_inbound(..., direct=)` → `process_signal(..., direct=True)`. Zamanlayıcı ve iki yönlü aktarım varsayılanla çağırır.
+- **"Son kontrol" satırı:** Durum çerçevesinde `traktCheckedTs` artık gösteriliyor (payload'da vardı, kartta yoktu). Yeni i18n anahtarları: `tp_trakt_last_check`, `tp_trakt_check_done` (14 dil).
+- **Cache-buster:** `i18n.js?v=558` (tüm importçular), `settings.js?v=596`, `nextep.js?v=634`, `__NX_BUILD 562`; `style.css?v=622` sabit.
+### EN
+- **"Check now" button on the Trakt card (manual poll):** when connected, a new button sits next to "Disconnect". Pressing it calls `POST /api/thirdparty/trakt/check`, which runs `trakt.poll(uid, direct=True)` immediately — no need to wait for the 15-minute timer. The result is toasted ("Trakt checked · N new watches"), the card refreshes and the "Last check" row updates. The label reuses the existing `tp_emby_token_check` key ("Check now").
+- **Manual means confirmed (no question):** the button behaves like a poster "mark watched" in Plex/Jellyfin/Emby — with `direct=True` the incoming watches are written straight to Watched (`watched_source='trakt'`, `direct_mark=1`) instead of creating a "Did you watch this?" ask; any pending ask for that item is closed by `_confirm_watched`. **The automatic 15-minute poll is unchanged** — it still follows the ask flow. The TV E-1 lock (question when the previous episode is unwatched) is preserved.
+- **`direct` chain (defaults unchanged):** `trakt.poll(uid, direct=False)` → `_inbound(uid, direct=)` → `_mark_inbound(..., direct=)` → `process_signal(..., direct=True)`. The scheduler and two-way sync keep calling with the default.
+- **"Last check" row:** the status frame now shows `traktCheckedTs` (it was in the payload but never rendered). New i18n keys: `tp_trakt_last_check`, `tp_trakt_check_done` (14 languages).
+- **Cache-buster:** `i18n.js?v=558` (all importers), `settings.js?v=596`, `nextep.js?v=634`, `__NX_BUILD 562`; `style.css?v=622` unchanged.
+
+## 2.16 - 20/10/2026-03:23
+### TR
+- **Trakt kartına "Sunucuya Kur" (yeni VPS profili `trakt`):** Trakt Authorization Code + PKCE dönüş yolu (`/callback` + `/trakt/callback`) artık yönetilen bir profil. `_PROFILE_OF_APP["trakt"] = "trakt"` sayesinde `/api/thirdparty/status` kartı `vpsProfile/vpsRouteOk/vpsTunnelOk` ile besliyor; rota kuruluysa buton **"Kurulu"** (disabled, tooltip'li) görünür, tıklanamaz.
+- **Kurulum eklemeli ve geri alınabilir:** `_caddy_ensure` yolu yalnızca eksik `handle` satırlarını **ekler** (mevcut yollar asla silinmez); `install_caddy` önce `/etc/caddy/Caddyfile.bak_<ts>` yedeği alır, `caddy validate` başarısızsa yedeği geri yükler, ancak sonra `systemctl reload caddy` yapar. **Metin değişmiyorsa dosya hiç yazılmaz** (`"Caddyfile zaten guncel ... yazma/reload atlandi"`) — mevcut sunucuda olduğu gibi no-op. Ayrıca `/api/remote/jobs` rota + tünel sağlamsa işe başlamadan `ABORT:already-installed` döner.
+- **Tespit/doğrulama:** `check_vps()` routes sözlüğüne `trakt` eklendi; `"/callback"` tek başına `/trakt/callback` satırında da geçtiği için **iki yol birlikte** aranır. Caddy/nginx/apache grep limiti 60 → 100 satır. `_TEST_PATH["trakt"] = "/trakt/callback"` (kodsuz istekte de 200 + `waitress` döner).
+- **Cache-buster:** `settings.js?v=595`, `notification.js?v=584`, `nextep.js?v=633`, `__NX_BUILD 561`; `style.css?v=622` sabit.
+### EN
+- **"Install on server" for the Trakt card (new `trakt` VPS profile):** the Trakt Authorization Code + PKCE return path (`/callback` + `/trakt/callback`) is now a managed profile. With `_PROFILE_OF_APP["trakt"] = "trakt"`, `/api/thirdparty/status` feeds the card `vpsProfile/vpsRouteOk/vpsTunnelOk`; when the route exists the button shows **"Installed"** (disabled, with tooltip) and cannot be clicked.
+- **Additive, revertible install:** the Caddy path only **adds** missing `handle` lines (existing paths are never removed); `install_caddy` first takes a `/etc/caddy/Caddyfile.bak_<ts>` backup, restores it if `caddy validate` fails, and only then runs `systemctl reload caddy`. **If the text does not change, the file is not written at all** (`"Caddyfile zaten guncel ... yazma/reload atlandi"`) — a no-op on the current server. In addition, `/api/remote/jobs` returns `ABORT:already-installed` before doing anything when the route and tunnel are healthy.
+- **Detection/verification:** `check_vps()` now reports `trakt`; because `"/callback"` also matches the `/trakt/callback` line, **both paths** must be present. The Caddy/nginx/apache grep limit goes 60 → 100 lines. `_TEST_PATH["trakt"] = "/trakt/callback"` (returns 200 + `waitress` even without a code).
+- **Cache-buster:** `settings.js?v=595`, `notification.js?v=584`, `nextep.js?v=633`, `__NX_BUILD 561`; `style.css?v=622` unchanged.
+
+## 2.15 - 20/10/2026-03:15
+### TR
+- **Trakt kartı — Client ID/Secret alanları çerçeveye alındı:** "Trakt Client ID" ve "Trakt Client Secret (opsiyonel)" kutuları artık **tek bir `.tp-sub-box` çerçevesi** içinde (hemen üstteki Redirect URI çerçevesiyle aynı hiza ve genişlik). İki alan arası 10px boşluk mevcut `.tp-sub-box > label + label` kuralından gelir; yeni CSS/i18n anahtarı eklenmedi. Otomatik kayıt (blur'da `trakt_client_id`/`trakt_client_secret`) mantığı değişmedi.
+- **Cache-buster:** `settings.js?v=594`, `notification.js?v=583`, `nextep.js?v=632`, `__NX_BUILD 560`; `style.css?v=622` sabit.
+### EN
+- **Trakt card — Client ID/Secret fields framed:** the "Trakt Client ID" and "Trakt Client Secret (optional)" boxes are now inside a **single `.tp-sub-box` frame** (same alignment and width as the Redirect URI frame right above). The 10px gap between the two fields comes from the existing `.tp-sub-box > label + label` rule; no new CSS or i18n key was added. The blur auto-save (`trakt_client_id`/`trakt_client_secret`) logic is unchanged.
+- **Cache-buster:** `settings.js?v=594`, `notification.js?v=583`, `nextep.js?v=632`, `__NX_BUILD 560`; `style.css?v=622` unchanged.
+
+## 2.14 - 20/10/2026-03:03
+### TR
+- **Trakt kartı — iki bilgi notu kaldırıldı:** (1) Redirect URI çerçevesinin altındaki *"Bu değeri Trakt uygulama formundaki Redirect URI alanına girin."* (`tp_trakt_redirect_note`) ve (2) Client ID/Secret alanlarının altındaki *"Trakt uygulamanızın Client ID'sini girin (…). PKCE uygulamalarında Client Secret üretilmez; bu alanı boş bırakın."* (`tp_trakt_client_note`) notları artık gösterilmiyor. (i18n anahtarları sözlükte duruyor.)
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=593`, `i18n.js?v=557`, `nextep.js?v=631`, `__NX_BUILD 559`); `style.css?v=622` sabit.
+### EN
+- **Trakt card — two info notes removed:** (1) the note under the Redirect URI frame *"Enter this value in the Redirect URI field of your Trakt app."* (`tp_trakt_redirect_note`) and (2) the note under the Client ID/Secret fields *"Enter your Trakt app's Client ID (…). PKCE apps do not issue a Client Secret; leave this field empty."* (`tp_trakt_client_note`) are no longer shown. (The i18n keys remain in the dictionary.)
+- **Cache-buster:** all JS modules +1 (`settings.js?v=593`, `i18n.js?v=557`, `nextep.js?v=631`, `__NX_BUILD 559`); `style.css?v=622` unchanged.
+
+## 2.13 - 20/10/2026-02:47
+### TR
+- **Düzeltme — Trakt "Çift yönlü aktarım" satırı taşıyordu:** Trakt kartındaki çift yönlü satır, bildirim kanalları için tasarlanmış global `.notify-row` stilini (`gap: 100px; max-width: 400px; margin: auto`) ve `.settings-form label` (`display:flex`) kuralını miras alıyordu → **switch 384px'e geriliyor**, etiket **3 satıra** bölünüyor ve switch **modal dışına** taşıyordu. Trakt kartına özel yüksek özgüllüklü kural eklendi (`gap: 12px`, `max-width: none`, switch `41×22` sabit, `margin-left:auto`). `style.css?v=622`.
+- **Cache-buster:** yalnız `style.css?v=622`; JS modülleri sabit.
+### EN
+- **Fix — Trakt "Two-way sync" row overflowed:** The two-way row inherited the global `.notify-row` style (notification channels: `gap: 100px; max-width: 400px; margin: auto`) plus `.settings-form label` (`display:flex`) → the **switch stretched to 384px**, the label wrapped to **3 lines** and the switch **overflowed outside the modal**. Added a high-specificity rule for the Trakt card (`gap: 12px`, `max-width: none`, switch fixed `41×22`, `margin-left:auto`). `style.css?v=622`.
+- **Cache-buster:** only `style.css?v=622`; JS modules unchanged.
+
+## 2.12 - 20/10/2026-02:45
+### TR
+- **Trakt OAuth → Authorization Code + PKCE:** Trakt (1 Eki 2026 migrasyonu) yeni uygulamalarda **Client Secret üretmiyor** ve **device code flow secret olmadan çalışmıyor**. Bu yüzden **Authorization Code + PKCE** akışı eklendi: "Bağlan" → `https://auth.trakt.tv/oauth/authorize?...&code_challenge=…&code_challenge_method=S256&state=…` **yeni sekmede** açılır → onay sonrası Trakt `redirect_uri`'ye (`/callback`) döner → NextEp kodu **`code_verifier` ile** (secret'sız) token'a çevirir. Kart, callback adresini (Trakt formuna girilecek) gösterir + kopyalar; onay sonrası kart otomatik "Bağlı" olur.
+- **Uçlar:** `GET /api/thirdparty/trakt/authorize` (onay URL'i) + `GET /callback` ve `GET /trakt/callback` (kod → token). Yeni ayar: `trakt_redirect_uri` (varsayılan `https://nextep.cembol.com/callback`).
+- **VPS:** Caddy'ye `nextep.cembol.com/callback` (+ `/trakt/callback`) → **pi5 (10.10.10.2:8050)** proxy kuralı eklendi (WireGuard üzerinden; mevcut kurallar korunur).
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=592`, `i18n.js?v=556`, `nextep.js?v=630`, `__NX_BUILD 558`); `style.css?v=621` sabit.
+### EN
+- **Trakt OAuth → Authorization Code + PKCE:** Trakt (Oct 1 2026 migration) no longer issues a **Client Secret** for new apps, and the **device code flow does not work without a secret**. So the **Authorization Code + PKCE** flow was added: "Connect" opens `https://auth.trakt.tv/oauth/authorize?...&code_challenge=…&code_challenge_method=S256&state=…` **in a new tab** → after approval Trakt redirects to the `redirect_uri` (`/callback`) → NextEp exchanges the code **with `code_verifier`** (no secret). The card shows + copies the callback address (to register in Trakt) and auto-switches to "Connected" after approval.
+- **Endpoints:** `GET /api/thirdparty/trakt/authorize` (approval URL) + `GET /callback` and `GET /trakt/callback` (code → token). New setting: `trakt_redirect_uri` (default `https://nextep.cembol.com/callback`).
+- **VPS:** Added a Caddy rule `nextep.cembol.com/callback` (+ `/trakt/callback`) → **pi5 (10.10.10.2:8050)** via WireGuard (existing rules preserved).
+- **Cache-buster:** all JS modules +1 (`settings.js?v=592`, `i18n.js?v=556`, `nextep.js?v=630`, `__NX_BUILD 558`); `style.css?v=621` unchanged.
+
+## 2.11 - 20/10/2026-01:55
+### TR
+- **Trakt PKCE (secret'sız uygulama) desteği:** Trakt artık **PKCE** uygulamaları için **Client Secret üretmiyor**; bu yüzden `configured()` (id **ve** secret) hiç true olamıyor ve **"Bağlan" butonu görünmüyordu**. Artık `configured()` = **yalnız Client ID**; Client ID kaydedilince **"Bağlan"** görünür. Secret yoksa device-code akışında **PKCE** kullanılır (`code_challenge` + `code_challenge_method=S256` → token adımında `code_verifier`); secret varsa eski (confidential) akış aynen korunur. Token yenilemede `client_secret` yalnızca **doluysa** gönderilir.
+- **UI:** Client ID/Secret alanları artık **her zaman** görünür (kart yapılandırılmış/bağlı olsa bile); secret etiketi **"Client Secret (opsiyonel)"** ve not "PKCE uygulamalarında secret üretilmez, boş bırakın" olarak güncellendi.
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=591`, `i18n.js?v=555`, `nextep.js?v=629`, `__NX_BUILD 557`); `style.css?v=621` sabit.
+### EN
+- **Trakt PKCE (secret-less app) support:** Trakt no longer issues a **Client Secret** for **PKCE** apps, so `configured()` (id **and** secret) could never be true and the **"Connect" button never appeared**. `configured()` is now **Client ID only**; saving the Client ID reveals **"Connect"**. When there is no secret the device-code flow uses **PKCE** (`code_challenge` + `code_challenge_method=S256` → `code_verifier` at the token step); when a secret exists the legacy (confidential) flow is unchanged. On token refresh `client_secret` is sent only when **non-empty**.
+- **UI:** The Client ID/Secret fields are now **always visible** (even when the card is configured/connected); the secret label is **"Client Secret (optional)"** and the note says "PKCE apps do not issue a secret; leave it empty".
+- **Cache-buster:** all JS modules +1 (`settings.js?v=591`, `i18n.js?v=555`, `nextep.js?v=629`, `__NX_BUILD 557`); `style.css?v=621` unchanged.
+
+## 2.10 - 20/10/2026-01:40
+### TR
+- **Düzeltme — Trakt Client ID tek başına kaydedilmiyordu:** 2.09'da eklenen otomatik kayıt **iki alan da dolu değilse** hiç kaydetmiyordu; yalnız **Client ID** girildiğinde ne istek gidiyor ne de "Kaydedildi" görünüyordu. Artık alanlar **bağımsız** kaydedilir (backend `if cid` / `if csec` ile kısmi kaydı zaten destekliyor): tetikleyen alan dolu ve (id için) değişmişse kaydedilir, "Kaydedildi" o alanın etiketinde gösterilir. Tetikleyiciye **`change`** eklendi (`blur` kaçarsa yakalar; kilit çift kaydı engeller).
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=590`, `i18n.js?v=554`, `nextep.js?v=628`, `__NX_BUILD 556`); `style.css?v=621` sabit.
+### EN
+- **Fix — Trakt Client ID alone was not saved:** The auto-save added in 2.09 only saved when **both fields were filled**; entering **Client ID** alone sent no request and showed no "Saved". Fields are now saved **independently** (the backend already supports partial saves via `if cid` / `if csec`): if the triggering field is filled (and, for the id, changed) it is saved and the "Saved" hint appears on that field's label. **`change`** was added as a trigger (catches cases where `blur` is missed; the lock prevents double saves).
+- **Cache-buster:** all JS modules +1 (`settings.js?v=590`, `i18n.js?v=554`, `nextep.js?v=628`, `__NX_BUILD 556`); `style.css?v=621` unchanged.
+
+## 2.09 - 20/10/2026-01:28
+### TR
+- **Trakt Client ID/Secret — odaktan çıkınca otomatik kayıt:** Emby API alanlarıyla **aynı desen**: iki alan dolu iken alandan çıkınca (veya **Enter**) `POST /api/thirdparty/trakt/client` ile **otomatik kaydedilir**; etiketin sağında yeşil **"Kaydedildi"** belirir (2 sn). Biri boşken **sessizce atlar** (yazarken hata toast'ı yok). Kaydedilince alanlar yerini **"Bağlan"** (device code) arayüzüne bırakır. **"Kaydedildi" butonu kaldırıldı** (etiket yanıltıcıydı; artık aksiyon butonu yok).
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=589`, `i18n.js?v=553`, `nextep.js?v=627`, `__NX_BUILD 555`); `style.css?v=621` sabit (yeni CSS yok).
+### EN
+- **Trakt Client ID/Secret — auto-save on blur:** Same pattern as the Emby API fields: with both fields filled, leaving the field (or pressing **Enter**) **auto-saves** via `POST /api/thirdparty/trakt/client`, and a green **"Saved"** hint appears at the right of the label (2 s). If one is empty it **skips silently** (no error toast while typing). After saving, the fields are replaced by the **"Connect"** (device code) UI. The **"Saved" button was removed** (its label was misleading; there is no action button now).
+- **Cache-buster:** all JS modules +1 (`settings.js?v=589`, `i18n.js?v=553`, `nextep.js?v=627`, `__NX_BUILD 555`); `style.css?v=621` unchanged (no new CSS).
+
+## 2.08 - 20/10/2026-01:16
+### TR
+- **Trakt Redirect URI (LAN) → localhost:** Trakt **development** uygulamaları yalnız **localhost** redirect kabul ettiği için **LAN** değeri artık gerçek LAN IP'si (`http://192.168.2.11:8050/trakt/callback`) değil, **`http://127.0.0.1:8050/trakt/callback`** (port = servis portu `PORT`, varsayılan 8050). Böylece Trakt formuna girilebilir. **URL** kutusu değişmedi (`https://nextep.cembol.com/trakt/callback`, production). Yalnız backend; JS/CSS/cache değişmedi (değer API'den gelir).
+- **Cache-buster:** değişmedi (`settings.js?v=588`, `i18n.js?v=552`, `nextep.js?v=626`, `__NX_BUILD 554`, `style.css?v=621`).
+### EN
+- **Trakt Redirect URI (LAN) → localhost:** Since Trakt **development** apps only accept a **localhost** redirect, the **LAN** value is no longer the real LAN IP (`http://192.168.2.11:8050/trakt/callback`) but **`http://127.0.0.1:8050/trakt/callback`** (port = service port `PORT`, default 8050). So it can be entered in the Trakt form. The **URL** box is unchanged (`https://nextep.cembol.com/trakt/callback`, production). Backend only; JS/CSS/cache unchanged (the value comes from the API).
+- **Cache-buster:** unchanged (`settings.js?v=588`, `i18n.js?v=552`, `nextep.js?v=626`, `__NX_BUILD 554`, `style.css?v=621`).
+
+## 2.07 - 20/10/2026-01:10
+### TR
+- **Kurulum Bağlantısı — elle seçim (yeşil tick / kırmızı x):** Plex/Jellyfin/Emby webhook kartlarındaki **Kurulum Bağlantısı (LAN)** ve **(URL)** satırlarına, Trakt redirect'iyle **birebir aynı** seçici eklendi (kutu ile Kopyala arasında). Aktif satır: **yeşil yuvarlak + beyaz tick** (tooltip "Kurulum Bağlantısı LAN/URL etkin"), input + Kopyala **açık**. Pasif satır: **kırmızı yuvarlak + beyaz x** (tooltip "Kurulum Bağlantısı LAN/URL aktif et"), input + Kopyala **soluk + disabled**. Kırmızı x'e tıklanınca seçim **anında** geçer ve **kullanıcı+uygulama** bazında kaydedilir. Varsayılan **LAN**; URL adresi yoksa LAN zorunlu aktif.
+- **Yeni uç:** `POST /api/thirdparty/webhook-link-mode` (`{app:"plex"|"jellyfin"|"emby", mode:"lan"|"url"}`) → `user_settings.tp_<app>_link_mode`.
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=588`, `i18n.js?v=552`, `nextep.js?v=626`, `__NX_BUILD 554`); `style.css?v=621` sabit (yeni CSS yok).
+### EN
+- **Install Link — manual pick (green tick / red x):** The **Install Link (LAN)** and **(URL)** rows in the Plex/Jellyfin/Emby webhook cards got the **exact same** selector as the Trakt redirect (between the box and Copy). Active row: **green circle + white tick** (tooltip "Install Link LAN/URL is active"), input + Copy **enabled**. Passive row: **red circle + white x** (tooltip "Activate Install Link LAN/URL"), input + Copy **faded + disabled**. Clicking the red x switches **instantly** and is saved **per user + app**. Default **LAN**; if no URL address exists, LAN is forced active.
+- **New endpoint:** `POST /api/thirdparty/webhook-link-mode` (`{app:"plex"|"jellyfin"|"emby", mode:"lan"|"url"}`) → `user_settings.tp_<app>_link_mode`.
+- **Cache-buster:** all JS modules +1 (`settings.js?v=588`, `i18n.js?v=552`, `nextep.js?v=626`, `__NX_BUILD 554`); `style.css?v=621` unchanged (no new CSS).
+
+## 2.06 - 20/10/2026-00:45
+### TR
+- **Trakt Redirect URI — elle seçim (yeşil tick / kırmızı x):** Aktif redirect artık **takvim modalındaki "izlendi" göstergesiyle** seçilir: aktif satırda **yeşil yuvarlak + beyaz tick**, pasif satırda **kırmızı yuvarlak + beyaz x** (kutunun yanında, Kopyala'dan önce). Pasif satırın kutusu ve Kopyala'sı **soluk + disabled**. Kırmızı x'e tıklanınca seçim **anında** diğerine geçer (yeşil tick ↔ kırmızı x). Tooltip'ler: yeşil tick "Redirect URI LAN/URL etkin", kırmızı x "Redirect URI LAN/URL aktif et". Aktif değer yalnız **token yenilemede** (`/oauth/token`) gönderilir. **Varsayılan LAN**; bağlanınca kullanıcı seçimi **ezilmez**. URL kutusu yalnızca `tp_base_url` tanımlıysa görünür.
+- **Yeni uç:** `POST /api/thirdparty/trakt/redirect-mode` (`{mode:"lan"|"url"}`).
+- **Düzeltme (2.06b):** İkonlar (yeşil tick / kırmızı x) **nokta** gibi görünüyordu — `.tp-url-box button` (0,1,1) kuralı `.tp-redir-btn` padding'ini eziyor, `box-sizing: border-box` ile içerik 6×10px'e sıkışıyordu; yüksek özgüllüklü kural ile `padding: 0` sıfırlandı. Yuvarlaklar `.tp-url-box`'ın `align-items: stretch`'i yüzünden **üst kenara** yapışıyordu → `align-self: center` ile kutuya göre dikey ortalandı. `style.css?v=621`.
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=587`, `i18n.js?v=551`, `nextep.js?v=625`, `__NX_BUILD 553`), `style.css?v=621`.
+### EN
+- **Trakt Redirect URI — manual pick (green tick / red x):** The active redirect is now picked with the **calendar modal's "watched" indicator**: the active row shows a **green circle + white tick**, the passive row a **red circle + white x** (next to the box, before Copy). The passive row's box and Copy are **faded + disabled**. Clicking the red x switches the selection **instantly** (green tick ↔ red x). Tooltips: green tick "Redirect URI LAN/URL is active", red x "Activate Redirect URI LAN/URL". The active value is sent only on **token refresh** (`/oauth/token`). **Default LAN**; the user's choice is **not overwritten** on connect. The URL box appears only when `tp_base_url` is set.
+- **New endpoint:** `POST /api/thirdparty/trakt/redirect-mode` (`{mode:"lan"|"url"}`).
+- **Fix (2.06b):** The icons (green tick / red x) looked like a **dot** — the `.tp-url-box button` (0,1,1) rule overrode `.tp-redir-btn`'s padding, and with `box-sizing: border-box` the content box collapsed to 6×10px; reset with a higher-specificity rule (`padding: 0`). The circles stuck to the **top edge** because `.tp-url-box` uses `align-items: stretch` → vertically centered with `align-self: center`. `style.css?v=621`.
+- **Cache-buster:** all JS modules +1 (`settings.js?v=587`, `i18n.js?v=551`, `nextep.js?v=625`, `__NX_BUILD 553`), `style.css?v=621`.
+
+## 2.05 - 19/10/2026-23:59
+### TR
+- **Trakt Redirect URI — aktif donar:** Kurulumda aktif redirect = sabit kural (`tp_base_url` varsa **URL**, yoksa **LAN**) ve **bağlanınca donar**. Kartta **tek çerçevede** iki kutu: **Redirect URI (LAN)** ve **Redirect URI (URL)**. Aktif olan **enabled** (+ tooltip "Redirect URI LAN/URL kullanılıyor"); diğeri **disabled + soluk** (input + Kopyala). Sonradan `tp_base_url` girilse bile URL kutusu görünür ama **Trakt'a gitmez** (aktif değişmez). **Kes**'te donma temizlenir.
+- **Yenileme dayanıklılığı:** `/oauth/token` yenilemesinde önce aktif redirect URI denenir; başarısızsa diğeri de denenir (başarısız deneme tek kullanımlık refresh token'ı tüketmez).
+- **Kurulum Bağlantıları tek çerçeve:** Plex/Jellyfin/Emby "Kurulum Bağlantısı (LAN)" ve "(URL)" artık **tek çerçevede** (ikisi de enabled).
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=586`, `i18n.js?v=550`, `nextep.js?v=624`, `__NX_BUILD 552`), `style.css?v=619`.
+### EN
+- **Trakt Redirect URI — active is frozen:** On setup the active redirect is the fixed rule (`tp_base_url` set → **URL**, else **LAN**) and it is **frozen on connect**. The card shows two boxes **in a single frame**: **Redirect URI (LAN)** and **Redirect URI (URL)**. The active one is **enabled** (+ tooltip "Redirect URI LAN/URL is in use"); the other is **disabled + faded** (input + Copy). Even if `tp_base_url` is added later, the URL box appears but is **not sent to Trakt** (the active value does not change). **Disconnect** clears the freeze.
+- **Refresh resilience:** On `/oauth/token` refresh the active redirect URI is tried first; if it fails the other is tried too (a failed attempt does not consume the single-use refresh token).
+- **Install links in one frame:** Plex/Jellyfin/Emby "Install Link (LAN)" and "(URL)" are now in a **single frame** (both enabled).
+- **Cache-buster:** all JS modules +1 (`settings.js?v=586`, `i18n.js?v=550`, `nextep.js?v=624`, `__NX_BUILD 552`), `style.css?v=619`.
+
+## 2.04 - 19/10/2026-23:38
+### TR
+- **Trakt Redirect URI (LAN/URL):** Trakt kartına **Redirect URI** bölümü eklendi: **LAN / URL** iki seçenek (biri aktif, öteki disabled) + seçili değeri gösteren **read-only kutu + Kopyala**. LAN = `_lan_base()` (ör. `http://192.168.2.11:8050/trakt/callback`), URL = `tp_base_url` (ör. `https://nextep.cembol.com/trakt/callback`). Bu değer Trakt uygulama formundaki Redirect URI alanına girilir ve token yenilemede (`/oauth/token`) birebir eşleşir. Device flow'da bu adrese istek gitmez; mod değişirse Trakt formu da güncellenmelidir.
+- **Global client_id/secret, per-user token:** Tek NextEp Trakt uygulaması (client_id/secret **global**) + her kullanıcının **kendi** Trakt token'ı → izlemeler kişisel, Ahmet'in izlediği Mehmet'e düşmez.
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=585`, `i18n.js?v=549`, `nextep.js?v=623`, `__NX_BUILD 551`); `style.css?618` değişmedi.
+### EN
+- **Trakt Redirect URI (LAN/URL):** Added a **Redirect URI** section to the Trakt card: **LAN / URL** options (one active, the other disabled) + a **read-only box + Copy** showing the selected value. LAN = `_lan_base()` (e.g. `http://192.168.2.11:8050/trakt/callback`), URL = `tp_base_url` (e.g. `https://nextep.cembol.com/trakt/callback`). Enter this in the Trakt app's Redirect URI field; it must match exactly on token refresh (`/oauth/token`). No request hits this address in the device flow; if the mode changes, update the Trakt form too.
+- **Global client_id/secret, per-user token:** One NextEp Trakt app (client_id/secret **global**) + each user's **own** Trakt token → watches stay personal; Ahmet's watches never appear for Mehmet.
+- **Cache-buster:** all JS modules +1 (`settings.js?v=585`, `i18n.js?v=549`, `nextep.js?v=623`, `__NX_BUILD 551`); `style.css?618` unchanged.
+
+## 2.03 - 19/10/2026-23:15
+### TR
+- **Trakt entegrasyonu (opsiyonel):** Bağlantılar bölümüne **Emby ile Takvim arasına** "Trakt" akordeonu eklendi. Trakt hesabı + oynatıcıda Trakt eklentisi (VLC/Kodi/Infuse vb.) olan kullanıcılar bağlar; NextEp Trakt'ı **yoklar** (Trakt scrobble için gerçek zamanlı webhook sunmaz) ve izlemeleri "izlendi" + **kaynak=Trakt** olarak yazar.
+- **Tek/çift yön:** Kartta **Çift yönlü aktarım** on/off (varsayılan **kapalı**). Kapalı = yalnız Trakt→NextEp (Trakt'a veri gönderilmez). Açık = NextEp'in algıladığı izlemeler (Stremio/Plex/Jellyfin/Emby/elle) Trakt'a da yazılır; **döngü koruması** ile kaynağı Trakt olan izleme geri yazılmaz.
+- **Kontrol aralığı:** Kartta **Kapalı / 1 / 5 / 10 / 15 / 30 / 60 dk** (varsayılan **10**); per-user yoklama job'ı bu aralıkla çalışır. Token yoksa veya "Kapalı" ise job kurulmaz.
+- **Kurulum:** Kartta **Trakt Client ID + Secret** alanları (trakt.tv/oauth/applications); **Bağla** → OAuth device code (kod + trakt.tv/activate), **Kes**.
+- **Durum + Son sinyal:** Kartta Durum (Bağlı/Hazır/Bağlı değil), Trakt hesabı ve **Son sinyal** (Trakt'tan okunan son izleme) gösterilir.
+- **Kaynak etiketi:** `trakt` kaynağı eklendi (özet modalı + ask damga satırı; renk `#ed1c24`).
+- **Cache-buster:** tüm JS modülleri +1 (`settings.js?v=584`, `i18n.js?v=548`, `utils.js?v=539`, `nextep.js?v=622`, `__NX_BUILD 550`), `style.css?v=618`.
+### EN
+- **Trakt integration (optional):** A "Trakt" accordion was added in Connections **between Emby and Calendar**. Users with a Trakt account + a Trakt plugin in their player (VLC/Kodi/Infuse etc.) connect it; NextEp **polls** Trakt (no real-time scrobble webhook) and marks watches as watched with **source=Trakt**.
+- **One/two-way:** A **Two-way sync** on/off in the card (default **off**). Off = Trakt→NextEp only (no data sent to Trakt). On = watches detected by NextEp (Stremio/Plex/Jellyfin/Emby/manual) are also written to Trakt; **loop protection** skips items whose source is Trakt.
+- **Check interval:** In the card **Off / 1 / 5 / 10 / 15 / 30 / 60 min** (default **10**); a per-user poll job runs at that interval. No job if there is no token or it is "Off".
+- **Setup:** **Trakt Client ID + Secret** fields in the card (trakt.tv/oauth/applications); **Connect** → OAuth device code (code + trakt.tv/activate), **Disconnect**.
+- **Status + Last signal:** The card shows Status (Connected/Ready/Not connected), the Trakt account, and **Last signal** (the last watch read from Trakt).
+- **Source label:** Added the `trakt` source (summary modal + ask stamp line; color `#ed1c24`).
+- **Cache-buster:** all JS modules +1 (`settings.js?v=584`, `i18n.js?v=548`, `utils.js?v=539`, `nextep.js?v=622`, `__NX_BUILD 550`), `style.css?v=618`.
+
+## 2.02 - 19/10/2026-22:42
+### TR
+- **"Seçiniz" metni font boyutu (mobil/tablet):** "Öneri Bölümü Güncelleme Rotasyonu" akordeon düğmesindeki metin (`feed_schedule_hint` = "Seçiniz") artık ≤1366px'te üstteki **saat input'larıyla aynı** font boyutunda (`1rem`). Önceden `0.9rem` idi ve saatlerden küçük görünüyordu. Toggle yüksekliği (33px blok) değişmedi.
+- **Cache-buster:** `tablet.css?v=513`→`514`; JS değişmedi.
+### EN
+- **"Select" text font size (mobile/tablet):** The text inside the "Recommendation Section Update Rotation" accordion button (`feed_schedule_hint` = "Select") is now the **same font size as the time inputs above** (`1rem`) at ≤1366px. It was `0.9rem` and looked smaller than the times. The toggle height (33px block) is unchanged.
+- **Cache-buster:** `tablet.css?v=513`→`514`; no JS changes.
+
+## 2.01 - 19/10/2026-22:37
+### TR
+- **"Öneri Bölümü Güncelleme Rotasyonu" akordeon yüksekliği eşitlendi:** Blok artık **"Bildirim Saati"** kutusuyla aynı yükseklikte. Geniş masaüstünde (>1366px) input ~43px olduğu için blok **43px**; ≤1366px (tablet/mobil) input 33px olduğu için blok **33px**. Önceden blok sabit ~38px olduğundan masaüstünde küçük, mobilde büyük görünüyordu.
+- **Cache-buster:** `style.css?v=616`→`617`, `tablet.css?v=512`→`513`; JS değişmedi.
+### EN
+- **"Recommendation Section Update Rotation" accordion height matched:** The block is now the same height as the **"Notification Time"** box. On wide desktop (>1366px) the input is ~43px, so the block is **43px**; at ≤1366px (tablet/mobile) the input is 33px, so the block is **33px**. Previously the block was a fixed ~38px, appearing small on desktop and tall on mobile.
+- **Cache-buster:** `style.css?v=616`→`617`, `tablet.css?v=512`→`513`; no JS changes.
+
+## 2.00 - 19/10/2026-22:25
+### TR
+- **Boş öneri sonucu cache'lendi:** Anime'de gerçekten boş dönen kaynaklar (AMC+, Apple TV+, Paramount) artık her bakışta sorgulanmıyor. Boş sonuç `feed_cache`'e yazılır ve **24 saat** (`FEED_EMPTY_TTL`) boyunca sorgusuz `[]` döner; 24 saat sonra ilk bakışta bir kez daha denenir, veri dönerse dolu olarak cache'lenir.
+- **Değişmeyenler:** Haftalık `feed_refresh_*` job'ları ve **Ayarlar → Güncelleme Saatleri → "Öneri Bölümü Güncelleme Rotasyonu"** bloğu aynen korunur. Dolu kaynakların cache-first davranışı (1.99) aynı.
+- **Cache-buster:** JS/CSS değişmedi; Python değiştiği için servis yeniden başlatılır.
+### EN
+- **Empty feed results are cached:** Sources that genuinely return nothing for anime (AMC+, Apple TV+, Paramount) are no longer queried on every view. The empty result is written to `feed_cache` and returns `[]` without querying for **24 hours** (`FEED_EMPTY_TTL`); after 24 hours the first view retries once, and if data comes back it is cached as non-empty.
+- **Unchanged:** The weekly `feed_refresh_*` jobs and the **Settings → Update Times → "Recommendation Section Update Rotation"** block are kept as is. The cache-first behavior for non-empty sources (1.99) is unchanged.
+- **Cache-buster:** no JS/CSS changes; Python changed, so the service is restarted.
+
+## 1.99 - 19/10/2026-19:25
+### TR
+- **Öneri (feed) gösterimi cache-first:** `generate_feed(force=False)` artık havuzu **yaş sınırı olmadan** `feed_cache`'ten okur; cache varsa TMDB/AniList'e **hiç gitmez**. Cache yoksa çeker, kartları oluşturur ve cache'ler (bölüm asla boş kalmaz).
+- **Kart detayları cache-first:** `_attach_tv_details` / `_attach_movie_details` artık `force=False` iken `rec_detail` kaydı **varsa** (7 gün TTL'den bağımsız) sorgusuz kullanır; yalnızca kayıt **yoksa** TMDB'den çeker. Böylece bayat detay yüzünden her seçimde sorgu yapılması biter.
+- **Haftalık job detay ön-ısıtma:** `refresh_feed_source` havuzu çektikten sonra tv/film öğelerinin detaylarını da `rec_detail`'e yazar; gösterimde platform/durum rozetleri cache'ten gelir.
+- **Refresh butonu:** `refresh=1` → `force=True` → havuz + detaylar yeniden çekilir ve cache tazelenir.
+- **Not:** Yalnızca gerçekten veri dönmeyen kaynaklar (anime + `amc`/`apple_tv`/`paramount` — AniList'te sağlayıcı yok) boş kalır.
+- **Cache-buster:** JS/CSS değişmedi; Python değiştiği için servis yeniden başlatılır.
+### EN
+- **Recommendations (feed) cache-first:** `generate_feed(force=False)` now reads the pool from `feed_cache` **with no age limit**; if cached it never hits TMDB/AniList. If missing it fetches, builds the cards and caches them (the section is never left empty).
+- **Card details cache-first:** `_attach_tv_details` / `_attach_movie_details` now use an existing `rec_detail` row (ignoring the 7-day TTL) without querying when `force=False`; they only hit TMDB when the row is **missing**. This stops the per-selection queries caused by stale details.
+- **Weekly job detail pre-warm:** `refresh_feed_source` now also writes tv/movie card details into `rec_detail`, so the platform/status badges come from cache on display.
+- **Refresh button:** `refresh=1` → `force=True` → pool + details are re-fetched and the cache is refreshed.
+- **Note:** Only sources that genuinely return no data (anime + `amc`/`apple_tv`/`paramount` — AniList has no providers) stay empty.
+- **Cache-buster:** no JS/CSS changes; Python changed, so the service is restarted.
+
+## 1.98 - 19/10/2026-18:51
+### TR
+- **SQLite WAL modu:** `db.py::get_db()` artık `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000` uygular. WAL ile okuyucu/yazıcı birbirini bloke etmez; 8 waitress thread'i + scheduler + WS altında kilit çekişmesi ve "database is locked" riski azalır. `journal_mode` kalıcıdır (DB başlığında).
+- **DB yedeği WAL-güvenli:** `backup_core.build_artifact("db")` ham `shutil.copy2` yerine **`VACUUM INTO`** kullanır → son commit'ler `-wal`'da olsa bile tutarlı, tek dosya yedek üretir; `-wal`/`-shm` kopyalamaya gerek kalmaz.
+- **Full yedek:** tar öncesi `PRAGMA wal_checkpoint(TRUNCATE)` ile WAL ana dosyaya boşaltılır; `nextep.db-wal` ve `nextep.db-shm` tar'a **alınmaz**.
+- **Restore:** geri yüklenen DB'nin yanındaki eski `-wal`/`-shm` dosyaları silinir; full tar açılışında `-wal`/`-shm` üyeleri atlanır.
+- **Cache-buster:** JS/CSS değişmedi (Python + servis yeniden başlatma).
+### EN
+- **SQLite WAL mode:** `db.py::get_db()` now applies `PRAGMA journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000`. WAL lets readers and writers run concurrently, reducing lock contention and "database is locked" risk with 8 waitress threads + scheduler + WS. `journal_mode` is persistent (stored in the DB header).
+- **WAL-safe DB backup:** `backup_core.build_artifact("db")` now uses **`VACUUM INTO`** instead of a raw `shutil.copy2`, producing a consistent single-file snapshot even when recent commits are still in `-wal`; no need to copy `-wal`/`-shm`.
+- **Full backup:** `PRAGMA wal_checkpoint(TRUNCATE)` flushes WAL into the main DB before tarring; `nextep.db-wal` and `nextep.db-shm` are **excluded** from the tar.
+- **Restore:** stale `-wal`/`-shm` files next to the restored DB are removed; `-wal`/`-shm` members are skipped when extracting a full tar.
+- **Cache-buster:** no JS/CSS changes (Python + service restart).
+
+## 1.97 - 19/10/2026-18:34
+### TR
+- **Emby Access Token "Göster" düzeltmesi:** Token `GET /api`'de dönmediği için sayfa yenilendikten sonra "Göster" boş kutuyu açıyordu. Yeni `GET /api/thirdparty/emby/token/reveal` (admin + `no-store`) ucu eklendi; "Göster"e basınca token yalnızca açık istek üzerine çekilip kutuya dolduruluyor ve görünür oluyor. Aynı oturumda token bellekte varsa ek istek yapılmaz.
+- **Güvenlik notu:** Token artık yalnızca admin oturumu + `no-store` + kullanıcı "Göster"e bastığında, tek seferlik reveal ucuyla alınır; normal durum yanıtında dönmez.
+- **Cache-buster:** `settings.js?v=583`, `notification.js?v=572`, `asks.js?v=578`, `nextep.js?v=621` (`__NX_BUILD 549`).
+### EN
+- **Emby Access Token "Show" fix:** Since the token is not returned by `GET /api`, the "Show" button revealed an empty box after a page reload. Added `GET /api/thirdparty/emby/token/reveal` (admin + `no-store`); clicking "Show" fetches the token only on explicit request, fills the field and reveals it. No extra request if the token is already in memory.
+- **Security note:** The token is now fetched only through the one-shot reveal endpoint with an admin session + `no-store` + an explicit "Show" click; it is not part of the normal status response.
+- **Cache-buster:** `settings.js?v=583`, `notification.js?v=572`, `asks.js?v=578`, `nextep.js?v=621` (`__NX_BUILD 549`).
+
+## 1.96 - 19/10/2026-18:26
+### TR
+- **Etiket hizası düzeltmesi:** Ayar kutularının başlığı yeniden **solda**, "Kaydedildi" ipucu **sağda** (1.95'teki sağa yaslama geri alındı). Etiket–kutu mesafesi **3px** ve Public Adres kutusu genişletmesi korunuyor.
+- **Emby API kutuları genişletildi:** Emby → API Key bölümündeki "Sunucu adresi", "API anahtarı" ve "Kullanıcı (ops.)" kutularının "Kaydedildi" ipucu başlık satırına taşındı; girişler artık çerçevenin sağ kenarına kadar uzanıyor.
+- **Cache-buster:** `style.css?v=616`, `settings.js?v=582`, `notification.js?v=571`, `asks.js?v=577`, `nextep.js?v=620` (`__NX_BUILD 548`).
+### EN
+- **Label alignment fix:** Settings input labels are back on the **left** and the "Saved" hint on the **right** (the 1.95 right-alignment was reverted). The 3px label-to-box spacing and the Public Address box widening are kept.
+- **Emby API boxes widened:** In Emby → API Key, the "Saved" hint of the "Server address", "API key" and "User (optional)" boxes moved to the label row, so the inputs now stretch to the right edge of the frame.
+- **Cache-buster:** `style.css?v=616`, `settings.js?v=582`, `notification.js?v=571`, `asks.js?v=577`, `nextep.js?v=620` (`__NX_BUILD 548`).
+
+## 1.95 - 19/10/2026-18:17
+### TR
+- **Etiket hizası:** Tüm ayar modallerindeki giriş kutularının başlığı artık kutunun **sağ üstünde** ve kutunun **3px üzerinde**; "Kaydedildi" ipucu da aynı hizada sağa yanaşık görünür. 1.87'de LAN/URL kutularının başlığını zorla sola çeken kural kaldırıldı (ör. Emby → Webhook → Kurulum Bağlantısı (LAN)).
+- **Kutu genişliği:** Bağlantılar (Third Party Apps) modalindeki 440px sınırı kaldırıldı; Public Adres ve benzeri kutular çerçeve genişliğine yayılıyor. Public Adres kutusuna **Sunucu URL** başlığı eklendi ve "Kaydedildi" ipucu başlık satırına taşındı.
+- **i18n düzeltmesi:** Yedekleme → Rsync ve Samba "Port" etiketlerinde eksik olan `label_port` anahtarı eklendi (dil uygulanınca "label_port" görünüyordu).
+- **Satır düzeni korundu:** Switch/checkbox satırları, Bildirim Türleri, Bildirim Merkezi ve feed saat kutuları aynı kaldı.
+- **Cache-buster:** `style.css?v=615`, `i18n.js?v=547`, `settings.js?v=581`, `notification.js?v=570`, `asks.js?v=576`, `nextep.js?v=619` (`__NX_BUILD 547`).
+### EN
+- **Label alignment:** Every settings input label is now at the **top-right** of its box and **3px above** it; the "Saved" hint appears flush right on the same line. The 1.87 rule that forced LAN/URL labels to the left was removed (e.g. Emby → Webhook → Install Link (LAN)).
+- **Box width:** The 440px cap was removed in the Connections (Third Party Apps) modal, so the Public Address and similar boxes stretch to the frame width. The Public Address box got a **Server URL** label and its "Saved" hint moved to the label row.
+- **i18n fix:** Added the missing `label_port` key for the Backup → Rsync/Samba "Port" labels (previously showed `label_port` after a language change).
+- **Row layout unchanged:** Switch/checkbox rows, Notification Types, Notification Center and feed schedule time boxes stay as they are.
+- **Cache-buster:** `style.css?v=615`, `i18n.js?v=547`, `settings.js?v=581`, `notification.js?v=570`, `asks.js?v=576`, `nextep.js?v=619` (`__NX_BUILD 547`).
+
+## 1.94 - 19/10/2026-17:11
+### TR
+- **Emby Access Token bölümü:** Emby kartına `Webhook` / `API Key` / `Access Token` sırasıyla üçüncü akordeon eklendi. Kullanıcı adı + parola girilince parola alanından çıkışta (`blur`) veya `Enter` ile Emby'den kullanıcı token'ı alınır; token ve parola şifreli saklanır.
+- **Anında WebSocket:** Access Token varsa WebSocket bu token ile açılır; oturum `UserId` alanı dolu olur ve posterden izlendi işaretleme / oynatma bitişi 15 dakikalık yoklamayı beklemeden NextEp'e düşer. API Key 15 dakikalık yedek tarama olarak korunur.
+- **Otomatik yenileme:** Token 5 dakikada bir `/Users/{id}` ile kontrol edilir. `401/403` alınırsa kayıtlı kullanıcı adı + parola ile `AuthenticateByName` çağrılıp token otomatik yenilenir; WS handshake `401` dönerse beklemeden yeniden denenir. Sunucu kapalıysa token silinmez; yanlış parolada 30 sn → 1 saat backoff uygulanır.
+- **Anında WS geçişi:** Token kaydedilince/silinince ya da sunucu adresi değişince mevcut WebSocket soketi `shutdown` + `close` ile kapatılır ve yeni ayarla beklemeden (15 sn yeniden bağlanma gecikmesi olmadan) yeniden bağlanır; durum satırı kısa sürede `Bağlı (anında)` / `Bağlı değil` olur.
+- **Durum ve sinyal:** Access Token bölümünde `Durum`, WS kaynaklı `Son sinyal`, `Son token kontrolü` ve `Token yenilendi` satırları gösterilir. `Son sinyal` yalnızca WebSocket olaylarını kapsar; yoksa `—` görünür.
+- **Güvenlik:** Token/parola GET yanıtında dönmez; yalnızca `hasToken` / `hasPassword` ve durum bilgisi gelir. Token endpoint'leri admin-only ve `Cache-Control: no-store`. Parola/token alanları maskelidir; `Göster` ile token geçici açılır. URL değişirse eski token/parola temizlenir.
+- **Ayarlar menüsü düzeltmesi:** `settings.js` iki farklı sürümle (`?v=579` ve `?v=577`) import edildiği için tarayıcı modülü iki kez yüklüyor, dişli butonuna bağlanan iki toggle listener birbirini iptal ediyor ve menü açılmıyordu. `notification.js` importu `settings.js?v=580` ile hizalandı.
+- **Cache-buster:** `settings.js?v=580`, `notification.js?v=569`, `asks.js?v=575`, `nextep.js?v=618` (`__NX_BUILD 546`); `style.css?614` değişmedi.
+### EN
+- **Emby Access Token section:** Added a third Emby accordion in the order `Webhook` / `API Key` / `Access Token`. When the username and password are filled, the user token is fetched on password `blur` or `Enter`; the token and password are stored encrypted.
+- **Instant WebSocket:** When an Access Token exists, the WebSocket uses it; the session has a non-null `UserId`, so poster watch marks and playback stops reach NextEp without waiting for the 15-minute poll. API Key remains as 15-minute fallback polling.
+- **Auto-renewal:** The token is checked against `/Users/{id}` every 5 minutes. On `401/403`, `AuthenticateByName` is called with the stored username/password and the token is renewed automatically; a WS handshake `401` triggers an immediate retry. If the server is down the token is kept; wrong passwords use 30 s → 1 h backoff.
+- **Instant WS switch:** Saving/clearing the token or changing the server address shuts the current WebSocket down (`shutdown` + `close`) and reconnects with the new settings without the 15 s reconnect delay, so the status row flips to `Connected (instant)` / `Not connected` quickly.
+- **Status and signal:** The Access Token section shows `Status`, WS-only `Last signal`, `Last token check` and `Token renewed`. `Last signal` only covers WebSocket events and shows `—` when none exist.
+- **Security:** The token/password are never returned by GET; only `hasToken` / `hasPassword` and status metadata are sent. Token endpoints are admin-only with `Cache-Control: no-store`. Password/token fields are masked; `Show` reveals the token temporarily. Changing the URL clears the old token/password.
+- **Settings menu fix:** `settings.js` was imported with two different versions (`?v=579` and `?v=577`), so the browser loaded the module twice and the two toggle listeners on the gear button cancelled each other, leaving the menu closed. The `notification.js` import is now aligned to `settings.js?v=580`.
+- **Cache-buster:** `settings.js?v=580`, `notification.js?v=569`, `asks.js?v=575`, `nextep.js?v=618` (`__NX_BUILD 546`); `style.css?614` unchanged.
+
+## 1.93 - 19/10/2026-16:14
+### TR
+- **Geçmiş tooltip'inde tick kolonu liste bazlı:** Bir günde en az bir satır tick alıyorsa artık tick almayan satırlarda da boş tick hücresi üretiliyor. Böylece 18.10'daki Kaçakçı satırı da `... | Jellyfin |` ile bitiyor; tick'ler ve ayraçlar aynı hizada kalıyor.
+- **Dotted çizgi sağa uzuyor:** Boş tick hücresi de gerçek bir tablo hücresi olduğu için satırlar arası yatay noktalı çizgi tick kolonunun sağ kenarına kadar devam ediyor.
+- **Tick yoksa kolon yok:** O gün hiç tick yoksa tick hücresi hiç üretilmiyor; satır `... | Jellyfin` olarak bitiyor, sonda gereksiz `|` görünmüyor.
+- **Cache-buster:** `history.js?571`, `nextep.js?615` (`__NX_BUILD 543`); `style.css?614` değişmedi.
+### EN
+- **Per-list tick column in the history tooltip:** If at least one row in a day has a tick, rows without a tick now also get an empty tick cell. Kaçakçı on 18.10 therefore ends with `... | Jellyfin |`, and ticks/separators stay aligned.
+- **Dotted line extends right:** The empty tick cell is still a real table cell, so the horizontal dotted separator between rows continues to the right edge of the tick column.
+- **No tick, no column:** If the day has no ticks at all, no tick cell is rendered; the row ends at `... | Jellyfin` without a dangling `|`.
+- **Cache-buster:** `history.js?571`, `nextep.js?615` (`__NX_BUILD 543`); `style.css?614` unchanged.
+
+## 1.92 - 19/10/2026-15:58
+### TR
+- **Geçmiş tooltip tick hizası:** doğrudan işaretlenen satırlarda yeşil tick artık kaynaktan sonra `| ✓` biçiminde ayrılıyor. Tick hücresinin ayırıcıyı kapatan özel kuralı kaldırıldı; sol boşluk sıfırlandı. Böylece satır `Fallout | S01E02 | 18.10.2026 | 22:51 | Jellyfin | ✓` görünüyor.
+- **Tick yoksa gereksiz `|` yok:** tick hücresi yalnızca `marked` veya `direct` satırlarda üretildiği için, o gün hiç tick yoksa satır `... | Jellyfin` olarak bitiyor; sona boş `|` eklenmiyor.
+- **Cache-buster:** `style.css?614` (JS/API değişmedi).
+### EN
+- **History tooltip tick alignment:** on directly marked rows the green tick now follows the source as `| ✓`. The rule that suppressed the tick cell separator was removed and its left padding set to zero, so the row reads `Fallout | S01E02 | 18.10.2026 | 22:51 | Jellyfin | ✓`.
+- **No dangling `|` when there is no tick:** the tick cell is only rendered for `marked` or `direct` rows, so a day without ticks ends at `... | Jellyfin` with no trailing separator.
+- **Cache-buster:** `style.css?614` (no JS/API changes).
+
+## 1.91 - 19/10/2026-15:39
+### TR
+- **Geçmiş takviminde doğrudan işaretleme tick'i:** Plex/Jellyfin/Emby'den poster üzerinden "izlendi" işaretlenen kayıtlar artık geçmiş takviminde **yeşil tick** ile gösteriliyor. `episodes`, `followed` ve `anime_episodes` tablolarına `direct_mark` eklendi; yalnızca medya sunucusunun `direct=True` yazımı `1`, ask "Evet" onayı ve NextEp içi manuel yazımlar `0` yazıyor. Böylece "Evet"e basılmadan gelen kayıtlar ayırt edilebiliyor.
+- **Geçmiş satırına kaynak kolonu:** tooltip satırı artık `Yapım | S01E02 | 18.10.2026 | 22:51 | Jellyfin | ✓` biçiminde; kaynak, mevcut renkli Stremio/Plex/Jellyfin/Emby/Diğer etiketleriyle gösteriliyor. Tick, Ezel'deki "İşaretlendi" rozetiyle aynı yeşil görsel.
+- **Tek seferlik backfill:** kaynak `plex/jellyfin/emby`, izlenmiş ve aynı anahtar için `resolved=1` + `created_at=watched_at` ask kaydı olmayan satırlar `direct_mark=1` alıyor. Mevcut DB'de 5 kayıt tick aldı: Fallout S1E1/E2, Mission: Impossible – Son Hesaplaşma, Profesyonel, F1 Filmi. (Bir Yıldız Doğuyor deploy öncesi DB'den çıkarılmıştı; kurala uyan bir satır olarak yeniden eklenirse otomatik tick alır.) Kaçakçı ask "Evet" ile girdiği için tick almıyor; Ezel ve "tümünü izlenmiş say" kayıtları mevcut `watch_marks` tick'ini koruyor.
+- **Cache-buster:** `history.js?570`, `nextep.js?614` (`__NX_BUILD 542`), `style.css?613`.
+### EN
+- **Direct-mark tick in the history calendar:** entries marked watched directly from a Plex/Jellyfin/Emby poster now show a **green tick**. Added `direct_mark` to `episodes`, `followed` and `anime_episodes`; only media-server `direct=True` writes `1`, while ask "Yes" approvals and in-app manual writes store `0`. This distinguishes entries that arrived without pressing "Yes".
+- **Source column in history rows:** the tooltip row is now `Title | S01E02 | 18.10.2026 | 22:51 | Jellyfin | ✓`; the source uses the existing coloured Stremio/Plex/Jellyfin/Emby/Other labels. The tick uses the same green visual as the existing "Marked" badge.
+- **One-time backfill:** rows with source `plex/jellyfin/emby`, watched=1, and no matching `resolved=1` ask with `created_at=watched_at` get `direct_mark=1`. Five current rows got the tick: Fallout S1E1/E2, Mission: Impossible – Son Hesaplaşma, Profesyonel, F1 Filmi. (Bir Yıldız Doğuyor had already been removed from the DB before deploy; a matching row re-added later will get the tick automatically.) Kaçakçı was approved via ask, so no tick; Ezel and "mark all watched" entries keep their existing `watch_marks` tick.
+- **Cache-buster:** `history.js?570`, `nextep.js?614` (`__NX_BUILD 542`), `style.css?613`.
+
+## 1.90 - 19/10/2026-15:13
+### TR
+- **İzlendi-sor penceresinde mükerrer ask düzeltildi:** Stremio aynı oynatma için altyazı ucunu birden fazla kez çağırıyor ve her istek ayrı thread'de işleniyordu; `_create_watched_ask` içindeki "bekleyen ask var mı?" SELECT'i ile INSERT arasında kilit olmadığı için iki thread aynı anda geçip **iki özdeş `watched_ask`** yazabiliyordu (pi'de Organize İşler S1E1: id 171/172, aynı saniye). Artık: ① `routes.stremio._ASK_LOCK` ile dedupe + INSERT seri; ② `notifications` üzerinde `resolved<>2` koşullu, NULL-güvenli (`COALESCE`) **kısmi UNIQUE index** (`ux_notif_watched_ask`) + açılışta idempotent mükerrer temizliği; ③ `create_notification` `INSERT OR IGNORE` + `rowcount` kontrolü ve `finally` ile bağlantı kapatma; index reddederse `_create_watched_ask` mevcut satırın id'sini döndürür. "Hayır" sonrası yeniden sorma ve "Evet" sonrası sormama davranışı korunur.
+### EN
+- **Duplicate asks in the watched-ask window fixed:** Stremio calls the subtitle endpoint multiple times per playback and each request runs in its own thread; `_create_watched_ask` had no lock between its pending-ask SELECT and INSERT, so two threads could both pass and write **two identical `watched_ask` rows** (pi: Organize İşler S1E1, ids 171/172, same second). Now: ① `routes.stremio._ASK_LOCK` serialises dedupe + INSERT; ② a NULL-safe (`COALESCE`) **partial UNIQUE index** (`ux_notif_watched_ask`) on `notifications` with `resolved<>2`, plus idempotent duplicate cleanup at startup; ③ `create_notification` uses `INSERT OR IGNORE` + `rowcount` check and closes its connection in `finally`; if the index rejects the row, `_create_watched_ask` returns the existing row id. "No" → ask again and "Yes" → never ask again behaviour is unchanged.
+
 ## 1.89 - 19/10/2026-02:11
 ### TR
 - **"Public adres tanımlı değil" notu artık kırmızı:** bu not, izlendi detaylarıyla aynı sınıfı kullanıyordu (`tp-frame-note`, yeşil `#2e7d32`) ve bu yüzden yanlışlıkla yeşil görünüyordu. Yeni **`.tp-frame-note.tp-warn`** varyantı eklendi (`color: #ef4444`); not artık **Stremio + Takvim + Plex/Jellyfin/Emby** kartlarının (URL) çerçevelerinde kırmızı gösteriliyor. İzlendi detayları (ör. "… izlendi") **yeşil** kalır.

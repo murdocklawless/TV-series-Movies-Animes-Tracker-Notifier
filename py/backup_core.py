@@ -58,11 +58,31 @@ def build_artifact(mode):
             raise ValueError("DB dosyası bulunamadı")
         tmp_fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix="nextep-%s-" % ts)
         os.close(tmp_fd)
-        shutil.copy2(DB_PATH, tmp_path)
+        # 1.98: WAL modunda ham kopya eksik/eski olabilir (son commit'ler -wal'da).
+        # VACUUM INTO tutarli, tek dosya anlik goruntu uretir; hedef bos dosya
+        # kabul edilir. Yedekte -wal/-shm tasimaya gerek kalmaz.
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        try:
+            safe = tmp_path.replace("'", "''")
+            conn.execute("VACUUM INTO '%s'" % safe)
+        finally:
+            conn.close()
         remote_name = "nextep-%s.db" % ts
     else:
         tmp_fd, tmp_path = tempfile.mkstemp(suffix=".tar.gz", prefix="nextep-full-%s-" % ts)
         os.close(tmp_fd)
+        # 1.98: WAL'i ana dosyaya bosalt ki tar icindeki DB guncel olsun; -wal/-shm
+        # tar'a girmez (tutarsiz/shm geri yuklenmesin).
+        import sqlite3
+        try:
+            ck = sqlite3.connect(DB_PATH)
+            try:
+                ck.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            finally:
+                ck.close()
+        except Exception:
+            pass
         # klasörleri topla, venv/__pycache__/.git/bak/backup/md hariç
         exclude_dirs = {"venv", "__pycache__", ".git", "bak", "backup", "tmp_push", ".opencode", "md"}
         exclude_files = {".smtp_secret"}
@@ -74,6 +94,8 @@ def build_artifact(mode):
                     if fn in exclude_files:
                         continue
                     if fn.endswith(".bak"):
+                        continue
+                    if fn.endswith(".db-wal") or fn.endswith(".db-shm"):
                         continue
                     full = os.path.join(root, fn)
                     arc = os.path.relpath(full, BASE_DIR)

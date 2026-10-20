@@ -1,7 +1,7 @@
-// stats.js — "%" navbar butonu + İstatistik modalı.
-// Tür (Dizi/Film/Belgesel/Anime) kutuları + Genel (mini kutular) + Dağılım (bar) istatistikleri.
-import { t } from "./i18n.js?v=546";
-import { isDocItem, parseGenres } from "./utils.js?v=538";
+﻿// stats.js â€” "%" navbar butonu + Ä°statistik modalÄ±.
+// TÃ¼r (Dizi/Film/Belgesel/Anime) kutularÄ± + Genel (mini kutular) + DaÄŸÄ±lÄ±m (bar) istatistikleri.
+import { t } from "./i18n.js?v=640";
+import { isDocItem, parseGenres } from "./utils.js?v=640";
 import { state } from "./state.js";
 
 function fmtSummaryTime(min) {
@@ -78,7 +78,7 @@ function sepBox(head, items, cls) {
     + `</div></div>`;
 }
 
-// ---- zaman / geçmiş (history) ----
+// ---- zaman / geÃ§miÅŸ (history) ----
 function tz() { return state.currentTz || "Europe/Istanbul"; }
 
 function locDateParts(ts) {
@@ -197,7 +197,7 @@ function statusStats(shows, movies, docs, anime) {
   return st;
 }
 
-// ---- tür / platform (watched_min ağırlıklı) ----
+// ---- tÃ¼r / platform (watched_min aÄŸÄ±rlÄ±klÄ±) ----
 function genreStats(all) {
   const w = {};
   const disp = {};
@@ -300,9 +300,9 @@ function buildStatsHTML(data) {
   const plat = platformStats(allItems);
 
   const bestDay = hs.bestDay ? t("stats_best_day_line", { d: hs.bestDay.date, n: hs.bestDay.count })
-    : "—";
-  const bestScore = sc.best ? t("stats_score_item", { name: esc(sc.best.name), score: sc.best.v.toFixed(1) }) : "—";
-  const worstScore = sc.worst ? t("stats_score_item", { name: esc(sc.worst.name), score: sc.worst.v.toFixed(1) }) : "—";
+    : "â€”";
+  const bestScore = sc.best ? t("stats_score_item", { name: esc(sc.best.name), score: sc.best.v.toFixed(1) }) : "â€”";
+  const worstScore = sc.worst ? t("stats_score_item", { name: esc(sc.worst.name), score: sc.worst.v.toFixed(1) }) : "â€”";
 
   const genBoxes = [
     miniBox(t("stats_total_time_label"), fmtHoursMin(stTotal.wmin)),
@@ -310,7 +310,7 @@ function buildStatsHTML(data) {
     miniBox(t("stats_last30"), t("stats_days", { n: hs.last30 })),
     miniBox(t("stats_streak"), t("stats_streak_line", { c: hs.cur, r: hs.best })),
     miniBox(t("stats_best_day"), bestDay),
-    miniBox(t("stats_avg_score"), sc.avg ? sc.avg.toFixed(1) : "—"),
+    miniBox(t("stats_avg_score"), sc.avg ? sc.avg.toFixed(1) : "â€”"),
     miniBox(t("stats_best_title"), bestScore),
     miniBox(t("stats_worst_title"), worstScore),
     miniBox(t("stats_completion"), t("stats_completion_val", { p: completion })),

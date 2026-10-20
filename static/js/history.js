@@ -1,11 +1,11 @@
-// history.js — "H" navbar butonu + İzleme Geçmişi takvimi (İstatistik modalı deseni).
+﻿// history.js â€” "H" navbar butonu + Ä°zleme GeÃ§miÅŸi takvimi (Ä°statistik modalÄ± deseni).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=546";
-import { toast, CHECK_SVG, tzLocale } from "./utils.js?v=538";
+import { t } from "./i18n.js?v=640";
+import { toast, CHECK_SVG, tzLocale, srcKey, srcName } from "./utils.js?v=640";
 
 const KIND_COLOR = { shows: "#60a5fa", movies: "#22c55e", docs: "#faef15", anime: "#f472b6", marked: "#9ca3af" };
 const KIND_ORDER = ["shows", "movies", "docs", "anime", "marked"];
-const MARKED_BADGE = { tr: "İşaretlendi", en: "Marked", de: "Markiert", fr: "Marqué", es: "Marcado", it: "Contrassegnato", ru: "Отмечено", ar: "مُعلّم", pt: "Marcado", nl: "Gemarkeerd", pl: "Oznaczone", ja: "マーク済み", ko: "표시됨", zh: "已标记" };
+const MARKED_BADGE = { tr: "Ä°ÅŸaretlendi", en: "Marked", de: "Markiert", fr: "MarquÃ©", es: "Marcado", it: "Contrassegnato", ru: "ĞÑ‚Ğ¼ĞµÑ‡ĞµĞ½Ğ¾", ar: "Ù…ÙØ¹Ù„Ù‘Ù…", pt: "Marcado", nl: "Gemarkeerd", pl: "Oznaczone", ja: "ãƒãƒ¼ã‚¯æ¸ˆã¿", ko: "í‘œì‹œë¨", zh: "å·²æ ‡è®°" };
 function ml(map) { return map[state.currentLang] || map.tr; }
 
 let _items = [];
@@ -135,31 +135,38 @@ function renderCalendar() {
   cal.innerHTML = html;
 }
 
-// Tooltip: satır görünümü (medya takip) desenine göre gerçek tablo.
-// Her kayıt bir tablo satırı, her alan bir hücre; ayraçlar ("|") hücre ::before'u
-// ile basılır → tüm satırlarda aynı x'te alt alta hizalanır.
-// Yapım ismi en fazla 30 karakter; uzunsa kesilip "…" eklenir (kod-noktası güvenli).
+// Tooltip: satÄ±r gÃ¶rÃ¼nÃ¼mÃ¼ (medya takip) desenine gÃ¶re gerÃ§ek tablo.
+// Her kayÄ±t bir tablo satÄ±rÄ±, her alan bir hÃ¼cre; ayraÃ§lar ("|") hÃ¼cre ::before'u
+// ile basÄ±lÄ±r â†’ tÃ¼m satÄ±rlarda aynÄ± x'te alt alta hizalanÄ±r.
+// YapÄ±m ismi en fazla 30 karakter; uzunsa kesilip "â€¦" eklenir (kod-noktasÄ± gÃ¼venli).
 function truncTitle(s) {
   const chars = Array.from(String(s == null ? "" : s));
-  return chars.length > 30 ? chars.slice(0, 30).join("") + "…" : chars.join("");
+  return chars.length > 30 ? chars.slice(0, 30).join("") + "â€¦" : chars.join("");
 }
 
 function tooltipHTML(entries) {
-  const COLS = ["name", "seg", "date", "time"];
+  const COLS = ["name", "seg", "date", "time", "source"];
   const rows = entries.map((it) => {
     const { dv, tm } = fmtDT(it.ts);
+    const sk = srcKey(it.source);
     return {
       marked: !!it.marked,
+      direct: !!it.direct,
       color: KIND_COLOR[KIND_ORDER.includes(it.kind) ? it.kind : "shows"] || "#fff",
       name: esc(truncTitle(it.title)),
       seg: esc(segLabel(it)),
       date: esc(dv),
       time: esc(tm),
+      source: sk ? `<span class="src src-${sk}">${esc(srcName(sk))}</span>` : "",
     };
   });
-  // Kolon kümesi tüm kayıtlar üzerinden belirlenir; eksik alanı olan satırlar da
-  // hücre yer tutar (rowview keptKeys/is-empty deseni) → kolonlar kaymaz.
+  // Kolon kÃ¼mesi tÃ¼m kayÄ±tlar Ã¼zerinden belirlenir; eksik alanÄ± olan satÄ±rlar da
+  // hÃ¼cre yer tutar (rowview keptKeys/is-empty deseni) â†’ kolonlar kaymaz.
   const keep = COLS.filter((k) => rows.some((r) => r[k]));
+  // Tick kolonu da liste bazÄ±nda belirlenir: bir satÄ±rda tick varsa tick'siz
+  // satÄ±rlarda da boÅŸ hÃ¼cre Ã¼retilir; bÃ¶ylece trailing "|" ve dotted Ã§izgi
+  // tick kolonunun saÄŸ kenarÄ±na kadar aynÄ± hizada kalÄ±r.
+  const hasTick = rows.some((r) => r.marked || r.direct);
   const body = rows
     .map((r) => {
       const cells = keep
@@ -169,9 +176,12 @@ function tooltipHTML(entries) {
           return `<span class="history-tip-cell history-tip-${k}${val ? "" : " is-empty"}">${inner}</span>`;
         })
         .join("");
-      const badge = r.marked ? `<span class="history-tip-cell history-tip-mark"><span class="history-marked-badge">${CHECK_SVG}</span></span>` : "";
+      const tick = r.marked || r.direct;
+      const mark = hasTick
+        ? `<span class="history-tip-cell history-tip-mark${tick ? "" : " is-empty"}">${tick ? `<span class="history-marked-badge">${CHECK_SVG}</span>` : ""}</span>`
+        : "";
       const style = r.marked ? "" : ` style="color:${r.color}"`;
-      return `<div class="history-tip-row${r.marked ? " marked" : ""}"${style}>${cells}${badge}</div>`;
+      return `<div class="history-tip-row${r.marked ? " marked" : ""}"${style}>${cells}${mark}</div>`;
     })
     .join("");
   return `<div class="history-tip-table">${body}</div>`;
@@ -231,7 +241,7 @@ function clampView() {
   _view.day = Math.min(maxD, Math.max(1, _view.day || 1));
 }
 
-// Canlı clamp: yazarken yalnız bugün tavanını uygular (min'i zorlamaz, parçalı giriş bozulmaz).
+// CanlÄ± clamp: yazarken yalnÄ±z bugÃ¼n tavanÄ±nÄ± uygular (min'i zorlamaz, parÃ§alÄ± giriÅŸ bozulmaz).
 function clampFuture() {
   const t = nowParts();
   _view.year = Math.min(_view.year || t.y, t.y);

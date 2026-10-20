@@ -203,6 +203,17 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
     color-scheme: dark;
   }
 
+  /* 2.01: "Oneri Bolumu Guncelleme Rotasyonu" blogu, input yuksekligi (33px)
+     ile esit olsun -> toggle 31px + 1px alt/ust border = 33px.
+     2.02: toggle metni ("Seciniz") ustteki saat input'lariyla ayni font (1rem). */
+  html:not(.is-tv):not(.tv-mode) .feed-schedule-toggle {
+    min-height: 0;
+    height: 31px;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 1rem;
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .settings-form select {
     padding-right: 30px;
   }

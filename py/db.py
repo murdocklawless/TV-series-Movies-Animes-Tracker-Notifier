@@ -10,6 +10,15 @@ from config import DB_PATH
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # 1.98: WAL + NORMAL + busy_timeout. journal_mode kalicidir (DB basliginda);
+    # her baglantida tekrar set etmek zararsizdir. WAL ile okuyucu/yazici birbirini
+    # bloke etmez, kilit cekismesi ve "database is locked" riski azalir.
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+    except Exception:
+        pass
     return conn
 
 
@@ -82,6 +91,10 @@ def init_db():
     # Kaynak (1.86): film son kez nereden izlendi (stremio/plex/jellyfin/emby/other).
     if "watched_source" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN watched_source TEXT")
+    # 1.91: medya sunucusundan (Plex/Jellyfin/Emby) poster uzerinden dogrudan
+    # "izlendi" isaretlemesi mi, ask onayi mi? 1 = dogrudan.
+    if "direct_mark" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN direct_mark INTEGER DEFAULT 0")
     # Arsiv (1.83): takipten cikarmadan yapimi arsive alir; bildirimler durur.
     if "archived" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN archived INTEGER DEFAULT 0")
@@ -113,6 +126,9 @@ def init_db():
     # Kaynak (1.86): bolumun izlendigi kaynak (stremio/plex/jellyfin/emby/other).
     if "source" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN source TEXT")
+    # 1.91: medya sunucusundan poster uzerinden dogrudan isaretleme (ask'siz).
+    if "direct_mark" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN direct_mark INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS watched_snapshot (
             user_id INTEGER NOT NULL,
@@ -242,6 +258,9 @@ def init_db():
     # Kaynak (1.86): bolumun izlendigi kaynak (stremio/plex/jellyfin/emby/other).
     if "source" not in aecols:
         conn.execute("ALTER TABLE anime_episodes ADD COLUMN source TEXT")
+    # 1.91: medya sunucusundan poster uzerinden dogrudan isaretleme (ask'siz).
+    if "direct_mark" not in aecols:
+        conn.execute("ALTER TABLE anime_episodes ADD COLUMN direct_mark INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,6 +349,60 @@ def init_db():
             episode INTEGER,
             ts INTEGER NOT NULL
         )"""
+    )
+    # Trakt disa aktarim kuyrugu (2.19.4): yerelde "izlenmedi" yapilan ogeler
+    # bir sonraki outbound'da Trakt gecmisinden silinir; basarida satir kaldirilir.
+    # Film icin season/episode 0 yazilir (NULL'lar UNIQUE'te farkli sayilir).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS trakt_out_remove (
+            user_id INTEGER NOT NULL DEFAULT 1,
+            kind TEXT NOT NULL,
+            tmdb_id INTEGER NOT NULL,
+            season INTEGER NOT NULL DEFAULT 0,
+            episode INTEGER NOT NULL DEFAULT 0,
+            ts INTEGER NOT NULL,
+            PRIMARY KEY(user_id, kind, tmdb_id, season, episode)
+        )"""
+    )
+    # Trakt'a BASARIYLA yazilan izlemeler (2.19.5): mutabakat (Trakt -> NextEp
+    # kaldirma) yalniz gercekten eslenmis satirlari aday alir; bir daha ayni
+    # oge iki kez gonderilmez ve eski/sessiz basarisiz gonderimler korunur.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS trakt_out_pushed (
+            user_id INTEGER NOT NULL DEFAULT 1,
+            kind TEXT NOT NULL,
+            tmdb_id INTEGER NOT NULL,
+            season INTEGER NOT NULL DEFAULT 0,
+            episode INTEGER NOT NULL DEFAULT 0,
+            ts INTEGER NOT NULL,
+            PRIMARY KEY(user_id, kind, tmdb_id, season, episode)
+        )"""
+    )
+    # Senkron havuzu (2.19.6): kalici outbox. Trakt giden islemleri burada
+    # tutulur; restart olursa bekleyen isler kaybolmaz. dedupe NULL ise her
+    # olay ayri satirdir (Emby WS oge listeleri).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS sync_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dedupe TEXT,
+            uid INTEGER NOT NULL DEFAULT 0,
+            kind TEXT NOT NULL,
+            payload TEXT,
+            state TEXT NOT NULL DEFAULT 'pending',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            next_ts INTEGER NOT NULL DEFAULT 0,
+            created_ts INTEGER NOT NULL DEFAULT 0,
+            updated_ts INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT
+        )"""
+    )
+    # dedupe: NULL'lar SQLite'ta ayri sayilir -> tam UNIQUE index yeterli.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_events_dedupe ON sync_events(dedupe)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sync_events_due "
+        "ON sync_events(state, next_ts)"
     )
     # Izlendi-sor karar deposu (1.87): Evet/Hayir karari bildirim satirlarindan
     # bagimsiz tutulur; "tum ask'leri temizle" yalniz bekleyenleri siler.
@@ -504,6 +577,55 @@ def init_db():
     # Faz 36: izlendi-sor bildirimleri: 0 = bekliyor, 1 = Evet, 2 = Hayir.
     if "resolved" not in cols_n:
         conn.execute("ALTER TABLE notifications ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0")
+    # 1.90: watched_ask mukerrerlerini temizle + DB seviyesinde tekil kilitle.
+    # Kok neden: Stremio ayni oynatma icin birden fazla eszamanli altyazi istegi
+    # gonderiyor; uygulama kilidi (routes.stremio._ASK_LOCK) tek surecte yeterli,
+    # bu index cok prosesli gelecek ve eski yedek/restore DB'leri icin ikinci
+    # savunmadir. Once temizlik (index kurulabilsin), sonra index.
+    # Kural: ayni anahtarda `resolved=1` (Evet) varsa o kalir; yoksa en kucuk id.
+    try:
+        rows = conn.execute(
+            "SELECT id, user_id, IFNULL(media_type,'') AS mt, resolved, "
+            "COALESCE(CAST(tmdb_id AS TEXT),'-1') AS k_tmdb, "
+            "COALESCE(CAST(anilist_id AS TEXT),'-1') AS k_anilist, "
+            "COALESCE(CAST(season AS TEXT),'-1') AS k_season, "
+            "COALESCE(CAST(episode AS TEXT),'-1') AS k_episode "
+            "FROM notifications WHERE type='watched_ask' "
+            "AND COALESCE(resolved,0)<>2 ORDER BY id"
+        ).fetchall()
+        by_key = {}
+        removed = 0
+        for r in rows:
+            key = (r["user_id"], r["mt"], r["k_tmdb"], r["k_anilist"],
+                   r["k_season"], r["k_episode"])
+            kept = by_key.get(key)
+            if kept is None:
+                by_key[key] = r
+                continue
+            if int(r["resolved"] or 0) == 1 and int(kept["resolved"] or 0) != 1:
+                # "Evet" her zaman kazanir; onceki pending satiri silinir.
+                conn.execute("DELETE FROM notifications WHERE id=?", (kept["id"],))
+                by_key[key] = r
+            else:
+                conn.execute("DELETE FROM notifications WHERE id=?", (r["id"],))
+            removed += 1
+        if removed:
+            conn.commit()
+            print(f"[db] watched_ask mukerrer temizlendi: {removed} satir", flush=True)
+    except Exception as e:
+        print(f"[db] watched_ask temizlik atlandi: {e}", flush=True)
+    try:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_notif_watched_ask ON notifications("
+            "user_id, IFNULL(media_type,''), "
+            "COALESCE(CAST(tmdb_id AS TEXT),'-1'), "
+            "COALESCE(CAST(anilist_id AS TEXT),'-1'), "
+            "COALESCE(CAST(season AS TEXT),'-1'), "
+            "COALESCE(CAST(episode AS TEXT),'-1')) "
+            "WHERE type='watched_ask' AND COALESCE(resolved,0)<>2"
+        )
+    except Exception as e:
+        print(f"[db] watched_ask unique index atlandi: {e}", flush=True)
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, is_read, created_at)"
     )
@@ -555,6 +677,65 @@ def init_db():
         conn.execute("UPDATE anime SET user_id=1 WHERE user_id IS NULL OR user_id=0")
     except Exception:
         pass
+    # 1.91: eski kayitlarda medya sunucusu dogrudan isaretlemesini bir kez
+    # turet. Ask onayi `watched_at` = ask `created_at` yazar; eslesme yoksa
+    # kayit poster uzerinden dogrudan isaretlenmistir. Marker sayesinde ask
+    # kayitlari sonradan temizlense bile tekrar degerlendirilmez.
+    try:
+        done = conn.execute(
+            "SELECT value FROM settings WHERE key='direct_mark_backfill_v1'"
+        ).fetchone()
+        if not done:
+            conn.execute(
+                """UPDATE episodes SET direct_mark=1
+                   WHERE watched=1 AND watched_at IS NOT NULL
+                     AND LOWER(IFNULL(source,'')) IN ('plex','jellyfin','emby')
+                     AND NOT EXISTS (
+                         SELECT 1 FROM followed f
+                         JOIN notifications n ON n.tmdb_id=f.tmdb_id
+                         WHERE f.id=episodes.follow_id
+                           AND n.type='watched_ask' AND n.media_type='tv'
+                           AND n.user_id=f.user_id
+                           AND n.season=episodes.season
+                           AND n.episode=episodes.episode
+                           AND n.resolved=1
+                           AND n.created_at=episodes.watched_at
+                     )"""
+            )
+            conn.execute(
+                """UPDATE followed SET direct_mark=1
+                   WHERE media_type='movie' AND watched=1 AND watched_at IS NOT NULL
+                     AND LOWER(IFNULL(watched_source,'')) IN ('plex','jellyfin','emby')
+                     AND NOT EXISTS (
+                         SELECT 1 FROM notifications n
+                         WHERE n.type='watched_ask' AND n.media_type='movie'
+                           AND n.user_id=followed.user_id
+                           AND n.tmdb_id=followed.tmdb_id
+                           AND n.resolved=1
+                           AND n.created_at=followed.watched_at
+                     )"""
+            )
+            conn.execute(
+                """UPDATE anime_episodes SET direct_mark=1
+                   WHERE watched=1 AND watched_at IS NOT NULL
+                     AND LOWER(IFNULL(source,'')) IN ('plex','jellyfin','emby')
+                     AND NOT EXISTS (
+                         SELECT 1 FROM anime a
+                         JOIN notifications n ON n.anilist_id=a.anilist_id
+                         WHERE a.id=anime_episodes.anime_id
+                           AND n.type='watched_ask' AND n.media_type='anime'
+                           AND n.user_id=a.user_id
+                           AND n.episode=anime_episodes.episode
+                           AND n.resolved=1
+                           AND n.created_at=anime_episodes.watched_at
+                     )"""
+            )
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES ('direct_mark_backfill_v1','1') "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+            )
+    except Exception as e:
+        print(f"[db] direct_mark backfill hatasi: {e}", flush=True)
     conn.commit()
     conn.close()
     try:

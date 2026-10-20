@@ -245,7 +245,7 @@ def rec_move_watched():
                     "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
                     (uid, "anime", anime_db_id, None, int(_t.time())),
                 )
-            conn.execute("UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other') WHERE anime_id=?", (anime_db_id,))
+            conn.execute("UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other'), direct_mark=0 WHERE anime_id=?", (anime_db_id,))
             conn.execute("UPDATE anime SET in_watched=1 WHERE id=?", (anime_db_id,))
         else:
             media_type = body.get("media_type")
@@ -300,7 +300,7 @@ def rec_move_watched():
                 _fw = int(_f["watched"] or 0) if _f else 0
                 if _fw != 1:
                     save_watch_snapshot(conn, uid, "movie", follow_id, ["1"])
-                conn.execute("UPDATE followed SET watched=1, in_watched=1, watched_source=COALESCE(watched_source, 'other') WHERE id=?", (follow_id,))
+                conn.execute("UPDATE followed SET watched=1, in_watched=1, watched_source=COALESCE(watched_source, 'other'), direct_mark=0 WHERE id=?", (follow_id,))
             else:
                 import time as _t
                 try:
@@ -318,7 +318,7 @@ def rec_move_watched():
                             "INSERT INTO watch_marks (user_id, kind, ref_id, season, marked_at) VALUES (?,?,?,?,?)",
                             (uid, "tv", follow_id, sn, _now),
                         )
-                conn.execute("UPDATE episodes SET watched=1, source=COALESCE(source, 'other') WHERE follow_id=? AND watched=0", (follow_id,))
+                conn.execute("UPDATE episodes SET watched=1, source=COALESCE(source, 'other'), direct_mark=0 WHERE follow_id=? AND watched=0", (follow_id,))
                 conn.execute("UPDATE followed SET in_watched=1 WHERE id=?", (follow_id,))
         if body.get("anilist_id"):
             rec_kind, ident = "anime", body.get("anilist_id")

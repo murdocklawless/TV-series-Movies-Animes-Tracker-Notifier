@@ -401,9 +401,10 @@ def anime_episode_watch():
         conn.close()
         return jsonify({"error": "Anime bulunamadı"}), 404
     conn.execute(
-        "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source) "
-        "VALUES (?, ?, ?, ?, ?) "
-        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, source=excluded.source",
+        "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source, direct_mark) "
+        "VALUES (?, ?, ?, ?, ?, 0) "
+        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched, watched_at=excluded.watched_at, "
+        "source=excluded.source, direct_mark=0",
         (anime_id, episode, watched,
          int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
          "other" if watched else None),
@@ -453,7 +454,7 @@ def anime_move_watched():
             auto = []
         if auto:
             conn.execute(
-                "UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other') WHERE anime_id=? AND watched=0",
+                "UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other'), direct_mark=0 WHERE anime_id=? AND watched=0",
                 (anime_id,),
             )
             save_watch_snapshot(conn, uid, "anime", anime_id, auto)
@@ -471,7 +472,7 @@ def anime_move_watched():
             try:
                 for e in snap:
                     conn.execute(
-                        "UPDATE anime_episodes SET watched=0, watched_at=NULL, source=NULL WHERE anime_id=? AND episode=?",
+                        "UPDATE anime_episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 WHERE anime_id=? AND episode=?",
                         (anime_id, e),
                     )
             except Exception:

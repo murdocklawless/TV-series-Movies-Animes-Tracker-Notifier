@@ -1,10 +1,10 @@
-// notification.js — bildirim merkezi (buton, pencere, liste, rozet)
+﻿// notification.js â€” bildirim merkezi (buton, pencere, liste, rozet)
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=546";
-import { escAttr, tzLocale, srcStampHTML } from "./utils.js?v=538";
-import { openNotifClearConfirm } from "./components.js?v=550";
-import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=577";
-import { isAdmin, loadAdminLists } from "./auth.js?v=544";
+import { t } from "./i18n.js?v=640";
+import { escAttr, tzLocale, srcStampHTML } from "./utils.js?v=640";
+import { openNotifClearConfirm } from "./components.js?v=640";
+import { closeSettingsMenu, showSettingsSubmodal } from "./settings.js?v=640";
+import { isAdmin, loadAdminLists } from "./auth.js?v=640";
 
 const badgeEl = () => document.getElementById("notif-badge");
 const menuEl = () => document.getElementById("notif-menu");
@@ -15,7 +15,7 @@ const btnEl = () => document.getElementById("tab-notif");
 function alignMenu() {
   const menu = menuEl();
   if (!menu) return;
-  // utils sağ kenarı = #tab-settings sağ border kenarı, menu right:0 ile hizalı (desktop + mobil)
+  // utils saÄŸ kenarÄ± = #tab-settings saÄŸ border kenarÄ±, menu right:0 ile hizalÄ± (desktop + mobil)
   menu.style.right = "0";
 }
 
@@ -46,10 +46,10 @@ function formatTime(ts) {
   const now = Date.now();
   const diffMs = now - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return t("notif_just_now") || "Az önce";
+  if (diffMins < 1) return t("notif_just_now") || "Az Ã¶nce";
   if (diffMins < 60) return `${diffMins} dk`;
   const diffH = Math.floor(diffMins / 60);
-  if (diffH < 24) return t("notif_hours_ago") ? t("notif_hours_ago").replace("{n}", diffH) : `${diffH} saat önce`;
+  if (diffH < 24) return t("notif_hours_ago") ? t("notif_hours_ago").replace("{n}", diffH) : `${diffH} saat Ã¶nce`;
   try {
     // Ay adi TAM yazilir; bicim tz'nin ulke yerelinden ve saat secili tz'de
     // (v1.80 karari: gun/tarih sirasi/12-24 yerelden gelir, tz uygulanir)
@@ -86,7 +86,7 @@ export function notifTypePill(kind) {
 // Kaynak etiketi (1.86): stremio|plex|jellyfin|emby|other -> damga satirinda renkli metin.
 // Yardimcilar utils.js'te (components/notification ayni renkleri paylasir).
 
-// Mesaj metni: yapim ismi + "N. Sezon / N. Bölüm" renklenir; S02E08 -> "2. Sezon 8. Bölüm".
+// Mesaj metni: yapim ismi + "N. Sezon / N. BÃ¶lÃ¼m" renklenir; S02E08 -> "2. Sezon 8. BÃ¶lÃ¼m".
 // Eski ve yeni kayitlar ayni sekilde gorunur (veri gocu gerekmez).
 // source (1.86): ask damga satirinin sonuna kaynak etiketi eklenir.
 export function notifMsgHTML(text, title, stampLine, source) {
@@ -117,16 +117,16 @@ export function notifMsgHTML(text, title, stampLine, source) {
       }
     }
   }
-  // 2) S02E08 -> 2. Sezon 8. Bölüm (ham metinde; push sablonlarina dokunulmaz)
-  s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. Bölüm`);
+  // 2) S02E08 -> 2. Sezon 8. BÃ¶lÃ¼m (ham metinde; push sablonlarina dokunulmaz)
+  s = s.replace(/\bS(\d{1,2})\s?E(\d{1,2})\b/g, (_m, a, b) => `${Number(a)}. Sezon ${Number(b)}. BÃ¶lÃ¼m`);
   // 3) Ask damgasi (varsa): ilk satir verilen yerel bicimle degistirilir ve metin
   //    2 satira ayrilir -> "<tarih> - <gun> - <saat>" / "<govde> izlediniz mi?"
   let lines = null;
   const mStamp = s.match(/^(\d{2}\.\d{2}\.\d{4})(?:\s+tarihinde\s+saat\s+| - )(\d{2}:\d{2})(?:\s+de)?\s*/);
   if (mStamp) {
     const line1 = stampLine || `${mStamp[1]} - ${mStamp[2]}`;
-    // "İzlendi bilgisi eklensin mi?" cumlesi kaldirilir (govde zaten soruya cevrilir)
-    let rest = s.slice(mStamp[0].length).replace(/İzlendi bilgisi eklensin mi\?\s*$/, "").trim();
+    // "Ä°zlendi bilgisi eklensin mi?" cumlesi kaldirilir (govde zaten soruya cevrilir)
+    let rest = s.slice(mStamp[0].length).replace(/Ä°zlendi bilgisi eklensin mi\?\s*$/, "").trim();
     // Satirlar tek govdeye indirgenir (yeni backend formati tek satir verir)
     let body = rest.split(/\n+/).map((x) => x.trim()).filter((x) => x).join(" ").trim();
     // "izlediniz." -> "izlediniz mi?" (yeni format zaten "mi?" ile biter, dokunulmaz)
@@ -151,10 +151,10 @@ export function notifMsgHTML(text, title, stampLine, source) {
     const i = html.indexOf(tEsc);
     if (i >= 0) html = html.slice(0, i) + `<span class="hl-title">${tEsc}</span>` + html.slice(i + tEsc.length);
   }
-  // 6) "N. Sezon" teal + "N. Bölüm(ü/ünü...)" violet (kart rozet renkleriyle ayni;
-  //    anime mesajindaki kucuk harfli "4. bölümünü" de kapsar)
-  html = html.replace(/(\d+\.\s*Sezon[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-season">$1</span>`);
-  html = html.replace(/(\d+\.\s*Bölüm[\wÇĞİÖŞÜçğıöşü]*)/gi, `<span class="hl-ep">$1</span>`);
+  // 6) "N. Sezon" teal + "N. BÃ¶lÃ¼m(Ã¼/Ã¼nÃ¼...)" violet (kart rozet renkleriyle ayni;
+  //    anime mesajindaki kucuk harfli "4. bÃ¶lÃ¼mÃ¼nÃ¼" de kapsar)
+  html = html.replace(/(\d+\.\s*Sezon[\wÃ‡ÄÄ°Ã–ÅÃœÃ§ÄŸÄ±Ã¶ÅŸÃ¼]*)/gi, `<span class="hl-season">$1</span>`);
+  html = html.replace(/(\d+\.\s*BÃ¶lÃ¼m[\wÃ‡ÄÄ°Ã–ÅÃœÃ§ÄŸÄ±Ã¶ÅŸÃ¼]*)/gi, `<span class="hl-ep">$1</span>`);
   return html;
 }
 
@@ -197,7 +197,7 @@ async function fetchList() {
   const list = listEl();
   const empty = emptyEl();
   if (!list) return;
-  list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7180">${t("loading")||"Yükleniyor..."}</div>`;
+  list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7180">${t("loading")||"YÃ¼kleniyor..."}</div>`;
   try {
     const limit = Number(state.notifCenterLimit) > 0 ? Number(state.notifCenterLimit) : 50;
     // hide-read acikken filtre sunucuda yapilir: limit = gorunen okunmamis sayisi
@@ -277,7 +277,7 @@ async function fetchList() {
       list.appendChild(div);
     });
   } catch (e) {
-    list.innerHTML = `<div style="padding:12px;color:#f87171">${t("data_failed")||"Veri alınamadı"}</div>`;
+    list.innerHTML = `<div style="padding:12px;color:#f87171">${t("data_failed")||"Veri alÄ±namadÄ±"}</div>`;
   }
 }
 
@@ -335,14 +335,14 @@ function init() {
   if (clearBtn) {
     clearBtn.onclick = (e) => {
       e.stopPropagation();
-      openNotifClearConfirm(t("notif_clear_confirm") || "Tüm bildirimler silinsin mi?", async () => {
+      openNotifClearConfirm(t("notif_clear_confirm") || "TÃ¼m bildirimler silinsin mi?", async () => {
         await fetch("/api/notifications", { method: "DELETE" });
         fetchList();
         fetchCount();
       });
     };
   }
-  // capture fazında: stopPropagation'lı butonlarda (tab-sort, tab-settings vb.) bile dış tık paneli kapatır
+  // capture fazÄ±nda: stopPropagation'lÄ± butonlarda (tab-sort, tab-settings vb.) bile dÄ±ÅŸ tÄ±k paneli kapatÄ±r
   document.addEventListener("click", (e) => {
     if (!e.target.closest(".notif-wrap") && !e.target.closest("#notif-menu")) closeMenu();
   }, true);
@@ -362,11 +362,22 @@ function init() {
   setInterval(fetchCount, 30000);
 }
 
-// auto init when DOM ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
+// auto init when DOM ready â€” 2.18: cift modul yuklemesinde dinleyiciler/sayaclar
+// iki kez baglanmasin (tek seferlik init).
+function initOnce() {
+  try {
+    if (window.__nx_notif_init) {
+      try { console.warn("[nx] cift modul yuklemesi: notification"); } catch (_) {}
+      return;
+    }
+    window.__nx_notif_init = 1;
+  } catch (_) {}
   init();
+}
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initOnce);
+} else {
+  initOnce();
 }
 
 export { fetchCount, fetchList, closeMenu };

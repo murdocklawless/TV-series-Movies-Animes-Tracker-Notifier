@@ -1,0 +1,6 @@
+static/css/style.css:5965:.row-xscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+static/css/style.css:5966:.row-xscroll > .unwatched-section-title,
+static/css/style.css:5967:.row-xscroll > .section-summary { position: sticky; left: 0; }
+static/css/style.css:5968:.row-xscroll > .unwatched-section-title { z-index: 5; overflow: visible; }
+static/css/style.css:5969:.row-xscroll > .section-summary { z-index: 1; }
+static/css/style.css:5972:html:not(.is-tv):not(.tv-mode) .row-xscroll > .unwatched-section-title .rec-search-input.open {

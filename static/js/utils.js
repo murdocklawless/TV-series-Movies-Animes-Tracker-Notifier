@@ -1,6 +1,6 @@
-// Faz 4: utils — genel yardımcılar, SVG sabitleri, tarih/saat formatları.
+﻿// Faz 4: utils â€” genel yardÄ±mcÄ±lar, SVG sabitleri, tarih/saat formatlarÄ±.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=546";
+import { t } from "./i18n.js?v=640";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
@@ -38,7 +38,7 @@ const EYE_OFF_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none"
 
 const FILM_SVG = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="7" y1="3" x2="7" y2="21"></line><line x1="17" y1="3" x2="17" y2="21"></line><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>`;
 
-// Faz 31c: uye cip ikonlari — FA regular'da pause/stop (ve sade check/xmark/play)
+// Faz 31c: uye cip ikonlari â€” FA regular'da pause/stop (ve sade check/xmark/play)
 // bulunmadigindan satir-ici SVG (halka buton cercevesinde, currentColor ile boyanir).
 const ROLE_CHECK_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 const ROLE_X_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>`;
@@ -105,11 +105,11 @@ function typeLabel(mediaType) {
   return mediaType === "tv" ? t("type_tv") : t("type_movie");
 }
 
-// Poster altı sabit satırlar: tür+puan / yayıncı / orta(sezon-bölüm|statü) / statü (+ opsiyonel bölüm sayısı).
-// Bilgi olmayan satır görünmez yer tutucu ile rezerve edilir → komşu kartlarla hizalanır.
-// count verilmezse bölüm-sayısı satırı hiç basılmaz.
+// Poster altÄ± sabit satÄ±rlar: tÃ¼r+puan / yayÄ±ncÄ± / orta(sezon-bÃ¶lÃ¼m|statÃ¼) / statÃ¼ (+ opsiyonel bÃ¶lÃ¼m sayÄ±sÄ±).
+// Bilgi olmayan satÄ±r gÃ¶rÃ¼nmez yer tutucu ile rezerve edilir â†’ komÅŸu kartlarla hizalanÄ±r.
+// count verilmezse bÃ¶lÃ¼m-sayÄ±sÄ± satÄ±rÄ± hiÃ§ basÄ±lmaz.
 const CARD_SLOT = {
-  net: `<span class="badge badge-platform slot-empty" aria-hidden="true">–</span>`,
+  net: `<span class="badge badge-platform slot-empty" aria-hidden="true">â€“</span>`,
   season: `<div class="season-line slot-empty" aria-hidden="true">&nbsp;</div>`,
   status: `<div class="next-ep slot-empty" aria-hidden="true">&nbsp;</div>`,
 };
@@ -124,15 +124,15 @@ function cardRows({ type = "", score = "", net = "", mid = "", status = "", coun
     + (count ? `<div class="meta-row mrow-count">${count}</div>` : ``);
 }
 
-// Kişi/yönetmen filmografi + arama/çoklu arama + favori kartları için sade 2 satır şeması:
-// tip·puan / vizyon-yayın tarihi. Satır boşsa görünmez yer tutucu → kartlar hizalı kalır.
+// KiÅŸi/yÃ¶netmen filmografi + arama/Ã§oklu arama + favori kartlarÄ± iÃ§in sade 2 satÄ±r ÅŸemasÄ±:
+// tipÂ·puan / vizyon-yayÄ±n tarihi. SatÄ±r boÅŸsa gÃ¶rÃ¼nmez yer tutucu â†’ kartlar hizalÄ± kalÄ±r.
 function resultCardRows({ type = "", score = "", status = "" }) {
   return `<div class="meta-row mrow-type">${type}${score}</div>`
     + `<div class="meta-row mrow-status">${status || CARD_SLOT.status}</div>`;
 }
 
-// Kart 3. satırı: film/single-doc → "Vizyon Tarihi: {tarih}", dizi/multi-doc/anime →
-// "Yayın Tarihi: {tarih}". Tarih yoksa "" döner (çağıran yer tutucu basar).
+// Kart 3. satÄ±rÄ±: film/single-doc â†’ "Vizyon Tarihi: {tarih}", dizi/multi-doc/anime â†’
+// "YayÄ±n Tarihi: {tarih}". Tarih yoksa "" dÃ¶ner (Ã§aÄŸÄ±ran yer tutucu basar).
 function cardDateLine(mediaType, item) {
   if (!item) return "";
   if (mediaType === "anime") {
@@ -164,8 +164,8 @@ function escAttr(s) {
 // --- Kaynak etiketi (1.86) -------------------------------------------------
 // Nereden izlendi: stremio|plex|jellyfin|emby|other. Ask damga satirinda ve
 // ozet modalinda ayni renkler kullanilir (.src-* siniflari style.css'te).
-const SOURCE_KEYS = ["stremio", "plex", "jellyfin", "emby", "other"];
-const SOURCE_NAMES = { stremio: "Stremio", plex: "Plex", jellyfin: "Jellyfin", emby: "Emby" };
+const SOURCE_KEYS = ["stremio", "plex", "jellyfin", "emby", "trakt", "other"];
+const SOURCE_NAMES = { stremio: "Stremio", plex: "Plex", jellyfin: "Jellyfin", emby: "Emby", trakt: "Trakt" };
 
 // Bilinmeyen/bos kaynak -> "" (etiket cizilmez).
 function srcKey(source) {
@@ -234,7 +234,7 @@ const CLOCK_SVG = `
     <polyline points="12 6 12 12 16 14"></polyline>
   </svg>`;
 
-// 1.86: kaynak (nereden izlendi) satiri ikonu — etiket/oynatma kaynagi.
+// 1.86: kaynak (nereden izlendi) satiri ikonu â€” etiket/oynatma kaynagi.
 const SOURCE_SVG = `
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -270,11 +270,11 @@ function formatDate(dateStr) {
   return { text, day };
 }
 
-// --- Takvim "gün" karşılaştırmaları: TEK KAYNAK todayInTzStr() ---
-// Yerel gece yarısından sonra UTC hâlâ dün olabildiği için (ör. +03'te 02:20 >
-// UTC 23:20) UTC ile gün kıyaslamak dünkü bölümü "bugün" gösteriyordu. Tüm gün
-// karşılaştırmaları todayInTzStr() (backend server_today / kullanıcı dilimi) ile
-// yapılır; renk/gün kararının kaynağı ekranda GÖRÜNEN tarih (it.date) olur.
+// --- Takvim "gÃ¼n" karÅŸÄ±laÅŸtÄ±rmalarÄ±: TEK KAYNAK todayInTzStr() ---
+// Yerel gece yarÄ±sÄ±ndan sonra UTC hÃ¢lÃ¢ dÃ¼n olabildiÄŸi iÃ§in (Ã¶r. +03'te 02:20 >
+// UTC 23:20) UTC ile gÃ¼n kÄ±yaslamak dÃ¼nkÃ¼ bÃ¶lÃ¼mÃ¼ "bugÃ¼n" gÃ¶steriyordu. TÃ¼m gÃ¼n
+// karÅŸÄ±laÅŸtÄ±rmalarÄ± todayInTzStr() (backend server_today / kullanÄ±cÄ± dilimi) ile
+// yapÄ±lÄ±r; renk/gÃ¼n kararÄ±nÄ±n kaynaÄŸÄ± ekranda GÃ–RÃœNEN tarih (it.date) olur.
 function releaseDayStr(it) {
   if (!it) return "";
   return it.date || utcDayStr(it.air_time);
@@ -343,7 +343,7 @@ function shortDate(dateStr) {
   try {
     return new Intl.DateTimeFormat(loc, { day: "numeric", month: "long" }).format(d);
   } catch (e) {
-    const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    const months = ["Ocak", "Åubat", "Mart", "Nisan", "MayÄ±s", "Haziran", "Temmuz", "AÄŸustos", "EylÃ¼l", "Ekim", "KasÄ±m", "AralÄ±k"];
     return `${d.getDate()} ${months[d.getMonth()]}`;
   }
 }
@@ -356,7 +356,7 @@ function shortDateShort(dateStr) {
   try {
     return new Intl.DateTimeFormat(loc, { day: "numeric", month: "short" }).format(d);
   } catch (e) {
-    const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+    const months = ["Oca", "Åub", "Mar", "Nis", "May", "Haz", "Tem", "AÄŸu", "Eyl", "Eki", "Kas", "Ara"];
     return `${d.getDate()} ${months[d.getMonth()]}`;
   }
 }
@@ -435,7 +435,7 @@ function fmtScore(v) {
   return Number(v).toFixed(1);
 }
 
-const DOC_GENRES = ["documentary", "documentaries", "belgesel", "doku", "dokus", "documentaire", "documentaires", "documental", "documentales", "documentario", "documentari", "документальный", "доку", "وثائقي", "وثائقيات", "documentário", "documentários", "dokument", "dokumenty", "ドキュメンタリー", "다큐멘터리", "纪录片"];
+const DOC_GENRES = ["documentary", "documentaries", "belgesel", "doku", "dokus", "documentaire", "documentaires", "documental", "documentales", "documentario", "documentari", "Ğ´Ğ¾ĞºÑƒĞ¼ĞµĞ½Ñ‚Ğ°Ğ»ÑŒĞ½Ñ‹Ğ¹", "Ğ´Ğ¾ĞºÑƒ", "ÙˆØ«Ø§Ø¦Ù‚ÙŠ", "ÙˆØ«Ø§Ø¦Ù‚ÙŠØ§Øª", "documentÃ¡rio", "documentÃ¡rios", "dokument", "dokumenty", "ãƒ‰ã‚­ãƒ¥ãƒ¡ãƒ³ã‚¿ãƒªãƒ¼", "ë‹¤íë©˜í„°ë¦¬", "çºªå½•ç‰‡"];
 
 function parseGenres(g) {
   if (!g) return [];

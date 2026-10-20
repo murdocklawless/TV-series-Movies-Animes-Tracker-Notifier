@@ -699,9 +699,10 @@ def _pool_candidates(kind, names, wanted):
     return _fetch_tmdb_candidates("tv" if kind == "shows" else "movie", gids, wanted)
 
 
-def _attach_tv_details(items):
+def _attach_tv_details(items, force=False):
     """Dizi önerileri için networks (ilk 3) + status çeker. Önce rec_detail
-    tablosuna bakar (7 gün taze); eksikleri paralel TMDB'den çekip upsert eder.
+    tablosuna bakar; force=False ise kayıt VARSA (yaştan bağımsız) kullanır,
+    yoksa TMDB'den çeker. force=True ise 7 günden eski kayıtları da tazeler.
     Fail-soft: hata durumunda boş kalır."""
     now = time.time()
     cached = {}
@@ -714,7 +715,8 @@ def _attach_tv_details(items):
                 "SELECT networks, status, ts FROM rec_detail WHERE kind='tv' AND id=?",
                 (tid,),
             ).fetchone()
-            if row and now - (row["ts"] or 0) < DETAIL_TTL:
+            fresh = bool(row) and ((not force) or (now - (row["ts"] or 0) < DETAIL_TTL))
+            if fresh:
                 try:
                     cached[tid] = (json.loads(row["networks"] or "[]"), row["status"])
                     continue
@@ -767,10 +769,10 @@ def _attach_tv_details(items):
         it["tv_status"] = status
 
 
-def _attach_movie_details(items):
+def _attach_movie_details(items, force=False):
     """Film/belgesel önerileri için yapımcı (ilk production_company) çeker.
-    _attach_tv_details deseni: rec_detail (kind='movie', 7 gün taze) + paralel
-    TMDB detay; şirket networks alanında taşınır (rozette ilk öğe gösterilir).
+    force=False ise rec_detail kaydı VARSA (yaştan bağımsız) kullanır; yoksa
+    TMDB'den çeker. force=True ise 7 günden eski kayıtları da tazeler.
     Fail-soft: hata durumunda boş kalır."""
     now = time.time()
     cached = {}
@@ -783,7 +785,8 @@ def _attach_movie_details(items):
                 "SELECT networks, status, ts FROM rec_detail WHERE kind='movie' AND id=?",
                 (tid,),
             ).fetchone()
-            if row and now - (row["ts"] or 0) < DETAIL_TTL:
+            fresh = bool(row) and ((not force) or (now - (row["ts"] or 0) < DETAIL_TTL))
+            if fresh:
                 try:
                     cached[tid] = json.loads(row["networks"] or "[]")
                     continue
