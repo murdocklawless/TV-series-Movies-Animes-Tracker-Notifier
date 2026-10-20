@@ -1,4 +1,4 @@
-﻿// Faz 4: components ï¿½ modal bileï¿½enleri (yayï¿½n takvimi, detaylar, kiï¿½i, anime detay/takvim, izlenmemiï¿½, onay).
+// Faz 4: components — modal bileşenleri (yayın takvimi, detaylar, kişi, anime detay/takvim, izlenmemiş, onay).
 import { state } from "./state.js";
 function isTvUIActive() {
   try {
@@ -87,7 +87,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const seasonCode = "S" + String(seasonKey).padStart(2, "0");
           const watchTipText = allWatched ? t("season_mark_unwatched", { code: seasonCode }) : t("season_mark_watched", { code: seasonCode });
           const watchIcon = allWatched ? EYE_OFF_SVG : EYE_SVG;
-          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} Â· %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}"${totalWatchedAll ? "" : " disabled"}>${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
+          html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><div class="season-actions">${isFirstSeason ? `<button class="season-clear-all" data-i18n-title="clear_all_seasons" data-tip="${t("clear_all_seasons")}"${totalWatchedAll ? "" : " disabled"}>${TRASH_SVG}</button>` : ""}<button class="season-watch-all${allWatched ? " is-clear" : ""}" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}" data-tip="${watchTipText}"${btnDisabled}>${watchIcon}</button></div></div>`;
         } else {
           html += `<div class="season-box-title">${seasonLabel}</div>`;
         }
@@ -135,7 +135,7 @@ async function openReleases(mediaType, tmdbId, title) {
 
       body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
       bindReleasesEvents();
-      // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
+      // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
       try {
         if (focusKey && (focusKey.g !== undefined || focusKey.s !== undefined)) {
           let same = null;
@@ -340,7 +340,7 @@ function openMovieInfo(tmdbId, movieTitle, it) {
   document.getElementById("episode-info-overview").style.display = "none";
   document.getElementById("episode-info-overview").textContent = "";
   if (metaEl) metaEl.style.borderTop = "none";
-  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${it.runtime ? fmtRuntime(it.runtime) : "â€”"}`;
+  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${it.runtime ? fmtRuntime(it.runtime) : "—"}`;
   document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
   fillEpisodeSourceRow(it.source);
   modal.style.display = "flex";
@@ -359,7 +359,7 @@ function openAnimeEpisodeInfo(animeId, animeTitle, it, animeDuration) {
   document.getElementById("episode-info-overview").style.display = "none";
   document.getElementById("episode-info-overview").textContent = "";
   if (metaEl) metaEl.style.borderTop = "none";
-  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${animeDuration ? fmtRuntime(animeDuration) : "â€”"}`;
+  document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${animeDuration ? fmtRuntime(animeDuration) : "—"}`;
   document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(it.watched_at)}`;
   fillEpisodeSourceRow(it.source);
   modal.style.display = "flex";
@@ -368,7 +368,7 @@ function openAnimeEpisodeInfo(animeId, animeTitle, it, animeDuration) {
   } catch (_) {}
 }
 
-// Ortak tarih-saat bicimi: "<tarih> - <gun> - <saat>" â€” tarih sirasi, gun adi ve
+// Ortak tarih-saat bicimi: "<tarih> - <gun> - <saat>" — tarih sirasi, gun adi ve
 // saat bicimi (12/24 dahil) secili tz'nin ulke yereline gore gelir. Saat bicimi
 // ZORLANMAZ: ICU'nun yerel tercihi kullanilir (en-US AM/PM, tr-TR 24 saat).
 export function fmtDateTime(epoch) {
@@ -394,7 +394,7 @@ export function fmtDateTime(epoch) {
 }
 
 function formatWatchedAt(watchedAt) {
-  return fmtDateTime(watchedAt) || "â€”";
+  return fmtDateTime(watchedAt) || "—";
 }
 
 async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
@@ -420,7 +420,7 @@ async function openEpisodeInfo(tmdbId, showTitle, season, episode) {
     const j = await res.json();
     if (!res.ok) throw new Error("http " + res.status);
     document.getElementById("episode-info-overview").textContent = (j.overview || "").trim() || t("ep_no_overview");
-    document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${j.runtime ? fmtRuntime(j.runtime) : "â€”"}`;
+    document.getElementById("episode-info-runtime").textContent = `${t("ep_runtime")}: ${j.runtime ? fmtRuntime(j.runtime) : "—"}`;
     document.getElementById("episode-info-watched").textContent = `${t("ep_watched")}: ${formatWatchedAt(j.watched_at)}`;
     fillEpisodeSourceRow(j.source);
   } catch (e) {
@@ -447,7 +447,7 @@ function closeModals() {
 }
 
 // Adanmis onay modallari: her biri yalniz kendi blogunu acar/kapatir.
-// Ortak confirm-modal YASAKTIR (KRITIK KURAL) ï¿½ yeni onay akisi yeni blok ister.
+// Ortak confirm-modal YASAKTIR (KRITIK KURAL) — yeni onay akisi yeni blok ister.
 function wireDedicatedConfirm(id, text, onYes) {
   const ov = document.getElementById(id);
   const body = ov.querySelector(".confirm-text");
@@ -517,7 +517,7 @@ function openAskClearConfirm(text, onYes) {
 function closeStremioDisconnect() {
   document.getElementById("stremio-disconnect-modal").style.display = "none";
 }
-// Takvim (ICS) â€” 1.85: adanmis onay modali (AGENTS: paylasimli modal yasak).
+// Takvim (ICS) — 1.85: adanmis onay modali (AGENTS: paylasimli modal yasak).
 function closeCalendarDisconnect() {
   document.getElementById("calendar-disconnect-modal").style.display = "none";
 }
@@ -585,8 +585,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModals();
 });
 
-// Bilgi modalÄ± statÃ¼ rozeti rengi: duruma gÃ¶re sÄ±nÄ±f (Returningâ†’yeÅŸil, Endedâ†’gri,
-// Canceledâ†’kÄ±rmÄ±zÄ±, diÄŸer/yakÄ±ndaâ†’amber).
+// Bilgi modalı statü rozeti rengi: duruma göre sınıf (Returning→yeşil, Ended→gri,
+// Canceled→kırmızı, diğer/yakında→amber).
 function statusColorClass(status) {
   const s = (status || "").trim().toUpperCase();
   if (s === "CANCELED" || s === "CANCELLED") return "db-status-canceled";
@@ -863,7 +863,7 @@ async function toggleFavAnimeChar(btn) {
 }
 
 function openAnimeChar(charId, name) {
-  // Ãœst butonlara dokunulmaz; kapsam yalnÄ±z Ã§iplerden gelir.
+  // Üst butonlara dokunulmaz; kapsam yalnız çiplerden gelir.
   const input = document.getElementById("search-input");
   if (input) input.value = "";
   state.chips.length = 0;
@@ -900,8 +900,8 @@ document.getElementById("person-modal").onclick = (e) => {
   if (e.target === e.currentTarget) document.getElementById("person-modal").style.display = "none";
 };
 
-/* Filmografi kartlarÄ± arama kartlarÄ±ndaki sade ÅŸemayÄ± (tipÂ·puan / statÃ¼) kullanÄ±r. */
-/* Filmografi sÄ±ralama durumu: arama metni modal-aÃ§Ä±lÄ±ÅŸlÄ±k, sÄ±ralama+yÃ¶n global hatÄ±rlamalÄ±. */
+/* Filmografi kartları arama kartlarındaki sade şemayı (tip·puan / statü) kullanır. */
+/* Filmografi sıralama durumu: arama metni modal-açılışlık, sıralama+yön global hatırlamalı. */
 const CREDITS_DEFAULT_DIR = { alpha: "asc", score: "desc", vision: "desc", upcoming: "asc" };
 let creditsSort = "alpha";
 let creditsSortDir = "asc";
@@ -1185,7 +1185,7 @@ document.getElementById("director-modal").onclick = (e) => { if (e.target === e.
 async function openUnwatchedModal(item, isAnime) {
   const modal = document.getElementById("unwatched-modal");
   const body = document.getElementById("unwatched-body");
-  document.getElementById("unwatched-title").textContent = `${item.title} ï¿½ ${t("unwatched_title")}`;
+  document.getElementById("unwatched-title").textContent = `${item.title} · ${t("unwatched_title")}`;
   body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
   modal.style.display = "flex";
 
@@ -1244,7 +1244,7 @@ async function openUnwatchedModal(item, isAnime) {
         }
       });
     });
-    // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
+    // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
     try {
       if (savedIdx !== undefined && savedIdx !== null) {
         const same = body.querySelector(`.uw-watch[data-i="${savedIdx}"]`);
@@ -1356,12 +1356,12 @@ async function openAnimeSchedule(id, title) {
       const truncA = rawTitleA.length > 30 ? rawTitleA.slice(0, 30) : rawTitleA;
       const watchTipTextA = allWatched ? t("season_mark_unwatched", { code: truncA }) : t("season_mark_watched", { code: truncA });
       const watchIconA = allWatched ? EYE_OFF_SVG : EYE_SVG;
-      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} Â· %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
+      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><div class="season-actions"><button class="season-watch-all${allWatched ? " is-clear" : ""}" data-w="${allWatched ? 0 : 1}" data-tip="${escAttr(watchTipTextA)}"${releasedCount ? "" : " disabled"}>${watchIconA}</button></div></div>`;
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       items.forEach((it, i) => {
         const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
         const day = dayStrInTz(it.airing_at);   // yerel gun (tek kural)
-        let dateText = "ï¿½";
+        let dateText = "—";
         let cls = "";
         if (d && !isNaN(d.getTime())) {
           try {
@@ -1473,7 +1473,7 @@ async function openAnimeSchedule(id, title) {
           }
         });
       });
-      // TV: toggle sonrasï¿½ aynï¿½ butonda kal (senkron); ilk aï¿½ï¿½lï¿½ï¿½ta ilk izlenmemiï¿½
+      // TV: toggle sonrası aynı butonda kal (senkron); ilk açılışta ilk izlenmemiş
       try {
         if (savedEp !== undefined && savedEp !== null) {
           if (savedEp === 'all') {

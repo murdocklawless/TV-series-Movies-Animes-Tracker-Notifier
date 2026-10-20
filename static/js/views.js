@@ -1,4 +1,4 @@
-﻿// Faz 4: views â€” gÃ¶rÃ¼nÃ¼m (tab) yÃ¶netimi, sÄ±ralama ve ana liste yÃ¼kleyicileri (takip edilenler / anime / izlenmemiÅŸ).
+// Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
 import { t } from "./i18n.js?v=640";
 import {
@@ -98,7 +98,7 @@ tabs.search.onclick = () => {
 };
 document.getElementById("search-close").onclick = () => {
   switchView(prevView);
-  // TV: X ile kapatÄ±nca odak yetim kalmasÄ±n; Geri tuÅŸuyla aynÄ±: #tab-search'te kal.
+  // TV: X ile kapatınca odak yetim kalmasın; Geri tuşuyla aynı: #tab-search'te kal.
   try {
     if (isTvUIActive()) {
       const sb = document.getElementById("tab-search");
@@ -174,7 +174,7 @@ function applySort(items) {
   return arr;
 }
 
-// Daha-sonra-izle (defer): kart en alta iner, sort'tan muaf, kendi arasÄ±nda A-Z.
+// Daha-sonra-izle (defer): kart en alta iner, sort'tan muaf, kendi arasında A-Z.
 function isDeferred(item) {
   try { return Number(item.deferred || 0) === 1; } catch (_) { return false; }
 }
@@ -253,11 +253,11 @@ function tvStatusText(item) {
   if (status === "Planned") return `<div class="next-ep muted">${t("tv_status_planned")}</div>`;
   if (status === "Pilot") return `<div class="next-ep muted">${t("tv_status_pilot")}</div>`;
   if (status === "Returning Series") {
-    // Gelecek sezon bilgisi yoksa: son sezon baÅŸladÄ± mÄ±?
+    // Gelecek sezon bilgisi yoksa: son sezon başladı mı?
     if (startedSeason) {
-      // "Yeni bÃ¶lÃ¼m" (sezon sÃ¼rÃ¼yor) vs "Yeni sezon" (sezon bitmiÅŸ):
-      // son yayÄ±n Ã¼zerinden geÃ§en sÃ¼re, sezonun kendi bÃ¶lÃ¼m aralÄ±ÄŸÄ±nÄ±n
-      // ~2.5 katÄ±nÄ± aÅŸtÄ±ysa sezon bitmiÅŸ demektir.
+      // "Yeni bölüm" (sezon sürüyor) vs "Yeni sezon" (sezon bitmiş):
+      // son yayın üzerinden geçen süre, sezonun kendi bölüm aralığının
+      // ~2.5 katını aştıysa sezon bitmiş demektir.
       const last = (item && item.last_air_date) || "";
       if (last) {
         const gapD = Number((item && item.ep_gap_days) || 7) || 7;
@@ -278,24 +278,24 @@ function tvStatusText(item) {
   return `<div class="next-ep muted">${t("new_season")}</div>`;
 }
 
-// Takip kartÄ± statÃ¼ satÄ±rÄ± (dizi + film ortak): sÄ±radaki bÃ¶lÃ¼m / durum / vizyon tarihi.
+// Takip kartı statü satırı (dizi + film ortak): sıradaki bölüm / durum / vizyon tarihi.
 function followedStatusHTML(item) {
   if (item.media_type === "tv") {
     if (!item.next_episode) return tvStatusText(item);
     if (isReleaseToday({ date: item.next_episode.air_date }))
       return `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} ${t("today_airing")}</div>`;
-    return `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} Â· ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)} Â· <span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`;
+    return `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} · ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)} · <span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`;
   }
   if (item.release_date) {
     if (dateState(item.release_date) === "date-past") return `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`;
     if (isReleaseToday({ date: item.release_date })) return `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`;
-    return `<div class="next-ep">${formatDate(item.release_date).text} Â· <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`;
+    return `<div class="next-ep">${formatDate(item.release_date).text} · <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`;
   }
   return `<div>${t("date_unknown")}</div>`;
 }
 
-// Orta satÄ±r: dizi/belgesel-TV â†’ sezon + bÃ¶lÃ¼m rozetleri (Ã§oklu bÃ¶lÃ¼m verisi varsa; yoksa boÅŸ).
-// Mobil: yalnÄ±zca Ä°KÄ°SÄ° de varsa kÄ±salt ("{n} Sez"/"{n} BÃ¶l"); tek biri varsa tam yaz.
+// Orta satır: dizi/belgesel-TV → sezon + bölüm rozetleri (çoklu bölüm verisi varsa; yoksa boş).
+// Mobil: yalnızca İKİSİ de varsa kısalt ("{n} Sez"/"{n} Böl"); tek biri varsa tam yaz.
 function seasonEpMid(item) {
   if (item.media_type !== "tv") return "";
   const hasS = !!item.number_of_seasons;
@@ -306,7 +306,7 @@ function seasonEpMid(item) {
   return s + e;
 }
 
-// Orta satÄ±r: anime â†’ "{n} BÃ¶lÃ¼m" (bÃ¶lÃ¼m sayÄ±sÄ± varsa; yoksa boÅŸ).
+// Orta satır: anime → "{n} Bölüm" (bölüm sayısı varsa; yoksa boş).
 function animeEpMid(item) {
   const n = item.episodes || item.number_of_episodes;
   if (!n) return "";
@@ -322,9 +322,9 @@ async function loadFollowed(view) {
   const showArchived = archivedVisible(view);
   const res = await fetch("/api/followed");
   let items = await res.json();
-  // Oturumsuz 401 gÃ¶vdesi ({error}) sessizce yutulur â€” Ã§Ã¶kme yok.
+  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
-  // Arsivli liste HER ZAMAN cekilir (anahtar + ArÅŸiv sekmesi gorunurlugu icin);
+  // Arsivli liste HER ZAMAN cekilir (anahtar + Arşiv sekmesi gorunurlugu icin);
   // gosterime yalniz showArchived acikken katilir.
   try {
     const ares = await fetch("/api/followed?archived=1");
@@ -342,7 +342,7 @@ async function loadFollowed(view) {
   items = applySortDeferred(items);
   const grid = document.getElementById(isTv ? "poster-grid-shows" : "poster-grid-movies");
   const empty = document.getElementById(isTv ? "empty-dizi" : "empty-film");
-  // Takip gÃ¶rÃ¼nÃ¼mleri: normal kartlar Ã¼st gridde, sonra-izlenecek kartlar alt gridde (kendi baÅŸlÄ±ÄŸÄ±yla).
+  // Takip görünümleri: normal kartlar üst gridde, sonra-izlenecek kartlar alt gridde (kendi başlığıyla).
   const secMain = isTv ? "dizi" : "film";
   const secLater = isTv ? "dizi-later" : "film-later";
   const gridIdLater = isTv ? "poster-grid-shows-later" : "poster-grid-movies-later";
@@ -637,7 +637,7 @@ function animeNextText(next, status) {
   } catch (e) {
     txt = d.toLocaleDateString();
   }
-  return `<div class="next-ep anime-ep"><span>EP${next.episode} Â· ${txt}</span><span class="next-ep-sep">Â·</span><span class="next-ep-days">${diffDays}</span></div>`;
+  return `<div class="next-ep anime-ep"><span>EP${next.episode} · ${txt}</span><span class="next-ep-sep">·</span><span class="next-ep-days">${diffDays}</span></div>`;
 }
 
 function animeStatusLabel(status) {
@@ -654,9 +654,9 @@ async function loadAnime() {
   const showArchived = archivedVisible("anime");
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
-  // Oturumsuz 401 gÃ¶vdesi ({error}) sessizce yutulur â€” Ã§Ã¶kme yok.
+  // Oturumsuz 401 gövdesi ({error}) sessizce yutulur — çökme yok.
   if (!Array.isArray(items)) return;
-  // Arsivli anime HER ZAMAN cekilir (anahtar + ArÅŸiv sekmesi gorunurlugu);
+  // Arsivli anime HER ZAMAN cekilir (anahtar + Arşiv sekmesi gorunurlugu);
   // gosterime yalniz showArchived acikken katilir.
   try {
     const ares = await fetch("/api/anime/followed?archived=1");
@@ -794,8 +794,8 @@ function epochToTzDateStr(epochSec) {
   return dayStrInTz(epochSec);
 }
 
-// Ä°zlenmemiÅŸ kartÄ±: sÄ±radaki tarih bugÃ¼nse "BugÃ¼n YayÄ±nda/Vizyonda", ilerideyse
-// "<etiket> Â· <tarih> Â· <yeÅŸil rozet: gÃ¼n>". Tarih yok/geÃ§miÅŸse "" dÃ¶ner.
+// İzlenmemiş kartı: sıradaki tarih bugünse "Bugün Yayında/Vizyonda", ilerideyse
+// "<etiket> · <tarih> · <yeşil rozet: gün>". Tarih yok/geçmişse "" döner.
 function unwatchedDateLine(dateStr, label, isMovie) {
   if (!dateStr) return "";
   const st = dateState(dateStr);
@@ -810,8 +810,8 @@ function unwatchedDateLine(dateStr, label, isMovie) {
     ? (days === 1 ? t("days_left_theaters_1") : t("days_left_theaters", { n: days }))
     : (days === 1 ? t("days_left_1") : t("days_left", { n: days }));
   const dateText = isMobile() ? shortDateShort(dateStr) : shortDate(dateStr);
-  const prefix = label ? `${label} Â· ` : "";
-  return `<div class="next-ep">${prefix}${dateText} Â· <span class="next-ep-days" data-tip="${tip}">${days}</span></div>`;
+  const prefix = label ? `${label} · ` : "";
+  return `<div class="next-ep">${prefix}${dateText} · <span class="next-ep-days" data-tip="${tip}">${days}</span></div>`;
 }
 
 function nextupImgSrc(item) {
@@ -843,7 +843,7 @@ function nextupCard(item, cardKind) {
   const se = item.kind === "anime"
     ? `EP${item.episode}`
     : `S${String(item.season).padStart(2, "0")}E${String(item.episode).padStart(2, "0")}`;
-  const dur = item.est_min ? `<span class="nextup-dur"> Â· ${t("runtime_m", { m: item.est_min })}</span>` : "";
+  const dur = item.est_min ? `<span class="nextup-dur"> · ${t("runtime_m", { m: item.est_min })}</span>` : "";
   div.innerHTML = `${img}<div class="nextup-info"><div class="nextup-title">${item.title}</div><div class="nextup-sub"><span class="nextup-ep">${se}</span>${dur}</div></div>`;
   if (item.kind === "anime") div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
   else div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
@@ -943,9 +943,9 @@ async function loadUnwatched() {
   animeWrap.classList.toggle("has-shows", shows.length > 0);
   empty.style.display = shows.length || movies.length || docs.length || animes.length ? "none" : "block";
 
-  // KayÄ±tlÄ± bÃ¶lÃ¼m sÄ±rasÄ±nÄ± uygula ve boÅŸ bÃ¶lÃ¼mleri Ã§Ä±kar
+  // Kayıtlı bölüm sırasını uygula ve boş bölümleri çıkar
   const order = loadSectionOrder("unwatched").filter((s) => hasContent[s]);
-  // Dolu olup da sÄ±rada olmayanlarÄ± sona ekle
+  // Dolu olup da sırada olmayanları sona ekle
   insertMissingSections(order, hasContent);
   order.forEach((s) => {
     const wrap = document.getElementById(`unwatched-${s}-wrap`);
@@ -1347,15 +1347,15 @@ async function loadWatched() {
   notifyListsRefreshed();
 }
 
-// ---- Arsiv (1.83) â€” Izlenmis deseninin arsiv karsiligi ----
+// ---- Arsiv (1.83) — Izlenmis deseninin arsiv karsiligi ----
 const ARCHIVE_FLAG_KEY = "archivedVisible:";
-// Arsivli listeler (anahtar + ArÅŸiv sekmesi gorunurlugu icin onbellek):
+// Arsivli listeler (anahtar + Arşiv sekmesi gorunurlugu icin onbellek):
 // followed = arsivli tv+movie listesi, anime = arsivli anime listesi.
 const archiveState = { followed: null, anime: null };
 function archivedVisible(view) {
   try { return localStorage.getItem(ARCHIVE_FLAG_KEY + view) === "1"; } catch (_) { return false; }
 }
-// Sekmede arsivli yapim yoksa "ArÅŸivlenenleri gÃ¶ster" anahtari gizlenir
+// Sekmede arsivli yapim yoksa "Arşivlenenleri göster" anahtari gizlenir
 // (basliktaki has-archived-toggle sinifi da kalkar -> sag kume kaymaz).
 function setArchivedToggleVisible(view, hasAny) {
   const v = views[view];
@@ -1366,7 +1366,7 @@ function setArchivedToggleVisible(view, hasAny) {
     if (h2) h2.classList.toggle("has-archived-toggle", !!hasAny);
   });
 }
-// Hic arsivli yapim yoksa "ArÅŸiv" sekmesi + gorunumu gizlenir.
+// Hic arsivli yapim yoksa "Arşiv" sekmesi + gorunumu gizlenir.
 function setArchiveTabVisible(on) {
   try {
     if (tabs.archive) tabs.archive.style.display = on ? "" : "none";
@@ -1760,7 +1760,7 @@ function moveBackFromWatched(item, targetView, div) {
   }
 }
 
-// ---- Ã–neriler beslemesi (feed): iki pulldown + tek Ä±zgara ----
+// ---- Öneriler beslemesi (feed): iki pulldown + tek ızgara ----
 const FEED_SOURCE_VALUES = ["trend", "popular", "top_rated", "netflix", "hbo_max", "disney_plus", "paramount", "apple_tv", "prime_video", "amc", "random"];
 const FEED_MEDIA_VALUES = ["dizi", "film", "belgesel", "anime"];
 const FEED_MEDIA_KEY = "feedMedia";
@@ -2065,7 +2065,7 @@ function recMoveBtnHTML(item) {
     : "";
 }
 
-// Ã–neri kartÄ± statÃ¼ satÄ±rÄ±: diziâ†’tv_status, film/belgeselâ†’vizyon tarihi (takip kartlarÄ±yla birebir)
+// Öneri kartı statü satırı: dizi→tv_status, film/belgesel→vizyon tarihi (takip kartlarıyla birebir)
 function recStatusLine(item, section) {
   if (section === "shows") {
     return item.tv_status ? `<div class="next-ep muted">${tvStatusLabel(item.tv_status)}</div>` : "";
@@ -2077,10 +2077,10 @@ function recStatusLine(item, section) {
   if (isReleaseToday({ date: item.release_date })) {
     return `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`;
   }
-  return `<div class="next-ep">${formatDate(item.release_date).text} Â· <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`;
+  return `<div class="next-ep">${formatDate(item.release_date).text} · <span class="next-ep-days" data-tip="${daysHint(item.release_date)}">${daysUntil(item.release_date)}</span></div>`;
 }
 
-// Ã–neri bÃ¶lÃ¼mÃ¼ liste-iÃ§i arama + sÄ±ralama durumu (bÃ¶lÃ¼m baÅŸÄ±na baÄŸÄ±msÄ±z, hatÄ±rlamalÄ±)
+// Öneri bölümü liste-içi arama + sıralama durumu (bölüm başına bağımsız, hatırlamalı)
 const REC_DEFAULT_DIR = { alpha: "asc", score: "desc", vision: "desc", upcoming: "asc" };
 function recFilterKey(section) { return "recFilter_" + section; }
 function recFilterDirKey(section) { return "recFilterDir_" + section; }
@@ -2243,7 +2243,7 @@ function addRecPlaceholder(grid) {
   ph.className = "rec-placeholder";
   ph.innerHTML = `<div class="ph-box"><span class="ph-spin"></span></div>`;
   grid.appendChild(ph);
-  // Ã‡erÃ§eveyi komÅŸu kartÄ±n tam yÃ¼ksekliÄŸine eÅŸitle -> spinner tÃ¼m kart Ã§erÃ§evesine ortalanÄ±r
+  // Çerçeveyi komşu kartın tam yüksekliğine eşitle -> spinner tüm kart çerçevesine ortalanır
   const ref = grid.querySelector(".card");
   if (ref && ref.offsetHeight > 0) {
     ph.classList.add("height-synced");
@@ -2282,7 +2282,7 @@ function recOptimistic(div, section, reqFn, okMsg) {
 }
 
 function recHideHandler(div, item, section) {
-  // Gizlenen kart bilgi satÄ±rÄ± + sÄ±ralama iÃ§in ek alanlar taÅŸÄ±nÄ±r (Ã¶neri kartÄ±ndaki deÄŸerler).
+  // Gizlenen kart bilgi satırı + sıralama için ek alanlar taşınır (öneri kartındaki değerler).
   const body = item.anilist_id
     ? {
         anilist_id: item.anilist_id,
@@ -2479,15 +2479,15 @@ async function fillOnce(section) {
       if (!res.ok) throw new Error("http " + res.status);
       const data = await res.json();
       const items = data.docs || data.shows || data.movies || data.anime || [];
-      // Duplo korumasÄ±: paralel isteklerde grid'de zaten olan kartlarÄ± at
+      // Duplo koruması: paralel isteklerde grid'de zaten olan kartları at
       const have = new Set(currentRecIds(section).map(String));
       const fresh = items.filter((it) => !have.has(String(it.tmdb_id || it.anilist_id)));
       if (!fresh.length) {
         clearRecPlaceholders(grid);
         return;
       }
-      // Birebir deÄŸiÅŸim: gelen her kart bir placeholder'Ä± kaldÄ±rÄ±r;
-      // kalan placeholder'lar (bekleyen gizlemeler) animasyonla yerinde kalÄ±r.
+      // Birebir değişim: gelen her kart bir placeholder'ı kaldırır;
+      // kalan placeholder'lar (bekleyen gizlemeler) animasyonla yerinde kalır.
       const phs = Array.from(grid.querySelectorAll(".rec-placeholder"));
       const removeCount = Math.min(fresh.length, phs.length);
       for (let i = 0; i < removeCount; i++) phs[i].remove();
@@ -2660,12 +2660,12 @@ document.addEventListener("focusin", (e) => {
   });
 })();
 
-// Takip gÃ¶rÃ¼nÃ¼mleri bÃ¶lÃ¼m baÅŸlÄ±klarÄ±: liste-iÃ§i arama (bÃ¶lÃ¼m baÅŸÄ±na baÄŸÄ±msÄ±z, Ã¶neri deseni).
-// Not: jenerik wireRecSectionControls da bu butonlara .onclick baÄŸlar; aÅŸaÄŸÄ±daki
-// kablolama sonra Ã§alÄ±ÅŸtÄ±ÄŸÄ± iÃ§in takip butonlarÄ±nda onunki ezilir (Ã§ift toggle yok).
-// Jenerik input/keydown dinleyicileri recSectionState bulamayÄ±nca zaten atlar.
-// "anime" adÄ± Ã¶neriler+izlenmemiÅŸle paylaÅŸÄ±lÄ±r â€” Ã§akÄ±ÅŸmamasÄ± iÃ§in anime "anime-list" kullanÄ±r.
-// Her bÃ¶lÃ¼mÃ¼n filtre (sÄ±ralama + yÃ¶n) seÃ§imi localStorage'da hatÄ±rlanÄ±r.
+// Takip görünümleri bölüm başlıkları: liste-içi arama (bölüm başına bağımsız, öneri deseni).
+// Not: jenerik wireRecSectionControls da bu butonlara .onclick bağlar; aşağıdaki
+// kablolama sonra çalıştığı için takip butonlarında onunki ezilir (çift toggle yok).
+// Jenerik input/keydown dinleyicileri recSectionState bulamayınca zaten atlar.
+// "anime" adı öneriler+izlenmemişle paylaşılır — çakışmaması için anime "anime-list" kullanır.
+// Her bölümün filtre (sıralama + yön) seçimi localStorage'da hatırlanır.
 const FOLLOW_DEFAULT_DIR = { added: "desc", alpha: "asc", score: "desc", date: "asc", type: "asc" };
 const FOLLOW_NO_DATE = new Set(["watched-shows", "watched-movies", "watched-docs", "watched-anime"]);
 function followFilterKey(section) { return "followFilter_" + section; }
@@ -2758,7 +2758,7 @@ function followSectionGrid(section) {
   const id = followSectionGridId[section];
   return id ? document.getElementById(id) : null;
 }
-// Takip kartÄ± sÄ±ralama verisi (Ã¶neri kartlarÄ±ndaki dataset.sort* deseni).
+// Takip kartı sıralama verisi (öneri kartlarındaki dataset.sort* deseni).
 function followSortDateISO(item, typeOverride) {
   try {
     const isAnime = item.isAnime || item.anilist_id || typeOverride === "anime";
@@ -2788,7 +2788,7 @@ function followStrCmp(a, b) {
   const x = String(a || "").toLocaleLowerCase(), y = String(b || "").toLocaleLowerCase();
   return x < y ? -1 : x > y ? 1 : 0;
 }
-// Global compareItems'Ä±n bÃ¶lÃ¼m-parametreli karÅŸÄ±lÄ±ÄŸÄ±: baz yÃ¶nde karÅŸÄ±laÅŸtÄ±r, dir tersse Ã§evir.
+// Global compareItems'ın bölüm-parametreli karşılığı: baz yönde karşılaştır, dir tersse çevir.
 function compareFollowCards(a, b, key, dir) {
   let r = 0;
   try {
@@ -2834,7 +2834,7 @@ function applyFollowSectionState(section) {
     try { cards.sort((a, b) => compareFollowCards(a, b, key, dir)).forEach((c) => grid.appendChild(c)); } catch (_) {}
   }
 }
-// Ä°kiden az kartlÄ± bÃ¶lÃ¼mde arama + filtre simgeleri kilitlenir (Ã¼st/alt bÃ¶lÃ¼m ayrÄ± sayÄ±lÄ±r).
+// İkiden az kartlı bölümde arama + filtre simgeleri kilitlenir (üst/alt bölüm ayrı sayılır).
 function updateFollowSectionControls(section) {
   const grid = followSectionGrid(section);
   if (!grid) return;
@@ -2858,7 +2858,7 @@ function updateFollowSectionControls(section) {
     } catch (_) {}
   }
 }
-// ---- BÃ¶lÃ¼m Ã¶zeti (dotted Ã§izgi altÄ±): sayÄ± | bÃ¶lÃ¼m | izlenmiÅŸ/izlenmemiÅŸ saat ----
+// ---- Bölüm özeti (dotted çizgi altı): sayı | bölüm | izlenmiş/izlenmemiş saat ----
 const SUMMARY_KIND_KEY = { shows: "summary_shows", movies: "summary_films", docs: "summary_docs", anime: "summary_anime" };
 const SUMMARY_HAS_HOURS = { shows: true, movies: true, docs: true, anime: true };
 const SUMMARY_HAS_EPISODES = { shows: true, movies: false, docs: true, anime: true };
@@ -2954,7 +2954,7 @@ function renderSectionSummary(grid) {
   summary.textContent = parts.join(" | ");
 }
 
-// Kart kaldÄ±rÄ±ldÄ±ktan sonra bÃ¶lÃ¼mÃ¼n arama/sÄ±ralama + wrap/empty gÃ¶rÃ¼nÃ¼rlÃ¼ÄŸÃ¼ + Ã¶zeti yenilenir.
+// Kart kaldırıldıktan sonra bölümün arama/sıralama + wrap/empty görünürlüğü + özeti yenilenir.
 function refreshSectionAfterCardRemove(sectionKey, grid) {
   if (!grid) grid = followSectionGrid(sectionKey);
   if (!grid) return;
@@ -3043,7 +3043,7 @@ document.addEventListener("app:external-refresh", () => {
       }
     });
     inp.addEventListener("keydown", (e) => {
-      // Jenerik dinleyici Ã¶nce Ã§alÄ±ÅŸÄ±p kapatmÄ±ÅŸsa (display none) ikinci kez tÄ±klatma.
+      // Jenerik dinleyici önce çalışıp kapatmışsa (display none) ikinci kez tıklatma.
       if (e.key === "Escape" && inp.style.display === "block") {
         const section = inp.dataset.section;
         const viewId = followSectionView[section] || "view-dizi";
@@ -3055,9 +3055,9 @@ document.addEventListener("app:external-refresh", () => {
   });
 })();
 
-// Takip bÃ¶lÃ¼mleri filtre (sÄ±ralama) menÃ¼leri: jenerik wireRecSectionControls .section-filter
-// baÄŸÄ±nÄ± ezer (takip arama ezmesiyle aynÄ± desen). AynÄ± seÃ§eneÄŸe 2. tÄ±klama yÃ¶nÃ¼
-// Ã§evirir ve menÃ¼ aÃ§Ä±k kalÄ±r; farklÄ± seÃ§im varsayÄ±lan yÃ¶nle kapanÄ±r.
+// Takip bölümleri filtre (sıralama) menüleri: jenerik wireRecSectionControls .section-filter
+// bağını ezer (takip arama ezmesiyle aynı desen). Aynı seçeneğe 2. tıklama yönü
+// çevirir ve menü açık kalır; farklı seçim varsayılan yönle kapanır.
 function closeFollowSortMenus() {
   try {
     document.querySelectorAll(".follow-sort-menu.open").forEach((m) => m.classList.remove("open"));
@@ -3352,7 +3352,7 @@ function renderHiddenList(items, filter) {
           body: JSON.stringify({ kind: modal ? modal.dataset.section : "", id: h.id }),
         });
         if (!res.ok) throw new Error("http " + res.status);
-        // TV: odak Ã§Ã¶pe dÃ¼ÅŸmesin â€” Ã¶nce komÅŸu kartÄ±n unhide butonu, yoksa header
+        // TV: odak çöpe düşmesin — önce komşu kartın unhide butonu, yoksa header
         let tvNext = null;
         try {
           if (isTvUIActive()) {
@@ -3375,8 +3375,8 @@ function renderHiddenList(items, filter) {
   });
   updateHiddenSortMenu();
   equalizeHiddenRows();
-  // TV: aÃ§Ä±lÄ±ÅŸta odak ilk kartÄ±n unhide butonunda (header'a deÄŸil).
-  // Filtre yazarken (input odakta) ve sÄ±ralama menÃ¼sÃ¼nde Ã§alma.
+  // TV: açılışta odak ilk kartın unhide butonunda (header'a değil).
+  // Filtre yazarken (input odakta) ve sıralama menüsünde çalma.
   try {
     if (isTvUIActive() && modal && modal.style.display !== "none") {
       const ae = document.activeElement;
@@ -3395,9 +3395,9 @@ function renderHiddenList(items, filter) {
   } catch (_) {} }
 }
 
-// Gizli kart satÄ±r hizalama: isim + 3 meta slotunun gerÃ§ek yÃ¼ksekliÄŸini Ã¶lÃ§Ã¼p
-// listedeki en bÃ¼yÃ¼ÄŸe eÅŸitler. Tek satÄ±r isim altÄ±na boÅŸluk kazanÄ±r; rozet/
-// yayÄ±ncÄ±/statÃ¼ her kartta aynÄ± dikeyde baÅŸlar. CSS varsayÄ±mÄ±na dayanmaz.
+// Gizli kart satır hizalama: isim + 3 meta slotunun gerçek yüksekliğini ölçüp
+// listedeki en büyüğe eşitler. Tek satır isim altına boşluk kazanır; rozet/
+// yayıncı/statü her kartta aynı dikeyde başlar. CSS varsayımına dayanmaz.
 function equalizeHiddenRows() {
   const listEl = document.getElementById("hidden-list");
   if (!listEl) return;

@@ -1,4 +1,4 @@
-﻿// Faz 30: kimlik â€” giris/kayit ekranÄ±, oturum boot, admin modalÄ±, rol kapÄ±larÄ±.
+// Faz 30: kimlik — giris/kayit ekranı, oturum boot, admin modalı, rol kapıları.
 import { t, applyLang } from "./i18n.js?v=640";
 import { state } from "./state.js";
 import { toast, ROLE_CHECK_SVG, ROLE_X_SVG, ROLE_PLAY_SVG, ROLE_PAUSE_SVG, ROLE_STOP_SVG } from "./utils.js?v=640";
@@ -17,7 +17,7 @@ export function isAdmin() {
   return !!(currentUser && currentUser.role === "admin");
 }
 
-// ---- fetch sarmalama: /api Ã§aÄŸrÄ±larÄ±na Ã§erez ekle, 401'de giriÅŸe dÃ¼ÅŸÃ¼r ----
+// ---- fetch sarmalama: /api çağrılarına çerez ekle, 401'de girişe düşür ----
 const _rawFetch = window.fetch.bind(window);
 window.fetch = (url, opts = {}) => {
   const u = typeof url === "string" ? url : (url && url.url) || "";
@@ -65,7 +65,7 @@ function checkPw(p) {
   return null;
 }
 
-// ---- gÃ¶rÃ¼nÃ¼m ----
+// ---- görünüm ----
 function setMode(mode) {
   loginMode = mode;
   const frame = document.getElementById("login-frame");
@@ -190,7 +190,7 @@ function setMode(mode) {
   try { syncLoginLangSelect(); } catch (_) {}
 }
 
-// ---- login dil secici: adâ†’dil eslesmesi (kullanici bazli, cihaza damga yok) ----
+// ---- login dil secici: ad→dil eslesmesi (kullanici bazli, cihaza damga yok) ----
 const LANGMAP_KEY = "nx-langmap";
 const LANGMAP_CAP = 20;
 function loadLangMap() {
@@ -520,7 +520,7 @@ function applyRoleGates() {
   }
 }
 
-// ---- akÄ±ÅŸlar ----
+// ---- akışlar ----
 async function doLogin() {
   const u = document.getElementById("login-user").value.trim();
   const p = document.getElementById("login-pass").value;
@@ -674,18 +674,18 @@ async function doForgot() {
   const seq = ++forgotSeq;
   try {
     if (btn) btn.disabled = true;
-    // KayÄ±t-ol mantÄ±ÄŸÄ±nÄ±n tersi: sistemde yoksa istek gÃ¶nderilmez, kÄ±rmÄ±zÄ± toast.
-    // (exists ucu zaten herkese aÃ§Ä±k â€” kayÄ±t akÄ±ÅŸÄ± kullanÄ±yor, yeni sÄ±zÄ±ntÄ± yok.)
+    // Kayıt-ol mantığının tersi: sistemde yoksa istek gönderilmez, kırmızı toast.
+    // (exists ucu zaten herkese açık — kayıt akışı kullanıyor, yeni sızıntı yok.)
     try {
       const { res, data } = await apiJson("/api/auth/exists?u=" + encodeURIComponent(u));
-      if (seq !== forgotSeq) return; // bayat uÃ§uÅŸ: yeni basÄ±ÅŸ varken sus.
+      if (seq !== forgotSeq) return; // bayat uçuş: yeni basış varken sus.
       if (res.ok && !data.exists) {
         toast(t("auth_user_not_found"), true);
         return;
       }
     } catch (_) {
       if (seq !== forgotSeq) return;
-      // AÄŸ hatasÄ±nda eski davranÄ±ÅŸa dÃ¼ÅŸ (backend hep-ok).
+      // Ağ hatasında eski davranışa düş (backend hep-ok).
     }
     await apiJson("/api/auth/forgot", {
       method: "POST",
@@ -728,7 +728,7 @@ async function checkExists() {
   const note = document.getElementById("login-exists-note");
   const reg = document.getElementById("login-register");
   const bad = !!checkUser(u);
-  // BiÃ§im-kapÄ±sÄ±: boÅŸ/geÃ§ersiz adken forgot da kapalÄ± (toast yolu dÃ¼ÄŸmeden kapanÄ±r).
+  // Biçim-kapısı: boş/geçersiz adken forgot da kapalı (toast yolu düğmeden kapanır).
   try {
     const fg = document.getElementById("login-forgot");
     if (fg && !forgotBusy) fg.disabled = bad;
@@ -747,8 +747,8 @@ async function checkExists() {
 }
 
 // ---- admin ----
-// Ä°yimser satÄ±r silme + 0.5sn kare gizleme (bekleyen + sÄ±fÄ±rlama kareleri).
-// SatÄ±r anÄ±nda kalkar, POST arkada koÅŸar; son satÄ±rdan 0.5sn sonra boÅŸ kare
+// İyimser satır silme + 0.5sn kare gizleme (bekleyen + sıfırlama kareleri).
+// Satır anında kalkar, POST arkada koşar; son satırdan 0.5sn sonra boş kare
 // gizlenir. Arada imza poll'u yeni veri getirirse timer iptal olur.
 const frameHideTimers = {};
 function scheduleFrameHide(frameSel, listSel) {
@@ -815,7 +815,7 @@ function pendingChip(u) {
     }
   };
   icons.appendChild(roleIcon(ROLE_CHECK_SVG, "admin_approve", "c-green", call("/api/auth/approve", u.id), false, true));
-  icons.appendChild(roleIcon(ROLE_X_SVG, "admin_reject", "c-red", () => openRejectConfirm(`${t("admin_reject")} â€” ${u.username}`, call("/api/auth/reject", u.id)), false, true));
+  icons.appendChild(roleIcon(ROLE_X_SVG, "admin_reject", "c-red", () => openRejectConfirm(`${t("admin_reject")} — ${u.username}`, call("/api/auth/reject", u.id)), false, true));
   d.appendChild(icons);
   return d;
 }
@@ -823,7 +823,7 @@ function pendingChip(u) {
 // Sifirlama cipi anahtar simgesi (gecici sifre anlami; 10px stroke deseniyle).
 const ROLE_KEY_SVG = `<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="12" r="4"></circle><line x1="11" y1="12" x2="20" y2="12"></line><line x1="17" y1="12" x2="17" y2="16"></line><line x1="20" y1="12" x2="20" y2="15"></line></svg>`;
 
-// Sifre-goz simgeleri (satir-ici SVG; FA fontuna bagimsiz â€” TV WebView dahil):
+// Sifre-goz simgeleri (satir-ici SVG; FA fontuna bagimsiz — TV WebView dahil):
 // ACIK goz = text gorunur, CIZILI goz = masked (standart eslesme).
 const EYE_OPEN_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
 const EYE_CLOSED_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>`;
@@ -868,9 +868,9 @@ function adminEmpty() {
 
 export async function loadAdminLists() {
   if (!isAdmin()) return;
-  // Ä°skelet hemen (kutu boÅŸ kalmaz); fetch+poll SONDA (modal display:flex
-  // showSettingsSubmodal'daki await'ten sonra bitiyor â€” baÅŸta Ã§aÄŸrÄ±lÄ±rsa
-  // adminModalOpen() false gÃ¶rÃ¼p sessiz Ã¶lÃ¼yordu, rate hiÃ§ atÄ±lmÄ±yordu).
+  // İskelet hemen (kutu boş kalmaz); fetch+poll SONDA (modal display:flex
+  // showSettingsSubmodal'daki await'ten sonra bitiyor — başta çağrılırsa
+  // adminModalOpen() false görüp sessiz ölüyordu, rate hiç atılmıyordu).
   paintRateSkeleton();
   const { res, data } = await apiJson("/api/auth/pending");
   const pl = document.getElementById("admin-pending-list");
@@ -915,8 +915,8 @@ export async function loadAdminLists() {
   }
   armAdminRefresh();
   armAdminSig();
-  // Modal bu noktada aÃ§Ä±k (pending+members await'leri display:flex'e zaman
-  // tanÄ±dÄ±) â€” rate fetch+poll burada baÅŸlar (eski Ã§alÄ±ÅŸan sÄ±ra).
+  // Modal bu noktada açık (pending+members await'leri display:flex'e zaman
+  // tanıdı) — rate fetch+poll burada başlar (eski çalışan sıra).
   loadRateBars();
   armRateRefresh();
 }
@@ -987,7 +987,7 @@ function armAdminRefresh() {
   }, 30000);
 }
 
-// limit.md: API hiz gostergesi â€” etiket satiri + 3 bar + 1 sn poll (armAdminRefresh ikizi).
+// limit.md: API hiz gostergesi — etiket satiri + 3 bar + 1 sn poll (armAdminRefresh ikizi).
 // Teshis durumu: window.__NX_RATE ({polls, lastOk, lastErr, rows}).
 let rateTimer = null;
 let rateFails = 0;
@@ -996,7 +996,7 @@ function rateLabel(s) {
   return s === "tmdb" ? "TMDB" : s === "anilist" ? "AniList" : "TVMaze";
 }
 function ratePct(n) {
-  // tr Ã¶ne ekler (%75), diÄŸer diller sona ekler (75%).
+  // tr öne ekler (%75), diğer diller sona ekler (75%).
   try {
     if (state.currentLang === "tr") return "%" + n;
   } catch (_) {}
@@ -1005,7 +1005,7 @@ function ratePct(n) {
 function rateSep() {
   const sp = document.createElement("span");
   sp.className = "rate-sep";
-  sp.textContent = "Â·";
+  sp.textContent = "·";
   return sp;
 }
 function rateScale() {
@@ -1160,8 +1160,8 @@ function armRateRefresh() {
   rateTimer = null;
   if (!isAdmin()) return;
   if (!adminModalOpen()) {
-    // Modal henÃ¼z aÃ§Ä±lmadÄ±ysa (showSettingsSubmodal await yarÄ±ÅŸÄ±) pes etme:
-    // kÄ±sa gecikmeyle birkaÃ§ kez tekrar dene, sonra tick iÃ§inde guard'lÄ± poll kur.
+    // Modal henüz açılmadıysa (showSettingsSubmodal await yarışı) pes etme:
+    // kısa gecikmeyle birkaç kez tekrar dene, sonra tick içinde guard'lı poll kur.
     window.__NX_RATE = window.__NX_RATE || { polls: 0, lastOk: 0, lastErr: "", rows: 0 };
     window.__NX_RATE.lastErr = "guard-closed-retry";
     let tries = 0;
@@ -1186,7 +1186,7 @@ function armRateRefresh() {
     loadRateBars();
   }, 1000);
 }
-// Konsoldan elle tetikleme + modal-sonrasÄ± kick: __NX_kickRate()
+// Konsoldan elle tetikleme + modal-sonrası kick: __NX_kickRate()
 try {
   window.__NX_kickRate = () => {
     paintRateSkeleton();
@@ -1226,7 +1226,7 @@ function memberChip(u, activeAdmins) {
     u.status === "active" ? t("admin_status_active") : u.status === "pending" ? t("admin_status_pending") : t("admin_status_passive");
   const sb = document.createElement("div");
   sb.className = "member-sub" + (u.online ? " online" : "");
-  sb.textContent = `${role} Â· ${st}`;
+  sb.textContent = `${role} · ${st}`;
   left.appendChild(sb);
   d.appendChild(left);
   const icons = document.createElement("div");
@@ -1242,12 +1242,12 @@ function memberChip(u, activeAdmins) {
     } else if (u.role === "admin") {
       const lastOne = activeAdmins <= 1;
       icons.appendChild(roleIcon("fa-gem", "tip_demote", "c-red", call("/api/auth/demote", u.id), lastOne));
-      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => openMemberDeactivateConfirm(`${t("admin_deactivate")} â€” ${u.username}`, call("/api/auth/deactivate", u.id)), false, true));
+      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => openMemberDeactivateConfirm(`${t("admin_deactivate")} — ${u.username}`, call("/api/auth/deactivate", u.id)), false, true));
       icons.appendChild(roleIcon(ROLE_STOP_SVG, "admin_kick", "c-gray", call("/api/auth/kick", u.id), false, true));
       icons.appendChild(roleIcon(ROLE_X_SVG, "tip_delete", "c-red", () => openMemberDeleteConfirm(t("del_confirm", { name: u.username }), call("/api/auth/delete", u.id)), false, true));
     } else {
       icons.appendChild(roleIcon("fa-user", "tip_promote", "c-green", call("/api/auth/promote", u.id)));
-      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => openMemberDeactivateConfirm(`${t("admin_deactivate")} â€” ${u.username}`, call("/api/auth/deactivate", u.id)), false, true));
+      icons.appendChild(roleIcon(ROLE_PAUSE_SVG, "admin_deactivate", "c-orange", () => openMemberDeactivateConfirm(`${t("admin_deactivate")} — ${u.username}`, call("/api/auth/deactivate", u.id)), false, true));
       icons.appendChild(roleIcon(ROLE_STOP_SVG, "admin_kick", "c-gray", call("/api/auth/kick", u.id), false, true));
       icons.appendChild(roleIcon(ROLE_X_SVG, "tip_delete", "c-red", () => openMemberDeleteConfirm(t("del_confirm", { name: u.username }), call("/api/auth/delete", u.id)), false, true));
     }
@@ -1264,7 +1264,7 @@ async function adminCall(path, id) {
   if (res.ok) loadAdminLists();
 }
 async function adminActivate(userId) {
-  // Istegi etkinlestirir (sifre uretmez); satir anÄ±nda kalkar, 0.5sn sonra
+  // Istegi etkinlestirir (sifre uretmez); satir anında kalkar, 0.5sn sonra
   // bossa kare gizlenir; POST arkada kosar, hata olursa liste geri gelir.
   optimisticRemoveChip("#admin-resets-list", userId);
   scheduleFrameHide("#admin-resets-frame", "#admin-resets-list");
@@ -1287,7 +1287,7 @@ async function adminActivate(userId) {
   }
 }
 
-// ---- Ã§Ä±kÄ±ÅŸ ----
+// ---- çıkış ----
 function doLogout() {
   openLogoutConfirm(
     t("logout_confirm"),
@@ -1311,7 +1311,7 @@ function wireLogin() {
   go.addEventListener("click", () => (loginMode === "register" ? setMode("login") : doLogin()));
   reg.addEventListener("click", () => (loginMode === "register" ? doRegister() : setMode("register")));
   forgot.addEventListener("click", doForgot);
-  // TV'ye Ã¶zel Ã‡Ä±kÄ±ÅŸ butonu (oturum yok â€” doÄŸrudan bridge; onay/API yok).
+  // TV'ye özel Çıkış butonu (oturum yok — doğrudan bridge; onay/API yok).
   try {
     const lx = document.getElementById("login-exit");
     if (lx) lx.addEventListener("click", (e) => {
@@ -1346,8 +1346,8 @@ function wireLogin() {
       setMode("login");
     });
   }
-  // GÃ¶z ikonu: ilgili kutunun type'Ä±nÄ± Ã§evirir (dinamik satÄ±rlar dahil â€” delegasyon).
-  // Standart eÅŸleÅŸme: Ã§izili gÃ¶z = masked (password), aÃ§Ä±k gÃ¶z = aÃ§Ä±k text.
+  // Göz ikonu: ilgili kutunun type'ını çevirir (dinamik satırlar dahil — delegasyon).
+  // Standart eşleşme: çizili göz = masked (password), açık göz = açık text.
   document.getElementById("view-login").addEventListener("click", (e) => {
     const eye = e.target.closest(".pw-eye");
     if (!eye) return;
@@ -1363,7 +1363,7 @@ function wireLogin() {
     existsTimer = setTimeout(checkExists, 400);
     clearTimeout(resetCheckTimer);
     resetCheckTimer = setTimeout(checkResetStatus, 400);
-    // Adâ†’dil eslesmesi: kutuya birebir kayitli ad yazilinca ekran o dile doner.
+    // Ad→dil eslesmesi: kutuya birebir kayitli ad yazilinca ekran o dile doner.
     try {
       const v = user.value.trim();
       const hit = v ? mapGet(v) : null;
@@ -1391,7 +1391,7 @@ function wireLogin() {
       });
       lb.addEventListener("keydown", (e) => {
         if (loginLangListOpen()) return;
-        // Yalniz OK acar (asagi-ok degil â€” o kullaniciya gider).
+        // Yalniz OK acar (asagi-ok degil — o kullaniciya gider).
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           toggleLoginLangList(true);
@@ -1466,7 +1466,7 @@ export async function bootAuth() {
       return;
     }
   } catch (_) {}
-  // Oturumsuz: varsayilan Ä°ngilizce, sonra geo-IP ulke dili (gecmis yoksa).
+  // Oturumsuz: varsayilan İngilizce, sonra geo-IP ulke dili (gecmis yoksa).
   try { applyLang("en"); } catch (_) {}
   try { syncLoginLangSelect(); } catch (_) {}
   showLogin();

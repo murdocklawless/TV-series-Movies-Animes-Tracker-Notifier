@@ -1,4 +1,4 @@
-﻿// asks.js â€” "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
+// asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
 import { t, errText } from "./i18n.js?v=640";
 import { escAttr, toast, CHECK_SVG } from "./utils.js?v=640";
@@ -164,7 +164,7 @@ function renderAskList() {
 async function fetchAskList() {
   const list = listEl();
   if (!list) return;
-  list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7180">${t("loading") || "YÃ¼kleniyor..."}</div>`;
+  list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7180">${t("loading") || "Yükleniyor..."}</div>`;
   try {
     const r = await fetch("/api/asks", { cache: "no-store" });
     const j = await r.json();
@@ -214,7 +214,7 @@ function init() {
   if (clearBtn) {
     clearBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      openAskClearConfirm(t("ask_clear_confirm") || "TÃ¼m izlendi bilgileri silinsin mi?", async () => {
+      openAskClearConfirm(t("ask_clear_confirm") || "Tüm izlendi bilgileri silinsin mi?", async () => {
         try { await fetch("/api/asks", { method: "DELETE" }); } catch (_) {}
         fetchAskList();
         fetchAskCount();

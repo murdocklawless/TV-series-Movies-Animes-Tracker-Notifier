@@ -1,14 +1,14 @@
-﻿// rowview.js â€” Liste bÃ¶lÃ¼mleri iÃ§in Kart â†” SatÄ±r gÃ¶rÃ¼nÃ¼mÃ¼ geÃ§iÅŸi + poster Ã¶nizlemesi.
-// views.js'e dokunmaz; mevcut .card verisini okuyup satÄ±r modunda hÃ¼cre (tablo) dÃ¼zenine Ã§evirir.
-// Kolon geniÅŸlikleri dinamiktir (display:table auto-layout). BoÅŸ kolonlar (tÃ¼m satÄ±rlarda boÅŸ) dÃ¼ÅŸÃ¼rÃ¼lÃ¼r.
+// rowview.js — Liste bölümleri için Kart ↔ Satır görünümü geçişi + poster önizlemesi.
+// views.js'e dokunmaz; mevcut .card verisini okuyup satır modunda hücre (tablo) düzenine çevirir.
+// Kolon genişlikleri dinamiktir (display:table auto-layout). Boş kolonlar (tüm satırlarda boş) düşürülür.
 import { state } from "./state.js";
 import { t } from "./i18n.js?v=640";
 
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1"></rect><line x1="11" y1="6.5" x2="21" y2="6.5"></line><rect x="3" y="15" width="5" height="5" rx="1"></rect><line x1="11" y1="17.5" x2="21" y2="17.5"></line></svg>`;
 const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`;
 
-const ROW_TOOLTIP = { tr: "SatÄ±r gÃ¶rÃ¼nÃ¼mÃ¼", en: "Row view", de: "Zeilenansicht", fr: "Vue lignes", es: "Vista de filas", it: "Vista righe", ru: "Ğ¡Ğ¿Ğ¸ÑĞ¾Ğº", ar: "Ø¹Ø±Ø¶ Ø§Ù„ØµÙÙˆÙ", pt: "Vista em linhas", nl: "Rijenweergave", pl: "Widok wierszy", ja: "è¡Œè¡¨ç¤º", ko: "í–‰ ë³´ê¸°", zh: "åˆ—è¡¨è§†å›¾" };
-const CARD_TOOLTIP = { tr: "Kart gÃ¶rÃ¼nÃ¼mÃ¼", en: "Card view", de: "Kartenansicht", fr: "Vue cartes", es: "Vista de tarjetas", it: "Vista schede", ru: "Ğ¡ĞµÑ‚ĞºĞ°", ar: "Ø¹Ø±Ø¶ Ø§Ù„Ø¨Ø·Ø§Ù‚Ø§Øª", pt: "Vista em cartÃµes", nl: "Kaartweergave", pl: "Widok kart", ja: "ã‚«ãƒ¼ãƒ‰è¡¨ç¤º", ko: "ì¹´ë“œ ë³´ê¸°", zh: "å¡ç‰‡è§†å›¾" };
+const ROW_TOOLTIP = { tr: "Satır görünümü", en: "Row view", de: "Zeilenansicht", fr: "Vue lignes", es: "Vista de filas", it: "Vista righe", ru: "Список", ar: "عرض الصفوف", pt: "Vista em linhas", nl: "Rijenweergave", pl: "Widok wierszy", ja: "行表示", ko: "행 보기", zh: "列表视图" };
+const CARD_TOOLTIP = { tr: "Kart görünümü", en: "Card view", de: "Kartenansicht", fr: "Vue cartes", es: "Vista de tarjetas", it: "Vista schede", ru: "Сетка", ar: "عرض البطاقات", pt: "Vista em cartões", nl: "Kaartweergave", pl: "Widok kart", ja: "カード表示", ko: "카드 보기", zh: "卡片视图" };
 
 const BTN_SEL = ".calendar-btn, .info-btn, .move-btn, .move-back-btn, .archive-btn, .unarchive-btn, .hide-btn, .remove, .defer-btn";
 const hoverFine = !!(window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches);
@@ -34,10 +34,10 @@ function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-// ---- Kart verisini Ã§Ä±kar --------------------------------------------------------
+// ---- Kart verisini çıkar --------------------------------------------------------
 function txt(root, sel) { const e = root.querySelector(sel); return e ? e.textContent.trim() : ""; }
 function isEmptySlot(e) { return !e || e.classList.contains("slot-empty"); }
-// Bir .next-ep Ã¶ÄŸesinden taban metni ve geri-sayÄ±m rakamÄ±nÄ± (.next-ep-days) ayÄ±rÄ±r
+// Bir .next-ep öğesinden taban metni ve geri-sayım rakamını (.next-ep-days) ayırır
 function splitDays(el) {
   if (!el) return { text: "", days: "" };
   const daysEl = el.querySelector(".next-ep-days");
@@ -46,11 +46,11 @@ function splitDays(el) {
   if (daysEl) {
     days = (daysEl.textContent || "").trim();
     if (days && text.endsWith(days)) text = text.slice(0, text.length - days.length);
-    text = text.replace(/[\sÂ·.]+$/, "").trim();
+    text = text.replace(/[\s·.]+$/, "").trim();
   }
   return { text, days };
 }
-function daysHTML(n) { return n ? ` Â· <span class="wrow-days">${esc(n)}</span>` : ""; }
+function daysHTML(n) { return n ? ` · <span class="wrow-days">${esc(n)}</span>` : ""; }
 function typeClass(badge) {
   if (!badge) return "";
   if (badge.classList.contains("badge-tv")) return "wtype-tv";
@@ -79,7 +79,7 @@ function extract(card) {
   out.statusToday = !!(statusEl && (statusEl.classList.contains("today") || statusEl.querySelector(".today")));
   // Metin statusu (Bitti / Iptal edildi / Yeni sezon bekleniyor ...) kartta
   // .next-ep.muted ile kirmizi gosterilir; satir gorunumunde ayni rengi korumak
-  // icin bu bayragi tasiyoruz (tarihli statu: S02E03 Â· 21 Ekim Â· 3 -> yesil kalir).
+  // icin bu bayragi tasiyoruz (tarihli statu: S02E03 · 21 Ekim · 3 -> yesil kalir).
   out.statusMuted = !!(statusEl && statusEl.querySelector(".next-ep.muted"));
   const midEl = info.querySelector(".mrow-mid");
   const md = isEmptySlot(midEl) ? { text: "", days: "" } : splitDays(midEl);
@@ -104,12 +104,12 @@ function gridKind(grid, section) {
   return "tv";
 }
 
-// Bir kart iÃ§in (kind'a gÃ¶re) hÃ¼cre spesifikasyonlarÄ±
+// Bir kart için (kind'a göre) hücre spesifikasyonları
 function cellSpecs(d, kind) {
   const status = d.status || ((d.season || d.episode) ? "" : d.mid);
   const statusDays = d.status ? d.statusDays : ((d.season || d.episode) ? "" : d.midDays);
   const statusToday = !!(d.statusToday || (!d.status && !(d.season || d.episode) && d.midToday));
-  const detail = (d.season || d.episode) ? [d.season, d.episode].filter(Boolean).join(" Â· ") : d.mid;
+  const detail = (d.season || d.episode) ? [d.season, d.episode].filter(Boolean).join(" · ") : d.mid;
   const detailDays = (d.season || d.episode) ? "" : d.midDays;
   const map = {
     title: { cls: "wc-title title" + ((d.statusToday || d.midToday) ? " today" : ""), html: `<span class="wclip" title="${esc(d.title)}">${esc(d.title)}</span>` },
@@ -132,7 +132,7 @@ function cellSpecs(d, kind) {
   return order.map((k) => ({ key: k, cls: map[k].cls, html: map[k].html }));
 }
 
-// TÃ¼m satÄ±rlarda boÅŸ olan kolonlarÄ± dÃ¼ÅŸÃ¼r (baÅŸlÄ±k her zaman kalÄ±r)
+// Tüm satırlarda boş olan kolonları düşür (başlık her zaman kalır)
 function keptKeys(datas, kind) {
   const specs = datas.map((d) => cellSpecs(d, kind));
   const keys = specs.length ? specs[0].map((s) => s.key) : [];
@@ -144,7 +144,7 @@ function keptKeys(datas, kind) {
   return kept;
 }
 
-// ---- SatÄ±r modu: orijinale dÃ¶n / yeniden kur -----------------------------------
+// ---- Satır modu: orijinale dön / yeniden kur -----------------------------------
 function cardButtons(card) {
   const tv = isTvMode();
   return Array.from(card.querySelectorAll(BTN_SEL)).filter((b) => tv || !b.classList.contains("info-btn"));
@@ -196,8 +196,8 @@ function slotKeysFor(kind, section) {
   return tv ? ["calendar", "info", "defer", "move", "archive", "remove"] : ["calendar", "defer", "move", "archive", "remove"];
 }
 
-// BÃ¶lÃ¼m sargÄ±sÄ±: grid'in id'si -wrap ile biten en yakÄ±n div atasÄ±
-// (grid satÄ±r modunda iÃ§ sargÄ±ya alÄ±nsa bile deÄŸiÅŸmez).
+// Bölüm sargısı: grid'in id'si -wrap ile biten en yakın div atası
+// (grid satır modunda iç sargıya alınsa bile değişmez).
 function sectionWrap(grid) {
   try {
     const w = grid && grid.closest ? grid.closest('div[id$="-wrap"]') : null;
@@ -206,9 +206,9 @@ function sectionWrap(grid) {
   return grid ? grid.parentElement : null;
 }
 
-// Yatay kaydÄ±rma yalnÄ±z satÄ±r tablosunda olur: grid iÃ§ sargÄ±ya (div.row-hscroll)
-// alÄ±nÄ±r; baÅŸlÄ±k + arama kutusu + Ã¶zet dÄ±ÅŸarÄ±da kalÄ±r, kÄ±rpÄ±lmaz.
-// (grid.parentElement deÄŸiÅŸir â†’ views.js sargÄ±yÄ± sectionWrap ile bulur.)
+// Yatay kaydırma yalnız satır tablosunda olur: grid iç sargıya (div.row-hscroll)
+// alınır; başlık + arama kutusu + özet dışarıda kalır, kırpılmaz.
+// (grid.parentElement değişir → views.js sargıyı sectionWrap ile bulur.)
 function setXScroll(grid, on) {
   if (!grid) return;
   try {
@@ -239,25 +239,25 @@ function enhance(grid, on) {
     hidePreview();
     return;
   }
-  // 1) hepsini orijinal DOM'a dÃ¶ndÃ¼r
+  // 1) hepsini orijinal DOM'a döndür
   cards.forEach(restoreCard);
-  // 2) verileri ORÄ°JÄ°NALDOM'dan Ã§Ä±kar, kolonlarÄ± belirle
+  // 2) verileri ORİJİNALDOM'dan çıkar, kolonları belirle
   const datas = cards.map(extract);
   const kept = keptKeys(datas, kind);
-  // 3) her kartÄ± kur
+  // 3) her kartı kur
   cards.forEach((card, i) => { try { buildCard(card, kind, datas[i], kept, section); } catch (_) {} });
   setXScroll(grid, true);
 }
 
-// ---- Poster Ã¶nizlemesi ----------------------------------------------------------
+// ---- Poster önizlemesi ----------------------------------------------------------
 let previewEl = null;
 let previewOwner = null;
 
 function posterSrc(card) {
   const img = card.querySelector(".poster-wrap img");
   if (!img) return "";
-  // Ã–nizleme bÃ¼yÃ¼k aÃ§Ä±lÄ±r: srcset'in en bÃ¼yÃ¼k adayÄ± (yerel w500) kullanÄ±lÄ±r;
-  // kartta gÃ¶rÃ¼nen w185 bÃ¼yÃ¼tÃ¼lÃ¼nce flu oluyordu.
+  // Önizleme büyük açılır: srcset'in en büyük adayı (yerel w500) kullanılır;
+  // kartta görünen w185 büyütülünce flu oluyordu.
   try {
     const cands = (img.getAttribute("srcset") || "").split(",")
       .map((s) => s.trim().split(/\s+/)[0]).filter(Boolean);
@@ -277,8 +277,8 @@ function showPreview(card) {
   el.className = "wrow-poster";
   el.innerHTML = `<img alt="" src="${src}" data-fb="${fb}" onerror="if(this.dataset.fb&&this.src!==this.dataset.fb){this.src=this.dataset.fb;}" />`;
   document.body.appendChild(el);
-  // Konum/boyut CSS'tedir (ekran ortasÄ±, min(720px, 92vh)); TV'de ise eski
-  // WebView uyumu iÃ§in piksel geometri inline yazÄ±lÄ±r (min/aspect'e baÄŸlÄ± kalmaz).
+  // Konum/boyut CSS'tedir (ekran ortası, min(720px, 92vh)); TV'de ise eski
+  // WebView uyumu için piksel geometri inline yazılır (min/aspect'e bağlı kalmaz).
   if (isTvMode()) {
     try {
       const vw = window.innerWidth || 1280, vh = window.innerHeight || 720;
@@ -334,7 +334,7 @@ function bindPreview() {
   }, true);
 }
 
-// ---- Kart/SatÄ±r geÃ§iÅŸi ----------------------------------------------------------
+// ---- Kart/Satır geçişi ----------------------------------------------------------
 function modeKey(section) { return "viewMode:" + section; }
 
 function setToggleIcon(btn, grid) {
@@ -424,7 +424,7 @@ function rowFocusables(card) {
 }
 function firstTitle(card) { return card ? card.querySelector(".wc-title") : null; }
 
-// GÃ¶rÃ¼nÃ¼mdeki bÃ¶lÃ¼mlerin Ä±zgaralarÄ± (DOM sÄ±rasÄ±): yalnÄ±z gÃ¶rÃ¼nÃ¼r + kartÄ± olanlar.
+// Görünümdeki bölümlerin ızgaraları (DOM sırası): yalnız görünür + kartı olanlar.
 function sectionGrids() {
   const out = [];
   try {
@@ -442,8 +442,8 @@ function sectionGrids() {
   return out;
 }
 
-// IzgaranÄ±n ilk odaÄŸÄ±: satÄ±rsa ilk satÄ±r baÅŸlÄ±ÄŸÄ±, kartsa ilk kart.
-// OdaklananÄ± gÃ¶rÃ¼nÃ¼r alana kaydÄ±rÄ±r (tv.js focusEl kaydÄ±rma mantÄ±ÄŸÄ±).
+// Izgaranın ilk odağı: satırsa ilk satır başlığı, kartsa ilk kart.
+// Odaklananı görünür alana kaydırır (tv.js focusEl kaydırma mantığı).
 function focusGridFirst(grid, rowMode) {
   try {
     let el = null;
@@ -462,9 +462,9 @@ function focusGridFirst(grid, rowMode) {
   } catch (_) { return false; }
 }
 
-// SatÄ±r tablosunun bÃ¶lÃ¼m baÅŸlÄ±ÄŸÄ±ndaki arama butonu (TV D-pad: ilk satÄ±rdan
-// yukarÄ± Ã§Ä±kÄ±ÅŸ). Arama yoksa/kilitliyse ilk gÃ¶rÃ¼nÃ¼r baÅŸlÄ±k butonu; o da
-// yoksa null (tv.js gridMove devralÄ±r).
+// Satır tablosunun bölüm başlığındaki arama butonu (TV D-pad: ilk satırdan
+// yukarı çıkış). Arama yoksa/kilitliyse ilk görünür başlık butonu; o da
+// yoksa null (tv.js gridMove devralır).
 function sectionSearchButton(grid) {
   try {
     const wrap = sectionWrap(grid);
@@ -478,9 +478,9 @@ function sectionSearchButton(grid) {
   return null;
 }
 
-// Odaklanan Ã¶ÄŸe ekran dÄ±ÅŸÄ±ndaysa sayfayÄ± kaydÄ±r: navbar altÄ± ile ekran
-// altÄ± arasÄ±nda tutar (tv.js focusEl kaydÄ±rma mantÄ±ÄŸÄ±). Zaten gÃ¶rÃ¼nÃ¼rdeyse
-// hiÃ§bir ÅŸey yapmaz.
+// Odaklanan öğe ekran dışındaysa sayfayı kaydır: navbar altı ile ekran
+// altı arasında tutar (tv.js focusEl kaydırma mantığı). Zaten görünürdeyse
+// hiçbir şey yapmaz.
 function ensureVisible(el) {
   try {
     if (!el) return;
@@ -494,8 +494,8 @@ function ensureVisible(el) {
     if (r.bottom > vh - 10) y = Math.max(y, curY + r.bottom - vh + 10);
     if (y !== curY) window.scrollTo(0, Math.max(0, y));
   } catch (_) {}
-  // Yatay: odak iÃ§ satÄ±r kaydÄ±rÄ±cÄ±nÄ±n (div.row-hscroll) dÄ±ÅŸÄ±nda kaldÄ±ysa
-  // en-yakÄ±n kenara getir (satÄ±r baÅŸlÄ±ÄŸÄ± sola kayÄ±nca Ã§erÃ§eve kayboluyordu).
+  // Yatay: odak iç satır kaydırıcının (div.row-hscroll) dışında kaldıysa
+  // en-yakın kenara getir (satır başlığı sola kayınca çerçeve kayboluyordu).
   try {
     const box = el.closest ? el.closest(".row-hscroll") : null;
     if (box) {
@@ -541,8 +541,8 @@ function onTvKey(e) {
   }
   const ri = cards.indexOf(card);
   if (dir === "up" && ri <= 0) {
-    // Ä°lk satÄ±rdan yukarÄ±: bÃ¶lÃ¼m arama butonuna Ã§Ä±k (dÃ¶ngÃ¼den Ã§Ä±kÄ±ÅŸ).
-    // BaÅŸlÄ±k butonu yoksa dokunulmaz â†’ tv.js gridMove navbar akÄ±ÅŸÄ±nÄ± sÃ¼rdÃ¼rÃ¼r.
+    // İlk satırdan yukarı: bölüm arama butonuna çık (döngüden çıkış).
+    // Başlık butonu yoksa dokunulmaz → tv.js gridMove navbar akışını sürdürür.
     const btn = sectionSearchButton(grid);
     if (!btn) return;
     e.preventDefault(); e.stopImmediatePropagation();
@@ -552,8 +552,8 @@ function onTvKey(e) {
   }
   e.preventDefault(); e.stopImmediatePropagation();
   if (dir === "down" && ri >= cards.length - 1) {
-    // En alt satÄ±rdan aÅŸaÄŸÄ±: sonraki bÃ¶lÃ¼me; son bÃ¶lÃ¼mse en Ã¼st bÃ¶lÃ¼me sar.
-    // (Tek bÃ¶lÃ¼mlÃ¼k gÃ¶rÃ¼nÃ¼mde bÃ¶lÃ¼m iÃ§i sarma korunur.)
+    // En alt satırdan aşağı: sonraki bölüme; son bölümse en üst bölüme sar.
+    // (Tek bölümlük görünümde bölüm içi sarma korunur.)
     const list = sectionGrids();
     const gi = list.findIndex((s) => s.grid === grid);
     for (let k = 1; k <= list.length; k++) {

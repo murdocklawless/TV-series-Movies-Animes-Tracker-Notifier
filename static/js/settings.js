@@ -1,4 +1,4 @@
-﻿// Faz 4: settings â€” ayarlar menÃ¼sÃ¼, zaman dilimi / saat seÃ§icileri, favori listeleri, otomatik kaydetme, bildirim anahtarlarÄ±.
+// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
 import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=640";
 import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=640";
@@ -25,7 +25,7 @@ function nxOnce(key) {
 // ---- Search ----
 // ---- Settings ----
 
-// Bildirim tipleri â€” py/scheduler.py NOTIF_TYPES ile birebir aynÄ±
+// Bildirim tipleri — py/scheduler.py NOTIF_TYPES ile birebir aynı
 const NOTIF_TYPES = [
   ["episode_today", "tv"], ["season_start", "tv"], ["season_planned", "tv"],
   ["season_production", "tv"], ["status_ended", "tv"], ["status_canceled", "tv"],
@@ -75,7 +75,7 @@ function renderNotifTypes() {
       saveSettingsPartial({ [`notif_${k}`]: e.target.checked ? "1" : "0" }, hint);
     });
   });
-  // Tek grup aÃ§Ä±k: bir head'e tiklaninca digerleri kapanir
+  // Tek grup açık: bir head'e tiklaninca digerleri kapanir
   NOTIF_GROUPS.forEach(([g]) => {
     const box = document.getElementById(`notif-type-box-${g}`);
     if (!box) return;
@@ -92,7 +92,7 @@ async function loadTimezones() {
     const res = await fetch("/api/timezones");
     state.allTimezones = await res.json();
   } catch (e) {
-    console.error("timezone yÃ¼kleme hatasÄ±", e);
+    console.error("timezone yükleme hatası", e);
   }
 }
 
@@ -301,13 +301,13 @@ function closeTzList() {
   }
 }
 
-// MERKEZLÄ° BÃœYÃœME: liste aÃ§Ä±lÄ±nca modal iki yÃ¶ne bÃ¼yÃ¼r ve overlay'in doÄŸal
-// align-items:center'Ä± ile dikey ortalanÄ±r (eski flex-start anchor + marginTop
-// dengelemesi kaldÄ±rÄ±ldÄ± â€” aÅŸaÄŸÄ±-bÃ¼yÃ¼ modeli ekran altÄ±ndan taÅŸÄ±yordu).
-// Hedef yÃ¼kseklik ekranÄ±n Ã¼st/alt boÅŸluÄŸuna clamp'lenir; taÅŸan kÄ±sÄ±m listenin
-// kendi iÃ§i scroll'una kalÄ±r (inline maxHeight, her aÃ§Ä±lÄ±ÅŸta taze hesaplanÄ±r).
-// TEK AKTÄ°F PULLDOWN: yeni liste aÃ§Ä±lÄ±nca Ã¶ncekinin odasÄ± tabana indirilir;
-// kapanÄ±nca body minHeight overlay'in kaydettiÄŸi TABAN deÄŸere dÃ¶ner.
+// MERKEZLİ BÜYÜME: liste açılınca modal iki yöne büyür ve overlay'in doğal
+// align-items:center'ı ile dikey ortalanır (eski flex-start anchor + marginTop
+// dengelemesi kaldırıldı — aşağı-büyü modeli ekran altından taşıyordu).
+// Hedef yükseklik ekranın üst/alt boşluğuna clamp'lenir; taşan kısım listenin
+// kendi içi scroll'una kalır (inline maxHeight, her açılışta taze hesaplanır).
+// TEK AKTİF PULLDOWN: yeni liste açılınca öncekinin odası tabana indirilir;
+// kapanınca body minHeight overlay'in kaydettiği TABAN değere döner.
 let activePdList = null;
 
 function ensureModalRoom(list, desired) {
@@ -320,7 +320,7 @@ function ensureModalRoom(list, desired) {
     body.style.minHeight = overlay.dataset.pdBaseMinH || "";
   }
   if (!activePdList) {
-    // taban yalnÄ±zca overlay TAMAMEN serbestken yakalanÄ±r (takeover kirlenmesi)
+    // taban yalnızca overlay TAMAMEN serbestken yakalanır (takeover kirlenmesi)
     if (!overlay.dataset.pdRoomOpen) {
       overlay.dataset.pdBaseMinH = body.style.minHeight || "";
       overlay.dataset.pdRoomOpen = "1";
@@ -328,7 +328,7 @@ function ensureModalRoom(list, desired) {
     list.dataset.pdAnchored = "1";
     activePdList = list;
   }
-  // MOBIL: s-tz-list modal alt sÄ±nÄ±rÄ±na kadar uzasÄ±n (desktop gMax clamp'i atla)
+  // MOBIL: s-tz-list modal alt sınırına kadar uzasın (desktop gMax clamp'i atla)
   if (window.innerWidth <= 768 && list.id === "s-tz-list") {
     const relTopM = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
     const viewportAvail = window.innerHeight - list.getBoundingClientRect().top - 24;
@@ -339,7 +339,7 @@ function ensureModalRoom(list, desired) {
     if (neededM > body.offsetHeight) body.style.minHeight = neededM + "px";
     return;
   }
-  // DESKTOP: s-tz-list alt border'Ä± modal alt sÄ±nÄ±rÄ±na yapÄ±ÅŸsÄ±n (mobil gibi)
+  // DESKTOP: s-tz-list alt border'ı modal alt sınırına yapışsın (mobil gibi)
   if (window.innerWidth > 768 && list.id === "s-tz-list") {
     const relTopD = Math.round(list.getBoundingClientRect().top - body.getBoundingClientRect().top);
     const viewportAvailD = window.innerHeight - list.getBoundingClientRect().top - 24;
@@ -351,7 +351,7 @@ function ensureModalRoom(list, desired) {
     return;
   }
   const bodyRect = body.getBoundingClientRect();
-  // merkezleme bÃ¼yÃ¼meyi iki yarÄ±ya bÃ¶ldÃ¼ÄŸÃ¼ iÃ§in her yÃ¶nÃ¼n payÄ± 2 kat sayÄ±lÄ±r
+  // merkezleme büyümeyi iki yarıya böldüğü için her yönün payı 2 kat sayılır
   const gMax = Math.max(120, Math.min(
     2 * (window.innerHeight - 24 - bodyRect.bottom),
     2 * (bodyRect.top - 24)
@@ -359,7 +359,7 @@ function ensureModalRoom(list, desired) {
   const target = Math.min(Math.max(desired, 0), gMax);
   if (target <= 0) return;
   list.style.maxHeight = Math.max(120, target - 16) + "px";
-  // relTop merkezlemeden etkilenmez (body iÃ§i gÃ¶reÃ§ konum)
+  // relTop merkezlemeden etkilenmez (body içi göreç konum)
   const relTop = Math.round(list.getBoundingClientRect().top - bodyRect.top);
   const needed = relTop + target;
   if (needed > body.offsetHeight) {
@@ -648,7 +648,7 @@ async function loadSettings() {
   const rsPass = document.getElementById("s-backup-rsync-pass");
   if (rsPass) rsPass.value = "";
   const rsKey = document.getElementById("s-backup-rsync-key-text");
-  if (rsKey) rsKey.value = s.has_backup_key ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "";
+  if (rsKey) rsKey.value = s.has_backup_key ? "••••••••" : "";
   rsKey.dataset.hasKey = s.has_backup_key ? "1" : "0";
   const smH = document.getElementById("s-backup-samba-host");
   if (smH) smH.value = s.backup_samba_host || "";
@@ -722,7 +722,7 @@ async function loadSettings() {
 
 function applyReadonlyGlobals(s) {
   // Faz 32: uye global anahtarlari salt-okunur gorur (admin yonetir).
-  // notification_hour kisisel oldugundan haric â€” uye duzenleyebilir.
+  // notification_hour kisisel oldugundan haric — uye duzenleyebilir.
   const keyToIds = {
     tmdb_api_key: ["s-tmdb"],
     telegram_bot_token: ["s-token"],
@@ -1031,7 +1031,7 @@ async function renderFavGenresList() {
   } catch (e) {}
 }
 
-// Favori liste modalÄ± â€” person-modal ile aynÄ± boyut/grid, cache'li
+// Favori liste modalı — person-modal ile aynı boyut/grid, cache'li
 async function openFavListing(kind, ident, title) {
   const modal = document.getElementById("fav-listing-modal");
   const body = document.getElementById("fav-listing-body");
@@ -1126,7 +1126,7 @@ if (nxOnce("fav_listing_modal")) (function initFavListingModal() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.style.display !== "none") close(); });
 })();
 
-// Yedekleme: sabit Ã§erÃ§eve 2 switch (biri aÃ§Ä±lÄ±rsa diÄŸeri kapanÄ±r) + Rsync/Samba akordeonlarÄ±
+// Yedekleme: sabit çerçeve 2 switch (biri açılırsa diğeri kapanır) + Rsync/Samba akordeonları
 if (nxOnce("backup_switches")) (function initBackupSwitches() {
   const dbSw = document.getElementById("s-backup-db");
   const fullSw = document.getElementById("s-backup-full");
@@ -1151,11 +1151,11 @@ if (nxOnce("backup_switches")) (function initBackupSwitches() {
       saveSettingsPartial({ backup_mode: "db" }, fullSw.closest(".channel-frame").querySelector(".saved-hint") || document.getElementById("notify-saved-hint"));
     }
   });
-  // switch tÄ±klamasÄ± akordeonu tetiklemesin
+  // switch tıklaması akordeonu tetiklemesin
   [dbSw, fullSw].forEach((sw) => sw.addEventListener("click", (e) => e.stopPropagation()));
 })();
 
-// Yedekleme Rsync/Samba akordeonlarÄ± + port autofill + SSH key textarea/file
+// Yedekleme Rsync/Samba akordeonları + port autofill + SSH key textarea/file
 if (nxOnce("backup_accordion")) (function initBackupAccordion() {
   [["backup-rsync-box", "backup-rsync-body", "s-backup-rsync-port", "22"], ["backup-samba-box", "backup-samba-body", "s-backup-samba-port", "445"]].forEach(([boxId, bodyId, portId, defPort]) => {
     const box = document.getElementById(boxId);
@@ -1180,22 +1180,22 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
       }
     });
   });
-  // SSH key textarea autosave (bulanÄ±klaÅŸÄ±nca)
+  // SSH key textarea autosave (bulanıklaşınca)
   const keyText = document.getElementById("s-backup-rsync-key-text");
   if (keyText) {
-    // placeholder key gÃ¶steriliyorsa ilk odaklanmada temizle
+    // placeholder key gösteriliyorsa ilk odaklanmada temizle
     keyText.addEventListener("focus", () => {
-      if (keyText.dataset.hasKey === "1" && keyText.value === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") {
+      if (keyText.dataset.hasKey === "1" && keyText.value === "••••••••") {
         keyText.value = "";
         keyText.dataset.hasKey = "0";
       }
     });
     keyText.addEventListener("blur", async () => {
       const v = keyText.value.trim();
-      if (!v || v === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") return;
-      // OpenSSH format kontrolÃ¼ (baÅŸlÄ±k)
+      if (!v || v === "••••••••") return;
+      // OpenSSH format kontrolü (başlık)
       if (!v.includes("BEGIN") || !v.includes("PRIVATE KEY")) {
-        toast("OpenSSH formatÄ±nda olmalÄ± (-----BEGIN OPENSSH PRIVATE KEY-----)", true);
+        toast("OpenSSH formatında olmalı (-----BEGIN OPENSSH PRIVATE KEY-----)", true);
         return;
       }
       const hint = keyText.closest("label").querySelector(".saved-hint");
@@ -1235,7 +1235,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
       await saveSettingsPartial({ backup_rsync_key: "" }, hint);
     });
   }
-  // backup alanlarÄ± autosave (blur)
+  // backup alanları autosave (blur)
   [
     ["s-backup-rsync-host", "backup_rsync_host"],
     ["s-backup-rsync-port", "backup_rsync_port"],
@@ -1254,7 +1254,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
       await saveSettingsPartial({ [key]: v }, hint);
     });
   });
-  // ÅŸifreler: boÅŸ bÄ±rakÄ±lÄ±rsa gÃ¶nderme, doluysa kaydet
+  // şifreler: boş bırakılırsa gönderme, doluysa kaydet
   ["s-backup-rsync-pass", "s-backup-samba-pass"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1267,7 +1267,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
       if (ok) el.value = "";
     });
   });
-  // Yedekle / Geri YÃ¼kle butonlarÄ± - hedef mantÄ±ÄŸÄ± (tablo)
+  // Yedekle / Geri Yükle butonları - hedef mantığı (tablo)
   function isRsyncDolu() {
     const v = document.getElementById("s-backup-rsync-host")?.value.trim();
     return !!v;
@@ -1294,13 +1294,13 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
     let target = null;
     let tipKey = null;
     let disabled = false;
-    // Tek taraf dolu -> hedef belli, seÃ§im/tooltip yok
+    // Tek taraf dolu -> hedef belli, seçim/tooltip yok
     if (rDolu && !sDolu) {
       target = "rsync";
     } else if (!rDolu && sDolu) {
       target = "samba";
     } else if (rDolu && sDolu) {
-      // Ä°kisi dolu -> aÃ§Ä±k akordeon belirler
+      // İkisi dolu -> açık akordeon belirler
       if (!open) {
         disabled = true;
         tipKey = "tip_backup_choose";
@@ -1309,17 +1309,17 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
         tipKey = target === "rsync" ? "tip_backup_rsync" : "tip_backup_samba";
       }
     } else {
-      // HiÃ§biri dolu deÄŸil
+      // Hiçbiri dolu değil
       disabled = true;
       tipKey = "tip_backup_empty";
     }
     // Yedekle butonu
     nowBtn.disabled = disabled;
     restoreBtn.disabled = disabled;
-    // GÃ¼ncelleme modalÄ±ndaki Yedekleme Saati: hedef yoksa kapalÄ± + bilgi tooltip'i
-    // (data-tip satÄ±rÄ±n tamamÄ±na yazÄ±lÄ±r: disabled input fare olayÄ± Ã¼retmez,
-    //  baÅŸlÄ±k span'i ise input Ã¼zerinden hover'da atlanÄ±r; satÄ±r kapsayÄ±nca
-    //  Ã¶zel tooltip her noktada Ã§alÄ±ÅŸÄ±r)
+    // Güncelleme modalındaki Yedekleme Saati: hedef yoksa kapalı + bilgi tooltip'i
+    // (data-tip satırın tamamına yazılır: disabled input fare olayı üretmez,
+    //  başlık span'i ise input üzerinden hover'da atlanır; satır kapsayınca
+    //  özel tooltip her noktada çalışır)
     const backupHourInput = document.getElementById("s-backup-hour");
     if (backupHourInput) {
       const hourBlocked = !rDolu && !sDolu;
@@ -1349,7 +1349,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
       restoreBtn.setAttribute("data-i18n", "backup_restore");
       restoreBtn.textContent = t("backup_restore");
     }
-    // Tooltip - sadece gerektiÄŸinde
+    // Tooltip - sadece gerektiğinde
     if (tipKey) {
       const tip = t(tipKey);
       nowBtn.setAttribute("data-tip", tip);
@@ -1362,21 +1362,21 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
     nowBtn.dataset.target = target || "";
     restoreBtn.dataset.target = target || "";
   }
-  // Akordeon toggle sonrasÄ± gÃ¼ncelle (port autofill sonrasÄ± da)
+  // Akordeon toggle sonrası güncelle (port autofill sonrası da)
   const _origBoxes = ["backup-rsync-box", "backup-samba-box"].map((id) => document.getElementById(id)).filter(Boolean);
   _origBoxes.forEach((box) => box.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0)));
-  // Host/share input blur sonrasÄ± (dolu deÄŸiÅŸebilir)
+  // Host/share input blur sonrası (dolu değişebilir)
   ["s-backup-rsync-host", "s-backup-samba-host", "s-backup-samba-share"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("blur", () => setTimeout(updateBackupButtonsState, 300));
     if (el) el.addEventListener("input", () => setTimeout(updateBackupButtonsState, 0));
   });
-  // Modal aÃ§Ä±lÄ±rken ve ayarlar yÃ¼klenince
+  // Modal açılırken ve ayarlar yüklenince
   const backupMenuItem = document.querySelector('.settings-menu-item[data-target="settings-backup-modal"]');
   if (backupMenuItem) backupMenuItem.addEventListener("click", () => setTimeout(updateBackupButtonsState, 0));
-  // loadSettings sonrasÄ± iÃ§in global hook
+  // loadSettings sonrası için global hook
   window.updateBackupButtonsState = updateBackupButtonsState;
-  // Ä°lk durum + dil deÄŸiÅŸiminde gÃ¼ncelle
+  // İlk durum + dil değişiminde güncelle
   setTimeout(updateBackupButtonsState, 0);
   document.addEventListener("app:langchange", updateBackupButtonsState);
 
@@ -1400,7 +1400,7 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
   });
 })();
 
-// NextEp GÃ¼ncelleme: versiyon satÄ±rÄ± + ayrÄ±ntÄ± modalÄ± + kontrol/gÃ¼ncelle butonlarÄ±
+// NextEp Güncelleme: versiyon satırı + ayrıntı modalı + kontrol/güncelle butonları
 let lastAppVer = { local: "", remote: "", available: false, changes: [] };
 let lastDetailEntries = [];
 function fillAppUpdateDetail(entries) {
@@ -1417,7 +1417,7 @@ function fillAppUpdateDetail(entries) {
   verEl.textContent = "";
   ul.innerHTML = entries.map((entry) => {
     const items = (entry[lang] && entry[lang].length ? entry[lang] : entry.tr || []);
-    const head = entry.date ? `VERSION ${entry.version} Â· ${entry.date}` : `VERSION ${entry.version}`;
+    const head = entry.date ? `VERSION ${entry.version} · ${entry.date}` : `VERSION ${entry.version}`;
     return `<li class="app-change-ver">${esc(head)}</li>` +
       (items.length
         ? items.map((it) => `<li>${esc(it)}</li>`).join("")
@@ -1436,7 +1436,7 @@ function renderAppVersion() {
   const runBtn = document.getElementById("appupdate-run");
   if (!el || !runBtn) return;
   const safe = (v) => String(v || "").replace(/[^0-9.]/g, "");
-  const cur = safe(lastAppVer.local) || "â€”";
+  const cur = safe(lastAppVer.local) || "—";
   let html = `${t("app_version_current")} ${cur}`;
   if (lastAppVer.available && lastAppVer.remote) {
     html += ` -&gt; <span class="new-version">${t("app_version_new")} ${safe(lastAppVer.remote)}</span>`;
@@ -1445,7 +1445,7 @@ function renderAppVersion() {
   runBtn.disabled = !lastAppVer.available;
 }
 async function loadAppVersionFast() {
-  // 1.87: AG YOK ucu â€” "Mevcut surum" satiri ANINDA yazilsin, butonlar dogru duruma gelsin.
+  // 1.87: AG YOK ucu — "Mevcut surum" satiri ANINDA yazilsin, butonlar dogru duruma gelsin.
   try {
     const r = await fetch("/api/app-update/version", { cache: "no-store" });
     const j = await r.json();
@@ -1470,7 +1470,7 @@ async function checkAppUpdate(showToast) {
       } catch (e) {
         lastAppVer.changes = [];
       }
-      // Sistem sÃ¼rÃ¼mÃ¼nden sonraki TÃœM sÃ¼rÃ¼mlerin notlarÄ±, yalnÄ±z kullanÄ±cÄ± kontrol istediyse
+      // Sistem sürümünden sonraki TÜM sürümlerin notları, yalnız kullanıcı kontrol istediyse
       if (showToast) openAppUpdateDetail(lastAppVer.changes);
     }
     if (showToast) showMsg(j.available ? t("appupdate_found", { ver: j.remote }) : t("appupdate_none"), true);
@@ -1513,7 +1513,7 @@ if (nxOnce("app_update")) (function initAppUpdate() {
   });
 })();
 
-// Favoriler: 3 kutu doÄŸrudan modal-body'de alt alta, dÄ±ÅŸ Ã§erÃ§eve yok
+// Favoriler: 3 kutu doğrudan modal-body'de alt alta, dış çerçeve yok
 if (nxOnce("fav_accordion")) (function initFavoritesAccordion() {
   [["fav-actors-box", "fav-actors-body"], ["fav-directors-box", "fav-directors-body"], ["fav-genres-box", "fav-genres-body"]].forEach(([boxId, bodyId]) => {
     const box = document.getElementById(boxId);
@@ -1548,9 +1548,9 @@ document.getElementById("tab-settings").addEventListener("click", (e) => {
   } else {
     activateUtilityTab(document.getElementById("tab-settings"));
     menu.classList.add("open");
-    // Desktop: pencere-sol bildirim butonu soluna, pencere-saÄŸ diÅŸli butonu saÄŸÄ±na dayanÄ±r
-    // (pencere = diÅŸliSaÄŸ - bildirimSol kadar geniÅŸler). Mesafe dile/yakÄ±nlaÅŸtÄ±rmaya baÄŸlÄ±
-    // olduÄŸundan aÃ§Ä±lÄ±ÅŸ anÄ±nda Ã¶lÃ§Ã¼lÃ¼r; mobil/TV'de menÃ¼ diÅŸli altÄ±nda dar kalÄ±r.
+    // Desktop: pencere-sol bildirim butonu soluna, pencere-sağ dişli butonu sağına dayanır
+    // (pencere = dişliSağ - bildirimSol kadar genişler). Mesafe dile/yakınlaştırmaya bağlı
+    // olduğundan açılış anında ölçülür; mobil/TV'de menü dişli altında dar kalır.
     if (window.matchMedia("(min-width: 769px)").matches && !document.documentElement.classList.contains("is-tv") && !document.documentElement.classList.contains("tv-mode")) {
       const notif = document.getElementById("tab-notif");
       const wrap = document.querySelector(".settings-wrap");
@@ -2063,7 +2063,7 @@ if (nxOnce("notif_accordions")) (function initAccordions() {
   });
 })();
 
-// Faz 24b: Bildirim Kanallari dis akordeonu â€” 5 kanal kutusunu saran cerceve.
+// Faz 24b: Bildirim Kanallari dis akordeonu — 5 kanal kutusunu saran cerceve.
 // Ic kanal akordeonlari (initAccordions) aynen korunur; ic kutu tiklamalari dis akordeonu tetiklemez.
 if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
   const box = document.getElementById("channels-accordion");
@@ -2177,7 +2177,7 @@ let tpJellyfinOpen = false;
 let tpEmbyOpen = false;
 let tpTraktOpen = false;
 let tpTraktClientId = "";
-// 1.87: Emby kartinin IC akordeonlari (Webhook / API Key / Access Token) â€” biri acilinca digeri kapanir.
+// 1.87: Emby kartinin IC akordeonlari (Webhook / API Key / Access Token) — biri acilinca digeri kapanir.
 let tpEmbySection = "";
 // 1.87: Emby API alanlarinin SON KAYITLI degerleri. Sistem geneli kural: kutularda
 // DEGISIKLIK YOKSA kaydetme (bkz. flushTpBaseUrl deseni). Kart cizilirken sunucu
@@ -2186,7 +2186,7 @@ let tpEmbyApiUrl = "";
 let tpEmbyApiUser = "";
 let tpEmbyApiHasKey = false;
 let tpEmbyApiSaving = false;
-// 1.94: Access Token alanlari. Token yalnizca POST yanitindan/elle giriÅŸten
+// 1.94: Access Token alanlari. Token yalnizca POST yanitindan/elle girişten
 // sonra gorunur; sayfa yenilenince GET token dondurmedigi icin bos gelir.
 let tpEmbyTokenVisible = "";
 let tpEmbyTokenHas = false;
@@ -2198,7 +2198,7 @@ let tpIsAdmin = false;
 let tpAskBeforeWatched = true;
 // 1.88: kaynak bazli "izlendi bilgisi sor" degerleri ("" = genel ayar gecerli).
 let tpAskSrc = { plex: "", jellyfin: "", emby: "" };
-// Uzak BaÄŸlantÄ± (VPS): profil + Uzak BaÄŸlantÄ± kartÄ± + telefon peer'leri.
+// Uzak Bağlantı (VPS): profil + Uzak Bağlantı kartı + telefon peer'leri.
 let tpVpsOpen = false;
 // 1.87: Public Adres kendi akordeonunda (Stremio karti icinden cikarildi).
 let tpPublicOpen = false;
@@ -2271,7 +2271,7 @@ async function renderThirdPartyApps(opts = {}) {
     }
     vpsHtml = renderVpsSection();
   }
-  // 1.87: Public Adres karti â€” Sunucu Baglanti Ayarlari ile Stremio arasinda.
+  // 1.87: Public Adres karti — Sunucu Baglanti Ayarlari ile Stremio arasinda.
   const publicHtml = renderPublicBaseCard();
   if (!apps.length) {
     wrap.innerHTML = vpsHtml + publicHtml + `<div class="fav-empty">${t("tp_empty")}</div>`;
@@ -2367,11 +2367,11 @@ const thirdPartyAppRenderers = {
       </div>
     </div>`;
   },
-  // 1.86: Plex / Jellyfin / Emby â€” webhook ile izleme sinyali (aynÄ± iskelet).
+  // 1.86: Plex / Jellyfin / Emby — webhook ile izleme sinyali (aynı iskelet).
   plex: (app) => tpWebhookCard(app, tpPlexOpen, "fa-circle-play", null),
   jellyfin: (app) => tpWebhookCard(app, tpJellyfinOpen, "fa-clapperboard", null),
   emby: (app) => tpWebhookCard(app, tpEmbyOpen, "fa-photo-film", null),
-  // 2.03: Trakt â€” OAuth device code; tek/Ã§ift yÃ¶n; per-user yoklama.
+  // 2.03: Trakt — OAuth device code; tek/çift yön; per-user yoklama.
   trakt: (app) => {
     const configured = !!app.traktConfigured;
     const connected = !!app.traktConnected;
@@ -2397,7 +2397,7 @@ const thirdPartyAppRenderers = {
     let poolTxt = poolPending
       ? t("tp_trakt_pool_pending", { n: poolPending })
       : t("tp_trakt_pool_idle");
-    if (poolFailed) poolTxt += " Â· " + t("tp_trakt_pool_failed", { n: poolFailed });
+    if (poolFailed) poolTxt += " · " + t("tp_trakt_pool_failed", { n: poolFailed });
     const poolIntTxt = poolInterval > 0
       ? (poolActive
           ? t("tp_trakt_pool_active", { n: poolInterval })
@@ -2425,7 +2425,7 @@ const thirdPartyAppRenderers = {
             <span class="tp-status-value ${stCls}">${escAttr(stTxt)}</span>
           </div>
           ${user ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_user")}</span><span class="tp-status-value">${escAttr(user)}</span></div>` : ""}
-          ${connected ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_last_check")}</span><span class="tp-last-signal">${app.traktCheckedTs ? formatSignalTime(app.traktCheckedTs) : "â€”"}</span></div>` : ""}
+          ${connected ? `<div class="tp-status-row"><span class="notify-name">${t("tp_trakt_last_check")}</span><span class="tp-last-signal">${app.traktCheckedTs ? formatSignalTime(app.traktCheckedTs) : "—"}</span></div>` : ""}
           ${errTxt ? `<div class="tp-frame-note tp-warn">${escAttr(errTxt)}</div>` : ""}
         </div>
         ${tpSignalBox(app.traktLastSignal, app.traktLastWatch)}
@@ -2500,7 +2500,7 @@ const thirdPartyAppRenderers = {
     return `
     <div class="channel-box accordion-box notif-type-box${tpRemoteOpen ? " accordion-open" : ""}${cardDisabled ? " tp-card-disabled" : ""}" id="tp-app-remote"${cardDisabled ? ` title="${t("vps_gate_tooltip")}"` : ""}>
       <div class="notif-type-head">
-        <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak BaÄŸlantÄ±")}</span>
+        <span class="notif-type-title"><i class="fa-solid fa-network-wired"></i> ${escAttr(app.name || "Uzak Bağlantı")}</span>
       </div>
       <div class="notif-type-body" style="display:${tpRemoteOpen ? "block" : "none"}">
         <div class="tp-sub-box">
@@ -2532,7 +2532,7 @@ const thirdPartyAppRenderers = {
 //   "Bagli (LAN)" -> "{app} Webhook LAN uzerinden bagli"
 //   "Bagli (URL)" -> "{app} Webhook URL uzerinden bagli"
 // Henuz olay gelmemis (kurulu + tunel saglam) -> disabled, tooltip "Kurulu".
-// Yol yok -> kurulum Â· yol var + tunel kopuk -> "Onar".
+// Yol yok -> kurulum · yol var + tunel kopuk -> "Onar".
 function tpVpsInstallBtn(app) {
   if (!tpIsAdmin || !app || !app.vpsProfile) return "";
   const aid = String(app.id || "");
@@ -2558,9 +2558,9 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const aid = String(app.id || "");
   const url = app.installUrl || "";
   const isEmby = aid === "emby";
-  // 1.87: baslik eki â€” Plex webhook'u Plex Pass gerektirir (PLEX (PLEX PASS)).
+  // 1.87: baslik eki — Plex webhook'u Plex Pass gerektirir (PLEX (PLEX PASS)).
   const titleSuffix = aid === "plex" ? " (" + t("tp_plex_pass") + ")" : "";
-  // 1.87: Emby kartinda IC akordeonlar (Webhook / API Key) â€” biri acilinca digeri kapanir.
+  // 1.87: Emby kartinda IC akordeonlar (Webhook / API Key) — biri acilinca digeri kapanir.
   const secOpen = (which) => isEmby && tpEmbySection === which;
   if (isEmby) {
     // Cizilen kutular = kayitli durum (degisiklik yoksa kaydetmeme kuralinin temeli).
@@ -2582,10 +2582,10 @@ function tpWebhookCard(app, open, icon, noteKey) {
         </div>`;
   const notesHtml = noteKey ? `
           <div class="tp-frame-note">${t(noteKey)}</div>` : "";
-  // 1.87: LAN cercevesi â€” yalnizca kartin TAM LAN linki (taban adres kutusu YOK).
-  // Baslik, URL cercevesiyle BIREBIR ayni markup/stilde (sola yasli) â€” istek #3/#4.
+  // 1.87: LAN cercevesi — yalnizca kartin TAM LAN linki (taban adres kutusu YOK).
+  // Baslik, URL cercevesiyle BIREBIR ayni markup/stilde (sola yasli) — istek #3/#4.
   const lanUrl = app.lanInstallUrl || "";
-  // 2.07: kurulum linki tercihi â€” aktif satir yesil tick, pasif satir kirmizi x (tiklayinca gecirir).
+  // 2.07: kurulum linki tercihi — aktif satir yesil tick, pasif satir kirmizi x (tiklayinca gecirir).
   const lanAvail = !!lanUrl;
   const urlAvail = !!(url && app.installed);
   let linkMode = String(app.linkMode || "lan").toLowerCase() === "url" ? "url" : "lan";
@@ -2626,12 +2626,12 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const apiTxt = app.lastSync ? t("tp_connected") + apiViaTxt
                 : (app.apiConfigured ? t("tp_ready") : t("tp_not_connected"));
   // 1.87: durum cercevesi + "Son sinyal" (zaman + "xyz izlendi") + tasiyici satiri
-  // (sol: Aninda/Kontrol(15 dk) Â· sag: {n} Izlenmis).
+  // (sol: Aninda/Kontrol(15 dk) · sag: {n} Izlenmis).
   // 1.94: yalnizca kullanici token'i ile bagli WS "Aninda" sayilir; API key
   // ile kurulan kullanici oturumsuz WS yedek yoklama sayilir.
   const apiMode = (app.apiWsConnected && app.apiWsAuth === "token")
     ? t("tp_emby_mode_ws") : t("tp_emby_mode_poll");
-  const apiScan = (typeof app.apiScanCount === "number") ? t("tp_emby_scan_n", { n: app.apiScanCount }) : "â€”";
+  const apiScan = (typeof app.apiScanCount === "number") ? t("tp_emby_scan_n", { n: app.apiScanCount }) : "—";
   const apiHtml = `
           <div class="tp-sub-box">
             <div class="tp-status-row">
@@ -2650,7 +2650,7 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-url-box"><input id="tp-emby-api-url" type="text" placeholder="${escAttr(t("tp_emby_api_url_ph"))}" value="${escAttr(app.apiUrl || "")}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_key">${t("tp_emby_api_key")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "API Key"}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-api-key" type="password" autocomplete="new-password" placeholder="${app.apiHasKey ? "••••••••" : "API Key"}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_api_user">${t("tp_emby_api_user")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
             <div class="tp-url-box"><input id="tp-emby-api-user" type="text" value="${escAttr(app.apiUser || "")}" /></div>
@@ -2659,7 +2659,7 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <button id="tp-emby-api-test" class="tab">${t("tp_emby_api_test")}</button>
             ${app.apiConfigured ? `<button id="tp-emby-api-sync" class="tab">${t("tp_emby_sync_now")}</button>` : ""}
           </div>`;
-  // 1.94: Access Token â€” kullaniciya bagli WebSocket icin. API Key yedek
+  // 1.94: Access Token — kullaniciya bagli WebSocket icin. API Key yedek
   // yoklama olarak kalir. Token/parola GET'te donmez; yalnizca var/yok bilgisi.
   const tokStatus = String(app.apiTokenStatus || "off");
   const tokCls = tokStatus === "connected" ? "tp-connected"
@@ -2670,8 +2670,8 @@ function tpWebhookCard(app, open, icon, noteKey) {
   const tokBackoff = tokNext && tokNext > Math.floor(Date.now() / 1000)
     ? `<div class="tp-frame-note">${escAttr(t("tp_emby_token_backoff", { time: formatSignalTime(tokNext) }))}</div>`
     : "";
-  const tokLastCheck = app.apiTokenLastCheck ? formatSignalTime(app.apiTokenLastCheck) : "â€”";
-  const tokLastRenew = app.apiTokenLastRenew ? formatSignalTime(app.apiTokenLastRenew) : "â€”";
+  const tokLastCheck = app.apiTokenLastCheck ? formatSignalTime(app.apiTokenLastCheck) : "—";
+  const tokLastRenew = app.apiTokenLastRenew ? formatSignalTime(app.apiTokenLastRenew) : "—";
   const tokUserName = tpEmbyTokenUser || app.apiTokenUser || app.apiUser || "";
   const tokenHtml = `
           <div class="tp-sub-box">
@@ -2691,11 +2691,11 @@ function tpWebhookCard(app, open, icon, noteKey) {
             <div class="tp-url-box"><input id="tp-emby-auth-user" type="text" autocomplete="username" value="${escAttr(tokUserName)}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_auth_pass">${t("tp_emby_auth_pass")}</span></span>
-            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="password" autocomplete="current-password" placeholder="${app.apiHasPassword ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : escAttr(t("tp_emby_auth_pass"))}" /></div>
+            <div class="tp-url-box"><input id="tp-emby-auth-pass" type="password" autocomplete="current-password" placeholder="${app.apiHasPassword ? "••••••••" : escAttr(t("tp_emby_auth_pass"))}" /></div>
           </label>
           <label><span class="settings-label-head"><span data-i18n="tp_emby_access_token">${t("tp_emby_access_token")}</span></span>
             <div class="tp-url-box">
-              <input id="tp-emby-access-token" type="password" autocomplete="new-password" spellcheck="false" placeholder="${tpEmbyTokenHas ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
+              <input id="tp-emby-access-token" type="password" autocomplete="new-password" spellcheck="false" placeholder="${tpEmbyTokenHas ? "••••••••" : escAttr(t("tp_emby_token_ph"))}" value="${escAttr(tpEmbyTokenVisible)}" />
               <button id="tp-emby-token-show" class="tab" type="button">${t("tp_emby_token_show")}</button>
             </div>
           </label>
@@ -2825,7 +2825,7 @@ async function flushEmbyApi(inputEl) {
   }
 }
 
-// 2.09: Trakt Client ID/Secret â€” odaktan cikinca OTOMATIK kayit (Emby API deseni).
+// 2.09: Trakt Client ID/Secret — odaktan cikinca OTOMATIK kayit (Emby API deseni).
 let tpTraktClientSaving = false;
 function traktClientFocused() {
   const a = document.activeElement;
@@ -3043,19 +3043,19 @@ function tpWatchDetail(w) {
 }
 
 function tpSignalBox(ts, watch) {
-  // 1.87: "Son sinyal" cercevesi â€” HER ZAMAN gorunur (Stremio kartiyla ayni gorunum).
-  // Sinyal yoksa: zaman yerine "â€”" ve altinda "Henuz sinyal yok".
+  // 1.87: "Son sinyal" cercevesi — HER ZAMAN gorunur (Stremio kartiyla ayni gorunum).
+  // Sinyal yoksa: zaman yerine "—" ve altinda "Henuz sinyal yok".
   const w = tpWatchDetail(watch);
   return `
           <div class="tp-sub-box">
-            <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${ts ? formatSignalTime(ts) : "â€”"}</span></div>
+            <div class="tp-status-row"><span class="notify-name">${t("tp_last_signal")}</span><span class="tp-last-signal">${ts ? formatSignalTime(ts) : "—"}</span></div>
             ${ts && w ? `<div class="tp-frame-note tp-watch-detail" title="${w}">${w}</div>`
               : (ts ? "" : `<div class="tp-frame-note tp-watch-detail">${t("tp_no_signal_yet")}</div>`)}
           </div>`;
 }
 
 function tpAskToggle(aid) {
-  // 1.88: "Izlendi bilgisi sor" anahtari â€” akordeon govdesinin EN USTUNDE.
+  // 1.88: "Izlendi bilgisi sor" anahtari — akordeon govdesinin EN USTUNDE.
   // Stremio = genel ayar (ask_before_watched), Plex/Jellyfin/Emby = kaynak bazli
   // (kaynak degeri bos ise genel ayar gosterilir).
   const src = String(aid || "");
@@ -3088,10 +3088,10 @@ function formatRelativeAge(ts) {
 function formatSignalTime(ts) {
   try {
     const d = new Date(ts * 1000);
-    if (isNaN(d.getTime())) return "â€”";
+    if (isNaN(d.getTime())) return "—";
     return d.toLocaleString();
   } catch (e) {
-    return "â€”";
+    return "—";
   }
 }
 
@@ -3148,7 +3148,7 @@ async function flushTpBaseUrl() {
 }
 
 function bindThirdPartyEvents() {
-  // Tek-aÃ§Ä±k akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak BaÄŸlantÄ±.
+  // Tek-açık akordeon: VPS / Stremio / Takvim / Plex / Jellyfin / Emby / Uzak Bağlantı.
   [["vps-info-box", "vps"], ["tp-public-box", "public"], ["tp-app-stremio", "stremio"], ["tp-app-calendar", "calendar"],
    ["tp-app-plex", "plex"], ["tp-app-jellyfin", "jellyfin"], ["tp-app-emby", "emby"], ["tp-app-trakt", "trakt"],
    ["tp-app-remote", "remote"]].forEach(([id, which]) => {
@@ -3176,7 +3176,7 @@ function bindThirdPartyEvents() {
       flushTpBaseUrl();
     });
   }
-  // 1.88: "Izlendi bilgisi sor" anahtarlari â€” Stremio genel, Plex/Jellyfin/Emby kaynak bazli.
+  // 1.88: "Izlendi bilgisi sor" anahtarlari — Stremio genel, Plex/Jellyfin/Emby kaynak bazli.
   document.querySelectorAll("input[data-ask-src]").forEach((el) => {
     el.addEventListener("change", async (e) => {
       const src = e.target.getAttribute("data-ask-src") || "stremio";
@@ -3258,7 +3258,7 @@ function bindThirdPartyEvents() {
       }, { yes: t("confirm_yes") });
     });
   }
-  // --- Takvim (ICS) â€” 1.85 ---
+  // --- Takvim (ICS) — 1.85 ---
   const calCopy = document.getElementById("tp-calendar-copy");
   if (calCopy) {
     calCopy.addEventListener("click", async () => {
@@ -3324,13 +3324,13 @@ function bindThirdPartyEvents() {
       });
     });
   }
-  // --- Webhook uygulamalarÄ± (Plex / Jellyfin / Emby) â€” 1.86 ---
+  // --- Webhook uygulamaları (Plex / Jellyfin / Emby) — 1.86 ---
   [["plex", openPlexDisconnectConfirm], ["jellyfin", openJellyfinDisconnectConfirm], ["emby", openEmbyDisconnectConfirm]].forEach(([aid, confirmFn]) => {
     const copy = document.getElementById(`tp-${aid}-copy`);
     if (copy) copy.addEventListener("click", () => tpCopyInput(`tp-${aid}-url`));
     const lcopy = document.getElementById(`tp-${aid}-lancopy`);
     if (lcopy) lcopy.addEventListener("click", () => tpCopyInput(`tp-${aid}-lanurl`));
-    // 2.07: kurulum linki tercihi (LAN/URL) â€” pasif satirdaki kirmizi x'e tiklayinca gecir.
+    // 2.07: kurulum linki tercihi (LAN/URL) — pasif satirdaki kirmizi x'e tiklayinca gecir.
     document.querySelectorAll(`#tp-app-${aid} .tp-redir-btn.off[data-link-app]`).forEach((b) => {
       b.addEventListener("click", async () => {
         const mode = b.getAttribute("data-link-mode") || "";
@@ -3356,7 +3356,7 @@ function bindThirdPartyEvents() {
     const b = document.getElementById(`tp-vps-install-${aid}`);
     if (b) b.addEventListener("click", () => openInstallWizard(prof));
   });
-  // --- 1.87: Emby karti ic akordeonlari (Webhook / API Key / Access Token) â€” tek-acik ---
+  // --- 1.87: Emby karti ic akordeonlari (Webhook / API Key / Access Token) — tek-acik ---
   ["webhook", "api", "token"].forEach((which) => {
     const f = document.getElementById(`tp-emby-sec-${which}`);
     if (!f) return;
@@ -3375,7 +3375,7 @@ function bindThirdPartyEvents() {
       });
     });
   });
-  // --- 1.87: Emby API alanlari â€” odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
+  // --- 1.87: Emby API alanlari — odaktan cikinca OTOMATIK kayit (yesil "Kaydedildi") ---
   ["tp-emby-api-url", "tp-emby-api-key", "tp-emby-api-user"].forEach((fid) => {
     const el = document.getElementById(fid);
     if (!el) return;
@@ -3384,7 +3384,7 @@ function bindThirdPartyEvents() {
     });
     el.addEventListener("blur", () => flushEmbyApi(el));
   });
-  // --- 1.94: Access Token alanlari â€” parola blur / Enter ile otomatik token ---
+  // --- 1.94: Access Token alanlari — parola blur / Enter ile otomatik token ---
   const authPassEl = document.getElementById("tp-emby-auth-pass");
   if (authPassEl) {
     authPassEl.addEventListener("input", () => { tpEmbyTokenDirty = true; });
@@ -3470,7 +3470,7 @@ function bindThirdPartyEvents() {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "test");
         const info = j.info || {};
-        toast(t("tp_emby_test_ok") + " Â· " + (info.serverName || "Emby") + (info.version ? " " + info.version : ""));
+        toast(t("tp_emby_test_ok") + " · " + (info.serverName || "Emby") + (info.version ? " " + info.version : ""));
       } catch (e) {
         toast(errText((e && e.message) || "") || t("error"), true);
       } finally {
@@ -3487,7 +3487,7 @@ function bindThirdPartyEvents() {
         const r = await fetch("/api/thirdparty/emby/sync", { method: "POST" });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "sync");
-        toast(t("tp_emby_sync_done") + (j.summary ? " Â· " + j.summary : ""));
+        toast(t("tp_emby_sync_done") + (j.summary ? " · " + j.summary : ""));
         renderThirdPartyApps({ silent: true });
       } catch (e) {
         toast(errText((e && e.message) || "") || t("error"), true);
@@ -3497,7 +3497,7 @@ function bindThirdPartyEvents() {
       }
     });
   }
-  // --- 2.03 / 2.09: Trakt karti â€” Client ID/Secret odaktan cikinca OTOMATIK kayit ---
+  // --- 2.03 / 2.09: Trakt karti — Client ID/Secret odaktan cikinca OTOMATIK kayit ---
   ["tp-trakt-client-id", "tp-trakt-client-secret"].forEach((fid) => {
     const el = document.getElementById(fid);
     if (!el) return;
@@ -3557,7 +3557,7 @@ function bindThirdPartyEvents() {
       finally { traktDisconnect.disabled = false; }
     });
   }
-  // 2.17: "Simdi kontrol et" â€” Trakt history'sini hemen cek. Manuel isaretleme
+  // 2.17: "Simdi kontrol et" — Trakt history'sini hemen cek. Manuel isaretleme
   // sayilir (direct=True): soru uretmeden dogrudan izlendi yazilir.
   const traktCheck = document.getElementById("tp-trakt-check");
   if (traktCheck) {
@@ -3717,7 +3717,7 @@ function vpsStoredPass(mode) {
   return !!(p.configured && (p.auth_type || "key") !== "key");
 }
 
-// 1.87: Public Adres (tp_base_url) kendi akordeon cercevesi â€” kurulum baglantilarinin
+// 1.87: Public Adres (tp_base_url) kendi akordeon cercevesi — kurulum baglantilarinin
 // (URL) cerceveleri bu adresten uretilir (LAN adresi ASLA buradan gelmez).
 // "Sunucu Baglanti Ayarlari" ile "Stremio" arasinda durur; yalniz admin duzenleyebilir.
 function renderPublicBaseCard() {
@@ -3730,7 +3730,7 @@ function renderPublicBaseCard() {
       <div class="notif-type-body" style="display:${tpPublicOpen ? "block" : "none"}">
         <div class="tp-sub-box">
           <label><span class="settings-label-head"><span data-i18n="tp_base_url_field">${t("tp_base_url_field")}</span><span class="saved-hint" data-i18n="saved">${t("saved")}</span></span>
-            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://â€¦" value="${escAttr(tpBaseUrl)}" /></div>
+            <div class="tp-url-box"><input id="tp-base-input" type="text" autocomplete="off" spellcheck="false" data-lpignore="true" inputmode="url" placeholder="https://…" value="${escAttr(tpBaseUrl)}" /></div>
           </label>
         </div>
       </div>
@@ -3741,7 +3741,7 @@ function renderVpsSection() {
   const p = vpsProfile || { host: "", port: 22, username: "root", auth_type: "key", configured: false, connected: false, lastTestTs: null, fingerprint: "" };
   const stCls = p.connected && p.configured ? "tp-connected" : "tp-not-connected";
   const stTxt = !(p.configured) ? t("vps_unknown") : (p.connected ? t("tp_connected") : t("tp_not_connected"));
-  const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "â€”";
+  const lastTs = p.lastTestTs ? formatSignalTime(p.lastTestTs) : "—";
   const hasSecret = !!p.configured;
   const showKey = vpsAuth === "key";
   const uname = p.username || "root";
@@ -3752,7 +3752,7 @@ function renderVpsSection() {
   const rootVerified = !!p.rootVerified || loginUser === "root";
   const reasonCode = String(p.lastReason || "");
   let rootCls = "tp-not-connected";
-  let rootTxt = "â€”";
+  let rootTxt = "—";
   if (connOk && rootVerified && loginUser === "root") {
     rootCls = "tp-connected";
     rootTxt = t("vps_root_direct");
@@ -3770,7 +3770,7 @@ function renderVpsSection() {
   }[reasonCode];
   const rootReasonTxt = rootReasonKey ? t(rootReasonKey) : "";
   const passStored = vpsStoredPass(vpsAuth);
-  const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "");
+  const passPlaceholder = (showKey && isRoot) ? t("vps_pass_root_na") : (passStored ? "••••••••" : "");
   const passLabel = showKey ? t("vps_sudo_pass") : t("vps_auth_pass");
   return `
   <div class="channel-box accordion-box notif-type-box${tpVpsOpen ? " accordion-open" : ""}" id="vps-info-box">
@@ -3812,7 +3812,7 @@ function renderVpsSection() {
         <div id="vps-key-wrap" style="display:${showKey ? "block" : "none"}; margin-top:6px">
           <label>
             <span class="settings-label-head"><span>${escAttr(t("vps_key"))}</span><span class="saved-hint" id="vps-key-saved" data-i18n="saved">${t("saved")}</span></span>
-            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : ""}</textarea>
+            <textarea id="vps-key" rows="12" spellcheck="false" data-lpignore="true" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" class="backup-ssh-textarea" data-has="${hasSecret && p.auth_type === "key" ? "1" : "0"}">${hasSecret && p.auth_type === "key" ? "••••••••" : ""}</textarea>
           </label>
           <div class="backup-key-actions">
             <input type="file" id="vps-key-file" accept=".pem,.key,.txt,*/*" style="display:none" />
@@ -3843,7 +3843,7 @@ function vpsGateState() {
   const keyOk = !!keyEl && (keyTxt !== "" || keyEl.getAttribute("data-has") === "1");
   const passEl = document.getElementById("vps-pass");
   const passTxt = passEl ? (passEl.value || "") : "";
-  const passOk = (passTxt !== "" && passTxt !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢")
+  const passOk = (passTxt !== "" && passTxt !== "••••••••")
     || !!(passEl && passEl.getAttribute("data-has") === "1");
   if (!host) return { canTest: false, reason: "host" };
   if (keyMode) {
@@ -3877,7 +3877,7 @@ function updateVpsTestGate() {
     passEl.disabled = lockPass;
     if (lockPass && passEl.value) passEl.value = "";
     passEl.placeholder = lockPass ? t("vps_pass_root_na")
-      : (vpsStoredPass(vpsAuth) ? "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" : "");
+      : (vpsStoredPass(vpsAuth) ? "••••••••" : "");
   }
 }
 
@@ -3911,7 +3911,7 @@ async function flushVpsProfile(hintId) {
     } else {
       const pe = document.getElementById("vps-pass");
       secret = pe ? pe.value : "";
-      fieldEmpty = (secret === "" || secret === "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢")
+      fieldEmpty = (secret === "" || secret === "••••••••")
         && (!pe || pe.getAttribute("data-has") !== "1");
     }
     // sudo parolasi: root'ta tutulmaz; key modunda ayri, parola modunda login parolasi.
@@ -3920,9 +3920,9 @@ async function flushVpsProfile(hintId) {
     else if (!isRoot && vpsAuth === "key") {
       const pe = document.getElementById("vps-pass");
       const v = pe ? pe.value : "";
-      if (v !== "" && v !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") sudoSecret = v;
+      if (v !== "" && v !== "••••••••") sudoSecret = v;
     }
-    const secretChanged = secret !== "" && secret !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢";
+    const secretChanged = secret !== "" && secret !== "••••••••";
     const willClear = fieldEmpty && !!(saved && saved.configured);
     const unchanged =
       !!saved &&
@@ -3933,8 +3933,8 @@ async function flushVpsProfile(hintId) {
       !secretChanged && !willClear && sudoSecret === null;
     if (unchanged) return;
     const body = { host, port, username, auth_type: vpsAuth };
-    // BoÅŸ secret -> backend eskiyi korur; "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" korunur; temizleme acikca "" ile.
-    if (secret !== "" && secret !== "â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢") body.secret = secret;
+    // Boş secret -> backend eskiyi korur; "••••••••" korunur; temizleme acikca "" ile.
+    if (secret !== "" && secret !== "••••••••") body.secret = secret;
     else if (willClear) body.secret = "";
     if (sudoSecret !== null) body.sudo_secret = sudoSecret;
     const r = await fetch("/api/remote/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -3962,13 +3962,13 @@ async function testVpsConnection() {
   // Sonuc gelince renderThirdPartyApps butonu yeniden olusturur -> finally'de
   // buton tekrar sorgulanip etiket geri yazilir.
   const btn = document.getElementById("vps-test");
-  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = t("vps_test") + " â€¦"; }
+  if (btn) { btn.disabled = true; btn.setAttribute("aria-busy", "true"); btn.textContent = t("vps_test") + " …"; }
   try {
     const r = await fetch("/api/remote/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     const j = await r.json();
     if (!r.ok) throw new Error(errText(j.error) || j.error || "test");
     if (j.connected) {
-      toast(t("vps_test_ok") + (j.sudo ? " â€” " + t("vps_sudo_ok") : ""));
+      toast(t("vps_test_ok") + (j.sudo ? " — " + t("vps_sudo_ok") : ""));
     } else {
       const reasonKey = {
         "sudo-pass-required": "vps_sudo_required",
@@ -4247,7 +4247,7 @@ function siRenderSteps(steps) {
   if (!el) return;
   el.innerHTML = SI_STEP_ORDER.map((n) => {
     const st = (steps && steps[n]) || "idle";
-    const icon = st === "ok" ? "âœ”" : st === "fail" ? "âœ•" : st === "run" ? "â€¦" : "â—‹";
+    const icon = st === "ok" ? "✔" : st === "fail" ? "✕" : st === "run" ? "…" : "○";
     return `<li class="si-step si-step-${st}"><span class="si-step-icon">${icon}</span><span>${siStepLabel(n)}</span></li>`;
   }).join("");
 }

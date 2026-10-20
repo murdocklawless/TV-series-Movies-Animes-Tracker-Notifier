@@ -1,4 +1,4 @@
-﻿// Faz 4: search â€” arama mantÄ±ÄŸÄ± (normal/Ã§oklu arama, filtre Ã§ipleri, sonuÃ§lar, seÃ§ici modal).
+// Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
 import { t, animeGenreLabel, errText } from "./i18n.js?v=640";
 import {
@@ -29,7 +29,7 @@ function setTvSearchCardAttrs(div, item){
 
 import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=640";
 
-/* Arama modalÄ± satÄ±r Ã¼reticileri: tipÂ·puan / vizyon-yayÄ±n tarihi (boÅŸsa yer tutucu). */
+/* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
   return resultCardRows({
     type: badge,
@@ -70,8 +70,8 @@ function setMedia(media) {
   }
 }
 
-// Ã‡oklu arama kaynaÄŸÄ± (Ã¼st butonlardan baÄŸÄ±msÄ±z): "tmdb" | "anime".
-// Kaynak yalnÄ±z medya Ã§ipletinden (film/dizi/belgesel/anime) belirlenir.
+// Çoklu arama kaynağı (üst butonlardan bağımsız): "tmdb" | "anime".
+// Kaynak yalnız medya çipletinden (film/dizi/belgesel/anime) belirlenir.
 function comboSource() {
   return state.comboSource === "anime" ? "anime" : "tmdb";
 }
@@ -88,8 +88,8 @@ function setComboSource(src, silent) {
   src = src === "anime" ? "anime" : "tmdb";
   if (state.comboSource !== src) {
     state.comboSource = src;
-    // KarÅŸÄ± kaynaÄŸÄ±n Ã§iplerini temizle: oyuncu<->karakter + tÃ¼r (liste kaynaÄŸÄ± farklÄ±).
-    // YÃ¶netmen / yÄ±l / puan iki kaynakta da geÃ§erli, korunur.
+    // Karşı kaynağın çiplerini temizle: oyuncu<->karakter + tür (liste kaynağı farklı).
+    // Yönetmen / yıl / puan iki kaynakta da geçerli, korunur.
     const drop = src === "anime" ? ["actor"] : ["char"];
     drop.push("genre");
     let removed = 0;
@@ -116,8 +116,8 @@ function toggleMediaChip(value, label) {
     if (idx >= 0) state.chips.splice(idx, 1);
     state.chips.push({ type: "media", label, value });
   }
-  // Kaynak yalnÄ±z Ã§iplete gÃ¶re: anime Ã§ipleti -> anime, diÄŸerleri -> tmdb.
-  // Ã‡ip kaldÄ±rÄ±lÄ±nca kaynak tmdb'ye dÃ¶ner (varsayÄ±lan).
+  // Kaynak yalnız çiplete göre: anime çipleti -> anime, diğerleri -> tmdb.
+  // Çip kaldırılınca kaynak tmdb'ye döner (varsayılan).
   syncComboSourceFromChips(true);
 }
 
@@ -154,8 +154,8 @@ function updateFilterButtons() {
 
 const CHIP_ORDER = { media: 0, actor: 1, char: 1, director: 1, genre: 2, year: 3, score: 4 };
 
-// TÃ¼r listesi farkÄ± (M4): Ã¶nceki liste localStorage'da tutulur, picker aÃ§Ä±lÄ±ÅŸÄ±nda
-// taze Ã§ekilip fark bulunur; yeni tÃ¼r varsa toast + (TV) ilk yeni tÃ¼re odak.
+// Tür listesi farkı (M4): önceki liste localStorage'da tutulur, picker açılışında
+// taze çekilip fark bulunur; yeni tür varsa toast + (TV) ilk yeni türe odak.
 function prevGenreKey(source) { return `prevGenres_${source}`; }
 function readPrevGenres(source) {
   try {
@@ -174,8 +174,8 @@ async function freshGenreList(source) {
   return list.filter((g) => !prev.includes(g));
 }
 
-// TV: chip silinince odak komÅŸuda kalÄ±r (sol â†’ yoksa saÄŸ); chip kalmadÄ±ysa
-// .filter-add-row'daki ilk gÃ¶rÃ¼nÃ¼r butona (en soldaki) gider. Desktop'ta dokunulmaz.
+// TV: chip silinince odak komşuda kalır (sol → yoksa sağ); chip kalmadıysa
+// .filter-add-row'daki ilk görünür butona (en soldaki) gider. Desktop'ta dokunulmaz.
 function focusChipAfterRemove(removedPos) {
   try {
     if (!isTvUIActive()) return;
@@ -183,7 +183,7 @@ function focusChipAfterRemove(removedPos) {
     if (!box) return;
     const xs = Array.from(box.querySelectorAll(".chip-x"));
     if (xs.length) {
-      // silinenin solu varsa sol komÅŸu, yoksa saÄŸ komÅŸu (yeni listedeki konuma gÃ¶re)
+      // silinenin solu varsa sol komşu, yoksa sağ komşu (yeni listedeki konuma göre)
       const target = removedPos > 0 ? (xs[removedPos - 1] || xs[xs.length - 1]) : xs[0];
       if (target) { try { target.focus(); } catch(_){} }
       return;
@@ -252,8 +252,8 @@ function openValueModal(kind) {
   input.focus();
 }
 
-// Merkezi kapatÄ±cÄ±lar: gizle + (TV) aÃ§an filtre butonuna odak iadesi.
-// opener: picker'da pickerMode'dan, value'da dataset.opener'dan Ã§Ã¶zÃ¼lÃ¼r.
+// Merkezi kapatıcılar: gizle + (TV) açan filtre butonuna odak iadesi.
+// opener: picker'da pickerMode'dan, value'da dataset.opener'dan çözülür.
 function openerButtonFor(modal) {
   try {
     if (!modal) return null;
@@ -304,7 +304,7 @@ function setSearchBtnLoading(btn, loading) {
 let comboAbort = null;
 
 function runSearch() {
-  // Ã‡oklu arama Ã¼st butonlardan baÄŸÄ±msÄ±zdÄ±r: kapsam yalnÄ±z Ã§ipletlerden gelir.
+  // Çoklu arama üst butonlardan bağımsızdır: kapsam yalnız çipletlerden gelir.
   const q = (document.getElementById("search-input")?.value || "").trim();
   if (!q && !state.chips.length) return;
   const btn = document.getElementById("search-btn");
@@ -539,7 +539,7 @@ document.getElementById("value-go").onclick = () => {
   }
   state.chips.push({ type: kind, label: val, value: val });
   renderChips();
-  // TV: chip eklenince kendi butonuna dÃ¶n (yÄ±lâ†’yÄ±l, puanâ†’puan)
+  // TV: chip eklenince kendi butonuna dön (yıl→yıl, puan→puan)
   closeValueModal();
 };
 
@@ -561,7 +561,7 @@ function openResultsModal() {
   resetSearchSort();
 }
 
-// TV: sonuÃ§ modalÄ± aÃ§Ä±lÄ±nca ilk sonuÃ§ kartÄ±na odak (X atlanÄ±r); kart yoksa X'te kalÄ±r.
+// TV: sonuç modalı açılınca ilk sonuç kartına odak (X atlanır); kart yoksa X'te kalır.
 function finishSearchRender() {
   try { resetSearchSort(); } catch (_) {}
   try { focusFirstResultCard(); } catch (_) {}
@@ -586,7 +586,7 @@ function closeResultsModal() {
   try { modal.style.display = "none"; } catch (_) {}
   try { resetResultsSearch(); } catch (_) {}
   resetResultsPager();
-  // TV: X/overlay ile kapatÄ±nca odak yetim kalmasÄ±n; aÃ§an butona dÃ¶n.
+  // TV: X/overlay ile kapatınca odak yetim kalmasın; açan butona dön.
   try {
     if (isTvUIActive()) {
       const oid = modal && modal.dataset ? modal.dataset.opener : "";
@@ -601,8 +601,8 @@ function closeResultsModal() {
   } catch (_) {}
 }
 
-// SonuÃ§ sayfalama: ilk 20 kart, alta kaydÄ±rdÄ±kÃ§a +5, toplam en Ã§ok 50.
-// Normal baÅŸlÄ±k + Ã§oklu arama + anime grid'lerinin hepsinde Ã§alÄ±ÅŸÄ±r.
+// Sonuç sayfalama: ilk 20 kart, alta kaydırdıkça +5, toplam en çok 50.
+// Normal başlık + çoklu arama + anime grid'lerinin hepsinde çalışır.
 const PAGER_FIRST = 20, PAGER_MORE = 5, PAGER_MAX = 50;
 let resultsPager = null;
 
@@ -617,8 +617,8 @@ function searchAlphaSorted(items) {
 }
 
 function startResultsPager(grid, items, build) {
-  // VarsayÄ±lan alfabetik: sayfa dilimleri API sÄ±rasÄ±ndan deÄŸil, baÅŸlÄ±ÄŸa gÃ¶re
-  // Ã¶n-sÄ±ralanmÄ±ÅŸ listeden alÄ±nÄ±r (yoksa ilk 20 API sÄ±rasÄ± kendi iÃ§inde sÄ±ralanÄ±rdÄ±).
+  // Varsayılan alfabetik: sayfa dilimleri API sırasından değil, başlığa göre
+  // ön-sıralanmış listeden alınır (yoksa ilk 20 API sırası kendi içinde sıralanırdı).
   resultsPager = { grid, items: searchAlphaSorted(items), build, shown: 0 };
   renderPagerBatch(true);
 }
@@ -660,9 +660,9 @@ function maybePagerMore(grid) {
   if (g) g.addEventListener("scroll", () => maybePagerMore(g), { passive: true });
 });
 
-// Arama sonuÃ§larÄ± modalÄ± filtre (sÄ±ralama) â€” navbar sort deseni, modal iÃ§i.
-// SÄ±ralama DOM kartlarÄ±nÄ± yerinde dizer (re-render yok); Ã¶lÃ§Ã¼t karttaki _sitem verisinden.
-// VarsayÄ±lan sÄ±ralama alfabetiktir; menÃ¼ ilk aÃ§Ä±ldÄ±ÄŸÄ±nda Alfabetik seÃ§ili gÃ¶rÃ¼nÃ¼r.
+// Arama sonuçları modalı filtre (sıralama) — navbar sort deseni, modal içi.
+// Sıralama DOM kartlarını yerinde dizer (re-render yok); ölçüt karttaki _sitem verisinden.
+// Varsayılan sıralama alfabetiktir; menü ilk açıldığında Alfabetik seçili görünür.
 let searchSort = "alpha";
 
 function sitemDateISO(it) {
@@ -818,8 +818,8 @@ document.querySelectorAll("#search-filter-menu .sort-item").forEach((btn) => {
     }
   };
 });
-// Arama sonuÃ§larÄ± modalÄ± liste-iÃ§i filtre â€” hidden-modal arama deseni (input + bÃ¼yÃ¼teÃ§).
-// SÄ±ralamayla Ã§akÄ±ÅŸmaz: sÄ±ralama DOM sÄ±rasÄ±nÄ±, filtre gÃ¶rÃ¼nÃ¼rlÃ¼ÄŸÃ¼ deÄŸiÅŸtirir.
+// Arama sonuçları modalı liste-içi filtre — hidden-modal arama deseni (input + büyüteç).
+// Sıralamayla çakışmaz: sıralama DOM sırasını, filtre görünürlüğü değiştirir.
 function resultsSearchFilter() {
   const input = document.getElementById("results-search-input");
   return (input && input.style.display === "block" ? (input.value || "").trim().toLowerCase() : "");
@@ -891,11 +891,11 @@ function comboTitle(chipsArr) {
       else if (c.type === "year") parts.push(`${c.label}`);
       else if (c.type === "score") parts.push(`${c.label}`);
     });
-  return parts.join(" â€¢ ");
+  return parts.join(" • ");
 }
 
 async function doComboSearch(q, chipsArr, signal) {
-  // Kaynak ve kapsam yalnÄ±z Ã§ipletlerden gelir; Ã¼st butonlar Ã§oklu aramayÄ± etkilemez.
+  // Kaynak ve kapsam yalnız çipletlerden gelir; üst butonlar çoklu aramayı etkilemez.
   const source = chipsArr.some((c) => c.type === "media" && c.value === "anime") ? "anime" : "tmdb";
   const params = new URLSearchParams();
   params.set("source", source);
@@ -1271,7 +1271,7 @@ document.getElementById("picker-go").onclick = () => {
   }
   document.getElementById("picker-modal").style.display = "none";
   renderChips();
-  // TV: chip eklenince kendisini aÃ§an filtre butonuna dÃ¶n (oyuncuâ†’oyuncu, tÃ¼râ†’tÃ¼r)
+  // TV: chip eklenince kendisini açan filtre butonuna dön (oyuncu→oyuncu, tür→tür)
   closePickerModal();
 };
 

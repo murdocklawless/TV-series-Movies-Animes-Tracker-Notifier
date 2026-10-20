@@ -1,5 +1,5 @@
-﻿// Faz 4: tracker.js ï¿½ giriï¿½ noktasï¿½. Tï¿½m mantï¿½k modï¿½llere bï¿½lï¿½ndï¿½; bu dosya
-// modï¿½lleri baï¿½lar, baï¿½langï¿½ï¿½ yï¿½klemelerini yapar ve genel (global) olaylarï¿½ kurar.
+// Faz 4: tracker.js — giriş noktası. Tüm mantık modüllere bölündü; bu dosya
+// modülleri bağlar, başlangıç yüklemelerini yapar ve genel (global) olayları kurar.
 window.__NX_BUILD = "640";
 import { state } from "./state.js";
 import { checkTmdbKey, applyLang, t } from "./i18n.js?v=640";
@@ -14,9 +14,9 @@ import "./stats.js?v=640";
   import "./rowview.js?v=640";
 import { bootAuth } from "./auth.js?v=640";
 
-// ---- Baï¿½langï¿½ï¿½ gï¿½rï¿½nï¿½mï¿½ (son seï¿½ilen sekmeyi geri yï¿½kle) ----
-// Faz 30: oturum yoksa auth.js giriï¿½ ekranï¿½nï¿½ gï¿½sterir; uygulama
-// verileri yalnï¿½z giriï¿½ sonrasï¿½ (auth:ready) yï¿½klenir.
+// ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
+// Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama
+// verileri yalnız giriş sonrası (auth:ready) yüklenir.
 let _appStarted = false;
 function startApp() {
   if (_appStarted) return;
@@ -32,9 +32,9 @@ function startApp() {
 document.addEventListener("auth:ready", startApp);
 bootAuth();
 
-// Dil deï¿½iï¿½ince aktif gï¿½rï¿½nï¿½mï¿½ yenile (applyLang, i18n.js'ten olay yayar)
+// Dil değişince aktif görünümü yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
-  // Oturumsuzken veri ï¿½ekilmez (401 + ï¿½ï¿½kme ï¿½retmemek iï¿½in).
+  // Oturumsuzken veri çekilmez (401 + çökme üretmemek için).
   try {
     if (document.body.classList.contains("logged-out")) return;
   } catch (_) {}
@@ -48,7 +48,7 @@ document.addEventListener("app:langchange", () => {
   if (views.recommend.classList.contains("active")) loadRecommendations();
 });
 
-// ---- ï¿½lk veri yï¿½klemeleri (yalnï¿½z giriï¿½ sonrasï¿½) ----
+// ---- İlk veri yüklemeleri (yalnız giriş sonrası) ----
 function loadInitialData() {
   (async () => {
   try {
@@ -63,7 +63,7 @@ function loadInitialData() {
     checkTmdbKey(state.tmdbKeySet);
     maybeShowGeoBanner(s);
   } catch (e) {
-    /* varsayï¿½lan dil */
+    /* varsayılan dil */
   }
 })();
 
@@ -108,7 +108,7 @@ function loadInitialData() {
 })();
 } // loadInitialData
 
-// ---- ï¿½zel tooltip ----
+// ---- Özel tooltip ----
 let tipEl = null;
 function showTip(text, x, y) {
   if (!tipEl) {
@@ -213,7 +213,7 @@ document.addEventListener("mousemove", (e) => {
 
 document.addEventListener("mouseout", (e) => {
   if (!e.target.closest("[data-tip]")) return;
-  // iï¿½ iï¿½e i -> button geï¿½iï¿½lerinde relatedTarget aynï¿½ data-tip iï¿½indeyse gizleme
+  // iç içe -> button geçişlerinde relatedTarget aynı data-tip içindeyse gizleme
   if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest("[data-tip]")) return;
   hideTip();
 });
