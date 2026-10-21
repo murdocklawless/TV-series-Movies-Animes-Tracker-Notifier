@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=655";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=656";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=655";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=655";
+} from "./utils.js?v=656";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=656";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=655";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=656";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1460,68 +1460,177 @@ function findLocalCard(gridId, title) {
   return null;
 }
 
+/* 2.19.21: "uçan kart" klonu — tıklanan sonuç kartının DOM kopyası, position:fixed,
+   ekranın tam ortasında %100 büyük (scale 2). flyTo(rect) hedef karta uçurur (FLIP:
+   translate + tek tip scale → satır görünümünde de bozulmaz). Tüm platformlarda aynı
+   (mobil / masaüstü / TV-APK); klon pointer-events:none olduğu için hiçbir dokunuşu
+   engellemez, TV'de --tv-scale ölçeklerini klon üzerinden miras alır. */
+function makeLocalFly(srcCard) {
+  if (!srcCard || typeof srcCard.cloneNode !== "function") return null;
+  let r = null;
+  try { r = srcCard.getBoundingClientRect(); } catch (_) { return null; }
+  if (!r || r.width < 4 || r.height < 4) return null;
+  const el = srcCard.cloneNode(true);
+  try {
+    el.classList.add("local-fly-card");
+    el.classList.remove("jump-target");
+    el.removeAttribute("id");
+    el.removeAttribute("tabindex");
+    el.style.width = r.width + "px";
+    el.style.height = r.height + "px";
+  } catch (_) { return null; }
+  const cw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const ch = window.innerHeight || document.documentElement.clientHeight || 0;
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  // 1. faz: klonun merkezi = viewport merkezi, ölçek 2 (=%100 büyük).
+  el.style.transform = `translate(${(cw / 2 - cx)}px, ${(ch / 2 - cy)}px) scale(2)`;
+  try { document.body.appendChild(el); } catch (_) { return null; }
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    try { el.remove(); } catch (_) {}
+  };
+  return {
+    el,
+    remove,
+    // 2. faz: hedef rect'e uç (tek tip ölçek, merkez hizalama).
+    flyTo(targetRect, ms) {
+      return new Promise((resolve) => {
+        let settled = false;
+        const end = () => { if (settled) return; settled = true; resolve(); };
+        try {
+          const s = Math.max(0.05, Math.max(1, targetRect.width) / r.width);
+          const dx = (targetRect.left + targetRect.width / 2) - cx;
+          const dy = (targetRect.top + targetRect.height / 2) - cy;
+          el.style.transition = `transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
+          void el.offsetWidth; // reflow: başlangıç konumu otursun
+          el.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+        } catch (_) { end(); return; }
+        try { el.addEventListener("transitionend", end, { once: true }); } catch (_) {}
+        setTimeout(end, ms + 90);
+      });
+    },
+    // Hedef bulunamazsa / ölçülemezse klonu yumuşakça kaldır.
+    fadeOut() {
+      try { el.style.transition = "opacity .25s linear"; el.style.opacity = "0"; } catch (_) {}
+      setTimeout(remove, 280);
+    },
+  };
+}
+
 // Sonuç kartına tıklama: bilgi modalı AÇILMAZ; sonuç modalı kapanır, kartın bulunduğu
-// bölüme gidilir ve kart odaklanır + yeşil çerçeveyle vurgulanır (3 sn).
+// bölüme gidilir. 2.19.21 akışı: tıklanan kartın klonu 1 sn EKRANIN ORTASINDA %100 büyük
+// yeşil çerçeveyle durur → 0.5 sn'de hedef kartın satır/sırasına uçar → gerçek kartta
+// 3 sn yeşil çerçeve + fokus.
 // ÖNEMLİ: bölüm listesi asenkron YENİDEN çizilir (grid innerHTML sıfırlanır) → işaretlenen
-// DOM öğesi çöpe gider. Bu yüzden işaret/odak ~3 sn boyunca 120 ms aralıkla TAZELENİR.
+// DOM öğesi çöpe gider. Bu yüzden işaret/odak vurgu penceresi boyunca 120 ms aralıkla TAZELENİR.
 // Vurgu TEK çıkış noktasından (finish) 3 sn sonra kaldırılır; `finished` bayrağı sayesinde
 // temizlikten sonra bekleyen bir tick sınıfı GERİ EKLEYEMEZ (2.19.15'teki yarış hatası).
 // Kullanıcı etkileşimi yalnız odak tazelemeyi durdurur; vurgu yine 3 sn sonra kalkar.
-function jumpToLocalCard(item, kind) {
+function jumpToLocalCard(item, kind, srcCard) {
   const target = localJumpTarget(item, kind);
   const want = String(item.title || "");
+  const fly = makeLocalFly(srcCard); // 2.19.21: tıklanan kartın klonu (yoksa null)
   closeLocalSearchModal(false); // 2.19.17: atlamada odak karta bırakılır (sayfa kutusuna dönülmez)
-  try { switchView(target.view); } catch (_) { return; }
+  try { switchView(target.view); } catch (_) { if (fly) { try { fly.remove(); } catch (_) {} } return; }
+
+  // 2.19.21 zaman çizelgesi: 1 sn ortada %100 büyük → 0.5 sn uçuş → 3 sn hedefte çerçeve.
+  const HOLD_MS = 1000;
+  const FLY_MS = 500;
+  const GLOW_MS = 3000;
   const started = Date.now();
-  const deadline = started + 3000;
+  const deadline = started + 6000; // kart 6 sn içinde gelmezse klon söner
   let stop = false;
   let timer = null;
   let finished = false;
+  let phase = "hold"; // hold → fly → glow
+  let glowEnd = 0;
   const stopNow = () => { if (Date.now() - started < 400) return; stop = true; };
   const stopEvents = ["mousedown", "touchstart", "keydown", "wheel"];
   const opts = { passive: true };
   stopEvents.forEach((ev) => window.addEventListener(ev, stopNow, opts));
   const clearStop = () => stopEvents.forEach((ev) => window.removeEventListener(ev, stopNow, opts));
 
-  // Tek çıkış: bekleyen tick iptal edilir, vurgu kaldırılır (odak kartta kalır).
+  // Tek çıkış: bekleyen tick iptal edilir, klon kaldırılır, vurgu kaldırılır.
   const finish = () => {
     if (finished) return;
     finished = true;
     stop = true;
     if (timer) { clearTimeout(timer); timer = null; }
     clearStop();
+    if (fly) { try { fly.remove(); } catch (_) {} }
     const card = findLocalCard(target.grid, want);
     if (card) {
+      try { card.style.visibility = ""; } catch (_) {}
       try { card.classList.remove("jump-target"); } catch (_) {}
       try { delete card.dataset.jumpSeen; } catch (_) {}
     }
   };
 
+  // Hedef karta yeşil çerçeve + fokus (uçuş bittiğinde ya da uçuş atlandığında).
+  const settle = (card) => {
+    if (finished) return;
+    if (fly) { try { fly.remove(); } catch (_) {} }
+    phase = "glow";
+    glowEnd = Date.now() + GLOW_MS;
+    try { card.style.visibility = ""; } catch (_) {}
+    try { card.tabIndex = 0; } catch (_) {}
+    try { card.dataset.jumpSeen = "1"; } catch (_) {}
+    try { card.classList.add("jump-target"); } catch (_) {}
+    try { card.focus({ preventScroll: true }); } catch (_) { try { card.focus(); } catch (_) {} }
+    if (!timer) timer = setTimeout(tick, 120);
+    setTimeout(finish, GLOW_MS); // 3 sn sonra vurgu KESİN kalkar
+  };
+
+  // Uçuş: hedefi görünür alana al, klonu oraya gönder; ölçülemezse (gizli grid) atla.
+  const beginFly = (card) => {
+    phase = "fly";
+    let rect = null;
+    try { card.scrollIntoView({ block: "center" }); } catch (_) {}
+    try { rect = card.getBoundingClientRect(); } catch (_) {}
+    const usable = !!(rect && rect.width >= 2 && rect.height >= 2);
+    if (fly && usable) {
+      try { card.style.visibility = "hidden"; } catch (_) {}
+      fly.flyTo(rect, FLY_MS).then(() => settle(card));
+    } else {
+      if (fly) { try { fly.fadeOut(); } catch (_) {} }
+      settle(card);
+    }
+  };
+
   const tick = () => {
     timer = null;
-    if (finished) return; // temizlikten sonra ASLA işaret eklenmez
-    if (!stop) {
-      const card = findLocalCard(target.grid, want);
-      if (card) {
-        if (card.dataset.jumpSeen !== "1") {
-          // Yeni öğe (ilk buluş ya da yeniden çizim sonrası): işaret + odak + scroll
-          card.dataset.jumpSeen = "1";
-          try { card.tabIndex = 0; } catch (_) {}
-          try { card.classList.add("jump-target"); } catch (_) {}
-          try { card.focus({ preventScroll: true }); } catch (_) { try { card.focus(); } catch (_) {} }
-          try { card.scrollIntoView({ block: "center" }); } catch (_) {}
-        } else {
-          try { if (document.activeElement !== card) card.focus({ preventScroll: true }); } catch (_) {}
-        }
-      }
-      if (Date.now() < deadline) { timer = setTimeout(tick, 120); return; }
+    if (finished) return;
+    const now = Date.now();
+    // Kullanıcı 1 sn'lik "ortada bekleme" sırasında sayfaya dokunduysa: animasyonu iptal et.
+    if (stop && phase === "hold") {
+      if (fly) { try { fly.fadeOut(); } catch (_) {} }
+      finish();
+      return;
     }
-    clearStop();
+    const card = stop ? null : findLocalCard(target.grid, want);
+    if (phase === "hold") {
+      if (card && now - started >= HOLD_MS) beginFly(card);
+      else if (now > deadline) {
+        // Kart hiç gelmedi: klonu söndür, vurgu yok.
+        if (fly) { try { fly.fadeOut(); } catch (_) {} }
+        finish();
+        return;
+      }
+    } else if (phase === "glow") {
+      if (card && now < glowEnd) {
+        try { if (!card.classList.contains("jump-target")) card.classList.add("jump-target"); } catch (_) {}
+        try { if (document.activeElement !== card) card.focus({ preventScroll: true }); } catch (_) {}
+      }
+      if (now >= glowEnd) { finish(); return; }
+    }
+    timer = setTimeout(tick, 120);
   };
 
   timer = setTimeout(tick, 60);
-  // 3 sn sonra vurgu KESİN kalkar (iptal edilemez); ek CSS animasyonu da aynı süreyi uygular.
-  setTimeout(finish, 3000);
+  setTimeout(finish, 15000); // mutlak güvenlik sınırı
 }
 
 async function runLocalSearch() {
@@ -1598,7 +1707,8 @@ function renderLocalResults() {
         }
       } catch (_) {}
       // 2.19.12: kart tıklaması bilgi modalı açmaz → bölüme atlar + karta fokus.
-      try { card.onclick = () => jumpToLocalCard(item, k); } catch (_) {}
+      // 2.19.21: kaynak kart da geçer (ortada %100 büyük "uçan kart" klonu için).
+      try { card.onclick = () => jumpToLocalCard(item, k, card); } catch (_) {}
       frag.appendChild(card);
       try { applyTitleHint(card); } catch (_) {}
     }
