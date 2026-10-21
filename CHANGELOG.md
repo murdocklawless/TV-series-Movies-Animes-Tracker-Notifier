@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.12 - 21/10/2026-04:11
+### TR
+- **Yeni — LOKAL ARA kartına tıklama artık bölüme atlıyor:** sonuç kartına tıklayınca **bilgi modalı açılmaz**; sonuç modalı kapanır, kartın bulunduğu bölüme gidilir ve kart **odaklanır** (2.5 sn turuncu çerçeve vurgusu). Hedef seçimi: arşivli → **Arşiv**, izlenmiş → **İzlenmiş**, sonra-izlenecek → ilgili **"-later"** grid'i, aksi halde ana grid (dizi/film/belgesel/anime). Kart üstündeki butonlar (takvim/arşivle/kaldır/bilgi/ertele) eskisi gibi çalışır.
+- **TV/APK:** LOKAL ARA kartında **OK** artık aynı atlamayı yapar (buton moduna girmez); atlanan bölümde kartta OK yine normal şekilde buton moduna girer (info/takvim/…). Sentetik tıklama koruması bu modal için kapatıldı.
+- **Mobil genişlik eşitlemesi:** çoklu ara (`#search-results-modal`) ve lokal ara (`#local-search-modal`) modalları artık **oyuncu/yönetmen modalı (`#person-modal`) ölçüsünde** — tam genişlik (mobil listesindeki `92%` sınırı kalktı), grid boşlukları person-grid ile aynı (`gap: 18px; padding: 16px 20px; margin: -16px -20px`) ve kartlar **120px**. Aynı düzeltme **Ayarlar → Favoriler → filmografi** modalına (`#fav-listing-modal`) da uygulandı. `#picker-modal` **kapsam dışı** (dokunulmadı).
+- **Damga:** `jsver bump` → tüm JS `?v=648`, `__NX_BUILD 648`; `style.css?v=626 → 627`, `mobil.css?v=548 → 549`. Statik değişiklik → **servis restart gerekmez**.
+### EN
+- **New — clicking a LOCAL SEARCH card now jumps to its section:** clicking a result card **no longer opens the info modal**; the results modal closes, the app navigates to the section the card belongs to and **focuses** the card (2.5 s orange outline highlight). Target selection: archived → **Archive**, watched → **Watched**, deferred → the matching **"-later"** grid, otherwise the main grid (shows/movies/docs/anime). Card buttons (calendar/archive/remove/info/defer) keep working as before.
+- **TV/APK:** pressing **OK** on a LOCAL SEARCH card now performs the same jump (no button mode); once in the section, OK on the card enters button mode as usual (info/calendar/…). The synthetic-click guard is disabled for this modal.
+- **Mobile width alignment:** the multi-search (`#search-results-modal`) and local search (`#local-search-modal`) modals now match the **actor/director modal (`#person-modal`)**: full width (the mobile list's `92%` cap is lifted), person-grid spacing (`gap: 18px; padding: 16px 20px; margin: -16px -20px`) and **120px cards**. The same fix was applied to the **Settings → Favorites → filmography** modal (`#fav-listing-modal`). `#picker-modal` is **out of scope** (untouched).
+- **Stamps:** `jsver bump` → all JS `?v=648`, `__NX_BUILD 648`; `style.css?v=626 → 627`, `mobil.css?v=548 → 549`. Static-only change → **no service restart needed**.
+
 ## 2.19.11 - 21/10/2026-03:47
 ### TR
 - **Düzeltme — LOKAL ARA sonuç modalı artık arama kutusunun 10px altında:** her platformda (mobil/APK/masaüstü) modal, JS'in yazdığı `--local-modal-top` değişkeniyle kutunun alt kenarına hizalanır (`align-items: flex-start` + `padding-top`), yüksekliği kalan alana göre sınırlanır. Böylece **kutu görünür ve odaklı** kalır (yazı görünür), sonuçlar hemen altında akar; panel içi kaydırma korunur. Sayfa kayarsa/yeniden boyutlanırsa hizalama yeniden hesaplanır; kutu ekranın altına çok yakınsa önce yukarı alınıp ölçülür.

@@ -323,6 +323,12 @@ main {
   width: var(--card-w);
 }
 
+/* 2.19.12: LOKAL ARA'dan bölüme atlanan kartın geçici vurgusu (2.5 sn). */
+.card.jump-target {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
 /* Sıradaki Bölüm şeridi (1.84): dizi/belgesel/anime sekmelerinin en üstünde,
    taşınabilir bölüm. Yatay scrollbar YOK; taşanlar alt satıra ortalanır. */
 [id$="-nextup-wrap"] .unwatched-section-title {

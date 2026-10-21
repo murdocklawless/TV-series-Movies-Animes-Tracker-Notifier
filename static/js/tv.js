@@ -1578,6 +1578,8 @@ document.addEventListener("keydown", (e)=>{
     const card0 = ae0 && (isCard(ae0) ? ae0 : (ae0.closest && ae0.closest('.card'))) || null;
     if (!buttonMode && card0 && tm.contains(card0)){
       e.preventDefault(); e.stopPropagation();
+      // 2.19.12 LOKAL ARA: OK -> karta tıklama = bölüme atla + fokus (buton modu yok)
+      if (tm.id === 'local-search-modal') { try { card0.click(); } catch (_) {} return; }
       enterButtonMode(card0);
       return;
     }
@@ -1656,7 +1658,9 @@ document.addEventListener("click", (e)=>{
   if (e.detail !== 0) return;
   const t = e.target;
   const tm2 = topModal();
-  if (t && isCard(t) && (!tm2 || ((tm2.id === 'search-results-modal' || tm2.id === 'local-search-modal') && tm2.contains(t)))){
+  // 2.19.12: LOKAL ARA kartında sentetik click ENGELLENMEZ (tıklama bölüme atlar);
+  // sonuç modalında ise engellenir (buton moduna girer).
+  if (t && isCard(t) && (!tm2 || (tm2.id === 'search-results-modal' && tm2.contains(t)))){
     e.preventDefault(); e.stopPropagation();
     enterButtonMode(t);
   }

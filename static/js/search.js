@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=647";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=648";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=647";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard } from "./views.js?v=647";
+} from "./utils.js?v=648";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=648";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=647";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=648";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1360,6 +1360,64 @@ function localTitleCmp(a, b) {
   }
 }
 
+/* ===== 2.19.12 LOKAL ARA: kart tıklaması → bölüme atla + fokus ===== */
+// Kartın bulunduğu görünüm + grid (öncelik: arşiv > izlenmiş > sonra-izlenecek > ana).
+const LOCAL_JUMP_GRIDS = {
+  dizi:     { main: "poster-grid-shows",  later: "poster-grid-shows-later",  watched: "watched-shows",  archive: "archive-shows" },
+  film:     { main: "poster-grid-movies", later: "poster-grid-movies-later", watched: "watched-movies", archive: "archive-movies" },
+  belgesel: { main: "poster-grid-docs",   later: "poster-grid-docs-later",   watched: "watched-docs",   archive: "archive-docs" },
+  anime:    { main: "anime-grid",         later: "anime-grid-later",         watched: "watched-anime",  archive: "archive-anime" },
+};
+
+function localJumpTarget(item, kind) {
+  const g = LOCAL_JUMP_GRIDS[kind] || LOCAL_JUMP_GRIDS.dizi;
+  const archived = Number(item.archived || 0) === 1;
+  const inWatched = !archived && Number(item.in_watched || 0) === 1;
+  const deferred = !archived && !inWatched && Number(item.deferred || 0) === 1;
+  if (archived) return { view: "archive", grid: g.archive };
+  if (inWatched) return { view: "watched", grid: g.watched };
+  if (deferred) return { view: kind, grid: g.later };
+  return { view: kind, grid: g.main };
+}
+
+// Hedef grid'de kartı başlıkla bul (data-sort-title; yedek: .title metni).
+function findLocalCard(gridId, title) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return null;
+  const want = String(title || "");
+  for (const c of Array.from(grid.querySelectorAll(".card"))) {
+    try { if ((c.dataset.sortTitle || "") === want) return c; } catch (_) {}
+    const tEl = c.querySelector(".info .title");
+    if (tEl && tEl.textContent.trim() === want) return c;
+  }
+  return null;
+}
+
+// Sonuç kartına tıklama: bilgi modalı AÇILMAZ; sonuç modalı kapanır, kartın bulunduğu
+// bölüme gidilir ve kart odaklanır (2.5 sn vurgu). ~2 sn retry: liste asenkron yüklenir.
+function jumpToLocalCard(item, kind) {
+  const target = localJumpTarget(item, kind);
+  closeLocalSearchModal();
+  try { switchView(target.view); } catch (_) { return; }
+  let tries = 0;
+  const tick = () => {
+    tries += 1;
+    const card = findLocalCard(target.grid, item.title);
+    if (card) {
+      try { card.tabIndex = 0; } catch (_) {}
+      try { card.focus({ preventScroll: true }); } catch (_) { try { card.focus(); } catch (_) {} }
+      try { card.scrollIntoView({ block: "center" }); } catch (_) {}
+      try {
+        card.classList.add("jump-target");
+        setTimeout(() => { try { card.classList.remove("jump-target"); } catch (_) {} }, 2500);
+      } catch (_) {}
+      return;
+    }
+    if (tries < 34) setTimeout(tick, 60);
+  };
+  setTimeout(tick, 60);
+}
+
 async function runLocalSearch() {
   const inp = localSearchInput();
   const q = (inp ? inp.value : "").trim();
@@ -1417,6 +1475,8 @@ function renderLocalResults() {
       }
     } catch (_) { card = null; }
     if (card) {
+      // 2.19.12: kart tıklaması bilgi modalı açmaz → bölüme atlar + karta fokus.
+      try { card.onclick = () => jumpToLocalCard(item, k); } catch (_) {}
       frag.appendChild(card);
       try { applyTitleHint(card); } catch (_) {}
     }
