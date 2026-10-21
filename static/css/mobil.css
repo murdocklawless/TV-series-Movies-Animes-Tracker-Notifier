@@ -302,19 +302,21 @@
     padding: 12px 12px;
   }
 
-  /* 2.19.12: arama sonuç modalları (çoklu ara + lokal ara) mobilde oyuncu/yönetmen
-     modalı (person-modal) ölçüsünde — tam genişlik + person-grid boşlukları +
-     120px kartlar. Panel #view-search içinde olduğu için 132px kart kuralını ezmek şart. */
+  /* 2.19.12 / 2.19.13: arama sonuç modalları (çoklu ara + lokal ara) mobilde
+     oyuncu/yönetmen modalı (person-modal) ölçüsünde — tam genişlik + person-grid
+     boşlukları. Kart ölçüsü person-grid'in EFEKTİF değerlerinden gelir
+     (≤480px: --card-w = 1/3 + --card-gap = 8px → 3'lü düzen; 481-600px: 120px/12px).
+     Panel #view-search içinde olduğu için 132px kart kuralını ezmek şart. */
   html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid,
   html:not(.is-tv):not(.tv-mode) #search-results-modal .poster-grid.modal-body {
-    gap: 18px;
+    gap: var(--card-gap);
     padding: 16px 20px;
     margin: -16px -20px;
   }
 
   html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid .card,
   html:not(.is-tv):not(.tv-mode) #search-results-modal .poster-grid .card {
-    width: 120px;
+    width: var(--card-w);
   }
 
   /* 2.19.12: modal genişlikleri person-modal ile aynı (mobil listesindeki 92%'i ezer):

@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=648";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=649";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=648";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=648";
+} from "./utils.js?v=649";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=649";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=648";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=649";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1282,22 +1282,27 @@ let localSearchState = { q: "", kind: "all", items: [], truncated: false, seq: 0
 function localSearchInput() { return document.getElementById("local-search-input"); }
 function localSearchModalEl() { return document.getElementById("local-search-modal"); }
 
-// 2.19.11: sonuç modalı her platformda (mobil/APK/masaüstü) arama kutusunun 10px
-// altında açılır → kutu görünür + odaklı kalır, yazı görünür olur. Üst hizalama ve
-// dinamik yükseklik CSS'te `--local-modal-top` değişkeninden türetilir.
+// 2.19.11 / 2.19.13: sonuç modalı her platformda (mobil/APK/masaüstü) arama kutusunun
+// 10px altında açılır → kutu görünür + odaklı kalır, yazı görünür olur.
+// ÖLÇÜM TEK KAYNAKTAN: overlay'in kendi rect'i (kutunun rect'iyle aynı koordinat sistemi).
+// TV/APK'da CSS `100vh` ile JS ölçümü farklı ölçeklere düşebildiği için yükseklik de
+// JS'ten px olarak verilir (`--local-modal-h`) ve en az ~200px panel garantilenir.
 function positionLocalModal() {
   const modal = localSearchModalEl();
   const inp = localSearchInput();
   if (!modal || !inp) return;
-  const vh = window.innerHeight || document.documentElement.clientHeight || 800;
-  let r = inp.getBoundingClientRect();
+  const mRect = modal.getBoundingClientRect();
+  const avail = Math.round(mRect.height) || window.innerHeight || document.documentElement.clientHeight || 800;
+  let rel = Math.round(inp.getBoundingClientRect().bottom - mRect.top) + 10;
   // Kutu ekranın altına yakınsa panele yer kalmaz: kutuyu yukarı alıp yeniden ölç.
-  if (vh - r.bottom - 10 < 220) {
+  if (avail - rel < 220) {
     try { inp.scrollIntoView({ block: "start" }); } catch (_) {}
-    r = inp.getBoundingClientRect();
+    rel = Math.round(inp.getBoundingClientRect().bottom - mRect.top) + 10;
   }
-  const top = Math.max(8, Math.round(r.bottom) + 10);
+  // Üst sınır: panele her koşulda en az ~200px yer bırak (aksi halde panel 0'a kırpılır).
+  const top = Math.max(8, Math.min(rel, Math.max(80, avail - 200)));
   modal.style.setProperty("--local-modal-top", top + "px");
+  modal.style.setProperty("--local-modal-h", Math.max(160, avail - top - 16) + "px");
 }
 
 function updateLocalFilterMenu() {
