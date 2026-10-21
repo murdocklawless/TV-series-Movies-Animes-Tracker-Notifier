@@ -1245,3 +1245,18 @@
 - **Dogrulama:** `node --check` search.js OK; ESM bag testi `LINK_TEMIZ` (14 modul); modul basina tek `?v` (656) → `LINK_TEMIZ`; style.css parantez 1124/1125 (fazlalik 2.19.19 oncesinden beri ayni), search.js 669/669; moji=0 / U+FFFD=0 / BOM yok (pi venv python); yerel↔pi md5 0 fark (19 dosya); pi'de `jsver check` OK (build 656); servis `active`.
 - **Surum:** 2.19.21 (dosya + DB esit; `check_update()` → available False). Yedek: `bak/2.19.21_lokal_ara_ucan_kart_20261022_011201/` (yerel + pi, `nextep.db` dahil).
 - **Test:** mobilde lokal aramada bir karta dokun → ① kart %100 buyuk halde ekranin ortasinda yesil cerceveyle ~1 sn, ② ilgili bolum acilir, kart o satirdaki yerine ucarak kuculur, ③ hedef kartta 3 sn yesil cerceve + fokus. Masaustu ayni (tiklama), TV/APK ayni (OK tusu) — ucunde de odak/hedef dogru, tasma veya cift kart yok.
+
+## FAZ NOTLARI — Uçan kart konum hatası düzeltmesi (2026-10-22, sürüm 2.19.22)
+
+- **Belirti:** 2.19.21'de lokal ara sonucundaki karta tıklanınca büyük (%100) klon **ekranın ortasında değil sol üst köşede** çıkıyordu; kartın **~%75'i sol taraftan ekran dışında** kalıyordu. Masaüstü ve mobilde aynı.
+- **Kök neden:** `makeLocalFly()` klonu `position: fixed` ile ekliyordu ama **`left/top` hiç atanmıyordu** → CSS'teki `.card.local-fly-card { left:0; top:0 }` geçerliydi. Buna karşın ilk transform **kaynak kartın EKRANDAKİ merkezine** göre hesaplanıyordu (`translate(cw/2 − cx, ch/2 − cy)`). Klonun gerçek merkezi `(w/2, h/2)` olduğu için sonuç `cw/2 − cx + w/2` → `cx` büyükse (kart modalın sağında) klon sola, ekran dışına kayıyordu. Aynı `cx/cy` referansı `flyTo()`'da da kullanıldığı için **uçuş hedefi de kayıyordu**.
+- **Düzeltme (`static/js/search.js` → `makeLocalFly`):**
+  1. `el.style.left = r.left + "px"; el.style.top = r.top + "px";` → klon kaynak kartın ekran konumunda doğar.
+  2. `document.body.appendChild(el)` **sonrası** `el.getBoundingClientRect()` ile **klonun kendi** kutusu ölçülür; `ex/ey` bu rect'ten alınır (**kendini düzelten hesap**: CSS/sınıf/ölçek farkı olsa bile merkez doğru).
+  3. İlk transform `translate(cw/2 − ex, ch/2 − ey) scale(2)`; `el.style.transition = "none"` + zorunlu reflow (`void el.offsetWidth`) → kart **anında** ortada belirir (kaynak konumdan ortaya kayma animasyonu yok).
+  4. `flyTo(targetRect, ms)` aynı `ex/ey` referansını kullanır: `dx = hedefMerkez − ex`, `dy = hedefMerkez − ey` → varış hedef kartın **tam merkezi**. `transition` burada açıkça verilir (`transform 500ms cubic-bezier(.2,.8,.2,1)`).
+- **Değişmeyenler:** 1 sn ortada bekleme → 0.5 sn uçuş → 3 sn hedefte yeşil çerçeve + fokus; 6 sn "kart gelmezse fade-out"; rect `0×0` ise uçuş atlanır; beklemede etkileşim → iptal; 15 sn mutlak sınır; 120 ms tazeleme döngüsü (2.19.15/16 yarış koruması). CSS ve diğer platform kodları **değişmedi** (tek kod yolu: mobil ≈ masaüstü ≈ TV/APK).
+- **Damga/dağıtım:** `jsver bump` → tüm JS `?v=657`, `__NX_BUILD 657`; CSS damgaları sabit (`style 634`, `mobil 553`, `tv 561`). 17 dosya (16 js + index.html) scp; statik → **restart GEREKMEZ** (Ctrl+F5 / APK'yi kapat-aç).
+- **Doğrulama:** `node --check` search.js OK; ESM bağ testi `LINK_TEMIZ`; `jsver check` OK (build 657, yerel + pi); search.js parantez 674/674; moji=0 / U+FFFD=0 / BOM yok (pi venv python); yerel↔pi **md5 0 fark** (17 dosya); servis `active`.
+- **Sürüm:** 2.19.22 (dosya + DB eşit; `check_update()` → available False). Yedek: `bak/2.19.22_ucan_kart_konum_fix_20261022_011814/` (yerel + pi, `nextep.db` dahil).
+- **Test:** mobilde lokal aramada bir karta dokun → büyük klon **ekranın tam ortasında** (sol üstte değil, taşma yok) 1 sn → ilgili bölüm açılır, klon kartın **satırındaki yerine** uçar → hedefte 3 sn yeşil çerçeve. Masaüstünde aynı; TV'de OK ile aynı.

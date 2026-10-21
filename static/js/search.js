@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=656";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=657";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=656";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=656";
+} from "./utils.js?v=657";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=657";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=656";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=657";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1478,14 +1478,34 @@ function makeLocalFly(srcCard) {
     el.removeAttribute("tabindex");
     el.style.width = r.width + "px";
     el.style.height = r.height + "px";
+    // 2.19.22 DÜZELTME: klon, KAYNAK KARTIN EKRAN KONUMUNA yerleştirilir. Önceki sürümde
+    // left/top atanmıyordu (CSS'te 0/0 kalıyordu) ama translate kaynak kartın merkezine göre
+    // hesaplanıyordu → büyük kart sol üst köşede, hatta ekran dışında çıkıyordu.
+    el.style.left = r.left + "px";
+    el.style.top = r.top + "px";
   } catch (_) { return null; }
   const cw = window.innerWidth || document.documentElement.clientWidth || 0;
   const ch = window.innerHeight || document.documentElement.clientHeight || 0;
-  const cx = r.left + r.width / 2;
-  const cy = r.top + r.height / 2;
-  // 1. faz: klonun merkezi = viewport merkezi, ölçek 2 (=%100 büyük).
-  el.style.transform = `translate(${(cw / 2 - cx)}px, ${(ch / 2 - cy)}px) scale(2)`;
   try { document.body.appendChild(el); } catch (_) { return null; }
+  // 2.19.22: transform, KLONUN KENDİ kutusundan ölçülerek kurulur (kendini düzelten hesap):
+  // klon left/top = kaynak rect olduğu için merkezi = kaynak kartın merkezi; ekran merkezine taşınır.
+  let ex = r.left + r.width / 2;
+  let ey = r.top + r.height / 2;
+  try {
+    const er = el.getBoundingClientRect();
+    if (er && er.width > 0 && er.height > 0) {
+      ex = er.left + er.width / 2;
+      ey = er.top + er.height / 2;
+    }
+  } catch (_) {}
+  // 1. faz: klonun merkezi = viewport merkezi, ölçek 2 (=%100 büyük).
+  // İlk çizim ANINDA ortada olsun: kaynak konumdan ortaya "kayma" animasyonu olmasın
+  // (transition flyTo() içinde açıkça verilir).
+  try {
+    el.style.transition = "none";
+    el.style.transform = `translate(${(cw / 2 - ex)}px, ${(ch / 2 - ey)}px) scale(2)`;
+    void el.offsetWidth;
+  } catch (_) {}
   let removed = false;
   const remove = () => {
     if (removed) return;
@@ -1495,15 +1515,15 @@ function makeLocalFly(srcCard) {
   return {
     el,
     remove,
-    // 2. faz: hedef rect'e uç (tek tip ölçek, merkez hizalama).
+    // 2. faz: hedef rect'e uç (tek tip ölçek, merkez hizalama). Referans = klonun ölçülen merkezi.
     flyTo(targetRect, ms) {
       return new Promise((resolve) => {
         let settled = false;
         const end = () => { if (settled) return; settled = true; resolve(); };
         try {
           const s = Math.max(0.05, Math.max(1, targetRect.width) / r.width);
-          const dx = (targetRect.left + targetRect.width / 2) - cx;
-          const dy = (targetRect.top + targetRect.height / 2) - cy;
+          const dx = (targetRect.left + targetRect.width / 2) - ex;
+          const dy = (targetRect.top + targetRect.height / 2) - ey;
           el.style.transition = `transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
           void el.offsetWidth; // reflow: başlangıç konumu otursun
           el.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
