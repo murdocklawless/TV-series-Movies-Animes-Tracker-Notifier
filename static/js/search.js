@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=653";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=654";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=653";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=653";
+} from "./utils.js?v=654";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=654";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=653";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=654";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1375,13 +1375,15 @@ function closeLocalSearchModal(refocus) {
   const modal = localSearchModalEl();
   if (modal) modal.style.display = "none";
   toggleLocalFilterMenu(false);
-  // 2.19.17: mobilde header kutusundaki değer sayfadaki kutuya geri yazılır ve odak
-  // ona döner (kullanıcı yazmaya kaldığı yerden devam eder). Kart atlamasında
-  // (jumpToLocalCard) refocus=false gelir: odak atlanan karta bırakılır.
+  // 2.19.18 DUZELTME: burada header kutusundaki deger sayfadaki kutuya GERI YAZILMAZ.
+  // 2.19.17'de yaziliyordu ve mobilde "kutuya yazi yazilamiyor" hatasina yol aciyordu:
+  // sayfadaki kutuya 1. harf girilince (q < 2) bu fonksiyon cagriliyor, o an HENUZ BOS olan
+  // header kutusunun degeri sayfa kutusuna geri yazilip yazilan harf SILINIYORDU.
+  // Deger senkronu zaten header kutusunun her `input` olayinda yapiliyor
+  // (`inp.value = hdr.value` -> tek dogru kaynak: sayfadaki kutu), bu yuzden burada
+  // geri yazmaya GEREK YOK. Yalniz odak dondurme kalir (kart atlamasinda refocus=false).
   if (localMobilePanel()) {
-    const h = localHdrInput();
     const p = localSearchInput();
-    if (h && p) p.value = h.value || "";
     if (refocus !== false && p) {
       setTimeout(() => { try { p.focus({ preventScroll: true }); } catch (_) { try { p.focus(); } catch (_) {} } }, 30);
     }

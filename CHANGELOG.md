@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.18 - 22/10/2026-00:37
+### TR
+- **Düzeltme — mobilde LOKAL ARA kutusuna yazı yazılamıyordu (her harf siliniyordu):** `closeLocalSearchModal()` (2.19.17) mobilde **header kutusunun değerini sayfadaki kutuya geri yazıyordu**. Sayfadaki kutuya **1. harf** girildiğinde (`q < 2`) bu fonksiyon çağrılıyor, o an **henüz boş** olan header kutusunun değeri sayfa kutusuna yazılıp **yazılan harf siliniyordu** → 2 karaktere hiç ulaşılamıyor, sonuç paneli açılmıyordu ("kutuya yazı yazılamıyor"). Geri yazma satırı kaldırıldı: değer senkronu zaten header kutusunun her `input` olayında `inp.value = hdr.value` ile yapılıyor (tek doğru kaynak: sayfadaki kutu). Yalnız **odak döndürme** kaldı (kart atlamasında `refocus=false`).
+- **Etki:** yalnız mobil (≤600px) — masaüstünde `localMobilePanel()` false olduğu için o dal hiç çalışmıyordu, masaüstü davranışı değişmedi.
+- **Damga:** `jsver bump` → tüm JS `?v=654`, `__NX_BUILD 654`; CSS değişmedi (`style 632`, `mobil 551`, `tv 561` sabit). Statik değişiklik → **servis restart gerekmez** (Ctrl+F5).
+### EN
+- **Fix — the LOCAL SEARCH box could not be typed into on mobile (every character was erased):** `closeLocalSearchModal()` (2.19.17) wrote the **header box value back into the page box** on mobile. When the **first character** was typed into the page box (`q < 2`) that function ran and overwrote the page box with the value of the header box — which was still **empty** — so **the typed character disappeared**; the two-character threshold was never reached and the results panel never opened ("the box does not accept typing"). The write-back line has been removed: the values are already synced on every `input` event of the header box via `inp.value = hdr.value` (single source of truth: the page box). Only the **focus return** remains (with `refocus=false` for card jumps).
+- **Scope:** mobile only (≤600px) — on desktop `localMobilePanel()` is false, so that branch never ran and desktop behaviour is unchanged.
+- **Stamps:** `jsver bump` → all JS `?v=654`, `__NX_BUILD 654`; CSS unchanged (`style 632`, `mobil 551`, `tv 561`). Static-only change → **no service restart needed** (Ctrl+F5).
+
 ## 2.19.17 - 22/10/2026-00:33
 ### TR
 - **Yeni — LOKAL ARA sonuç modalı mobilde oyuncu/yönetmen modalı gibi ortada:** telefonlarda (≤600px, TV hariç) panel artık arama kutusunun 10px altında değil, **ekranın ortasında** açılır (`align-items: center`, `max-height: 90vh`); genişlik ve kart ölçüsü person-modal ile **birebir** (mobil.css'teki 2.19.12/2.19.13 kuralları aynen geçerli: ≤480px 3'lü düzen, 481-600px 120px/12px). Mobilde JS konumlandırma **yapılmaz** (`positionLocalModal()` erken döner) → sayfa kaydırma/yeniden boyutlanma paneli oynatmaz.

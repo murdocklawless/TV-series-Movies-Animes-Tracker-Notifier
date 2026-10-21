@@ -1197,3 +1197,13 @@
 - **Dogrulama:** `node --check` search.js + views.js OK; `jsver check` OK (yerel + pi); yerel↔pi md5 0 fark (17 dosya); moji=0 / BOM yok (pi venv python); style.css parantez 1121/1122 (+1 fark onceden mevcut); servis `active`.
 - **Surum:** 2.19.17 (dosya + DB esit; DB `version` UPDATE script ile pi venv python uzerinden calistirildi). Yedek: `bak/2.19.17_lokal_ara_mobil_ortada_20261022_002837/` (yerel + pi, `nextep.db` dahil).
 - **Test:** mobilde 2 harf → panel ortada (person-modal gibi), header ortasinda kutu dolu/fokuslu/imlec sagda, kartlar harflere gore dizili; yazdikca kartlar + "{n} Sonuc" + tur ozeti canli; `×` / Escape / 1 harf → kapanir, odak sayfa kutusuna doner. Masaustu: panel kutunun 10px altinda, sayac cizginin sag ustunde, ozet cizginin altinda, ikinci kutu gorunmez. APK/TV: D-pad zinciri ve Geri akisi degismedi.
+
+## FAZ NOTLARI — LOKAL ARA mobil yazma hatasi fix (2026-10-22, surum 2.19.18)
+
+- **Hata (bildirim):** mobilde LOKAL ARA kutusuna yazi yazilamiyordu — her harf aninda siliniyordu.
+- **Kok neden:** 2.19.17'de eklenen `closeLocalSearchModal()` mobil dali, **header kutusunun degerini sayfadaki kutuya GERI YAZIYORDU** (`p.value = h.value`). Sayfadaki kutuya **1. harf** girilince (`typeFrom` → `q < 2`) bu fonksiyon cagriliyor; o an panel hic acilmadigi icin header kutusu **bos** → bos deger sayfa kutusuna yazilip **yazilan harf siliniyordu**. 2 karaktere ulasilamadigi icin panel de acilmiyordu ("kutu yazi kabul etmiyor" gorunumu). Masaustunde `localMobilePanel()` false oldugu icin dal hic calismiyordu → hata YALNIZ mobilde.
+- **Cozum (search.js):** geri yazma satiri KALDIRILDI; yalniz odak dondurme (`refocus !== false`) kaldi. Deger senkronu zaten header kutusunun her `input` olayinda `inp.value = hdr.value` ile yapiliyor → tek dogru kaynak sayfadaki kutu; `seedLocalHdrInput()` de hep sayfadaki kutudan kopyalar, ikinci kaynak olusmaz.
+- **Damga/dagitim:** `jsver bump` → tum JS `?v=654`, `__NX_BUILD 654`; CSS DEGISMEDI (`style 632`, `mobil 551`, `tv 561`). 13 js + index.html scp; statik → **restart GEREKMEZ** (Ctrl+F5).
+- **Dogrulama:** `node --check` search.js OK; ESM bag testi `LINK_TEMIZ` (16 modul); `jsver check` OK (yerel + pi); yerel↔pi md5 0 fark (17 dosya); moji=0 / BOM yok; servis `active`.
+- **Surum:** 2.19.18 (dosya + DB esit). Yedek: `bak/2.19.18_lokal_ara_yazma_fix_20261022_003719/` (yerel + pi, `nextep.db` dahil).
+- **Test:** mobilde sayfadaki LOKAL ARA kutusuna 2 harf yaz → harfler kutuda KALIR, panel ortada acilir, odak header ortasindaki kutuya gecer; silerek 1 harfe inince panel kapanir ve harf kutuda kalir. Masaustu davranisi degismedi.
