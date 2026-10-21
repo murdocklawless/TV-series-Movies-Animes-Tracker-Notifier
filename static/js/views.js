@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=649";
+import { t } from "./i18n.js?v=650";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=649";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=649";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=649";
+} from "./utils.js?v=650";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=650";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=650";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -297,15 +297,17 @@ function followedStatusHTML(item) {
 }
 
 // Orta satır: dizi/belgesel-TV → sezon + bölüm rozetleri (çoklu bölüm verisi varsa; yoksa boş).
-// İKİSİ de varsa kısaltılır: mobil "2 S 12 B" (mini), masaüstü/tablet/TV "2 Sez 14 Böl" (kısa).
-// Tek rozet varsa tam yaz (yer var).
-function seasonEpMid(item) {
+// Varsayılan TAM yazı ("2 Sezon 34 Bölüm") — bölüm kartlarının tamamı (dizi/film/belgesel,
+// izlenmemiş, izlenmiş, arşiv, öneriler, TV dahil).
+// mode="compact" (yalnız LOKAL ARA modalı): mobil "2 S 12 B" (mini), diğerleri "2 Sez 14 Böl".
+function seasonEpMid(item, mode) {
   if (item.media_type !== "tv") return "";
   const hasS = !!item.number_of_seasons;
   const hasE = !!item.number_of_episodes;
   const both = hasS && hasE;
-  const sKey = both ? (isMobile() ? "seasons_mini" : "seasons_short") : "seasons";
-  const eKey = both ? (isMobile() ? "episodes_mini" : "episodes_short") : "episodes";
+  const compact = mode === "compact";
+  const sKey = compact ? (both ? (isMobile() ? "seasons_mini" : "seasons_short") : "seasons") : "seasons";
+  const eKey = compact ? (both ? (isMobile() ? "episodes_mini" : "episodes_short") : "episodes") : "episodes";
   const s = hasS ? `<span class="season-count-badge">${t(sKey, { n: item.number_of_seasons })}</span>` : "";
   const e = hasE ? `<span class="episode-count">${t(eKey, { n: item.number_of_episodes })}</span>` : "";
   return s + e;
@@ -326,6 +328,7 @@ function animeEpMid(item) {
 //   refresh     : işlem sonrası listeyi tazeleyen fonksiyon
 //   sectionMain : taşıma sonrası hedef bölüm (lokal aramada null)
 //   sectionLater: sonra-izlenecek hedef bölüm (lokal aramada null)
+//   badgeMode   : "compact" → sezon/bölüm hapları kısa (yalnız LOKAL ARA modalı)
 function makeFollowedCard(item, opts) {
   const o = opts || {};
   const view = o.view || (item.media_type === "movie" ? "film" : "dizi");
@@ -356,7 +359,7 @@ function makeFollowedCard(item, opts) {
           type: isDoc ? docBadge() : `<span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>`,
           score: scoreTag(item.vote_average),
           net: platformTag(item.networks),
-          mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item),
+          mid: item.media_type === "movie" ? followedStatusHTML(item) : seasonEpMid(item, o.badgeMode),
           status: item.media_type === "movie" ? (isDoc ? CARD_SLOT.status : "") : followedStatusHTML(item),
         })}
         ${item.notified ? `<div style="color:#6ee7a0">${t("notified")}</div>` : ""}

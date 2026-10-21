@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=628" />
+  <link rel="stylesheet" href="/static/css/style.css?v=629" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=514" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=550" />
   <link rel="stylesheet" href="/static/css/tv.css?v=560" />
@@ -376,6 +376,7 @@
               <div class="modal local-modal">
                 <div class="modal-header">
                   <h3 data-i18n="search_local_title">LOKAL ARA</h3>
+                  <div id="local-search-count" class="local-search-count"></div>
                   <div class="sort-wrap">
                     <button id="local-search-filter-btn" class="local-filter-btn" data-i18n-title="search_local_filter"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
                     <div id="local-search-filter-menu" class="sort-menu">
@@ -388,7 +389,6 @@
                   </div>
                   <button id="local-search-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
                 </div>
-                <div id="local-search-count" class="local-search-count"></div>
                 <div id="local-search-grid" class="poster-grid modal-body"></div>
               </div>
             </div>
@@ -1555,6 +1555,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=649"></script>
+  <script type="module" src="/static/js/nextep.js?v=650"></script>
 </body>
 </html>

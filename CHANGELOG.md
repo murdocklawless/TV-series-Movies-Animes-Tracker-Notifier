@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.14 - 21/10/2026-04:43
+### TR
+- **Yeni — LOKAL ARA sayacı başlık satırının tam ortasında:** "N Sonuç" metni artık sonuç modalının başlık satırında, **LOKAL ARA başlığı ile filtre/× butonlarının tam ortasında** durur (mutlak konumlandırma; taşma koruması `max-width: 50%` + ellipsis, tıklamayı engellemez). **Turuncu** (`#f97316`) ve **buton yazı boyutunda** (`0.85rem`). Masaüstü, mobil ve APK'da aynı görünüm.
+- **Metin:** `search_local_count` → tr **"{n} Sonuç"** (S büyük); diğer dillerde de Latin alfabesinde baş harf büyütüldü (en `Results`, fr `Résultats`, es `Resultados`, it `Risultati`, ru `Результатов`, pt `Resultados`, nl `Resultaten`, pl `Wyników`).
+- **Düzeltme — bölüm kartlarındaki sezon/bölüm hapları yine tam:** 2.19.11'de kısaltılan `seasonEpMid` artık **varsayılan olarak tam** yazıyor: **"2 Sezon 34 Bölüm"** — dizi/film/belgesel, izlenmemiş, izlenmiş, arşiv ve öneri kartlarının tamamında (**TV/APK dahil**). Kısaltma **yalnız LOKAL ARA sonuç modalında** kalır (`badgeMode: "compact"`): mobil "2 S 12 B", diğerleri "2 Sez 14 Böl". Anime kartlarının tek bölüm rozeti zaten tam yazıyordu.
+- **Damga:** `jsver bump` → tüm JS `?v=650`, `__NX_BUILD 650`; `style.css?v=628 → 629`. Statik değişiklik → **servis restart gerekmez**.
+### EN
+- **New — the LOCAL SEARCH counter sits dead centre in the header row:** the "N Results" text now lives in the results modal's header, **exactly between the LOCAL SEARCH title and the filter/× buttons** (absolute centring; overflow guard `max-width: 50%` + ellipsis, does not block clicks). **Orange** (`#f97316`) and **button font size** (`0.85rem`). Identical on desktop, mobile and the APK.
+- **Text:** `search_local_count` → tr **"{n} Sonuç"** (capital S); the Latin-script languages were capitalised as well (en `Results`, fr `Résultats`, es `Resultados`, it `Risultati`, ru `Результатов`, pt `Resultados`, nl `Resultaten`, pl `Wyników`).
+- **Fix — season/episode pills on section cards are full again:** `seasonEpMid`, shortened in 2.19.11, now **defaults to the full form**: **"2 Sezon 34 Bölüm"** — on shows/movies/docs, unwatched, watched, archive and recommendation cards (**including TV/APK**). The shortened form is kept **only in the LOCAL SEARCH results modal** (`badgeMode: "compact"`): mobile "2 S 12 B", others "2 Sez 14 Böl". Anime cards already showed the full single episode pill.
+- **Stamps:** `jsver bump` → all JS `?v=650`, `__NX_BUILD 650`; `style.css?v=628 → 629`. Static-only change → **no service restart needed**.
+
 ## 2.19.13 - 21/10/2026-04:29
 ### TR
 - **Düzeltme — TV/APK'da LOKAL ARA modalı "çizgi" olarak açılıyordu:** panel yüksekliği CSS'te `calc(100vh - …)` ile hesaplanıyordu; TV/APK'da CSS `100vh` ile JS ölçümü farklı ölçeğe düşünce `max-height` ~0'a kırpılıyor ve panel yalnızca 1px kenarlık olarak kalıyordu. Artık **ölçüm tek kaynaktan**: overlay'in kendi `getBoundingClientRect()`'i (kutunun rect'iyle aynı koordinat sistemi) → üst konum `--local-modal-top` ve yükseklik `--local-modal-h` **JS'ten px olarak** verilir; panele her koşulda **en az ~200px** yer garantilenir (üst konum `avail-200` ile kırpılır, yükseklik en az 160px). CSS `100vh` hesabı kaldırıldı (`max-height: var(--local-modal-h, 70vh)`). Kutu ekranın dibine çok yakınsa önce `scrollIntoView({block:"start"})` denemesi korunur.

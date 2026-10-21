@@ -1668,12 +1668,26 @@ input:-webkit-autofill:focus {
    (bölüm kümesi 30px adım − ~20px buton ≈ 10px). */
 .modal.local-modal .modal-header {
   gap: 10px;
+  position: relative;   /* 2.19.14: sayaç başlık ortasına mutlak konumlanır */
 }
 
+/* 2.19.14: "N Sonuç" sayacı başlık satırının TAM ORTASINDA (LOKAL ARA başlığı ile
+   butonların arasında), buton yazı boyutunda (0.85rem) ve turuncu. Taşma koruması:
+   %50 genişlik + ellipsis → başlık/butonlarla çakışmaz; tıklamayı engellemez. */
 .local-search-count {
-  font-size: 0.8rem;
-  color: #8b90a0;
-  padding: 0 20px 8px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 50%;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #f97316;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .local-search-empty {
