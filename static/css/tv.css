@@ -824,6 +824,10 @@ html.is-tv .genre-grid .picker-item, html.tv-mode .genre-grid .picker-item { wid
 /* Bölüm başlıkları + aksiyon butonları */
 html.is-tv .unwatched-section-title, html.tv-mode .unwatched-section-title { font-size: calc(1rem * var(--tv-scale)); margin: 0 0 calc(14px * var(--tv-scale)); padding-bottom: calc(8px * var(--tv-scale)); gap: calc(8px * var(--tv-scale)); }
 html.is-tv .section-summary, html.tv-mode .section-summary { font-size: calc(0.7rem * var(--tv-scale)); margin: calc(-6px * var(--tv-scale)) 0 calc(14px * var(--tv-scale)); padding: 0 calc(2px * var(--tv-scale)); }
+/* 2.19.17: LOKAL ARA sonuç başlığı (turuncu dotted çizgi + "{n} Sonuç" + tür özeti) — TV/APK ölçeği */
+html.is-tv #local-search-modal .local-results-head, html.tv-mode #local-search-modal .local-results-head { padding: 0 calc(20px * var(--tv-scale)); }
+html.is-tv #local-search-modal .local-search-count, html.tv-mode #local-search-modal .local-search-count { font-size: calc(0.85rem * var(--tv-scale)); padding-bottom: calc(4px * var(--tv-scale)); }
+html.is-tv #local-search-modal .local-search-summary, html.tv-mode #local-search-modal .local-search-summary { font-size: calc(0.7rem * var(--tv-scale)); margin-top: calc(6px * var(--tv-scale)); padding: 0 calc(2px * var(--tv-scale)); }
 html.is-tv .section-refresh, html.tv-mode .section-refresh { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); right: calc(82px * var(--tv-scale)); }
 html.is-tv .section-hide, html.tv-mode .section-hide { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); right: calc(52px * var(--tv-scale)); }
 html.is-tv .section-search, html.tv-mode .section-search { padding: calc(2px * var(--tv-scale)) calc(4px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); }

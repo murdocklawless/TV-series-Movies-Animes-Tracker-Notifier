@@ -327,6 +327,39 @@
     max-width: 1000px;
   }
 
+  /* 2.19.17 (madde 1 — SADECE mobil): LOKAL ARA sonuç paneli oyuncu/yönetmen modalı gibi
+     ORTADA açılır. style.css'teki "arama kutusunun 10px altı" konumlandırması (--local-modal-top)
+     ezilir; JS de mobilde konum/yükseklik YAZMAZ (positionLocalModal erken döner).
+     Yükseklik person-modal ile aynı: 90vh. Kart ölçüsü/grid boşlukları yukarıdaki
+     2.19.12/2.19.13 kurallarından gelir → person-modal kartlarıyla birebir. */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal {
+    align-items: center;
+    padding-top: 20px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal.local-modal {
+    max-height: 90vh;
+  }
+
+  /* Header'ın TAM ORTASINDA arama kutusu:  LOKAL ARA   [ kutu ]   [filtre][×]
+     Kutu mutlak konumla ortalanır (başlık solda, butonlar sağda kalır). */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header {
+    position: relative;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .local-hdr-search {
+    display: block;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(42%, 280px);
+  }
+
+  /* Uzun dillerde (ör. "Локальный поиск") başlık kutuyla çakışmasın → ellipsis */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header h3 {
+    max-width: 30%;
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
     padding: 12px 12px 25px;
   }

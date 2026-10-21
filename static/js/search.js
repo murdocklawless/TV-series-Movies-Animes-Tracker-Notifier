@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=652";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=653";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=652";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=652";
+} from "./utils.js?v=653";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=653";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=652";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=653";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1281,6 +1281,37 @@ let localSearchState = { q: "", kind: "all", items: [], truncated: false, seq: 0
 
 function localSearchInput() { return document.getElementById("local-search-input"); }
 function localSearchModalEl() { return document.getElementById("local-search-modal"); }
+function localHdrInput() { return document.getElementById("local-search-hdr-input"); }
+
+// 2.19.17: "mobil panel" ölçütü — mobil.css ile AYNI sınır (≤600px) ve TV değil.
+// Mobilde panel oyuncu/yönetmen modalı gibi ORTADA açılır (JS konumlandırma YAPILMAZ)
+// ve yazma yüzeyi header ortasındaki kutudur (sayfadaki kutu panelin arkasında kalır).
+function localMobilePanel() {
+  try { return !isTvUIActive() && window.matchMedia("(max-width: 600px)").matches; } catch (_) { return false; }
+}
+
+// Aktif yazma yüzeyi: panel açıkken mobilde header kutusu, aksi halde sayfadaki kutu.
+function localQueryEl() {
+  const h = localHdrInput();
+  const m = localSearchModalEl();
+  if (h && m && m.style.display !== "none" && localMobilePanel()) return h;
+  return localSearchInput();
+}
+
+// Header kutusunu panel açılırken doldurur (girilen ilk harfler), odak + imleç SAĞDA.
+// Panel zaten açıkken ÇAĞRILMAZ: yazma sırasında odak/değer ezilmez.
+function seedLocalHdrInput() {
+  const h = localHdrInput();
+  if (!h) return;
+  const p = localSearchInput();
+  if (p) h.value = p.value || "";
+  const put = () => {
+    try { h.focus({ preventScroll: true }); } catch (_) { try { h.focus(); } catch (_) {} }
+    try { const n = (h.value || "").length; h.setSelectionRange(n, n); } catch (_) {}
+  };
+  // Panel display:flex olduktan sonra (mobil klavye odak değişiminde açılır).
+  setTimeout(put, 60);
+}
 
 // 2.19.11 / 2.19.13: sonuç modalı her platformda (mobil/APK/masaüstü) arama kutusunun
 // 10px altında açılır → kutu görünür + odaklı kalır, yazı görünür olur.
@@ -1291,6 +1322,8 @@ function positionLocalModal() {
   const modal = localSearchModalEl();
   const inp = localSearchInput();
   if (!modal || !inp) return;
+  // 2.19.17: mobilde panel ORTADA açılır (CSS) — konum/yükseklik JS'ten VERİLMEZ.
+  if (localMobilePanel()) return;
   const mRect = modal.getBoundingClientRect();
   const avail = Math.round(mRect.height) || window.innerHeight || document.documentElement.clientHeight || 800;
   let rel = Math.round(inp.getBoundingClientRect().bottom - mRect.top) + 10;
@@ -1325,19 +1358,34 @@ function toggleLocalFilterMenu(on) {
 function openLocalSearchModal() {
   const modal = localSearchModalEl();
   if (!modal) return;
-  if (modal.style.display === "none") {
+  const firstOpen = modal.style.display === "none";
+  if (firstOpen) {
     // Filtre kalıcılığı yok: modal her açılışta "Tümü"ye döner (oturum içi).
     localSearchState.kind = "all";
     updateLocalFilterMenu();
   }
-  positionLocalModal();
+  positionLocalModal();          // 2.19.17: mobilde içeride erken döner (CSS ortalar)
   modal.style.display = "flex";
+  // 2.19.17: mobilde yazma yüzeyi header kutusu — açılışta ilk harflerle doldur +
+  // odakla (imleç sağda). Kartlar zaten o harflere göre dizilmiş olur.
+  if (firstOpen && localMobilePanel()) seedLocalHdrInput();
 }
 
-function closeLocalSearchModal() {
+function closeLocalSearchModal(refocus) {
   const modal = localSearchModalEl();
   if (modal) modal.style.display = "none";
   toggleLocalFilterMenu(false);
+  // 2.19.17: mobilde header kutusundaki değer sayfadaki kutuya geri yazılır ve odak
+  // ona döner (kullanıcı yazmaya kaldığı yerden devam eder). Kart atlamasında
+  // (jumpToLocalCard) refocus=false gelir: odak atlanan karta bırakılır.
+  if (localMobilePanel()) {
+    const h = localHdrInput();
+    const p = localSearchInput();
+    if (h && p) p.value = h.value || "";
+    if (refocus !== false && p) {
+      setTimeout(() => { try { p.focus({ preventScroll: true }); } catch (_) { try { p.focus(); } catch (_) {} } }, 30);
+    }
+  }
 }
 
 const LOCAL_KIND_ORDER = ["dizi", "film", "belgesel", "anime"];
@@ -1408,7 +1456,7 @@ function findLocalCard(gridId, title) {
 function jumpToLocalCard(item, kind) {
   const target = localJumpTarget(item, kind);
   const want = String(item.title || "");
-  closeLocalSearchModal();
+  closeLocalSearchModal(false); // 2.19.17: atlamada odak karta bırakılır (sayfa kutusuna dönülmez)
   try { switchView(target.view); } catch (_) { return; }
   const started = Date.now();
   const deadline = started + 3000;
@@ -1463,8 +1511,8 @@ function jumpToLocalCard(item, kind) {
 }
 
 async function runLocalSearch() {
-  const inp = localSearchInput();
-  const q = (inp ? inp.value : "").trim();
+  const el = localQueryEl();
+  const q = (el ? el.value : "").trim();
   if (q.length < 2) { closeLocalSearchModal(); return; }
   localSearchState.q = q;
   const seq = ++localSearchState.seq;
@@ -1484,6 +1532,7 @@ async function runLocalSearch() {
 function renderLocalResults() {
   const grid = document.getElementById("local-search-grid");
   const count = document.getElementById("local-search-count");
+  const summary = document.getElementById("local-search-summary");
   if (!grid) return;
   const kind = localSearchState.kind || "all";
   const items = localSearchState.items.slice().sort((a, b) => {
@@ -1500,6 +1549,7 @@ function renderLocalResults() {
       count.textContent = "";
     }
   }
+  if (summary) summary.textContent = ""; // kartlar yazılmadan önce temizle
   if (!items.length) {
     const row = document.createElement("div");
     row.className = "local-search-empty";
@@ -1526,29 +1576,49 @@ function renderLocalResults() {
     }
   });
   grid.appendChild(frag);
+  // 2.19.17: tür özeti DİZİLEN kartlardan üretilir (tek kaynak) → yazdıkça canlı güncellenir.
+  if (summary) {
+    try {
+      const cards = Array.from(grid.children).filter((c) => c && c.classList && c.classList.contains("card"));
+      summary.textContent = kindsSummaryText(cards);
+    } catch (_) { summary.textContent = ""; }
+  }
 }
 
 (function wireLocalSearch() {
   const inp = localSearchInput();
   const modal = localSearchModalEl();
   if (!inp || !modal) return;
-  inp.addEventListener("input", () => {
-    const q = (inp.value || "").trim();
+  // 2.19.17: yazma mantığı TEK yerde — hem sayfadaki kutu hem (mobilde) header kutusu
+  // bu akışı kullanır; iki kutu arasında değer kopyalanır, böylece tek doğru kaynak olur.
+  const typeFrom = (el) => {
+    const q = (el.value || "").trim();
     if (localSearchState.timer) { clearTimeout(localSearchState.timer); localSearchState.timer = null; }
     if (q.length < 2) { closeLocalSearchModal(); return; } // 2 karakterin altı: sessizce kapan
     localSearchState.timer = setTimeout(runLocalSearch, 250);
-  });
+  };
+  const enterFrom = (el) => {
+    const q = (el.value || "").trim();
+    if (q.length < 2) { toast(t("search_local_min"), true); return; } // kırmızı toast yalnız Enter'da
+    if (localSearchState.timer) { clearTimeout(localSearchState.timer); localSearchState.timer = null; }
+    runLocalSearch();
+  };
+  inp.addEventListener("input", () => typeFrom(inp));
   inp.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const q = (inp.value || "").trim();
-      if (q.length < 2) { toast(t("search_local_min"), true); return; } // kırmızı toast yalnız Enter'da
-      if (localSearchState.timer) { clearTimeout(localSearchState.timer); localSearchState.timer = null; }
-      runLocalSearch();
-    } else if (e.key === "Escape") {
-      closeLocalSearchModal();
-    }
+    if (e.key === "Enter") { e.preventDefault(); enterFrom(inp); }
+    else if (e.key === "Escape") { closeLocalSearchModal(); }
   });
+  const hdr = localHdrInput();
+  if (hdr) {
+    hdr.addEventListener("input", () => {
+      inp.value = hdr.value || "";   // tek doğru kaynak: sayfadaki kutu
+      typeFrom(hdr);
+    });
+    hdr.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); enterFrom(hdr); }
+      else if (e.key === "Escape") { closeLocalSearchModal(); }
+    });
+  }
   const closeBtn = document.getElementById("local-search-close");
   if (closeBtn) closeBtn.onclick = () => closeLocalSearchModal();
   modal.addEventListener("click", (e) => { if (e.target === modal) closeLocalSearchModal(); });

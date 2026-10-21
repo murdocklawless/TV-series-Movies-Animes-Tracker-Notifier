@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=631" />
+  <link rel="stylesheet" href="/static/css/style.css?v=632" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=514" />
-  <link rel="stylesheet" href="/static/css/mobil.css?v=550" />
-  <link rel="stylesheet" href="/static/css/tv.css?v=560" />
+  <link rel="stylesheet" href="/static/css/mobil.css?v=551" />
+  <link rel="stylesheet" href="/static/css/tv.css?v=561" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -370,13 +370,17 @@
             <div class="search-bar">
               <input id="local-search-input" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" placeholder="NextEp içinde ara..." data-i18n="search_local_ph" />
             </div>
-            <!-- LOKAL ARA sonuç paneli (2.19.9): mobilde akış içinde (mobil.css),
-                 masaüstü/tablet/TV'de sabit overlay — aynı düğüm, tek kaynak. -->
+            <!-- LOKAL ARA sonuç paneli: TEK düğüm — masaüstü/tablet/TV'de arama kutusunun
+                 10px altında sabit overlay; mobilde (≤600px) oyuncu/yönetmen modalı gibi
+                 ORTADA açılır ve yazma yüzeyi header'daki kutudur (2.19.17). -->
             <div id="local-search-modal" class="modal-overlay" style="display:none">
               <div class="modal local-modal">
                 <div class="modal-header">
                   <h3 data-i18n="search_local_title">LOKAL ARA</h3>
-                  <div id="local-search-count" class="local-search-count"></div>
+                  <!-- 2.19.17: YALNIZ mobilde (≤600px) header'in TAM ORTASINDA görünür.
+                       Sayfadaki kutu panelin arkasında kaldığı için yazma yüzeyi budur;
+                       ilk harflerle dolu açılır, imleç sağda olur, kartlar zaten o harflere göre dizilir. -->
+                  <input id="local-search-hdr-input" class="local-hdr-search" type="search" autocomplete="off" spellcheck="false" data-lpignore="true" placeholder="NextEp içinde ara..." data-i18n="search_local_ph" />
                   <div class="sort-wrap">
                     <button id="local-search-filter-btn" class="local-filter-btn" data-i18n-title="search_local_filter"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
                     <div id="local-search-filter-menu" class="sort-menu">
@@ -388,6 +392,13 @@
                     </div>
                   </div>
                   <button id="local-search-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+                </div>
+                <!-- 2.19.17: "{n} Sonuç" turuncu dotted çizginin SAĞ ÜSTÜNDE; çizginin ALTINDA
+                     o an dizilen kartlardan üretilen tür özeti ("4 Dizi | 2 Film | 1 Belgesel").
+                     Yazdıkça kart sayısı değiştiğinde ikisi de yeniden yazılır (tek kaynak: grid kartları). -->
+                <div class="local-results-head">
+                  <div id="local-search-count" class="local-search-count"></div>
+                  <div id="local-search-summary" class="local-search-summary"></div>
                 </div>
                 <div id="local-search-grid" class="poster-grid modal-body"></div>
               </div>
@@ -1555,6 +1566,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=652"></script>
+  <script type="module" src="/static/js/nextep.js?v=653"></script>
 </body>
 </html>

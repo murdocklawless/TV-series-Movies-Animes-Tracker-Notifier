@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=652";
+import { t } from "./i18n.js?v=653";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=652";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=652";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=652";
+} from "./utils.js?v=653";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=653";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=653";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -55,7 +55,7 @@ function switchView(name) {
     state.chips.length = 0;
     renderChips();
     closeResultsModal();
-    try { closeLocalSearchModal(); } catch (_) {}
+    try { closeLocalSearchModal(false); } catch (_) {}   // 2.19.17: sekme değişiminde odağı geri alma
   }
   Object.keys(views).forEach((k) => views[k].classList.remove("active"));
   views[name].classList.add("active");
@@ -2925,6 +2925,24 @@ function renderSectionSummary(grid) {
   summary.textContent = parts.join(" | ");
 }
 
+/* 2.19.17: LOKAL ARA sonuç modalı — çizgi altındaki TÜR ÖZETİ.
+   Girdi: o an dizilen kartlar (grid.children). Sıra sabit: Dizi, Film, Belgesel, Anime;
+   boş türler yazılmaz. Örn: "4 Dizi | 2 Film | 1 Belgesel".
+   Bölüm/izlenmiş bilgileri KULLANICI KARARI ile gösterilmez (yalnız tür sayıları). */
+const SUMMARY_KIND_ORDER = ["shows", "movies", "docs", "anime"];
+function kindsSummaryText(cards) {
+  const counts = { shows: 0, movies: 0, docs: 0, anime: 0 };
+  (cards || []).forEach((c) => {
+    const k = c && c.dataset ? c.dataset.sumKind : "";
+    if (k && counts[k] !== undefined) counts[k] += 1;
+  });
+  const parts = [];
+  SUMMARY_KIND_ORDER.forEach((k) => {
+    if (counts[k] > 0) parts.push(t(SUMMARY_KIND_KEY[k], { n: counts[k] }));
+  });
+  return parts.join(" | ");
+}
+
 // Kart kaldırıldıktan sonra bölümün arama/sıralama + wrap/empty görünürlüğü + özeti yenilenir.
 function refreshSectionAfterCardRemove(sectionKey, grid) {
   if (!grid) grid = followSectionGrid(sectionKey);
@@ -3584,4 +3602,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, refreshListsAfterWatch, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab, makeFollowedCard, makeAnimeCard };
+export { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadArchive, loadRecommendations, refreshListsAfterWatch, animeNextText, animeStatusLabel, tvStatusLabel, applySort, views, tabs, activateUtilityTab, makeFollowedCard, makeAnimeCard, kindsSummaryText };

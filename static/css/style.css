@@ -1680,26 +1680,62 @@ input:-webkit-autofill:focus {
    (bölüm kümesi 30px adım − ~20px buton ≈ 10px). */
 .modal.local-modal .modal-header {
   gap: 10px;
-  position: relative;   /* 2.19.14: sayaç başlık ortasına mutlak konumlanır */
 }
 
-/* 2.19.14: "N Sonuç" sayacı başlık satırının TAM ORTASINDA (LOKAL ARA başlığı ile
-   butonların arasında), buton yazı boyutunda (0.85rem) ve turuncu. Taşma koruması:
-   %50 genişlik + ellipsis → başlık/butonlarla çakışmaz; tıklamayı engellemez. */
+/* 2.19.17: LOKAL ARA sonuç başlığı — dizi bölümündeki gibi TURUNCU YATAY DOTTED ÇİZGİ
+   (kenarlardan 20px içeride). "{n} Sonuç" çizginin SAĞ ÜSTÜNDE, çizginin ALTINDA ise o an
+   dizilen kartlardan üretilen tür özeti ("4 Dizi | 2 Film | 1 Belgesel") yazılır.
+   2.19.14'ün "sayaç header ortasında" (mutlak konum) kuralı böylece İPTAL edildi. */
+.local-results-head {
+  padding: 0 20px;
+}
+
 .local-search-count {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  max-width: 50%;
-  text-align: center;
+  text-align: right;
   font-size: 0.85rem;
   color: #f97316;
-  padding: 0;
+  padding: 0 0 4px 0;
+  border-bottom: 1px dotted #f97316;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+}
+
+.local-search-summary {
+  margin: 6px 0 0;
+  padding: 0 2px;
+  color: #F97316;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2.19.17: header ortasındaki arama kutusu — YALNIZ mobilde görünür (mobil.css açar).
+   Masaüstü/tablet/TV'de display:none kalır: yazma yüzeyi sayfadaki #local-search-input. */
+.local-hdr-search {
+  display: none;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: #1b1f2a;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #e8eaf0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.local-hdr-search::placeholder {
+  color: #6b7180;
+}
+
+.local-hdr-search:focus {
+  border-color: #f97316;
 }
 
 .local-search-empty {
