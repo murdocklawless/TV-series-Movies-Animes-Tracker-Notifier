@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.23 - 22/10/2026-01:45
+### TR
+- **Düzeltme + yeni — satır görünümünde "uçan kart" davranışı:** hedef bölüm **satır görünümündeyse** (`.poster-grid.row-mode` → `.card` = `display: table-row`) klon artık kart **gibi büyümüyor**; tıklanan kartın klonu **satırın ekranda görünen kısmının tam ortasına doğru tamamen küçülerek yok oluyor** (`scale(2) → scale(0)` + opaklık 0, 0.5 sn). Sebep: eski `flyTo()` ölçeği `hedefGenişlik / klonGenişlik` ile hesaplıyordu; satırın genişliği ~1200px, kart ~96px → **≈12× büyüme**, yani kart "büyüyüp kayboluyordu".
+- **Satır vurgusu (çerçeve yerine):** hedefe `.jump-target` (outline) **verilmiyor**; onun yerine satıra `.row-jump-target` ekleniyor → satırın **üst ve alt çizgisi yeşil** (`#22c55e`), **satır zemini aynı yeşilin %30'u** (`rgba(34,197,94,0.30)`), **3 sn** sonra yumuşak sönüş (`@keyframes row-jump-glow`, `forwards`).
+- **"Görünen kısmın ortası" hesabı (`localRowVisibleCenter`):** satır rect'i hem **viewport** hem de yatay kaydırma sargısı (`.row-hscroll`) ile **kırpılır** → merkez gerçekten kullanıcının gördüğü bant olur. `scrollIntoView` sırasında sargının `scrollLeft`'i saklanıp geri yazılır → satır **yatayda kaymaz**.
+- **Layout kayması yok:** çizgiler gerçek `border` yerine `box-shadow: inset` + `border-bottom-color` ile çizilir → satır yüksekliği ve komşu satırlar oynamaz.
+- **Kart görünümü DEĞİŞMEDİ:** kart modunda akış birebir aynı (klon hedef kartın üstüne 1:1 küçülür, kartta 3 sn yeşil çerçeve, klon uçuşu sırasında gerçek kart `visibility:hidden`). Değişiklik yalnız satır modunda geçerli — mobil / masaüstü / TV-APK aynı.
+- **Damga:** `jsver bump` → tüm JS `?v=658`, `__NX_BUILD 658`; `style.css?v=634 → 635` (`mobil 553`, `tv 561` sabit). Statik değişiklik → **servis restart gerekmez** (Ctrl+F5 / APK'da uygulamayı yenile).
+### EN
+- **Fix + new — "flying card" behaviour in row view:** when the target section is in **row view** (`.poster-grid.row-mode` → `.card` = `display: table-row`) the clone no longer grows like a card; it **shrinks completely and disappears into the exact centre of the row's visible part on screen** (`scale(2) → scale(0)` + opacity 0, 0.5 s). Cause: the old `flyTo()` computed the scale as `targetWidth / cloneWidth`; a row is ~1200 px wide and the card ~96 px → **≈12× growth**, i.e. the card "grew and vanished".
+- **Row highlight (instead of a frame):** the target does **not** get `.jump-target` (outline); instead the row gets `.row-jump-target` → the row's **top and bottom lines turn green** (`#22c55e`) and the **row background becomes the same green at 30%** (`rgba(34,197,94,0.30)`), fading out after **3 s** (`@keyframes row-jump-glow`, `forwards`).
+- **"Centre of the visible part" (`localRowVisibleCenter`):** the row rect is clipped by both the **viewport** and the horizontal scroll wrapper (`.row-hscroll`) so the centre is really the band the user sees. The wrapper's `scrollLeft` is saved and restored around `scrollIntoView` → the row does **not** jump horizontally.
+- **No layout shift:** the lines are drawn with `box-shadow: inset` + `border-bottom-color` instead of real borders → row height and neighbouring rows stay put.
+- **Card view UNCHANGED:** in card mode the flow is identical (clone shrinks 1:1 onto the target card, green frame for 3 s, real card `visibility:hidden` during the flight). The change applies to row mode only — mobile / desktop / TV-APK alike.
+- **Stamps:** `jsver bump` → all JS `?v=658`, `__NX_BUILD 658`; `style.css?v=634 → 635` (`mobil 553`, `tv 561` unchanged). Static-only change → **no service restart needed** (Ctrl+F5 / reopen the APK).
+
 ## 2.19.22 - 22/10/2026-01:30
 ### TR
 - **Düzeltme — LOKAL ARA "uçan kart" ekranın ortasında değil sol üst köşede çıkıyordu (mobil + masaüstü):** 2.19.21'de klon `position: fixed` olarak ekleniyordu ama **`left/top` atanmıyordu** (CSS'teki `left:0; top:0` geçerliydi); buna karşın ilk `transform` **kaynak kartın ekran merkezine göre** hesaplanıyordu. Sonuç: klon `(0,0)` noktasından yola çıkıp `(viewportMerkezi − kaynakKartMerkezi)` kadar kayıyordu → kart modalın sağındaysa büyük klon **sol üst köşede, %75'i ekranın dışında** görünüyordu. Aynı referans hatası uçuş hedefini de kaydırıyordu.

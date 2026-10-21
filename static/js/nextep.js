@@ -1,18 +1,18 @@
 // Faz 4: tracker.js — giriş noktası. Tüm mantık modüllere bölündü; bu dosya
 // modülleri bağlar, başlangıç yüklemelerini yapar ve genel (global) olayları kurar.
-window.__NX_BUILD = "657";
+window.__NX_BUILD = "658";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang, t } from "./i18n.js?v=657";
-import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=657";
-import { closeResultsModal } from "./search.js?v=657";
-import "./settings.js?v=657";
-import "./notification.js?v=657";
-import "./asks.js?v=657";
-import "./stats.js?v=657";
-  import "./history.js?v=657";
-  import "./tv.js?v=657";
-  import "./rowview.js?v=657";
-import { bootAuth } from "./auth.js?v=657";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=658";
+import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=658";
+import { closeResultsModal } from "./search.js?v=658";
+import "./settings.js?v=658";
+import "./notification.js?v=658";
+import "./asks.js?v=658";
+import "./stats.js?v=658";
+  import "./history.js?v=658";
+  import "./tv.js?v=658";
+  import "./rowview.js?v=658";
+import { bootAuth } from "./auth.js?v=658";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
 // Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama

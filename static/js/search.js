@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=657";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=658";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=657";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=657";
+} from "./utils.js?v=658";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=658";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=657";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=658";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1532,12 +1532,53 @@ function makeLocalFly(srcCard) {
         setTimeout(end, ms + 90);
       });
     },
+    /* 2.19.23: SATIR GÖRÜNÜMÜ — klon (x,y) noktasına doğru TAMAMEN KÜÇÜLEREK yok olur.
+       Hedef bir "satır" olduğu için genişliğe göre ölçek hesaplanmaz (eski hata: satır
+       genişliği/kart genişliği ≈12× → kart büyüyüp kayboluyordu). translate merkezi
+       (x,y)'ye taşır, scale(0) tam merkezde sıfırlar (transform-origin: center). */
+    flyToPoint(x, y, ms) {
+      return new Promise((resolve) => {
+        let settled = false;
+        const end = () => { if (settled) return; settled = true; resolve(); };
+        try {
+          el.style.transition = `transform ${ms}ms cubic-bezier(.4,0,.2,1), opacity ${ms}ms linear`;
+          void el.offsetWidth; // reflow: başlangıç (ortada, scale 2) otursun
+          el.style.transform = `translate(${x - ex}px, ${y - ey}px) scale(0)`;
+          el.style.opacity = "0";
+        } catch (_) { end(); return; }
+        try { el.addEventListener("transitionend", end, { once: true }); } catch (_) {}
+        setTimeout(end, ms + 90);
+      });
+    },
     // Hedef bulunamazsa / ölçülemezse klonu yumuşakça kaldır.
     fadeOut() {
       try { el.style.transition = "opacity .25s linear"; el.style.opacity = "0"; } catch (_) {}
       setTimeout(remove, 280);
-    },
-  };
+    },  };
+}
+
+/* 2.19.23: SATIR GÖRÜNÜMÜNDE uçuşun varış noktası = satırın EKRANDA GÖRÜNEN kısmının
+   tam ortası. Satır (`.poster-grid.row-mode .card` → `display: table-row`) yatayda
+   kaydırılabilir bir sargının (.row-hscroll) içinde olabildiği ve viewport'tan taşabildiği
+   için rect hem viewport hem sargı ile KIRPILIR; görünen alan yoksa null döner. */
+function localRowVisibleCenter(rect, card) {
+  if (!rect) return null;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  let l = Math.max(0, rect.left), r = Math.min(vw, rect.right);
+  let t = Math.max(0, rect.top), b = Math.min(vh, rect.bottom);
+  try {
+    const box = card && card.closest ? card.closest(".row-hscroll") : null;
+    if (box) {
+      const br = box.getBoundingClientRect();
+      l = Math.max(l, br.left);
+      r = Math.min(r, br.right);
+      t = Math.max(t, br.top);
+      b = Math.min(b, br.bottom);
+    }
+  } catch (_) {}
+  if (r <= l || b <= t) return null;
+  return { x: (l + r) / 2, y: (t + b) / 2 };
 }
 
 // Sonuç kartına tıklama: bilgi modalı AÇILMAZ; sonuç modalı kapanır, kartın bulunduğu
@@ -1567,6 +1608,9 @@ function jumpToLocalCard(item, kind, srcCard) {
   let finished = false;
   let phase = "hold"; // hold → fly → glow
   let glowEnd = 0;
+  // 2.19.23: satır modunda vurgu sınıfı farklı (çerçeve yerine satır bandı).
+  let rowMode = false;
+  let glowCls = "jump-target";
   const stopNow = () => { if (Date.now() - started < 400) return; stop = true; };
   const stopEvents = ["mousedown", "touchstart", "keydown", "wheel"];
   const opts = { passive: true };
@@ -1585,11 +1629,12 @@ function jumpToLocalCard(item, kind, srcCard) {
     if (card) {
       try { card.style.visibility = ""; } catch (_) {}
       try { card.classList.remove("jump-target"); } catch (_) {}
+      try { card.classList.remove("row-jump-target"); } catch (_) {}
       try { delete card.dataset.jumpSeen; } catch (_) {}
     }
   };
 
-  // Hedef karta yeşil çerçeve + fokus (uçuş bittiğinde ya da uçuş atlandığında).
+  // Hedef karta yeşil çerçeve (kart modu) / yeşil satır bandı (satır modu) + fokus.
   const settle = (card) => {
     if (finished) return;
     if (fly) { try { fly.remove(); } catch (_) {} }
@@ -1598,8 +1643,11 @@ function jumpToLocalCard(item, kind, srcCard) {
     try { card.style.visibility = ""; } catch (_) {}
     try { card.tabIndex = 0; } catch (_) {}
     try { card.dataset.jumpSeen = "1"; } catch (_) {}
-    try { card.classList.add("jump-target"); } catch (_) {}
-    try { card.focus({ preventScroll: true }); } catch (_) { try { card.focus(); } catch (_) {} }
+    try { card.classList.add(glowCls); } catch (_) {}
+    // Satır modunda satır (table-row) yerine başlık hücresine fokus: TV'de D-pad satırdan devam eder.
+    let fEl = card;
+    if (rowMode) { try { fEl = card.querySelector(".wc-title") || card; } catch (_) { fEl = card; } }
+    try { fEl.focus({ preventScroll: true }); } catch (_) { try { fEl.focus(); } catch (_) {} }
     if (!timer) timer = setTimeout(tick, 120);
     setTimeout(finish, GLOW_MS); // 3 sn sonra vurgu KESİN kalkar
   };
@@ -1607,10 +1655,36 @@ function jumpToLocalCard(item, kind, srcCard) {
   // Uçuş: hedefi görünür alana al, klonu oraya gönder; ölçülemezse (gizli grid) atla.
   const beginFly = (card) => {
     phase = "fly";
+    // 2.19.23: hedef SATIR görünümünde mi? (.poster-grid.row-mode → .card = table-row)
+    try {
+      const gridEl = card.closest ? card.closest(".poster-grid") : null;
+      rowMode = !!(gridEl && gridEl.classList.contains("row-mode"));
+    } catch (_) { rowMode = false; }
+    glowCls = rowMode ? "row-jump-target" : "jump-target";
     let rect = null;
-    try { card.scrollIntoView({ block: "center" }); } catch (_) {}
+    // Satır görünümünde yatay kaydırma SIFIRLANMASIN: satırın kullanıcının gördüğü kısmı
+    // merkez kabul edilir (scrollIntoView sargının scrollLeft'ini değiştirebilir).
+    let hBox = null, hLeft = 0;
+    if (rowMode) {
+      try { hBox = card.closest(".row-hscroll"); hLeft = hBox ? hBox.scrollLeft : 0; } catch (_) { hBox = null; }
+    }
+    try { card.scrollIntoView({ block: "center", inline: "nearest" }); } catch (_) {}
+    if (hBox) { try { if (hBox.scrollLeft !== hLeft) hBox.scrollLeft = hLeft; } catch (_) {} }
     try { rect = card.getBoundingClientRect(); } catch (_) {}
     const usable = !!(rect && rect.width >= 2 && rect.height >= 2);
+    if (rowMode) {
+      // 2.19.23: satır hedefi → satırın GÖRÜNEN kısmının tam ortasına doğru tamamen
+      // küçülerek yok ol; satır görünür kalır (gizlenmez), klon sonra kaldırılır.
+      const vc = usable ? localRowVisibleCenter(rect, card) : null;
+      if (fly && vc) {
+        fly.flyToPoint(vc.x, vc.y, FLY_MS).then(() => settle(card));
+      } else {
+        if (fly) { try { fly.fadeOut(); } catch (_) {} }
+        settle(card);
+      }
+      return;
+    }
+    // Kart görünümü: DEĞİŞMEDİ (klon hedef kartın üstüne küçülür + yeşil çerçeve).
     if (fly && usable) {
       try { card.style.visibility = "hidden"; } catch (_) {}
       fly.flyTo(rect, FLY_MS).then(() => settle(card));
@@ -1641,8 +1715,14 @@ function jumpToLocalCard(item, kind, srcCard) {
       }
     } else if (phase === "glow") {
       if (card && now < glowEnd) {
-        try { if (!card.classList.contains("jump-target")) card.classList.add("jump-target"); } catch (_) {}
-        try { if (document.activeElement !== card) card.focus({ preventScroll: true }); } catch (_) {}
+        try { if (!card.classList.contains(glowCls)) card.classList.add(glowCls); } catch (_) {}
+        try {
+          // Odak karttaymış gibi davran (satır modunda başlık hücresi fokuslu olur).
+          if (!card.contains(document.activeElement)) {
+            const fEl = rowMode ? (card.querySelector(".wc-title") || card) : card;
+            fEl.focus({ preventScroll: true });
+          }
+        } catch (_) {}
       }
       if (now >= glowEnd) { finish(); return; }
     }
