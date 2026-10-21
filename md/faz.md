@@ -1276,3 +1276,11 @@
 - **Doğrulama:** `node --check` OK; ESM bağ testi `LINK_TEMIZ`; `jsver check` OK (build 658, yerel + pi); search.js 711/711, style.css 1129/1130 (fazlalık 2.19.19 öncesinden beri aynı +1); moji=0 / U+FFFD=0 / BOM yok (pi venv python); yerel↔pi **md5 0 fark** (19 dosya); servis `active`.
 - **Sürüm:** 2.19.23 (dosya + DB eşit; `check_update()` → available False). Yedek: `bak/2.19.23_satir_vurgu_20261022_013247/` (yerel + pi, `nextep.db` dahil).
 - **Test:** satır görünümündeki bir bölümde lokal aramadan kart seç → 1 sn ortada büyük kart → klon **satırın görünen bandının ortasına doğru küçülerek yok olur** → satırın üst/alt çizgisi yeşil + zemini %30 yeşil, 3 sn sonra söner. Kart görünümünde eski davranış (hedefe 1:1 küçülme + yeşil çerçeve) **aynen**.
+
+## FAZ NOTLARI — Sürüm damgası senkronizasyonu (2026-10-22, sürüm 2.19.24)
+
+- **Kapsam:** kod değişikliği YOK. 2.19.23 sonrası sürüm damgası taşındı: **2.19.23 → 2.19.24**.
+- **Kural hatırlatması (neden DB de yazılır):** gerçeğin evi pi5 DB'sindeki `version` tablosu (`db_version_get`); `check_update()` (`py/app_update.py`) dosya ≠ DB görürse **dosyayı sessizce DB değerine geri yazar**. Bu yüzden sıra: ① DB yedeği ② pi DB `UPDATE version SET number='2.19.24', updated_at=datetime('now') WHERE id=1` ③ `VERSION` dosyasını aynı değere getir (scp) ④ doğrula (`check_update()` → available False).
+- **Uygulama:** yedek `bak/2.19.24_surum_senkron_20261022_013745/` (yerel + pi; `nextep.db`, `CHANGELOG.md`, `faz.md`, `VERSION`). UPDATE script'i yerelde yazılıp base64 ile pi'ye gönderildi ve `/etc/nextep/venv/bin/python` ile çalıştırıldı (SSH satır-içi SQL tırnak sorunu yok).
+- **Doğrulama:** yerel `VERSION` = pi `/etc/nextep/VERSION` = pi DB `version.number` = **2.19.24**; `check_update()` → `('2.19.24', ..., False, True)` → `available:false`; statik dosyalar yerel↔pi md5 0 fark (19 dosya), `jsver check` OK (build 658), servis `active`; **restart gerekmedi** (sürüm her istekte okunur).
+- **Commit:** `2.19.24: surum damgasi senkronizasyonu (dosya + pi5 DB 2.19.24, kod degisikligi yok)` → `git push origin main`.

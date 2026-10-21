@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.24 - 22/10/2026-01:40
+### TR
+- **Sürüm damgası senkronizasyonu — kod değişikliği yok.** 2.19.23'ün (satır görünümünde "uçan kart" küçülerek yok olma + yeşil satır bandı vurgusu) dağıtımı sonrası sürüm hem `VERSION` dosyasında hem pi5 DB'sindeki `version` tablosunda (`id=1`) eşitlenerek ilerletildi: **2.19.23 → 2.19.24**.
+- **Doğrulanan durum:** yerel `VERSION` = pi5 `/etc/nextep/VERSION` = pi5 DB `version.number` = **2.19.24**; `/api/app-update/check` → `available:false` (dosya ≠ DB sapması yok, `check_update()` dosyayı geri yazmıyor). Statik dosyalar (16 JS `?v=658`, `style.css?v=635`, `mobil 553`, `tv 561`) ve `index.html` yerel ↔ pi5 **md5 0 fark**; `jsver check` → `OK (build 658)`; servis `active`, **restart gerekmedi**.
+- **Not:** Bu sürüm yalnız sürüm taşıma/parite kaydıdır; işlevsel fark yoktur. Yedek: `bak/2.19.24_surum_senkron_20261022_013745/` (yerel + pi, `nextep.db` dahil).
+### EN
+- **Version stamp synchronisation — no code change.** After shipping 2.19.23 (the "flying card" shrinking into the row's visible centre + green row band highlight in row view), the version was advanced from **2.19.23 to 2.19.24** with both the `VERSION` file and the `version` table (`id=1`) in the pi5 database kept in lockstep.
+- **Verified state:** local `VERSION` = pi5 `/etc/nextep/VERSION` = pi5 DB `version.number` = **2.19.24**; `/api/app-update/check` → `available:false` (no file/DB drift, `check_update()` does not rewrite the file). Static assets (16 JS `?v=658`, `style.css?v=635`, `mobil 553`, `tv 561`) and `index.html` show **0 md5 difference** local ↔ pi5; `jsver check` → `OK (build 658)`; service `active`, **no restart needed**.
+- **Note:** This release is a version/deployment-parity record only; no functional change. Backup: `bak/2.19.24_surum_senkron_20261022_013745/` (local + pi, `nextep.db` included).
+
 ## 2.19.23 - 22/10/2026-01:45
 ### TR
 - **Düzeltme + yeni — satır görünümünde "uçan kart" davranışı:** hedef bölüm **satır görünümündeyse** (`.poster-grid.row-mode` → `.card` = `display: table-row`) klon artık kart **gibi büyümüyor**; tıklanan kartın klonu **satırın ekranda görünen kısmının tam ortasına doğru tamamen küçülerek yok oluyor** (`scale(2) → scale(0)` + opaklık 0, 0.5 sn). Sebep: eski `flyTo()` ölçeği `hedefGenişlik / klonGenişlik` ile hesaplıyordu; satırın genişliği ~1200px, kart ~96px → **≈12× büyüme**, yani kart "büyüyüp kayboluyordu".
