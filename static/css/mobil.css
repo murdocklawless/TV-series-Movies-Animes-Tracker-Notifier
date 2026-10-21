@@ -338,6 +338,17 @@
     padding: 0;
   }
 
+  /* 2.19.10 LOKAL ARA: panel #view-search içinde olduğu için arama görünümünün
+     132px kart kuralı panele de uygulanıyordu; mobilde kart boyutu bölüm/çoklu ara
+     kartlarıyla aynı formülden gelir (--card-w) → 3'lü düzen. */
+  html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid {
+    gap: var(--card-gap);
+  }
+
+  html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid .card {
+    width: var(--card-w);
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
     padding: 12px 12px 25px;
   }

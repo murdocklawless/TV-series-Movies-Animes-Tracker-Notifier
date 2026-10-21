@@ -1,7 +1,7 @@
 // stats.js — "%" navbar butonu + İstatistik modalı.
 // Tür (Dizi/Film/Belgesel/Anime) kutuları + Genel (mini kutular) + Dağılım (bar) istatistikleri.
-import { t } from "./i18n.js?v=645";
-import { isDocItem, parseGenres } from "./utils.js?v=645";
+import { t } from "./i18n.js?v=646";
+import { isDocItem, parseGenres } from "./utils.js?v=646";
 import { state } from "./state.js";
 
 function fmtSummaryTime(min) {

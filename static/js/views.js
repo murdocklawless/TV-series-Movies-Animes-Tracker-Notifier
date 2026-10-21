@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=645";
+import { t } from "./i18n.js?v=646";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=645";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=645";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=645";
+} from "./utils.js?v=646";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=646";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=646";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -93,7 +93,8 @@ tabs.search.onclick = () => {
     const d = document.documentElement;
     if (d && (d.classList.contains("is-tv") || d.classList.contains("tv-mode"))) {
       setMedia("dizi");
-      setTimeout(() => { try { const m = document.getElementById("media-dizi"); if (m) m.focus(); } catch(_){} }, 60);
+      // 2.19.10: TV'de odak dogrudan LOKAL ARA kutusuna gider (IME odak degisiminde acilir).
+      setTimeout(() => { try { const m = document.getElementById("local-search-input"); if (m) m.focus(); } catch(_){} }, 60);
     }
   } catch(_){}
 };

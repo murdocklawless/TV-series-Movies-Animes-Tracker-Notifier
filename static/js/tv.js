@@ -40,7 +40,7 @@ export function pushModal(el) {
   modalStack.push(el);
   // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil;
   // picker'da free-input'ta, sonuç modalında ilk kartta kalsın (açılış focus'unu observer çalmasın)
-  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal' || el.id === 'history-modal' || el.id === 'stats-modal')) {
+  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal' || el.id === 'history-modal' || el.id === 'stats-modal' || el.id === 'local-search-modal')) {
     if (el.id === 'history-modal') initHistoryFocus(el);
     if (el.id === 'stats-modal') initStatsFocus(el);
     return;
@@ -238,7 +238,7 @@ function statsModalMove(top, dir, e){
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal","local-search-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -294,6 +294,7 @@ document.addEventListener("keydown", (e) => {
       (isMenuOpen('#hidden-sort-menu') && '#hidden-filter-btn') ||
       (isMenuOpen('#person-filter-menu') && '#person-filter-btn') ||
       (isMenuOpen('#director-filter-menu') && '#director-filter-btn') ||
+      (isMenuOpen('#local-search-filter-menu') && '#local-search-filter-btn') ||
       (_recOpen && isVisible(_recOpen) && _recOpen.dataset.section && `.section-filter[data-section="${_recOpen.dataset.section}"]`) ||
       (_followOpen && isVisible(_followOpen) && _followOpen.dataset.section && `.section-filter[data-section="${_followOpen.dataset.section}"]`) || null;
     closeOpenMenus();
@@ -314,6 +315,20 @@ document.addEventListener("keydown", (e) => {
         const cal = document.getElementById('history-cal');
         if (cal) cal.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
         e.preventDefault(); e.stopPropagation(); return;
+      }
+    }
+  } catch(_){}
+  // 2.19.10 LOKAL ARA (TV): panel icindeyken Geri -> arama kutusuna don (IME acilir),
+  // panel KAPANMAZ. Kutu odakliyken asagidaki genel dal paneli kapatir.
+  try {
+    const _lt = topModal();
+    if (_lt && _lt.id === 'local-search-modal'){
+      const _lae = document.activeElement;
+      if (_lae && _lt.contains(_lae)){
+        e.preventDefault(); e.stopPropagation();
+        const _li = document.getElementById('local-search-input');
+        if (_li) focusEl(_li);
+        return;
       }
     }
   } catch(_){}
@@ -347,7 +362,7 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     // Sonuç + kişi/yönetmen modalında buton modundayken Back karta döner, modal açık kalır
-    if ((top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal') && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
+    if ((top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal') && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
       e.preventDefault(); e.stopPropagation();
       exitButtonMode();
       return;
@@ -670,8 +685,8 @@ function enterButtonMode(card){
 // butonlara OK ile buton modunda girilir, Back ile karta dönülür)
 function resultsModalMove(top, dir, e){
   try {
-    const closeBtn = top.querySelector('#search-results-close, #person-close, #director-close');
-    const filterBtn = top.querySelector('#search-filter-btn, #person-filter-btn, #director-filter-btn');
+    const closeBtn = top.querySelector('#search-results-close, #person-close, #director-close, #local-search-close');
+    const filterBtn = top.querySelector('#search-filter-btn, #person-filter-btn, #director-filter-btn, #local-search-filter-btn');
     const searchBtn = top.querySelector('#results-search-btn, #person-search-btn, #director-search-btn');
     const cards = Array.from(top.querySelectorAll('.card')).filter(el=>isVisible(el)&&!el.disabled);
     if (!cards.length) return false;
@@ -937,7 +952,7 @@ function isOkKey(e){
 
 // Open dropdown menus (settings/notif/search-filter) — linear nav within (notif-item'lar div, tabIndex verilir)
 function openMenuItems(){
-  const menus = ['#settings-menu','#notif-menu','#watched-ask-menu','#search-filter-menu','.rec-sort-menu.open','.follow-sort-menu.open','#person-filter-menu.open','#director-filter-menu.open','#hidden-sort-menu.open'];
+  const menus = ['#settings-menu','#notif-menu','#watched-ask-menu','#search-filter-menu','.rec-sort-menu.open','.follow-sort-menu.open','#person-filter-menu.open','#director-filter-menu.open','#hidden-sort-menu.open','#local-search-filter-menu.open'];
   const out = [];
   for (const s of menus){
     const m = document.querySelector(s);
@@ -1119,6 +1134,7 @@ function handleSearchFilterMenuNav(e, dir){
     else if (isMenuOpen('#hidden-sort-menu')) sel = '#hidden-sort-menu';
     else if (isMenuOpen('#person-filter-menu')) sel = '#person-filter-menu';
     else if (isMenuOpen('#director-filter-menu')) sel = '#director-filter-menu';
+    else if (isMenuOpen('#local-search-filter-menu')) sel = '#local-search-filter-menu';
     else {
       const rm = document.querySelector('.rec-sort-menu.open');
       if (rm && isVisible(rm)) sel = '.rec-sort-menu.open';
@@ -1137,7 +1153,7 @@ function handleSearchFilterMenuNav(e, dir){
   e.preventDefault(); focusEl(items[n]); return true;
 }
 function closeOpenMenus(){
-  const pairs = [['#settings-menu','#tab-settings'],['#notif-menu','#tab-notif'],['#watched-ask-menu','#tab-watched-ask'],['#search-filter-menu','#search-filter-btn'],['#hidden-sort-menu','#hidden-filter-btn'],['#person-filter-menu','#person-filter-btn'],['#director-filter-menu','#director-filter-btn']];
+  const pairs = [['#settings-menu','#tab-settings'],['#notif-menu','#tab-notif'],['#watched-ask-menu','#tab-watched-ask'],['#search-filter-menu','#search-filter-btn'],['#hidden-sort-menu','#hidden-filter-btn'],['#person-filter-menu','#person-filter-btn'],['#director-filter-menu','#director-filter-btn'],['#local-search-filter-menu','#local-search-filter-btn']];
   for (const [sel, tabSel] of pairs){
     const m = document.querySelector(sel);
     if (m) m.classList.remove('open');
@@ -1176,10 +1192,15 @@ document.addEventListener("keydown", (e)=>{
     if (!dir) return;
     // Sonuç + kişi/yönetmen modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
     // buton modunda kart-içi butonlar (modal kapanmaz)
-    if (top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal'){
+    if (top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal'){
       // Liste-içi arama kutusu odaktayken oklar yazı yazımına aittir, TV nav'a takılmaz
       const rae = document.activeElement;
       if (rae && (rae.id === 'results-search-input' || rae.id === 'person-search-input' || rae.id === 'director-search-input')) return;
+      // 2.19.10 LOKAL ARA (TV): kutu odakliyken asagi -> panelin ilk karti (resultsModalMove);
+      // diger yonler gorunum zincirine aittir (yukari = X kapat, sol/sag = zincir komsulari).
+      if (top.id === 'local-search-modal' && rae && rae.id === 'local-search-input' && dir !== 'down'){
+        if (handleSearchViewNav(e, dir)) return;
+      }
       if (handleSearchFilterMenuNav(e, dir)) return;
       if (buttonMode && !(buttonMode.card && top.contains(buttonMode.card))) buttonMode = null;
       if (buttonMode && buttonMode.card) {
@@ -1362,6 +1383,8 @@ function searchChipXList(){
 function searchVerticalChain(){
   const chain = [];
   const x = searchVisible('#search-close'); if (x) chain.push(x);
+  // 2.19.10: LOKAL ARA kutusu X ile Dizi arasinda (Yukari = X, Asagi = Dizi)
+  const lsi = searchVisible('#local-search-input'); if (lsi) chain.push(lsi);
   const dizi = searchVisible('#media-dizi'); if (dizi) chain.push(dizi);
   const inp = searchVisible('#normal-search-input'); if (inp) chain.push(inp);
   const nbtn = searchVisible('#normal-search-btn'); if (nbtn) chain.push(nbtn);
@@ -1409,6 +1432,13 @@ function handleSearchViewNav(e, dir){
       }
     }
     if (i === -1){
+      // 2.19.10: navbar'daki Ara butonundan asagi inilirse LOKAL ARA kutusuna gir
+      try {
+        if (ae && ae.id === 'tab-search') {
+          const lsi2 = searchVisible('#local-search-input');
+          if (lsi2){ e.preventDefault(); focusEl(lsi2); return true; }
+        }
+      } catch (_) {}
       // Yetim odakta zincir başına (search-close→dizi hattına) düşme;
       // arama içinde son bilinen butonda kal.
       try {
@@ -1542,7 +1572,7 @@ document.addEventListener("keydown", (e)=>{
   if (!isOkKey(e)) return;
   const tm = topModal();
   // Sonuç + kişi/yönetmen modalında kart OK'i buton moduna girer (detay info butonundan açılır)
-  if (tm && (tm.id === 'search-results-modal' || tm.id === 'person-modal' || tm.id === 'director-modal')){
+  if (tm && (tm.id === 'search-results-modal' || tm.id === 'person-modal' || tm.id === 'director-modal' || tm.id === 'local-search-modal')){
     if (buttonMode && !(buttonMode.card && tm.contains(buttonMode.card))) buttonMode = null;
     const ae0 = document.activeElement;
     const card0 = ae0 && (isCard(ae0) ? ae0 : (ae0.closest && ae0.closest('.card'))) || null;
@@ -1626,7 +1656,7 @@ document.addEventListener("click", (e)=>{
   if (e.detail !== 0) return;
   const t = e.target;
   const tm2 = topModal();
-  if (t && isCard(t) && (!tm2 || (tm2.id === 'search-results-modal' && tm2.contains(t)))){
+  if (t && isCard(t) && (!tm2 || ((tm2.id === 'search-results-modal' || tm2.id === 'local-search-modal') && tm2.contains(t)))){
     e.preventDefault(); e.stopPropagation();
     enterButtonMode(t);
   }
