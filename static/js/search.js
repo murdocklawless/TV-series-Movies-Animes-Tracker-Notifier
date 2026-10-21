@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=651";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=652";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=651";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=651";
+} from "./utils.js?v=652";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView } from "./views.js?v=652";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=651";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=652";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1401,10 +1401,10 @@ function findLocalCard(gridId, title) {
 // Sonuç kartına tıklama: bilgi modalı AÇILMAZ; sonuç modalı kapanır, kartın bulunduğu
 // bölüme gidilir ve kart odaklanır + yeşil çerçeveyle vurgulanır (3 sn).
 // ÖNEMLİ: bölüm listesi asenkron YENİDEN çizilir (grid innerHTML sıfırlanır) → işaretlenen
-// DOM öğesi çöpe gider. Bu yüzden işaret/odak ~3 sn boyunca 120 ms aralıkla TAZELENİR;
-// yeni öğe görülürse işaret+odak+scroll yeniden uygulanır. Kullanıcı etkileşime geçerse
-// (tıklama/tuş/kaydırma) tazeleme durur — ilk 400 ms'teki olaylar yok sayılır
-// (TV'de atlamayı başlatan OK/keydown döngüyü hemen iptal etmesin).
+// DOM öğesi çöpe gider. Bu yüzden işaret/odak ~3 sn boyunca 120 ms aralıkla TAZELENİR.
+// Vurgu TEK çıkış noktasından (finish) 3 sn sonra kaldırılır; `finished` bayrağı sayesinde
+// temizlikten sonra bekleyen bir tick sınıfı GERİ EKLEYEMEZ (2.19.15'teki yarış hatası).
+// Kullanıcı etkileşimi yalnız odak tazelemeyi durdurur; vurgu yine 3 sn sonra kalkar.
 function jumpToLocalCard(item, kind) {
   const target = localJumpTarget(item, kind);
   const want = String(item.title || "");
@@ -1413,12 +1413,31 @@ function jumpToLocalCard(item, kind) {
   const started = Date.now();
   const deadline = started + 3000;
   let stop = false;
+  let timer = null;
+  let finished = false;
   const stopNow = () => { if (Date.now() - started < 400) return; stop = true; };
   const stopEvents = ["mousedown", "touchstart", "keydown", "wheel"];
   const opts = { passive: true };
   stopEvents.forEach((ev) => window.addEventListener(ev, stopNow, opts));
   const clearStop = () => stopEvents.forEach((ev) => window.removeEventListener(ev, stopNow, opts));
+
+  // Tek çıkış: bekleyen tick iptal edilir, vurgu kaldırılır (odak kartta kalır).
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    stop = true;
+    if (timer) { clearTimeout(timer); timer = null; }
+    clearStop();
+    const card = findLocalCard(target.grid, want);
+    if (card) {
+      try { card.classList.remove("jump-target"); } catch (_) {}
+      try { delete card.dataset.jumpSeen; } catch (_) {}
+    }
+  };
+
   const tick = () => {
+    timer = null;
+    if (finished) return; // temizlikten sonra ASLA işaret eklenmez
     if (!stop) {
       const card = findLocalCard(target.grid, want);
       if (card) {
@@ -1433,19 +1452,14 @@ function jumpToLocalCard(item, kind) {
           try { if (document.activeElement !== card) card.focus({ preventScroll: true }); } catch (_) {}
         }
       }
-      if (Date.now() < deadline) { setTimeout(tick, 120); return; }
+      if (Date.now() < deadline) { timer = setTimeout(tick, 120); return; }
     }
     clearStop();
   };
-  setTimeout(tick, 60);
-  // 3 sn sonra vurgu kalkar (odak kartta kalır)
-  setTimeout(() => {
-    const card = findLocalCard(target.grid, want);
-    if (card) {
-      try { card.classList.remove("jump-target"); } catch (_) {}
-      try { delete card.dataset.jumpSeen; } catch (_) {}
-    }
-  }, 3100);
+
+  timer = setTimeout(tick, 60);
+  // 3 sn sonra vurgu KESİN kalkar (iptal edilemez); ek CSS animasyonu da aynı süreyi uygular.
+  setTimeout(finish, 3000);
 }
 
 async function runLocalSearch() {

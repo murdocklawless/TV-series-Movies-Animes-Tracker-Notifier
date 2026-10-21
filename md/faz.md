@@ -1173,3 +1173,12 @@
 - **Damga/dagitim:** `jsver bump` → tum JS `?v=651`, `__NX_BUILD 651`; `style.css?v=629 -> 630`. 12 degisen js + style.css + index.html scp; 16 js + style.css + index md5 karsilastirildi 0 fark. Surum 2.19.15 (dosya + DB esit), `check_update()` → `('2.19.15','2.19.14',False,True)`. Yedek: `bak/2.19.15_jump_vurgu_20261021_045320/` (yerel + pi, DB dahil).
 - **Dogrulama:** node --check (search.js), `jsver check` OK (yerel + pi), md5 0 fark, moji=0, servis active.
 - **Test:** mobilde LOKAL ARA kartina dokun → ilgili bolum acilir, kart YESIL cerceveyle ~3 sn vurgulu ve odakli kalir (yeniden cizimde kaybolmaz); masaustaunde hover'dan ayirt edilir; APK'da OK ile ayni + D-pad odagi kartta.
+
+## FAZ NOTLARI — yesil vurgu 3 sn yaris hatasi fix (2026-10-21, surum 2.19.16)
+
+- **Hata:** 2.19.15'te vurgu 3 sn sonra kalkmiyordu. **Kok neden (yaris):** tick dongusu `Date.now() < deadline` iken 120 ms'de bir yeni tick planliyor; son tick ~3,0-3,1 sn'de calisiyor ama 3100 ms'lik temizlik zamanlayicisi ONCE calisip sinifi kaldiriyor ve `dataset.jumpSeen`'i siliyordu → bekleyen tick karti "yeni" sayip `.jump-target` sinifini GERI EKLIYORDU; dongu bittigi icin bir daha kaldirilmiyordu.
+- **Cozum (search.js):** tek cikis noktasi `finish()` — `finished` bayragi (tick basinda kontrol: temizlikten sonra ASLA isaret eklenmez) + bekleyen tick'in `clearTimeout(timer)` ile iptali + `clearStop()` + `.jump-target` ve `dataset.jumpSeen` silinmesi. Dongu sonunda/`stop` durumunda `clearStop()`; **vurgu 3000 ms'de tek seferlik `setTimeout(finish)` ile kesin kalkar** (kullanici etkilesimi yalniz odak tazelemeyi durdurur, vurgu suresini degistirmez).
+- **CSS emniyet kemeri:** `@keyframes jump-glow` (0-70% yesil outline+glow, 100% seffaf) + `.card.jump-target { outline-offset: 2px; animation: jump-glow 3s ease-out forwards }` → sinif takili kalsa bile cerceve 3 sn sonra GORSEL olarak kaybolur.
+- **Damga/dagitim:** `jsver bump` → tum JS `?v=652`, `__NX_BUILD 652`; `style.css?v=630 -> 631`. 12 degisen js + style.css + index.html scp; md5 0 fark. Surum 2.19.16 (dosya + DB esit), `check_update()` → `('2.19.16','2.19.15',False,True)`. Yedek: `bak/2.19.16_jump_timer_fix_20261021_045836/` (yerel + pi, DB dahil).
+- **Dogrulama:** node --check (search.js), `jsver check` OK (yerel + pi), style.css parantez (1113/1114 — +1 fark onceden mevcut), md5 0 fark, moji=0, servis active.
+- **Test:** LOKAL ARA kartina tikla → yesil cerceve ~3 sn gorunur ve KESIN kalkar (kalici kalmaz); odak kartta kalir. APK/mobil/masaustu.

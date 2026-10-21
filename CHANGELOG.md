@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.16 - 21/10/2026-04:59
+### TR
+- **Düzeltme — yeşil vurgu 3 sn sonra kalkmıyordu (yarış hatası):** `jumpToLocalCard()` döngüsü bittiği anda bekleyen son tick, 3,1 sn'deki temizlikten **sonra** çalışıyor; `dataset.jumpSeen` temizlikte silindiği için kartı "yeni" sayıp `.jump-target` sınıfını **geri ekliyordu** → çerçeve kalıcı oluyordu. Artık **tek çıkış noktası** var (`finish()`): `finished` bayrağı + bekleyen tick'in `clearTimeout` ile iptali + olay dinleyicilerinin kaldırılması + sınıfın silinmesi. Temizlikten sonra hiçbir tick işaret ekleyemez. Kullanıcı etkileşimi yalnız **odak tazelemeyi** durdurur; **vurgu yine 3 sn sonra kalkar**.
+- **CSS emniyet kemeri:** vurgu artık `@keyframes jump-glow` animasyonuyla da süreli — sınıf bir şekilde takılı kalsa bile çerçeve **3 sn sonra görsel olarak kaybolur** (`animation: jump-glow 3s ease-out forwards`).
+- **Damga:** `jsver bump` → tüm JS `?v=652`, `__NX_BUILD 652`; `style.css?v=630 → 631`. Statik değişiklik → **servis restart gerekmez**.
+### EN
+- **Fix — the green highlight did not clear after 3 s (race condition):** the last pending tick of the `jumpToLocalCard()` loop ran **after** the 3.1 s cleanup; because `dataset.jumpSeen` was deleted by the cleanup, the card was treated as "new" and `.jump-target` was **added again**, leaving the frame permanently. There is now a **single exit point** (`finish()`): a `finished` flag + `clearTimeout` of the pending tick + removal of the event listeners + removal of the class. No tick can re-add the mark after the cleanup. User interaction only stops the **focus refresh**; the highlight still clears after 3 s.
+- **CSS safety net:** the highlight is now also time-limited via a `@keyframes jump-glow` animation — even if the class somehow lingers, the frame **visually disappears after 3 s** (`animation: jump-glow 3s ease-out forwards`).
+- **Stamps:** `jsver bump` → all JS `?v=652`, `__NX_BUILD 652`; `style.css?v=630 → 631`. Static-only change → **no service restart needed**.
+
 ## 2.19.15 - 21/10/2026-04:54
 ### TR
 - **Düzeltme — LOKAL ARA'dan bölüme atlanan kart artık gerçekten vurgulanıyor:** `switchView` sonrası bölüm listesi **asenkron yeniden çizildiği** için (grid `innerHTML` sıfırlanır) işaretlenen/odaklanan DOM öğesi çöpe gidiyor, vurgu ve odak kayboluyordu — mobilde "0,1 sn seçili kalıp kayboluyor", masaüstünde aranan kart hiç belli olmuyordu. Artık `jumpToLocalCard()` işareti/odağı **~3 sn boyunca 120 ms aralıkla tazeler**: yeni bir DOM öğesi görülürse `tabIndex` + `.jump-target` + `focus()` + `scrollIntoView` yeniden uygulanır; aynı öğede yalnız odak kaybolmuşsa yeniden odaklanır. Kullanıcı etkileşime geçerse (tıklama/tuş/kaydırma) tazeleme durur; **ilk 400 ms'teki olaylar yok sayılır** (TV'de atlamayı başlatan OK döngüyü iptal etmez).
