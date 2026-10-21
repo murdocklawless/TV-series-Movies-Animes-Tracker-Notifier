@@ -1,4 +1,4 @@
-﻿/* mobil.css â€” telefonlar (max-width:600px / 480px / hover:none) */
+/* mobil.css — telefonlar (max-width:600px / 480px / hover:none) */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) .badge-watched {
     width: 21px;
@@ -300,6 +300,44 @@
     padding: 12px 12px;
   }
 
+  /* 2.19.9 LOKAL ARA: mobilde sonuç paneli akış içinde (arama kutusunun altında).
+     Overlay kapatılır; kutu görünür + odaklı kalır, ekran klavyesi açık kalır.
+     Panel içi kaydırma korunur (masaüstündeki 80vh'nin mobil karşılığı). */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal {
+    position: static;
+    inset: auto;
+    z-index: auto;
+    background: none;
+    padding: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal.local-modal {
+    max-width: none;
+    max-height: 50vh;
+    margin-top: 10px;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header {
+    padding: 8px 0 0;
+    border-bottom: 0;
+  }
+
+  /* Blok başlığı zaten "LOKAL ARA": panel içindeki tekrar gizlenir. */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header h3 {
+    display: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .local-search-count {
+    padding: 0 0 8px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-body {
+    padding: 0;
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
     padding: 12px 12px 25px;
   }
@@ -443,9 +481,9 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     padding: 0 4px;
   }
 
-  /* Arama + Ã§oklu arama modalÄ± yÄ±ÄŸÄ±lmÄ±ÅŸ kartlarÄ±: tip+puan / platform / sezon /
-     bÃ¶lÃ¼m / statÃ¼ / tarih; tÃ¼m satÄ±r aralarÄ± 3px, tÃ¼m rozetler 0.45rem.
-     Eksik satÄ±rda gÃ¶rÃ¼nmez yer tutucu basÄ±lÄ±r (kartlar kaymaz, film hariÃ§). */
+  /* Arama + çoklu arama modalı yığılmış kartları: tip+puan / platform / sezon /
+     bölüm / statü / tarih; tüm satır araları 3px, tüm rozetler 0.45rem.
+     Eksik satırda görünmez yer tutucu basılır (kartlar kaymaz, film hariç). */
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .info .meta .badge,
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-count-badge,
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .episode-count {
@@ -464,7 +502,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     margin-top: 0;
     min-height: 0;
   }
-  /* Mobil: sezon + bÃ¶lÃ¼m alt alta kalsÄ±n (sÄ±ÄŸmama sorunu) */
+  /* Mobil: sezon + bölüm alt alta kalsın (sığmama sorunu) */
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line.season-row {
     flex-direction: column;
   }
@@ -474,7 +512,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #search-results-modal .card.search-stacked .season-line + .season-line {
     margin-top: 3px;
   }
-  /* Mobil: kiÅŸi/yÃ¶netmen filmografi kartlarÄ±nda sezon Ã¼stte, bÃ¶lÃ¼m altta */
+  /* Mobil: kişi/yönetmen filmografi kartlarında sezon üstte, bölüm altta */
   html:not(.is-tv):not(.tv-mode) #person-modal .card .season-line.season-row,
   html:not(.is-tv):not(.tv-mode) #director-modal .card .season-line.season-row {
     display: flex;
@@ -488,7 +526,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   html:not(.is-tv):not(.tv-mode) #director-modal .card .episode-count {
     margin-left: 0;
   }
-  /* KiÅŸi/yÃ¶netmen filmografi kartlarÄ±: arama kartÄ± rozetlerinin aynÄ±sÄ± */
+  /* Kişi/yönetmen filmografi kartları: arama kartı rozetlerinin aynısı */
   html:not(.is-tv):not(.tv-mode) #person-modal .card .info .meta .badge,
   html:not(.is-tv):not(.tv-mode) #director-modal .card .info .meta .badge,
   html:not(.is-tv):not(.tv-mode) #person-modal .card .season-count-badge,
@@ -509,7 +547,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   }
 }
 
-/* SatÄ±r ÅŸemasÄ± mobil: eski flex-wrap akÄ±ÅŸÄ± kapatÄ±lÄ±r; statÃ¼/sezon satÄ±rlarÄ± tek satÄ±r. */
+/* Satır şeması mobil: eski flex-wrap akışı kapatılır; statü/sezon satırları tek satır. */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) .card .info .meta {
     display: flex;
@@ -640,7 +678,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
   }
 }
 
-/* Ã–neri bÃ¶lÃ¼m baÅŸlÄ±ÄŸÄ±: mobilde de tek satÄ±r, baÅŸlÄ±k solda buton kÃ¼mesi saÄŸda (25px eÅŸit aralÄ±k; â†‘â†“ arasÄ± hariÃ§) */
+/* Öneri bölüm başlığı: mobilde de tek satır, başlık solda buton kümesi sağda (25px eşit aralık; ↑↓ arası hariç) */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) #view-recommend .unwatched-section-title {
     flex-wrap: nowrap;
@@ -706,7 +744,7 @@ html:not(.is-tv):not(.tv-mode) .card .info .meta .next-ep {
     padding-right: 0;
     text-align: left;
   }
-  /* SatÄ±r/kart geÃ§iÅŸ ikonu ofsetleri (mobil) */
+  /* Satır/kart geçiş ikonu ofsetleri (mobil) */
   html:not(.is-tv):not(.tv-mode) #view-dizi .unwatched-section-title .section-view-toggle,
   html:not(.is-tv):not(.tv-mode) #view-film .unwatched-section-title .section-view-toggle,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .unwatched-section-title .section-view-toggle,
@@ -802,7 +840,7 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   html:not(.is-tv):not(.tv-mode) #view-archive .unwatched-section-title { padding-right: 142px; }
   html:not(.is-tv):not(.tv-mode) #view-archive .section-search { right: 112px; }
   html:not(.is-tv):not(.tv-mode) #view-archive .follow-sort-wrap { right: 82px; }
-  /* SatÄ±r posteri mobilde daha kÃ¼Ã§Ã¼k: geniÅŸlik 300px (oran 2/3 korunur) */
+  /* Satır posteri mobilde daha küçük: genişlik 300px (oran 2/3 korunur) */
   html:not(.is-tv):not(.tv-mode) .wrow-poster { height: auto; width: min(300px, 86vw); }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-title .wclip { max-width: 30ch; }
   html:not(.is-tv):not(.tv-mode) .poster-grid.row-mode .wc-actions::before { content: "|"; color: #f97316; margin: 0 8px; font-weight: 400; }
@@ -919,9 +957,9 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   }
 }
 
-/* Admin modal uye cipleri: dar ekranda satirda 1, alt alta; bÃ¼zÃ¼lme yok
+/* Admin modal uye cipleri: dar ekranda satirda 1, alt alta; büzülme yok
    (2'li satir metni ezip butonlari ismin ustune yigiyordu). Liste tasarsa
-   modal govdesi kayar (min-height:0 gÃ¼vencesi). */
+   modal govdesi kayar (min-height:0 güvencesi). */
 @media (max-width: 600px) {
   html:not(.is-tv):not(.tv-mode) #settings-admin-modal .member-chips {
     flex-direction: column;

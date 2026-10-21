@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.9 - 21/10/2026-03:02
+### TR
+- **Düzeltme — LOKAL ARA mobilde arama kutusunu kapatıyordu:** sonuç modalı (`position: fixed` + dikeyde ortalı overlay) telefonda — özellikle ekran klavyesi açıkken kısalan viewport'ta — arama kutusunun **üzerine** geliyordu; 2. karakterde açılan modal kutuyu görünmez yaptığı için yazmaya devam edilemiyordu. Artık **mobilde (≤600px) sonuç paneli akış içinde**, kutunun hemen altında açılır: kutu görünür ve odaklı kalır, ekran klavyesi açık kalır. **Masaüstü/tablet/TV davranışı birebir aynı** (sabit overlay) — tek düğüm, tek kaynak.
+- **Panel içi kaydırma:** çok sonuçta panel `max-height: 50vh` ile sınırlanır ve **kendi içinde kayar** (masaüstündeki 80vh davranışının mobil karşılığı); sayfa uzamaz, "Ara"/"Çoklu Ara" blokları yerinde kalır. Mobilde panel başlığındaki tekrar eden "LOKAL ARA" yazısı gizlenir (blok başlığı zaten var).
+- **Kodlama temizliği:** `mobil.css`'te 2.19.6 PowerShell kazasından kalan **BOM** ve 13 satırdaki mojibake (`â€”` → `—`, `Ä±` → `ı` …) onarıldı; dosya artık BOM'suz UTF-8, moji=0 (yorum dışı kod bölümü yedekle birebir aynı doğrulandı).
+- **JS değişmedi:** `openLocalSearchModal` zaten `display:flex` yazıyor ve akış içinde de çalışıyor → `?v=` JS zinciri ve `__NX_BUILD 645` sabit. `mobil.css?v=545 → 546`; statik değişiklik → **servis restart gerekmez** (Ctrl+F5).
+### EN
+- **Fix — LOCAL SEARCH covered the input on mobile:** the results modal (`position: fixed`, vertically centred overlay) landed **on top of** the search box on phones — especially with the on-screen keyboard open and the viewport shrunk — so after the 2nd character (the point where the modal opens) the box was hidden and typing could not continue. On **mobile (≤600px) the results panel now opens in normal flow**, right below the box: the box stays visible and focused and the keyboard stays open. **Desktop/tablet/TV behaviour is unchanged** (fixed overlay) — one node, one source.
+- **Panel scrolling:** with many results the panel is capped at `max-height: 50vh` and **scrolls inside itself** (the mobile counterpart of the desktop 80vh behaviour); the page does not grow and the "Search"/"Multi Search" blocks stay in place. On mobile the duplicate "LOCAL SEARCH" title inside the panel header is hidden (the block title already shows it).
+- **Encoding cleanup:** the **BOM** left over from the 2.19.6 PowerShell incident and the mojibake on 13 lines (`â€”` → `—`, `Ä±` → `ı`, …) were repaired in `mobil.css`; the file is now BOM-less UTF-8 with moji=0 (the non-comment code was verified byte-identical to the backup).
+- **No JS changes:** `openLocalSearchModal` already writes `display:flex` and works in normal flow too → the `?v=` JS chain and `__NX_BUILD 645` are unchanged. `mobil.css?v=545 → 546`; static-only change → **no service restart needed** (Ctrl+F5).
+
 ## 2.19.8 - 21/10/2026-02:29
 ### TR
 - **Yeni — LOKAL ARA (NextEp içi kart arama):** Ara sekmesinin en üstüne **LOKAL ARA** bloğu. Yazarken (2. karakterden itibaren, 250 ms debounce) **adanmış sonuç modalı** açılır/güncellenir; 2 karakterin altına inince modal sessizce kapanır. Enter'a basılıp sorgu 2 karakterden kısaysa **kırmızı toast** ("En az 2 karakter girin").
