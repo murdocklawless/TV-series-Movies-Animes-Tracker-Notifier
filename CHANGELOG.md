@@ -1,6 +1,16 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.15 - 21/10/2026-04:54
+### TR
+- **Düzeltme — LOKAL ARA'dan bölüme atlanan kart artık gerçekten vurgulanıyor:** `switchView` sonrası bölüm listesi **asenkron yeniden çizildiği** için (grid `innerHTML` sıfırlanır) işaretlenen/odaklanan DOM öğesi çöpe gidiyor, vurgu ve odak kayboluyordu — mobilde "0,1 sn seçili kalıp kayboluyor", masaüstünde aranan kart hiç belli olmuyordu. Artık `jumpToLocalCard()` işareti/odağı **~3 sn boyunca 120 ms aralıkla tazeler**: yeni bir DOM öğesi görülürse `tabIndex` + `.jump-target` + `focus()` + `scrollIntoView` yeniden uygulanır; aynı öğede yalnız odak kaybolmuşsa yeniden odaklanır. Kullanıcı etkileşime geçerse (tıklama/tuş/kaydırma) tazeleme durur; **ilk 400 ms'teki olaylar yok sayılır** (TV'de atlamayı başlatan OK döngüyü iptal etmez).
+- **Vurgu artık yeşil ve 3 sn:** `.card.jump-target` → `outline: 2px solid #22c55e` + `box-shadow: 0 0 0 3px rgba(34,197,94,0.25)`; **3 sn** sonra kalkar, odak kartta kalır. Masaüstünde fare hover'ından ayırt edilir; mobil ve APK'da da görünür.
+- **Damga:** `jsver bump` → tüm JS `?v=651`, `__NX_BUILD 651`; `style.css?v=629 → 630`. Statik değişiklik → **servis restart gerekmez**.
+### EN
+- **Fix — the card jumped to from LOCAL SEARCH is now actually highlighted:** after `switchView` the section list is **re-rendered asynchronously** (the grid's `innerHTML` is cleared), so the marked/focused DOM node was discarded and both the highlight and the focus were lost — on mobile it "stayed selected for 0.1 s then vanished", on desktop the searched card was never indicated. `jumpToLocalCard()` now **refreshes the mark/focus every 120 ms for ~3 s**: if a new DOM node appears, `tabIndex` + `.jump-target` + `focus()` + `scrollIntoView` are re-applied; on the same node only a lost focus is restored. The refresh stops as soon as the user interacts (click/key/scroll), and **events in the first 400 ms are ignored** (so the OK press that starts the jump on TV does not cancel the loop).
+- **The highlight is green and lasts 3 s:** `.card.jump-target` → `outline: 2px solid #22c55e` + `box-shadow: 0 0 0 3px rgba(34,197,94,0.25)`; it clears after **3 s** while the focus stays on the card. It is distinguishable from the mouse hover on desktop and visible on mobile and the APK.
+- **Stamps:** `jsver bump` → all JS `?v=651`, `__NX_BUILD 651`; `style.css?v=629 → 630`. Static-only change → **no service restart needed**.
+
 ## 2.19.14 - 21/10/2026-04:43
 ### TR
 - **Yeni — LOKAL ARA sayacı başlık satırının tam ortasında:** "N Sonuç" metni artık sonuç modalının başlık satırında, **LOKAL ARA başlığı ile filtre/× butonlarının tam ortasında** durur (mutlak konumlandırma; taşma koruması `max-width: 50%` + ellipsis, tıklamayı engellemez). **Turuncu** (`#f97316`) ve **buton yazı boyutunda** (`0.85rem`). Masaüstü, mobil ve APK'da aynı görünüm.
