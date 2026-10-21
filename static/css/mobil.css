@@ -360,14 +360,27 @@
     max-width: 30%;
   }
 
-  /* 2.19.19 (madde 3): dokunup tutunca (uzun basma → :hover) kart BÜYÜMESİN.
-     .card:hover'daki scale(1.06) + z-index:5 kenar kartları büyütüp modal dışına
-     taşırıyordu. Yalnız LOKAL ARA sonuç modalı: masaüstü hover'ı ve TV odak
-     ölçeği (tv.css) korunur. Kenarlık rengi (turuncu geri bildirim) kalır. */
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .card:hover {
-    transform: none;
-    box-shadow: none;
-    z-index: 1;
+  /* 2.19.20 (madde 2): "{n} Sonuç" bilgisi SOLA yanaşır (dotted çizgi tam genişlik kalır). */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .local-search-count {
+    text-align: left;
+  }
+
+  /* 2.19.20 (madde 3): üst boşluk — kart büyüdüğünde (×1.06 → yukarı 3% ≈ 6.7px) üst
+     border, tür özeti metninin ~3px ALTINA gelsin. Grid'in margin-top'u -16px olduğu için
+     padding-top 26px → net taban boşluk 10px; 10 − 6.7 ≈ 3.3px. */
+  html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid {
+    padding-top: 26px;
+  }
+
+  /* 2.19.20 (madde 1): 2.19.19'da kaldırılan büyüme animasyonu GERİ GELDİ; taşma ise
+     kartı büyüyünce sığacak kadar küçülterek çözülür. Taban genişlik /1.06 → kalan boşluk
+     (her yanda 3% = büyüme payı) `justify-content:center` ile iki yana eşit dağılır:
+     büyümüş kart modal kenarına TAM OTURUR (taşma 0). 481-600px'te --card-w sabit 120px
+     olduğu ve 3×120+24 = 384px modala bol bol sığdığı için orada dokunulmaz. */
+  @media (max-width: 480px) {
+    html:not(.is-tv):not(.tv-mode) #view-search #local-search-modal .poster-grid .card {
+      width: calc((100% - 16px) / 3.06);
+    }
   }
 
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
