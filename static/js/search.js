@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=646";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=647";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=646";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard } from "./views.js?v=646";
+} from "./utils.js?v=647";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard } from "./views.js?v=647";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=646";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=647";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1282,6 +1282,24 @@ let localSearchState = { q: "", kind: "all", items: [], truncated: false, seq: 0
 function localSearchInput() { return document.getElementById("local-search-input"); }
 function localSearchModalEl() { return document.getElementById("local-search-modal"); }
 
+// 2.19.11: sonuç modalı her platformda (mobil/APK/masaüstü) arama kutusunun 10px
+// altında açılır → kutu görünür + odaklı kalır, yazı görünür olur. Üst hizalama ve
+// dinamik yükseklik CSS'te `--local-modal-top` değişkeninden türetilir.
+function positionLocalModal() {
+  const modal = localSearchModalEl();
+  const inp = localSearchInput();
+  if (!modal || !inp) return;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 800;
+  let r = inp.getBoundingClientRect();
+  // Kutu ekranın altına yakınsa panele yer kalmaz: kutuyu yukarı alıp yeniden ölç.
+  if (vh - r.bottom - 10 < 220) {
+    try { inp.scrollIntoView({ block: "start" }); } catch (_) {}
+    r = inp.getBoundingClientRect();
+  }
+  const top = Math.max(8, Math.round(r.bottom) + 10);
+  modal.style.setProperty("--local-modal-top", top + "px");
+}
+
 function updateLocalFilterMenu() {
   const menu = document.getElementById("local-search-filter-menu");
   if (!menu) return;
@@ -1307,6 +1325,7 @@ function openLocalSearchModal() {
     localSearchState.kind = "all";
     updateLocalFilterMenu();
   }
+  positionLocalModal();
   modal.style.display = "flex";
 }
 
@@ -1455,6 +1474,13 @@ function renderLocalResults() {
     const m = localSearchModalEl();
     if (m && m.style.display !== "none") closeLocalSearchModal();
   });
+  // 2.19.11: panel açıkken sayfa kayarsa/yeniden boyutlanırsa kutu hizası korunur.
+  const repositionLocal = () => {
+    const m = localSearchModalEl();
+    if (m && m.style.display !== "none") positionLocalModal();
+  };
+  window.addEventListener("scroll", repositionLocal, { passive: true });
+  window.addEventListener("resize", repositionLocal);
 })();
 
 

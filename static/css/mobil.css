@@ -235,6 +235,7 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .value-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .local-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .stats-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .history-modal {
@@ -251,6 +252,7 @@
   html:not(.is-tv):not(.tv-mode) .modal-overlay .picker-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .unwatched-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .results-modal,
+  html:not(.is-tv):not(.tv-mode) .modal-overlay .local-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .hidden-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .stats-modal,
   html:not(.is-tv):not(.tv-mode) .modal-overlay .history-modal,
@@ -298,44 +300,6 @@
 
   html:not(.is-tv):not(.tv-mode) .modal-body {
     padding: 12px 12px;
-  }
-
-  /* 2.19.9 LOKAL ARA: mobilde sonuç paneli akış içinde (arama kutusunun altında).
-     Overlay kapatılır; kutu görünür + odaklı kalır, ekran klavyesi açık kalır.
-     Panel içi kaydırma korunur (masaüstündeki 80vh'nin mobil karşılığı). */
-  html:not(.is-tv):not(.tv-mode) #local-search-modal {
-    position: static;
-    inset: auto;
-    z-index: auto;
-    background: none;
-    padding: 0;
-  }
-
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal.local-modal {
-    max-width: none;
-    max-height: 50vh;
-    margin-top: 10px;
-    border: 0;
-    background: transparent;
-    border-radius: 0;
-  }
-
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header {
-    padding: 8px 0 0;
-    border-bottom: 0;
-  }
-
-  /* Blok başlığı zaten "LOKAL ARA": panel içindeki tekrar gizlenir. */
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-header h3 {
-    display: none;
-  }
-
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .local-search-count {
-    padding: 0 0 8px;
-  }
-
-  html:not(.is-tv):not(.tv-mode) #local-search-modal .modal-body {
-    padding: 0;
   }
 
   /* 2.19.10 LOKAL ARA: panel #view-search içinde olduğu için arama görünümünün

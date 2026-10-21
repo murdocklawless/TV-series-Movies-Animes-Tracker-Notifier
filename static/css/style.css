@@ -1638,6 +1638,19 @@ input:-webkit-autofill:focus {
   gap: 6px;
 }
 
+/* 2.19.11 LOKAL ARA sonuç modalı: her platformda (mobil/APK/masaüstü) arama
+   kutusunun 10px altında açılır. JS `--local-modal-top` değişkenini kutunun alt
+   kenarına göre yazar; böylece kutu görünür + odaklı kalır, yazı görünür olur.
+   Yükseklik kalan alana göre sınırlanır (iç kaydırma korunur). */
+#local-search-modal {
+  align-items: flex-start;
+  padding-top: var(--local-modal-top, 20px);
+}
+
+#local-search-modal .modal.local-modal {
+  max-height: calc(100vh - var(--local-modal-top, 20px) - 16px);
+}
+
 /* 2.19.8 LOKAL ARA sonuç modalı: Ara/Çoklu Ara blok genişliğiyle aynı (800px).
    .results-modal sınıfı KULLANILMAZ (kart paritesi: haplar nowrap + ellipsis kalır). */
 .modal.local-modal {

@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.11 - 21/10/2026-03:47
+### TR
+- **Düzeltme — LOKAL ARA sonuç modalı artık arama kutusunun 10px altında:** her platformda (mobil/APK/masaüstü) modal, JS'in yazdığı `--local-modal-top` değişkeniyle kutunun alt kenarına hizalanır (`align-items: flex-start` + `padding-top`), yüksekliği kalan alana göre sınırlanır. Böylece **kutu görünür ve odaklı** kalır (yazı görünür), sonuçlar hemen altında akar; panel içi kaydırma korunur. Sayfa kayarsa/yeniden boyutlanırsa hizalama yeniden hesaplanır; kutu ekranın altına çok yakınsa önce yukarı alınıp ölçülür.
+- **Mobil: sonuçlar yeniden modal içinde (çoklu ara ölçüsünde):** 2.19.9'un akış-içi paneli kaldırıldı; `.local-modal` mobil modal listesine eklendi → `max-width: 92%`, `border-radius: 12px`, `border: 1px solid #2a2f3d`, `padding: 0` — **çoklu ara modalıyla birebir**. Başlıktaki `h3` artık gizlenmiyor → **filtre butonu ×'in hemen yanında**. Kart genişliği `--card-w` formülünde kaldı (modal içinde de 3'lü düzen).
+- **Hap etiketleri (taşma düzeltmesi):** mobilde **"2 S 12 B"** (yeni `seasons_mini`/`episodes_mini`, ×14 dil), masaüstü/tablet/TV'de **"2 Sez 14 Böl"** (`seasons_short`/`episodes_short`). Tek rozet varsa tam yazı korunur; TV biçimi değişmedi.
+- **Damga:** `jsver bump` → tüm JS `?v=647`, `__NX_BUILD 647`; `style.css?v=625 → 626`, `mobil.css?v=547 → 548`. Statik değişiklik → **servis restart gerekmez**.
+### EN
+- **Fix — the LOCAL SEARCH results modal now opens 10px below the search box:** on every platform (mobile/APK/desktop) the modal is aligned to the box's bottom edge via the JS-written `--local-modal-top` variable (`align-items: flex-start` + `padding-top`) and its height is capped to the remaining space. The **box stays visible and focused** (typing is visible) and results flow right below it; inner scrolling is preserved. The alignment is recalculated on scroll/resize, and if the box sits too close to the bottom it is scrolled up first.
+- **Mobile: results are back inside a modal (multi-search dimensions):** the 2.19.9 in-flow panel was removed; `.local-modal` was added to the mobile modal list → `max-width: 92%`, `border-radius: 12px`, `border: 1px solid #2a2f3d`, `padding: 0` — **identical to the multi-search modal**. The header `h3` is no longer hidden → **the filter button sits right next to the ×**. Card width stays on the `--card-w` formula (3-up layout inside the modal too).
+- **Badge labels (overflow fix):** mobile shows **"2 S 12 B"** (new `seasons_mini`/`episodes_mini`, ×14 languages), desktop/tablet/TV shows **"2 Sez 14 Böl"** (`seasons_short`/`episodes_short`). A single badge keeps the full text; the TV format is unchanged.
+- **Stamps:** `jsver bump` → all JS `?v=647`, `__NX_BUILD 647`; `style.css?v=625 → 626`, `mobil.css?v=547 → 548`. Static-only change → **no service restart needed**.
+
 ## 2.19.10 - 21/10/2026-03:27
 ### TR
 - **Düzeltme — LOKAL ARA mobil kart boyutu:** panel `#view-search` içine taşındığı için arama görünümünün `#view-search .poster-grid .card { width: 132px }` kuralı panele de uyguluyordu; telefonda kartlar satıra 1-2 sığıyordu. Mobilde (≤600px) panel kartları artık bölüm/çoklu ara kartlarıyla **aynı formülden** (`--card-w`) gelir → **3'lü düzen** (≤480px: 1/3, 481-600px: 120px). Masaüstü/tablet/TV kart boyutu **değişmedi** (132px / 132×scale).

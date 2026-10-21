@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=646";
+import { t } from "./i18n.js?v=647";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=646";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=646";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=646";
+} from "./utils.js?v=647";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=647";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=647";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -297,14 +297,17 @@ function followedStatusHTML(item) {
 }
 
 // Orta satır: dizi/belgesel-TV → sezon + bölüm rozetleri (çoklu bölüm verisi varsa; yoksa boş).
-// Mobil: yalnızca İKİSİ de varsa kısalt ("{n} Sez"/"{n} Böl"); tek biri varsa tam yaz.
+// İKİSİ de varsa kısaltılır: mobil "2 S 12 B" (mini), masaüstü/tablet/TV "2 Sez 14 Böl" (kısa).
+// Tek rozet varsa tam yaz (yer var).
 function seasonEpMid(item) {
   if (item.media_type !== "tv") return "";
   const hasS = !!item.number_of_seasons;
   const hasE = !!item.number_of_episodes;
-  const short = (isMobile() && hasS && hasE) || isTvUIActive();
-  const s = hasS ? `<span class="season-count-badge">${t(short ? "seasons_short" : "seasons", { n: item.number_of_seasons })}</span>` : "";
-  const e = hasE ? `<span class="episode-count">${t(short ? "episodes_short" : "episodes", { n: item.number_of_episodes })}</span>` : "";
+  const both = hasS && hasE;
+  const sKey = both ? (isMobile() ? "seasons_mini" : "seasons_short") : "seasons";
+  const eKey = both ? (isMobile() ? "episodes_mini" : "episodes_short") : "episodes";
+  const s = hasS ? `<span class="season-count-badge">${t(sKey, { n: item.number_of_seasons })}</span>` : "";
+  const e = hasE ? `<span class="episode-count">${t(eKey, { n: item.number_of_episodes })}</span>` : "";
   return s + e;
 }
 

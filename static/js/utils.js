@@ -1,6 +1,6 @@
 // Faz 4: utils — genel yardımcılar, SVG sabitleri, tarih/saat formatları.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=646";
+import { t } from "./i18n.js?v=647";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
