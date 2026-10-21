@@ -1682,6 +1682,14 @@ input:-webkit-autofill:focus {
   gap: 10px;
 }
 
+/* 2.19.19 (madde 1): filtre butonu × işaretinin HEMEN SOLUNDA dursun.
+   Mobilde başlık max-width:30% olunca space-between boşluğu dağıtıyor ve ORTADAKİ
+   öğe (sort-wrap) arama kutusunun üstüne denk geliyordu → margin-left:auto ile
+   butonlar sağa toplanır (masaüstünde h3 flex:1 zaten aynı sonucu veriyordu). */
+.modal.local-modal .sort-wrap {
+  margin-left: auto;
+}
+
 /* 2.19.17: LOKAL ARA sonuç başlığı — dizi bölümündeki gibi TURUNCU YATAY DOTTED ÇİZGİ
    (kenarlardan 20px içeride). "{n} Sonuç" çizginin SAĞ ÜSTÜNDE, çizginin ALTINDA ise o an
    dizilen kartlardan üretilen tür özeti ("4 Dizi | 2 Film | 1 Belgesel") yazılır.

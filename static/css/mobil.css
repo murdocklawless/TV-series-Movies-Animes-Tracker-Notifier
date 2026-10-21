@@ -360,6 +360,16 @@
     max-width: 30%;
   }
 
+  /* 2.19.19 (madde 3): dokunup tutunca (uzun basma → :hover) kart BÜYÜMESİN.
+     .card:hover'daki scale(1.06) + z-index:5 kenar kartları büyütüp modal dışına
+     taşırıyordu. Yalnız LOKAL ARA sonuç modalı: masaüstü hover'ı ve TV odak
+     ölçeği (tv.css) korunur. Kenarlık rengi (turuncu geri bildirim) kalır. */
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .card:hover {
+    transform: none;
+    box-shadow: none;
+    z-index: 1;
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
     padding: 12px 12px 25px;
   }

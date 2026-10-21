@@ -1,11 +1,11 @@
 // Faz 4: search — arama mantığı (normal/çoklu arama, filtre çipleri, sonuçlar, seçici modal).
 import { state } from "./state.js";
-import { t, animeGenreLabel, errText } from "./i18n.js?v=654";
+import { t, animeGenreLabel, errText } from "./i18n.js?v=655";
 import {
   posterHTML, scoreTag, typeLabel, CALENDAR_SVG, escAttr, INFO_SVG,
   toast, CHECK_SVG, loadGenres, FILM_SVG, applyTitleHint, isDocItem, resultCardRows, cardDateLine, dayStrInTz,
-} from "./utils.js?v=654";
-import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=654";
+} from "./utils.js?v=655";
+import { loadFollowed, loadBelgesel, loadAnime, makeFollowedCard, makeAnimeCard, switchView, kindsSummaryText } from "./views.js?v=655";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -27,7 +27,7 @@ function setTvSearchCardAttrs(div, item){
   try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(item.title) div.setAttribute('aria-label', item.title); if(item.tmdb_id) div.dataset.tmdbId=item.tmdb_id; if(item.anilist_id) div.dataset.anilistId=item.anilist_id; if(item.media_type) div.dataset.mediaType=item.media_type; div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }}); const cal=div.querySelector('.calendar-btn'); if(cal){cal.tabIndex=0; cal.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); cal.click();}});} const ib=div.querySelector('.info-btn'); if(ib){ib.tabIndex=0; ib.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); ib.click();}});} const rem=div.querySelector('.remove'); if(rem){rem.tabIndex=0; rem.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){e.preventDefault(); e.stopPropagation(); rem.click();}});} }catch{}
 }
 
-import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=654";
+import { openDetails, openReleases, openAnimeDetails } from "./components.js?v=655";
 
 /* Arama modalı satır üreticileri: tip·puan / vizyon-yayın tarihi (boşsa yer tutucu). */
 function searchRows(item, badge) {
@@ -1407,6 +1407,18 @@ function localSortRank(kind, k) {
   return k === kind ? -1 : rest;
 }
 
+/* 2.19.19 (madde 4-5): "soluk" (sonra izlenecek) kart tanımı TEK yerde.
+   İzlenmiş/arşivlenmiş kayıtta kalan deferred=1 bayrağı kartı soldurmaz
+   (izlenenler bölümüyle parite) ve sıralamada en sona atılmaz. */
+function localIsLate(it) {
+  if (!it) return false;
+  try {
+    return Number(it.deferred || 0) === 1
+      && Number(it.in_watched || 0) !== 1
+      && Number(it.archived || 0) !== 1;
+  } catch (_) { return false; }
+}
+
 function localTitleCmp(a, b) {
   const x = String((a && a.title) || ""), y = String((b && b.title) || "");
   try { return x.localeCompare(y, "tr", { sensitivity: "base" }); } catch (_) {
@@ -1537,11 +1549,18 @@ function renderLocalResults() {
   const summary = document.getElementById("local-search-summary");
   if (!grid) return;
   const kind = localSearchState.kind || "all";
-  const items = localSearchState.items.slice().sort((a, b) => {
-    const ra = localSortRank(kind, localKindOf(a)), rb = localSortRank(kind, localKindOf(b));
-    if (ra !== rb) return ra - rb;
-    return localTitleCmp(a, b);
-  });
+  // 2.19.19 (madde 6): filtre artık GERÇEK filtre — yalnız seçilen türün kartları dizilir.
+  // 2.19.19 (madde 5): soluk (sonra izlenecek) kartlar HER ZAMAN en sonda.
+  const items = localSearchState.items
+    .filter((it) => kind === "all" || localKindOf(it) === kind)
+    .slice()
+    .sort((a, b) => {
+      const la = localIsLate(a), lb = localIsLate(b);
+      if (la !== lb) return la ? 1 : -1;
+      const ra = localSortRank(kind, localKindOf(a)), rb = localSortRank(kind, localKindOf(b));
+      if (ra !== rb) return ra - rb;
+      return localTitleCmp(a, b);
+    });
   grid.innerHTML = "";
   if (count) {
     if (items.length) {
@@ -1571,6 +1590,13 @@ function renderLocalResults() {
       }
     } catch (_) { card = null; }
     if (card) {
+      // 2.19.19 (madde 4): izlenmiş/arşivlenmiş kayıtta kalan deferred=1 bayrağı
+      // kartı soldurmasın — izlenenler/arşiv bölümlerindeki görünümle birebir parite.
+      try {
+        if (!localIsLate(item) && card.classList.contains("is-deferred")) {
+          card.classList.remove("is-deferred");
+        }
+      } catch (_) {}
       // 2.19.12: kart tıklaması bilgi modalı açmaz → bölüme atlar + karta fokus.
       try { card.onclick = () => jumpToLocalCard(item, k); } catch (_) {}
       frag.appendChild(card);
