@@ -463,7 +463,8 @@ def refresh_feed_source(source):
     """
     if source not in FEED_SOURCES:
         return
-    run = query_log.begin_run("feed.refresh", sec=f"feed:{source}")
+    query_log.begin_run("feed.refresh", sec=f"feed:{source}")
+    query_log.set_tag("feed.pool")
     try:
         for media in MEDIA_ORDER:
             pool = _fetch_pool(media, source)

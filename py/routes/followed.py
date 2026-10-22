@@ -45,6 +45,7 @@ def _qlog_route(flow):
                     },
                     uid=_uid(),
                 )
+                query_log.set_tag(flow)
             except Exception:
                 pass
             try:

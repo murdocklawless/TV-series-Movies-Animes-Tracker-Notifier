@@ -157,6 +157,11 @@ def end_run(errors=None, card_count=None):
         except Exception:
             pass
     _ctx_run.set(None)
+    # Baglam sizmasin: ayni is parcacigi sonraki istegi eski etiketle loglamasin.
+    _ctx_tag.set(None)
+    _ctx_sec.set(None)
+    _ctx_card.set(None)
+    _ctx_uid.set(None)
 
 
 def set_tag(tag):

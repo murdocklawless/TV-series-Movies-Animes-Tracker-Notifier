@@ -126,6 +126,7 @@ def recommendations_feed():
     # 2.19.25: besleme istegi tek `run` altinda loglanir (uid + bolum = media:kaynak).
     query_log.begin_run("feed.request", sec="feed:%s:%s" % (media, source),
                         uid=_uid(), card={"media": media, "source": source})
+    query_log.set_tag("feed.detail")
     conn = get_db()
     try:
         items = generate_feed(conn, media, source, user_id=_uid(), force=refresh)

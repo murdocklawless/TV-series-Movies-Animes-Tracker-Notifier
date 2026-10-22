@@ -528,6 +528,7 @@ def _logged_job(flow):
             try:
                 import query_log
                 query_log.begin_run(flow)
+                query_log.set_tag(flow)
             except Exception:
                 query_log = None
             try:
