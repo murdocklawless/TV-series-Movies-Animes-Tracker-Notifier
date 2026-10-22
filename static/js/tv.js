@@ -40,7 +40,7 @@ export function pushModal(el) {
   modalStack.push(el);
   // TV: releases/unwatched takvimde ilk odak episode yuvarlaginda kalsin, X'e degil;
   // picker'da free-input'ta, sonuç modalında ilk kartta kalsın (açılış focus'unu observer çalmasın)
-  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal' || el.id === 'history-modal' || el.id === 'stats-modal' || el.id === 'local-search-modal')) {
+  if (isTvMode() && (el.id === 'releases-modal' || el.id === 'unwatched-modal' || el.id === 'picker-modal' || el.id === 'search-results-modal' || el.id === 'person-modal' || el.id === 'director-modal' || el.id === 'value-modal' || el.id === 'hidden-modal' || el.id === 'history-modal' || el.id === 'stats-modal' || el.id === 'local-search-modal' || el.id === 'section-results-modal')) {
     if (el.id === 'history-modal') initHistoryFocus(el);
     if (el.id === 'stats-modal') initStatsFocus(el);
     return;
@@ -238,7 +238,7 @@ function statsModalMove(top, dir, e){
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal","local-search-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal","local-search-modal","section-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -362,7 +362,7 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     // Sonuç + kişi/yönetmen modalında buton modundayken Back karta döner, modal açık kalır
-    if ((top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal') && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
+    if ((top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal' || top.id === 'section-results-modal') && buttonMode && buttonMode.card && top.contains(buttonMode.card)) {
       e.preventDefault(); e.stopPropagation();
       exitButtonMode();
       return;
@@ -685,7 +685,7 @@ function enterButtonMode(card){
 // butonlara OK ile buton modunda girilir, Back ile karta dönülür)
 function resultsModalMove(top, dir, e){
   try {
-    const closeBtn = top.querySelector('#search-results-close, #person-close, #director-close, #local-search-close');
+    const closeBtn = top.querySelector('#search-results-close, #person-close, #director-close, #local-search-close, #section-results-close');
     const filterBtn = top.querySelector('#search-filter-btn, #person-filter-btn, #director-filter-btn, #local-search-filter-btn');
     const searchBtn = top.querySelector('#results-search-btn, #person-search-btn, #director-search-btn');
     const cards = Array.from(top.querySelectorAll('.card')).filter(el=>isVisible(el)&&!el.disabled);
@@ -1192,10 +1192,12 @@ document.addEventListener("keydown", (e)=>{
     if (!dir) return;
     // Sonuç + kişi/yönetmen modalı: 2 seviyeli — kart seviyesinde 2D kart navigasyonu,
     // buton modunda kart-içi butonlar (modal kapanmaz)
-    if (top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal'){
+    if (top.id === 'search-results-modal' || top.id === 'person-modal' || top.id === 'director-modal' || top.id === 'local-search-modal' || top.id === 'section-results-modal'){
       // Liste-içi arama kutusu odaktayken oklar yazı yazımına aittir, TV nav'a takılmaz
       const rae = document.activeElement;
       if (rae && (rae.id === 'results-search-input' || rae.id === 'person-search-input' || rae.id === 'director-search-input')) return;
+      // 2.19.27 bölüm içi arama: kutu odaklıyken aşağı -> ilk kart; diğer yönler yazıya aittir
+      if (top.id === 'section-results-modal' && rae && rae.id === 'section-results-input' && dir !== 'down') return;
       // 2.19.10 LOKAL ARA (TV): kutu odakliyken asagi -> panelin ilk karti (resultsModalMove);
       // diger yonler gorunum zincirine aittir (yukari = X kapat, sol/sag = zincir komsulari).
       if (top.id === 'local-search-modal' && rae && rae.id === 'local-search-input' && dir !== 'down'){
@@ -1572,7 +1574,7 @@ document.addEventListener("keydown", (e)=>{
   if (!isOkKey(e)) return;
   const tm = topModal();
   // Sonuç + kişi/yönetmen modalında kart OK'i buton moduna girer (detay info butonundan açılır)
-  if (tm && (tm.id === 'search-results-modal' || tm.id === 'person-modal' || tm.id === 'director-modal' || tm.id === 'local-search-modal')){
+  if (tm && (tm.id === 'search-results-modal' || tm.id === 'person-modal' || tm.id === 'director-modal' || tm.id === 'local-search-modal' || tm.id === 'section-results-modal')){
     if (buttonMode && !(buttonMode.card && tm.contains(buttonMode.card))) buttonMode = null;
     const ae0 = document.activeElement;
     const card0 = ae0 && (isCard(ae0) ? ae0 : (ae0.closest && ae0.closest('.card'))) || null;

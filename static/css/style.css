@@ -1806,6 +1806,37 @@ input:-webkit-autofill:focus {
   font-size: 0.9rem;
 }
 
+/* 2.19.27: BÖLÜM İÇİ ARAMA sonuç modalı — LOKAL ARA'dan AYRI modal.
+   Görsel dil LOKAL ARA ile aynı; yazma yüzeyi her platformda header'daki kutudur
+   (mobilde de ayrı header kutusu yok, doğrudan bu kutu kullanılır). */
+.section-results-input {
+  flex: 0 1 240px;
+  min-width: 0;
+  max-width: 240px;
+  background: #1b1f2a;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #e8eaf0;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.section-results-input::placeholder {
+  color: #6b7180;
+}
+
+.section-results-input:focus {
+  border-color: #f97316;
+}
+
+/* Kartlar bölüm grid'inden TAŞINIR: satır görünümü açıksa modal grid'i de tablo olmalı. */
+#section-results-grid.row-mode {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+}
+
 #view-search .search-bar {
   margin-bottom: 0;
 }

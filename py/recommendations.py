@@ -845,16 +845,11 @@ def _attach_movie_details(items, force=False, tag="rec.detail"):
 
 
 def _can_move_watched(item):
-    """İzlenmişe taşı butonu yalnızca tamamlanmış öğelerde çıkar:
-    anime FINISHED/CANCELLED, dizi Ended/Canceled/Cancelled, film yayınlanmış."""
-    if item.get("media_type") == "anime":
-        return item.get("status") in ("FINISHED", "CANCELLED")
-    if item.get("media_type") == "tv":
-        return item.get("tv_status") in ("Ended", "Canceled", "Cancelled")
-    rd = item.get("release_date")
-    if not rd:
-        return False
-    return rd <= today_str()
+    """2.19.27: 'İzlenmişlere taşı' TÜM öneri kartlarında görünür.
+    Kullanıcı yapımı önceden izlemiş olabilir; /api/recommendations/move-watched
+    yapımı takip eder (yoksa oluşturur) ve tüm bilinen bölümleri izlenmiş işaretler.
+    Bu yüzden eski "yalnız tamamlanmış yapımlar" koşulu kaldırıldı."""
+    return True
 
 
 def generate_fill(conn, kind, exclude_ids, limit, user_id=None):

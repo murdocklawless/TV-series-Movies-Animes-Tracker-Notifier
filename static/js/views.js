@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=658";
+import { t } from "./i18n.js?v=659";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=658";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=658";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=658";
+} from "./utils.js?v=659";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=659";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=659";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -1868,6 +1868,7 @@ function renderFeedCards(items, grid, media) {
         </div>
         ${recHideBtnHTML(item)}
         ${moveBtn}
+        ${recArchiveBtnHTML(item)}
         <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>`;
     } else {
       div.innerHTML = `
@@ -1887,6 +1888,7 @@ function renderFeedCards(items, grid, media) {
         </div>
         ${recHideBtnHTML(item)}
         ${moveBtn}
+        ${recArchiveBtnHTML(item)}
         <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>`;
     }
     const rem = div.querySelector(".remove");
@@ -1901,6 +1903,11 @@ function renderFeedCards(items, grid, media) {
     if (mvBtn) mvBtn.onclick = (e) => {
       e.stopPropagation();
       feedAction(div, () => fetch("/api/recommendations/move-watched", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(isAnimeCard ? { anilist_id: item.anilist_id } : { media_type: item.media_type, tmdb_id: item.tmdb_id, title: item.title, poster_path: item.poster_path }) }), t("moved_to_watched", { name: item.title }));
+    };
+    const arBtn = div.querySelector(".archive-btn");
+    if (arBtn) arBtn.onclick = (e) => {
+      e.stopPropagation();
+      recArchiveHandler(div, item, null);
     };
     const hideBtn = div.querySelector(".hide-btn");
     if (hideBtn) hideBtn.onclick = (e) => {
@@ -2029,9 +2036,42 @@ function recHideBtnHTML(item) {
 }
 
 function recMoveBtnHTML(item) {
-  return item.can_move_watched
-    ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>`
-    : "";
+  // 2.19.27: "İzlenmişlere taşı" TÜM öneri kartlarında görünür — kullanıcı yapımı
+  // önceden izlemiş olabilir. Backend ucu (/api/recommendations/move-watched) yapımı
+  // takip eder ve tüm bilinen bölümleri izlenmiş işaretler; bu yüzden "tamamlanmış"
+  // koşulu (eski _can_move_watched filtresi) burada uygulanmaz.
+  return `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>`;
+}
+
+// 2.19.27: öneri kartlarında "Arşive taşı". SADECE arşive taşır: yapım takibe alınır
+// (yoksa oluşturulur) ve archived=1 yazılır → Arşiv bölümünde görünür, oradan geri
+// alınabilir; öneri listesinden kart kalkar. Öneri "gizle" (ban) davranışı ayrı kalır.
+function recArchiveBtnHTML(item) {
+  return `<button class="archive-btn" data-tip="${t("archive")}"><i class="fa-solid fa-box-archive"></i></button>`;
+}
+
+function recArchiveBody(item) {
+  if (item.anilist_id) return { anilist_id: item.anilist_id, title: item.title };
+  return {
+    tmdb_id: item.tmdb_id,
+    media_type: item.media_type,
+    title: item.title,
+    poster_path: item.poster_path,
+    release_date: item.release_date || "",
+    vote_average: item.vote_average,
+  };
+}
+
+// section verilirse bölüm öneri ızgarası (slot doldurulur), null ise feed (kart kalkar).
+function recArchiveHandler(div, item, section) {
+  const req = () => fetch("/api/recommendations/archive", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(recArchiveBody(item)),
+  });
+  const msg = t("archived_toast", { name: item.title });
+  if (section) recOptimistic(div, section, req, msg);
+  else feedAction(div, req, msg);
 }
 
 // Öneri kartı statü satırı: dizi→tv_status, film/belgesel→vizyon tarihi (takip kartlarıyla birebir)
@@ -2309,6 +2349,7 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
         </div>
         ${recHideBtnHTML(item)}
         ${moveBtn}
+        ${recArchiveBtnHTML(item)}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {
@@ -2334,6 +2375,13 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
             }),
             t("moved_to_watched", { name: item.title })
           );
+        };
+      }
+      const arBtn = div.querySelector(".archive-btn");
+      if (arBtn) {
+        arBtn.onclick = (e) => {
+          e.stopPropagation();
+          recArchiveHandler(div, item, section);
         };
       }
       const hideBtn = div.querySelector(".hide-btn");
@@ -2368,6 +2416,7 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
         </div>
         ${recHideBtnHTML(item)}
         ${moveBtn}
+        ${recArchiveBtnHTML(item)}
       <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
       `;
       div.querySelector(".remove").onclick = (e) => {
@@ -2403,6 +2452,13 @@ function renderRecCards(items, grid, isAnime, section, anchor) {
             }),
             t("moved_to_watched", { name: item.title })
           );
+        };
+      }
+      const arBtn = div.querySelector(".archive-btn");
+      if (arBtn) {
+        arBtn.onclick = (e) => {
+          e.stopPropagation();
+          recArchiveHandler(div, item, section);
         };
       }
       const hideBtn = div.querySelector(".hide-btn");
@@ -2790,13 +2846,10 @@ function applyFollowSectionState(section) {
   const st = followSectionState[section];
   const grid = followSectionGrid(section);
   if (!st || !grid) return;
-  const q = (st.q || "").toLocaleLowerCase();
+  // 2.19.27: satır içi metin filtresi KALDIRILDI — bölüm araması artık kendi
+  // sonuç modalında (#section-results-modal) yapılır. Burada yalnız sıralama kalır.
   const cards = Array.from(grid.children).filter((c) => c && c.classList && c.classList.contains("card"));
-  cards.forEach((c) => {
-    let title = "";
-    try { title = ((c.querySelector(".title") || {}).textContent) || ""; } catch (_) {}
-    c.style.display = (!q || title.toLocaleLowerCase().includes(q)) ? "" : "none";
-  });
+  cards.forEach((c) => { c.style.display = ""; });
   const key = st.sort || "added";
   const dir = st.dir || FOLLOW_DEFAULT_DIR[key] || "asc";
   if (cards.length > 1) {
@@ -2827,6 +2880,191 @@ function updateFollowSectionControls(section) {
     } catch (_) {}
   }
 }
+// -----------------------------------------------------------------------------
+// 2.19.27: BÖLÜM İÇİ ARAMA sonuç modalı (#section-results-modal)
+// LOKAL ARA (#local-search-modal) ile KARIŞTIRILMAZ: orada kart tıklaması bölüme
+// atlar + "uçan kart" animasyonu çalışır (2.19.12/2.19.21 — DEĞİŞMEZ). Burada ise
+// kart tıklaması bilgi modalını açar, kart butonları çalışır ve panel AÇIK kalır.
+// Kartlar KOPYALANMAZ, bölüm grid'inden TAŞINIR: böylece her bölümün kendi kart
+// üreticisi (izlenmemiş/izlenmiş/arşiv butonları dahil) hiç yeniden yazılmadan,
+// kendi handler'larıyla çalışır.
+// -----------------------------------------------------------------------------
+const sectionResultsState = { open: false, section: null, srcGrid: null, moved: false };
+
+function sectionResultsEl(id) { return document.getElementById(id); }
+
+// Türkçe/büyük-küçük harf duyarsız arama (İ→i̇ sorunu: NFKD + aksan temizliği).
+function sectionSearchFold(v) {
+  let s = String(v == null ? "" : v);
+  try { s = s.toLocaleLowerCase(); } catch (_) { s = s.toLowerCase(); }
+  try { s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, ""); } catch (_) {}
+  return s;
+}
+
+// Modal başlığı: arama butonunun bulunduğu h2 içindeki başlık <span>'i.
+function sectionResultsTitle(section) {
+  try {
+    const viewId = followSectionView[section] || "view-dizi";
+    const scope = document.getElementById(viewId);
+    const btn = scope && scope.querySelector(`.section-search[data-section="${section}"]`);
+    const h2 = btn && btn.closest("h2");
+    const span = h2 && h2.querySelector("span[data-i18n]");
+    if (span && span.textContent && span.textContent.trim()) return span.textContent.trim();
+  } catch (_) {}
+  return section || "";
+}
+
+function sectionResultsCards(root) {
+  if (!root) return [];
+  return Array.from(root.children).filter((c) => c && c.classList && c.classList.contains("card"));
+}
+
+// Bölümün TÜM kartlarını modala taşı (grid boş kalır → tazeleme tespiti net olur).
+function sectionResultsTake() {
+  const st = sectionResultsState;
+  const grid = sectionResultsEl("section-results-grid");
+  if (!st.srcGrid || !grid || st.moved) return;
+  sectionResultsCards(st.srcGrid).forEach((c) => { try { grid.appendChild(c); } catch (_) {} });
+  st.moved = true;
+}
+
+// Modalda duran kartları bölüm grid'ine geri koy (filtre gizlemeleri temizlenir).
+function sectionResultsReturn() {
+  const st = sectionResultsState;
+  const grid = sectionResultsEl("section-results-grid");
+  if (!st.srcGrid || !grid || !st.moved) return;
+  sectionResultsCards(grid).forEach((c) => {
+    try { c.style.display = ""; st.srcGrid.appendChild(c); } catch (_) {}
+  });
+  st.moved = false;
+}
+
+function sectionResultsApplyFilter() {
+  const grid = sectionResultsEl("section-results-grid");
+  const inp = sectionResultsEl("section-results-input");
+  const count = sectionResultsEl("section-results-count");
+  const empty = sectionResultsEl("section-results-empty");
+  if (!grid) return;
+  const q = sectionSearchFold(inp ? inp.value : "");
+  let n = 0;
+  sectionResultsCards(grid).forEach((c) => {
+    let title = "";
+    try { title = c.dataset.sortTitle || ((c.querySelector(".title") || {}).textContent) || ""; } catch (_) {}
+    const hit = !q || sectionSearchFold(title).includes(q);
+    c.style.display = hit ? "" : "none";
+    if (hit) n += 1;
+  });
+  if (count) count.textContent = n ? t("search_local_count", { n }) : "";
+  if (empty) {
+    empty.style.display = n ? "none" : "block";
+    if (!n) empty.textContent = t("no_results");
+  }
+}
+
+// fresh=true: bölüm yeniden yüklendi (arşivle / arşivden çıkar / takibi bırak) →
+// modalda duran ESKİ kartlar atılır, bölümün taze kartları yeniden taşınır.
+function renderSectionResults(fresh) {
+  const st = sectionResultsState;
+  if (!st.open || !st.srcGrid) return;
+  const grid = sectionResultsEl("section-results-grid");
+  if (!grid) return;
+  if (fresh) { grid.innerHTML = ""; st.moved = false; }
+  sectionResultsTake();
+  try { grid.classList.toggle("row-mode", st.srcGrid.classList.contains("row-mode")); } catch (_) {}
+  sectionResultsApplyFilter();
+}
+
+function openSectionResults(section) {
+  const grid = followSectionGrid(section);
+  if (!grid) return;
+  const st = sectionResultsState;
+  st.section = section;
+  st.srcGrid = grid;
+  st.open = true;
+  st.moved = false;
+  const modalEl = sectionResultsEl("section-results-modal");
+  const titleEl = sectionResultsEl("section-results-title");
+  const inp = sectionResultsEl("section-results-input");
+  if (titleEl) titleEl.textContent = sectionResultsTitle(section);
+  if (inp) inp.value = "";
+  if (modalEl) modalEl.style.display = "flex";
+  document.querySelectorAll(`.section-search[data-section="${section}"]`).forEach((b) => b.classList.add("active"));
+  renderSectionResults(false);
+  if (!isTvUIActive() && inp) {
+    setTimeout(() => { try { inp.focus(); } catch (_) {} }, 20);
+  }
+}
+
+function closeSectionResults() {
+  const st = sectionResultsState;
+  if (!st.open) return;
+  const sec = st.section;
+  const src = st.srcGrid;
+  sectionResultsReturn();
+  const grid = sectionResultsEl("section-results-grid");
+  if (grid) grid.innerHTML = "";
+  const count = sectionResultsEl("section-results-count");
+  if (count) count.textContent = "";
+  const empty = sectionResultsEl("section-results-empty");
+  if (empty) empty.style.display = "none";
+  st.open = false;
+  st.section = null;
+  st.srcGrid = null;
+  st.moved = false;
+  const modalEl = sectionResultsEl("section-results-modal");
+  if (modalEl) modalEl.style.display = "none";
+  // Yalnız BU bölümün büyütecinin aktif işareti kaldırılır: öneri bölümlerinin
+  // kendi satır içi arama kutusu .active durumunu kullanıyor, ona dokunulmaz.
+  if (sec) {
+    document.querySelectorAll(`.section-search[data-section="${sec}"]`).forEach((b) => b.classList.remove("active"));
+  }
+  try { if (sec) applyFollowSectionState(sec); } catch (_) {}
+  try { if (sec) updateFollowSectionControls(sec); } catch (_) {}
+  try { if (src) renderSectionSummary(src); } catch (_) {}
+}
+
+// Liste yenilendi: bölüm grid'i yeniden kurulduysa (kartlar geri geldi) modalı tazele.
+document.addEventListener("app:lists-refreshed", () => {
+  if (!sectionResultsState.open) return;
+  try {
+    if (!sectionResultsCards(sectionResultsState.srcGrid).length) return; // bu bölüm yenilenmedi
+    renderSectionResults(true);
+  } catch (_) {}
+});
+
+function wireSectionResultsModal() {
+  const modalEl = sectionResultsEl("section-results-modal");
+  if (!modalEl) return;
+  const closeBtn = sectionResultsEl("section-results-close");
+  if (closeBtn) closeBtn.onclick = () => closeSectionResults();
+  modalEl.addEventListener("click", (e) => { if (e.target === modalEl) closeSectionResults(); });
+  const inp = sectionResultsEl("section-results-input");
+  if (inp) {
+    inp.addEventListener("input", () => { try { sectionResultsApplyFilter(); } catch (_) {} });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeSectionResults(); return; }
+      e.stopPropagation();
+    });
+  }
+  // ESC: YAKALAMA fazında çalışır. Üstte başka bir modal (bilgi / takvim / onay)
+  // açıksa ESC önce ONU kapatır, bu panel açık kalır (kullanıcı kartın bilgi
+  // modalından çıkıp aramaya devam eder). Üstte modal yoksa panel kapanır.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !sectionResultsState.open) return;
+    try {
+      const above = Array.from(document.querySelectorAll(".modal-overlay")).some((m) => {
+        if (!m || m.id === "section-results-modal") return false;
+        if (m.style.display === "none") return false;
+        return getComputedStyle(m).display !== "none";
+      });
+      if (above) return;
+    } catch (_) {}
+    e.stopPropagation();
+    closeSectionResults();
+  }, true);
+}
+wireSectionResultsModal();
+
 // ---- Bölüm özeti (dotted çizgi altı): sayı | bölüm | izlenmiş/izlenmemiş saat ----
 const SUMMARY_KIND_KEY = { shows: "summary_shows", movies: "summary_films", docs: "summary_docs", anime: "summary_anime" };
 const SUMMARY_HAS_HOURS = { shows: true, movies: true, docs: true, anime: true };
@@ -3007,42 +3245,10 @@ document.addEventListener("app:external-refresh", () => {
   try { refreshListsAfterWatch(); } catch (_) {}
 });
 (function wireFollowSearch() {
+  // 2.19.27: bölüm başlığındaki büyüteç satır içi filtre yerine KENDİ sonuç modalını
+  // açar (#section-results-modal). Sayfadaki kartlar artık süzülmez; arama modalda.
   document.querySelectorAll("#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search, #view-archive .section-search").forEach((btn) => {
-    btn.onclick = () => {
-      const section = btn.dataset.section;
-      const viewId = followSectionView[section] || "view-dizi";
-      const inp = document.querySelector(`#${viewId} .rec-search-input[data-section="${section}"]`);
-      if (!inp) return;
-      const open = inp.style.display === "block";
-      if (open) {
-        inp.value = ""; inp.style.display = "none"; inp.classList.remove("open");
-        btn.classList.remove("active");
-        if (followSectionState[section]) followSectionState[section].q = "";
-        applyFollowSectionState(section);
-      } else {
-        inp.style.display = "block"; inp.classList.add("open"); btn.classList.add("active");
-        inp.focus();
-      }
-    };
-  });
-  document.querySelectorAll("#view-dizi .rec-search-input, #view-film .rec-search-input, #view-belgesel .rec-search-input, #view-anime .rec-search-input, #view-unwatched .rec-search-input, #view-watched .rec-search-input, #view-archive .rec-search-input").forEach((inp) => {
-    inp.addEventListener("input", () => {
-      const section = inp.dataset.section;
-      if (section && followSectionState[section]) {
-        followSectionState[section].q = (inp.value || "").trim();
-        applyFollowSectionState(section);
-      }
-    });
-    inp.addEventListener("keydown", (e) => {
-      // Jenerik dinleyici önce çalışıp kapatmışsa (display none) ikinci kez tıklatma.
-      if (e.key === "Escape" && inp.style.display === "block") {
-        const section = inp.dataset.section;
-        const viewId = followSectionView[section] || "view-dizi";
-        const btn = document.querySelector(`#${viewId} .section-search[data-section="${section}"]`);
-        if (btn) btn.click();
-      }
-      e.stopPropagation();
-    });
+    btn.onclick = () => { openSectionResults(btn.dataset.section); };
   });
 })();
 

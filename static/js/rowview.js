@@ -2,7 +2,7 @@
 // views.js'e dokunmaz; mevcut .card verisini okuyup satır modunda hücre (tablo) düzenine çevirir.
 // Kolon genişlikleri dinamiktir (display:table auto-layout). Boş kolonlar (tüm satırlarda boş) düşürülür.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=658";
+import { t } from "./i18n.js?v=659";
 
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1"></rect><line x1="11" y1="6.5" x2="21" y2="6.5"></line><rect x="3" y="15" width="5" height="5" rx="1"></rect><line x1="11" y1="17.5" x2="21" y2="17.5"></line></svg>`;
 const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`;
@@ -190,7 +190,7 @@ function slotKeysFor(kind, section) {
   const s = (section || "").toLowerCase();
   const tv = isTvMode();
   if (s.startsWith("archive")) return ["calendar", "archive", "remove"];
-  if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return tv ? ["info", "move", "hide", "remove"] : ["move", "hide", "remove"];
+  if (s === "feed" || s === "shows" || s === "movies" || s === "docs" || s === "anime" || s.startsWith("recommend")) return tv ? ["info", "move", "archive", "hide", "remove"] : ["move", "archive", "hide", "remove"];
   if (s.startsWith("watched")) return tv ? ["calendar", "info", "move"] : ["calendar", "move"];
   if (s.startsWith("unwatched")) return tv ? ["calendar", "info"] : ["calendar"];
   return tv ? ["calendar", "info", "defer", "move", "archive", "remove"] : ["calendar", "defer", "move", "archive", "remove"];

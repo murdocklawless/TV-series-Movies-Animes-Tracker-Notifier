@@ -383,6 +383,41 @@
     }
   }
 
+  /* 2.19.27: BÖLÜM İÇİ ARAMA modalı — LOKAL ARA ile aynı ölçü/görsel dil:
+     person-modal gibi ORTADA, tam genişlik, aynı kart ölçüsü (--card-w / --card-gap). */
+  html:not(.is-tv):not(.tv-mode) #section-results-modal {
+    align-items: center;
+    padding-top: 20px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .modal.local-modal {
+    max-width: 1000px;
+    max-height: 90vh;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .poster-grid {
+    gap: var(--card-gap);
+    padding: 16px 20px;
+    margin: -16px -20px;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .poster-grid .card {
+    width: var(--card-w);
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .poster-grid.row-mode .card {
+    width: auto;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .section-results-input {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  html:not(.is-tv):not(.tv-mode) #section-results-modal .local-search-count {
+    text-align: left;
+  }
+
   html:not(.is-tv):not(.tv-mode) .settings-modal .modal-body {
     padding: 12px 12px 25px;
   }

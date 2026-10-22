@@ -1312,3 +1312,17 @@
 - **Doğrulama:** `py_compile` OK; 18 maddelik test paketi **ALL_OK 18**; tek satırlık kontrol: `d_var=False, t_var=True, stats=(1,1)`; 05:00 devri + md özet testi hâlâ geçiyor; pi'de servis `active`, yeni satırlarda `d` yok.
 - **Sürüm:** 2.19.26 (önce pi DB `version` + `VERSION` eşitlendi, sonra CHANGELOG/faz.md). Yedek: `bak/2.19.26_qlog_tarih_<ts>/`.
 - **Commit:** `2.19.26: sorgu gunlugunde tekrar eden tarih alani kaldirildi (t tek kaynak)` → `git push origin main`.
+
+## FAZ NOTLARI — Bölüm içi arama modalı + öneri kartı arşiv butonu (2026-10-23, sürüm 2.19.27)
+
+- **Bildirilen:** bölüm başlıklarındaki (dizi / film / belgesel / anime / izlenmiş / izlenmemiş / arşiv) arama sonuçlarında karta tıklayınca bilgi modalı açılmıyordu, kart butonları çalışmıyordu; ayrıca öneri kartlarında "İzlenmişlere taşı" yalnızca tamamlanmış yapımlarda çıkıyordu ve arşiv butonu yoktu. Sorun masaüstü + mobil + TV/APK'da görülüyordu.
+- **Tasarım kararı (kullanıcı seçimi — Tasarım B):** bölüm araması **kendi modalını** açar; LOKAL ARA **değişmez** (kart tıklaması bölüme atlar + "uçan kart" animasyonu çalışır). Satır içi filtre **kaldırılır**.
+- **Yeni panel:** `static/index.html` → `#section-results-modal` (`section-results-title|input|close|count|grid|empty`), `.modal.local-modal` görsel dili; `static/css/style.css` + `static/css/mobil.css` (≤600px: ortada, person-modal ölçüsü, `--card-w` kartlar). ESC **yakalama** fazında: üstte modal varsa önce o kapanır.
+- **Davranış:** kartlar **klonlanmaz, bölüm grid'inden taşınır** (`sectionResultsTake/Return`) → her bölümün kendi butonları/handler'ları birebir çalışır; kart tıklaması bilgi modalını açar, panel açık kalır. Açılışta bölümün TÜM kartları panele taşınır (kaynak grid boşalır) → `app:lists-refreshed` geldiğinde "kaynak grid'de kart var mı" kontrolü nettir: varsa `renderSectionResults(true)` ile bayat kartlar atılıp taze kartlar alınır. Kapatınca kartlar geri döner, `applyFollowSectionState` (artık yalnız sıralama) + `renderSectionSummary` yeniden çalışır.
+- **Türkçe arama:** `sectionSearchFold` → `toLocaleLowerCase` + NFKD aksan temizliği (İ→i sorunu); sayaç `search_local_count`, boş durum `no_results` anahtarlarını kullanır (yeni i18n anahtarı yok).
+- **TV (`static/js/tv.js`):** `section-results-modal` pushModal/hookModals/2 seviyeli gezinme/OK-buton modu listelerine eklendi; `#section-results-close` `resultsModalMove` kapatma düğmesi seçicisine girdi; kutudan aşağı = ilk kart, diğer yönler yazıya ait.
+- **Öneriler:** `py/recommendations.py` → `_can_move_watched` artık `True` (buton tüm kartlarda). Yeni `POST /api/recommendations/archive` (`py/routes/recommendations.py`): animede `anime` tablosuna upsert + `archived=1`; TMDB'de `followed` upsert + `archived=1` (+ poster/bölüm senkronu), ardından `remove_rec_item` + `bump()`. Izlenmiş işaretlemez; Arşiv bölümünde görünür, oradan geri alınabilir.
+- **Satır görünümü:** `static/js/rowview.js` öneri/feed yuvaları `["move","archive","hide","remove"]` (TV: `["info","move","archive","hide","remove"]`).
+- **Doğrulama:** `node --check` (views/tv/rowview) + `py_compile` (recommendations, routes/recommendations) OK; değişen statik dosyalarda `BOM=0`, `U+FFFD=0`, `moji=0`; `py/jsver.py bump` → build **659**, `check` → OK.
+- **Sürüm:** 2.19.27 (DB `version` + `VERSION` eşit). Yedek: `bak/2.19.27_bolum_arama_modal_<ts>/` (yerel + pi).
+

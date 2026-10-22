@@ -348,3 +348,110 @@ def rec_move_watched():
         pass
     bump()
     return jsonify({"ok": True})
+
+
+@recommendations_bp.route("/api/recommendations/archive", methods=["POST"])
+def rec_archive():
+    """Öneri kartındaki "Arşive taşı" (2.19.27). SADECE arşive taşır:
+    yapım takipte yoksa oluşturulur ve archived=1 yazılır; izlenmiş İŞARETLENMEZ.
+    Böylece yapım Arşiv bölümünde görünür ve oradan "arşivden çıkar" ile geri
+    alınabilir. Öneri "gizle" (ban) davranışı ayrı kalır."""
+    body = request.get_json(silent=True) or {}
+    uid = _uid()
+    conn = get_db()
+    ident = None
+    rec_kind = None
+    try:
+        if body.get("anilist_id"):
+            anilist_id = body.get("anilist_id")
+            detail = anilist_detail(anilist_id)
+            if not detail:
+                return jsonify({"error": "AniList'ten veri alınamadı"}), 404
+            title = _anime_title(detail)
+            cover = _anime_cover(detail)
+            episodes = detail.get("episodes") or 0
+            status = detail.get("status")
+            score = detail.get("averageScore")
+            studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
+            studio = studios[0] if studios else None
+            conn.execute(
+                "INSERT INTO anime (user_id, anilist_id, title, cover_url, episodes, status, score, studios, archived) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1) "
+                "ON CONFLICT(user_id, anilist_id) DO UPDATE SET "
+                "title=excluded.title, cover_url=excluded.cover_url, episodes=excluded.episodes, "
+                "status=excluded.status, score=excluded.score, studios=excluded.studios, archived=1",
+                (uid, anilist_id, title, cover, episodes, status, score, studio),
+            )
+            conn.commit()
+            row = conn.execute("SELECT id FROM anime WHERE user_id=? AND anilist_id=?", (uid, anilist_id,)).fetchone()
+            try:
+                save_anime_details(conn, row["id"], detail)
+            except Exception:
+                pass
+            rec_kind, ident = "anime", anilist_id
+        else:
+            media_type = body.get("media_type")
+            tmdb_id = body.get("tmdb_id")
+            if media_type not in ("movie", "tv") or not tmdb_id:
+                return jsonify({"error": "Eksik bilgi"}), 400
+            title = body.get("title") or ""
+            poster_path = body.get("poster_path")
+            info = get_tmdb_info(media_type, tmdb_id)
+            release_date = body.get("release_date") or (info or {}).get("release_date")
+            vote_average = body.get("vote_average")
+            if vote_average is None:
+                vote_average = (info or {}).get("vote_average") or 0
+            networks = (info or {}).get("networks") or []
+            existing = conn.execute(
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type=?",
+                (uid, tmdb_id, media_type),
+            ).fetchone()
+            if existing:
+                follow_id = existing["id"]
+                conn.execute("UPDATE followed SET archived=1 WHERE id=?", (follow_id,))
+            else:
+                conn.execute(
+                    "INSERT INTO followed (user_id, tmdb_id, media_type, title, poster_path, release_date, vote_average, networks, archived) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                    (uid, tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
+                )
+                follow_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                if info:
+                    try:
+                        _credits = get_tmdb_credits(media_type, tmdb_id)
+                        save_details(conn, follow_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
+                    except Exception:
+                        pass
+                try:
+                    pp = poster_path
+                    if not pp:
+                        _d = tmdb_request(f"/{media_type}/{tmdb_id}")
+                        pp = (_d or {}).get("poster_path")
+                        if pp:
+                            conn.execute("UPDATE followed SET poster_path=? WHERE id=?", (pp, follow_id))
+                    if pp:
+                        w500, w185 = download_tmdb_poster_with_sizes(media_type, tmdb_id, pp)
+                        if w500:
+                            conn.execute(
+                                "UPDATE followed SET poster_local=?, poster_local_w185=? WHERE id=?",
+                                (w500, w185, follow_id),
+                            )
+                        elif w185:
+                            conn.execute("UPDATE followed SET poster_local_w185=? WHERE id=?", (w185, follow_id))
+                except Exception:
+                    pass
+                if media_type == "tv":
+                    nf = conn.execute("SELECT * FROM followed WHERE id=?", (follow_id,)).fetchone()
+                    sync_episodes(conn, nf)
+            rec_kind = "shows" if media_type == "tv" else "movies"
+            ident = tmdb_id
+        conn.commit()
+    finally:
+        conn.close()
+    try:
+        if ident:
+            remove_rec_item(rec_kind, int(ident), user_id=uid)
+    except Exception:
+        pass
+    bump()
+    return jsonify({"ok": True, "archived": 1})
