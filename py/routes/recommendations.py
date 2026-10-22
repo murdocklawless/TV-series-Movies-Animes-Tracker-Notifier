@@ -116,6 +116,13 @@ def recommendations_feed():
     if source not in FEED_SOURCES:
         return jsonify({"error": "Gecersiz source parametresi"}), 400
     refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+    if refresh:
+        # 2.19.25: "Yenile" gercekten agdan cekmeli; 6 saatlik TMDB onbellegi baypas edilir.
+        try:
+            from tmdb import cache_clear
+            cache_clear()
+        except Exception:
+            pass
     # 2.19.25: besleme istegi tek `run` altinda loglanir (uid + bolum = media:kaynak).
     query_log.begin_run("feed.request", sec="feed:%s:%s" % (media, source),
                         uid=_uid(), card={"media": media, "source": source})

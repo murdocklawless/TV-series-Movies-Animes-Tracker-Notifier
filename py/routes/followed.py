@@ -1598,7 +1598,8 @@ def details():
                 d = _ensure_directors(conn, media_type, tmdb_id, follow["id"], d)
                 conn.close()
                 return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
-        data = tmdb_request(f"/{media_type}/{tmdb_id}")
+        data = tmdb_request(f"/{media_type}/{tmdb_id}", tag="detail.refresh" if refresh else "detail.view",
+                            no_cache=refresh)
         if not data:
             conn.close()
             return jsonify({"error": "TMDB'den veri alınamadı"}), 400
@@ -1643,7 +1644,7 @@ def details():
 
     # Cache miss: secilen dil + bos alanlar icin en-US fallback, sonra o dile yaz.
     data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale, tag="detail.refresh"
-                        if refresh else "detail.view")
+                        if refresh else "detail.view", no_cache=refresh)
     if not data:
         conn.close()
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
