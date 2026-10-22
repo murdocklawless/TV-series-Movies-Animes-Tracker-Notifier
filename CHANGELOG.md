@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.26 - 22/10/2026-05:20
+### TR
+- **Düzeltme — sorgu günlüğünde tarih iki kez yazılıyordu:** her satırda hem `t` (tam ISO zaman) hem `d` (hesap günü) vardı; `d` hiçbir yerde okunmuyordu (`stats_today`, `summarize_file`, `day_totals` yalnız `t` ve dosya adını kullanıyor). `d` alanı kaldırıldı — tarihin tek kaynağı `t`, gün bilgisi ayrıca dosya adından da belli (canlı dosya tek hesap günü tutar, 05:00'te `query-YYYY-MM-DD.jsonl` olarak devreder).
+- **Geriye dönük uyum:** eski satırlardaki `d` alanı **olduğu gibi bırakıldı** (okuyan yok, yeniden yazma riski alınmadı). Yani bugünkü dosyada iki biçim yan yana bulunabilir; ayrıştırıcılar ikisini de sorunsuz okur. Satır başına ~23 bayt azaldı.
+- **Doğrulama:** `py_compile` OK; 18 maddelik test paketi **ALL_OK 18**; yeni satırda `d` yok / `t` var, `stats_today` ve günlük özet çalışıyor; pi'de servis `active`.
+- **Sürüm:** 2.19.26 (DB `version` + `VERSION` eşit). Yedek: `bak/2.19.26_qlog_tarih_<ts>/`.
+### EN
+- **Fix — the query log carried the date twice:** each line had both `t` (full ISO time) and `d` (billing day), yet `d` was never read (`stats_today`, `summarize_file` and `day_totals` only use `t` and the file name). The `d` field was removed — `t` is the single source of the date, and the day is also implied by the file name (the live file holds one billing day and rotates to `query-YYYY-MM-DD.jsonl` at 05:00).
+- **Backwards compatible:** `d` in existing lines was **left untouched** (nothing reads it; no rewrite risk). So today's file may contain both shapes; parsers handle either. Saves ~23 bytes per line.
+- **Verified:** `py_compile` OK; 18-case test suite **ALL_OK 18**; new lines have no `d` but keep `t`, `stats_today` and the daily summary still work; service `active` on the Pi.
+- **Version:** 2.19.26 (DB `version` + `VERSION` in lockstep). Backup: `bak/2.19.26_qlog_tarih_<ts>/`.
+
 ## 2.19.25 - 22/10/2026-05:00
 ### TR
 - **Yeni — sorgu günlüğü (`log/query.log`):** her dış HTTP isteği tek satır JSON olarak yazılır: `svc` (tmdb/anilist/tvmaze/trakt/notify/update/geo/img/emby), `tag` (hangi kural), `sec` (hangi bölüm), `card`/`ids` (hangi kart), `ms`, `st`, `src` (`net`/`cache`), `u` (uid) ve varsa `err`. Aynı istek grubu `run` kimliğiyle işaretlenir; iş sonunda `run_end` özeti (istek/önbellek/hata sayısı) düşer. Gizli alanlar (`api_key`, `token`, `secret`, `password`, `authorization`) **hiç yazılmaz**.

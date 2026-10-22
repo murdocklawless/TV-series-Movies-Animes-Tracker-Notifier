@@ -1303,3 +1303,12 @@
 - **Not (dış):** AniList API bu sırada **global 403** veriyor ("temporarily disabled due to severe stability issues") — bizim değişiklikle ilgisi yok, günlükte `svc=anilist, st=403` olarak görünür.
 - **Yedek:** `bak/querylog_20261022_045014/` (DB + 10 py, değişiklik öncesi) ve `bak/2.19.25_qlog_20261022_050219/` (DB, sürüm yazımı öncesi).
 - **Commit:** `2.19.25: dis sorgu trafigini azalt (feed force, trakt dedupe, anime memo, tmdb cache) + sorgu gunlugu` → `git push origin main`.
+
+## FAZ NOTLARI — Sorgu günlüğünde tarih tekrarı (2026-10-22, sürüm 2.19.26)
+
+- **Bildirilen:** satırlarda tarih iki kez: `{"t":"2026-10-22T05:09:30.549","d":"2026-10-22",...}`.
+- **Tespit:** `d` **hiçbir yerde okunmuyordu** — `stats_today()` `t`'yi `fromisoformat` ile ayrıştırıyor, `summarize_file()` saati `t[11:13]` / hatayı `t[11:19]`'dan alıyor, `day_totals()` günü dosya adından/`billing_day()`'den çözüyor. Gün zaten dosya adında: canlı `query.log` tek hesap günü tutar, 05:00'te `query-YYYY-MM-DD.jsonl`'e devreder.
+- **Değişiklik (`py/query_log.py`):** `rec` sözlüğünden `"d": billing_day(now)` kaldırıldı; docstring'e "Satir bicimi (2.19.26)" bölümü eklendi (tarihin tek kaynağı `t`, gün = dosya adı). Eski satırlardaki `d` **olduğu gibi** bırakıldı (okuyan yok; yeniden yazma riski alınmadı) → geçiş günü iki biçim yan yana, ayrıştırıcı etkilenmez. Kazanç: satır başına ~23 bayt.
+- **Doğrulama:** `py_compile` OK; 18 maddelik test paketi **ALL_OK 18**; tek satırlık kontrol: `d_var=False, t_var=True, stats=(1,1)`; 05:00 devri + md özet testi hâlâ geçiyor; pi'de servis `active`, yeni satırlarda `d` yok.
+- **Sürüm:** 2.19.26 (önce pi DB `version` + `VERSION` eşitlendi, sonra CHANGELOG/faz.md). Yedek: `bak/2.19.26_qlog_tarih_<ts>/`.
+- **Commit:** `2.19.26: sorgu gunlugunde tekrar eden tarih alani kaldirildi (t tek kaynak)` → `git push origin main`.

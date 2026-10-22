@@ -14,6 +14,13 @@ Dosya duzeni
 
 Hesap gunu 05:00'te devreder: 05:00-05:10 gece partisi yeni gune yazilir.
 
+Satir bicimi (2.19.26)
+----------------------
+`t` tam ISO yerel zamandir (ms duyarli) ve **tarihin tek kaynagi** odur; ayrica
+`d` alani YAZILMAZ (eski satirlarda kalmis olabilir, okuyan yok). Hangi gune ait
+oldugu dosya adindan da bellidir: canli dosya tek hesap gunu tutar, 05:00'te
+`query-YYYY-MM-DD.jsonl` olarak devreder.
+
 Kurallar
 --------
 * Fail-soft: yazma hatasi istek akisini ASLA bozmaz (log sessizce kapanir).
@@ -313,7 +320,6 @@ def log(svc, method="GET", path="", params=None, status=0, ms=0, src="net",
     now = datetime.datetime.now()
     rec = {
         "t": now.isoformat(timespec="milliseconds"),
-        "d": billing_day(now),
         "svc": str(svc or "-"),
         "m": str(method or "GET").upper(),
         "p": str(path or ""),
