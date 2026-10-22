@@ -1,14 +1,74 @@
+import collections
 import json
+import threading
+import time
 
 import requests
 
+import query_log
 from db import get_setting, _safe_json_list
 from rate_track import acquire, record, handle_429
 
+# ---------------------------------------------------------------------------
+# 2.19.25: HTTP yanit onbellegi (ayni URL tekrar tekrar sorulmasin).
+# TTL 6 saat; `no_cache=True` (kullanici "yenile") baypas eder.
+# Yalnizca 200 + icerikli yanitlar yazilir; hata/429 asla onbelleklenmez.
+# ---------------------------------------------------------------------------
+CACHE_TTL = 6 * 3600
+CACHE_MAX = 500
 
-def tmdb_request(path, params=None, lang=None):
+_CACHE = collections.OrderedDict()
+_CACHE_LOCK = threading.Lock()
+
+
+def _cache_key(path, lang, params):
+    try:
+        items = tuple(sorted((str(k), str(v)) for k, v in (params or {}).items()))
+    except Exception:
+        items = ()
+    return (str(path), str(lang or ""), items)
+
+
+def _cache_get(key):
+    now = time.time()
+    with _CACHE_LOCK:
+        row = _CACHE.get(key)
+        if not row:
+            return None
+        ts, data = row
+        if now - ts > CACHE_TTL:
+            _CACHE.pop(key, None)
+            return None
+        _CACHE.move_to_end(key)
+        return data
+
+
+def _cache_put(key, data):
+    now = time.time()
+    with _CACHE_LOCK:
+        _CACHE[key] = (now, data)
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > CACHE_MAX:
+            _CACHE.popitem(last=False)
+
+
+def cache_clear():
+    with _CACHE_LOCK:
+        _CACHE.clear()
+
+
+def cache_info():
+    with _CACHE_LOCK:
+        return {"entries": len(_CACHE), "ttl": CACHE_TTL, "max": CACHE_MAX}
+
+
+def tmdb_request(path, params=None, lang=None, tag=None, no_cache=False):
     """TMDB isteği yapar. `lang` verilirse o dilde (en-US yedeğiyle) çeker;
-    verilmezse ayarlı dile göre döner."""
+    verilmezse ayarlı dile göre döner.
+
+    2.19.25: aynı (path, params, lang) 6 saat içinde tekrar sorulmaz.
+    `no_cache=True` kullanıcı kaynaklı yenilemelerde önbelleği atlar.
+    Her gerçek istek/onbellek isabeti `query_log`'a yazılır."""
     api_key = get_setting("tmdb_api_key")
     if not api_key:
         return None
@@ -24,24 +84,48 @@ def tmdb_request(path, params=None, lang=None):
         p = {"api_key": api_key, "language": l}
         if params:
             p.update(params)
+        key = _cache_key(url, l, params)
+        if not no_cache:
+            hit = _cache_get(key)
+            if hit is not None:
+                query_log.log("tmdb", "GET", path, params=params, status=200,
+                              ms=0, src="cache", tag=tag)
+                return hit
         acquire("tmdb")
+        t0 = time.time()
         try:
             r = requests.get(url, params=p, timeout=15)
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            query_log.log("tmdb", "GET", path, params=params, status=0,
+                          ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                          err=str(exc)[:120])
             continue
         record("tmdb")
         if r.status_code == 429:
+            query_log.log("tmdb", "GET", path, params=params, status=429,
+                          ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                          err="rate-limit")
             handle_429("tmdb", r)
             acquire("tmdb")
+            t0 = time.time()
             try:
                 r = requests.get(url, params=p, timeout=15)
-            except requests.RequestException:
+            except requests.RequestException as exc:
+                query_log.log("tmdb", "GET", path, params=params, status=0,
+                              ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                              err=str(exc)[:120])
                 continue
             record("tmdb")
         if r.status_code != 200:
+            query_log.log("tmdb", "GET", path, params=params, status=r.status_code,
+                          ms=int((time.time() - t0) * 1000), src="net", tag=tag)
             return None
         data = r.json()
+        query_log.log("tmdb", "GET", path, params=params, status=200,
+                      ms=int((time.time() - t0) * 1000), src="net", tag=tag)
         if _has_content(data):
+            if not no_cache:
+                _cache_put(key, data)
             return data
     return None
 
@@ -111,12 +195,14 @@ def _fetch_tmdb_genres():
     return names
 
 
-def get_tmdb_info(media_type, tmdb_id, lang=None):
+def get_tmdb_info(media_type, tmdb_id, lang=None, data=None, tag=None):
     """TMDB'den temel bilgileri çeker: release_date, vote_average, yayın platformları ve detay alanları.
-    `lang` verilirse TMDB verisi o dilde çekilir."""
+    `lang` verilirse TMDB verisi o dilde çekilir.
+    `data` verilirse (zaten çekilmiş detay) yeniden istek atılmaz (2.19.25)."""
     if media_type not in ("movie", "tv"):
         return None
-    data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang)
+    if data is None:
+        data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang, tag=tag)
     if not data:
         return None
     networks = [n.get("name") for n in (data.get("networks") or []) if n.get("name")]
@@ -163,13 +249,14 @@ def get_tmdb_info(media_type, tmdb_id, lang=None):
     }
 
 
-def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
+def get_tmdb_info_fallback(media_type, tmdb_id, lang=None, sel_data=None, tag=None):
     """Secili dilde bos metin alanlarini en-US ile doldurur (14 dil icin genel kural).
 
     Kapsar: overview, tagline, genres. Title, cagiran tarafta
     get_tmdb_title_fallback() ile birlestirilir (get_tmdb_info title dondurmez).
     Donus: info dict + _fallback_lang (_en_ ya da None) + _fallback_fields listesi.
     locale zaten en ise ikinci cagri yapilmaz.
+    2.19.25: `sel_data` verilirse secili dil icin yeniden istek atilmaz.
     """
     eff_lang = lang
     if not (eff_lang or "").strip():
@@ -177,7 +264,7 @@ def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
             eff_lang = get_setting("language") or "tr-TR"
         except Exception:
             eff_lang = "tr-TR"
-    sel = get_tmdb_info(media_type, tmdb_id, lang=lang)
+    sel = get_tmdb_info(media_type, tmdb_id, lang=lang, data=sel_data, tag=tag)
     norm = (eff_lang or "").strip()
     base = norm.lower().split("-")[0]
     if base in ("", "en"):
@@ -188,7 +275,7 @@ def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
         out["_fallback_fields"] = []
         return out
     if sel is None:
-        en = get_tmdb_info(media_type, tmdb_id, lang="en-US")
+        en = get_tmdb_info(media_type, tmdb_id, lang="en-US", tag=tag)
         if not en:
             return None
         out = dict(en)
@@ -207,7 +294,7 @@ def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
         out["_fallback_lang"] = None
         out["_fallback_fields"] = []
         return out
-    en = get_tmdb_info(media_type, tmdb_id, lang="en-US")
+    en = get_tmdb_info(media_type, tmdb_id, lang="en-US", tag=tag)
     if not en:
         out = dict(sel)
         out["_fallback_lang"] = None
@@ -224,11 +311,11 @@ def get_tmdb_info_fallback(media_type, tmdb_id, lang=None):
     return merged
 
 
-def get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=None):
+def get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=None, tag=None):
     """Baslik icin secili dil -> en-US fallback. (title, fallback_yapildi_mi) doner."""
     data = sel_data
     if data is None:
-        data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang)
+        data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang, tag=tag)
     title = (data or {}).get("title") or (data or {}).get("name") or (data or {}).get("original_name") or ""
     if (title or "").strip():
         return title, False
@@ -241,14 +328,14 @@ def get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=None):
     norm = eff.strip().lower().split("-")[0]
     if norm in ("", "en"):
         return title, False
-    en_data = tmdb_request(f"/{media_type}/{tmdb_id}", lang="en-US")
+    en_data = tmdb_request(f"/{media_type}/{tmdb_id}", lang="en-US", tag=tag)
     en_title = (en_data or {}).get("title") or (en_data or {}).get("name") or (en_data or {}).get("original_name") or ""
     if (en_title or "").strip():
         return en_title, True
     return title, False
 
 
-def get_tmdb_credits(media_type, tmdb_id):
+def get_tmdb_credits(media_type, tmdb_id, data=None, tag=None):
     """TMDB credits'ten oyuncu kadrosu (ilk 8) + yönetmenleri döndürür.
 
     Tek istekle ikisini birden çıkarır; döndürülen sözlük
@@ -256,11 +343,15 @@ def get_tmdb_credits(media_type, tmdb_id):
     {"person_id", "name", "profile_path"}.
     Not: dizilerde /credits ekip listesi yönetmen içermez, o yüzden
     dizi için /aggregate_credits kullanılır (crew.jobs dizisi + cast.roles).
+    2.19.25: `data` (append_to_response ile alınmış detay) verilirse ek istek atılmaz.
     """
     if media_type not in ("movie", "tv"):
         return {"cast": [], "directors": []}
-    path = f"/{media_type}/{tmdb_id}/" + ("aggregate_credits" if media_type == "tv" else "credits")
-    credits = tmdb_request(path)
+    ckey = "aggregate_credits" if media_type == "tv" else "credits"
+    path = f"/{media_type}/{tmdb_id}/{ckey}"
+    credits = data.get(ckey) if isinstance(data, dict) else None
+    if not credits:
+        credits = tmdb_request(path, tag=tag)
     if not credits:
         return {"cast": [], "directors": []}
     cast = []

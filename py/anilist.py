@@ -4,36 +4,51 @@ import time
 
 import requests
 
+import query_log
 from db import get_db, _safe_json_list
 from rate_track import acquire, record, handle_429
 
 ANILIST_URL = "https://graphql.anilist.co"
 
 
-def anilist_query(query, variables=None):
-    """AniList GraphQL isteği yapar."""
+def anilist_query(query, variables=None, tag=None):
+    """AniList GraphQL isteği yapar (2.19.25: her istek/onbellek query_log'a yazılır)."""
     acquire("anilist")
+    t0 = time.time()
     try:
         r = requests.post(
             ANILIST_URL,
             json={"query": query, "variables": variables or {}},
             timeout=15,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        query_log.log("anilist", "POST", "/graphql", status=0,
+                      ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                      err=str(exc)[:120])
         return None
     record("anilist")
     if r.status_code == 429:
+        query_log.log("anilist", "POST", "/graphql", status=429,
+                      ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                      err="rate-limit")
         handle_429("anilist", r)
         acquire("anilist")
+        t0 = time.time()
         try:
             r = requests.post(
                 ANILIST_URL,
                 json={"query": query, "variables": variables or {}},
                 timeout=15,
             )
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            query_log.log("anilist", "POST", "/graphql", status=0,
+                          ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                          err=str(exc)[:120])
             return None
         record("anilist")
+    query_log.log("anilist", "POST", "/graphql", status=r.status_code,
+                  ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                  params={"vars": list((variables or {}).keys())})
     if r.status_code != 200:
         return None
     data = r.json()

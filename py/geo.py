@@ -110,12 +110,20 @@ def is_public_ip(ip):
 def lookup_ip(ip):
     """ip-api.com sorgusu -> {country_code, country, city, timezone} ya da None.
     ip bos ise kendi cikis IP'si cozulur."""
+    t0 = time.time()
     try:
         target = (ip or "").strip()
         url = "http://ip-api.com/json/%s?fields=status,country,countryCode,city,timezone,query" % target
         req = urllib.request.Request(url, headers={"User-Agent": "nextep-geo/1.0"})
         with urllib.request.urlopen(req, timeout=GEO_TIMEOUT) as r:
             data = json.loads(r.read().decode("utf-8", "replace"))
+        try:
+            import query_log
+            query_log.log("geo", "GET", "/json", status=200,
+                          ms=int((time.time() - t0) * 1000), src="net", tag="geo",
+                          params={"ip": target or "self"}, level="debug")
+        except Exception:
+            pass
         if not isinstance(data, dict) or data.get("status") != "success":
             return None
         cc = (data.get("countryCode") or "").strip().upper()

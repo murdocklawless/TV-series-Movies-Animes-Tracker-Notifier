@@ -1,5 +1,7 @@
 import os
 import shutil
+import time
+
 import requests
 
 from config import STATIC_DIR, TMDB_IMAGE_BASE
@@ -260,8 +262,16 @@ def download_poster(kind, ident, remote_url, ext_hint=None):
     # need to download w500
     if not os.path.exists(w500_path):
         tmp_path = w500_path + ".tmp"
+        t0 = time.time()
         try:
             r = requests.get(remote_url, stream=True, timeout=15)
+            try:
+                import query_log
+                query_log.log("img", "GET", "/poster", status=r.status_code,
+                              ms=int((time.time() - t0) * 1000), src="net",
+                              tag="img", level="debug")
+            except Exception:
+                pass
             if r.status_code != 200:
                 return None, None
             ctype = (r.headers.get("Content-Type") or "").lower()

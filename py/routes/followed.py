@@ -1,9 +1,11 @@
 import json
 import datetime
+import functools
 import os
 
 from flask import Blueprint, jsonify, request
 
+import query_log
 from db import get_db, today_str, _safe_json_list
 from auth import get_current_user
 from tmdb import get_tmdb_info, get_tmdb_cast, get_tmdb_credits, get_tmdb_directors, save_details, save_directors, load_details, tmdb_request, get_tmdb_info_fallback, get_tmdb_title_fallback
@@ -23,6 +25,37 @@ def _uid():
         return int(u["id"]) if u else 0
     except Exception:
         return 0
+
+
+def _qlog_route(flow):
+    """2.19.25: istek govdesini tek `run` altinda loglar (uid + kart).
+
+    `card` alani TMDB kimligiyle doldurulur; boylece gunlukte "hangi kart
+    icin kac sorgu" sorusu dogrudan cevaplanir.
+    """
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrapper(*a, **kw):
+            try:
+                query_log.begin_run(
+                    flow,
+                    card={
+                        "media_type": request.args.get("media_type"),
+                        "tmdb_id": request.args.get("tmdb_id"),
+                    },
+                    uid=_uid(),
+                )
+            except Exception:
+                pass
+            try:
+                return fn(*a, **kw)
+            finally:
+                try:
+                    query_log.end_run()
+                except Exception:
+                    pass
+        return wrapper
+    return deco
 
 
 def _tv_air_stats(conn, follow_id):
@@ -55,6 +88,7 @@ def _tv_air_stats(conn, follow_id):
 
 
 @followed_bp.route("/api/follow", methods=["POST"])
+@_qlog_route("follow.create")
 def follow():
     body = request.get_json()
     tmdb_id = body.get("tmdb_id")
@@ -66,7 +100,12 @@ def follow():
     if not all([tmdb_id, media_type, title]):
         return jsonify({"error": "Eksik bilgi"}), 400
 
-    info = get_tmdb_info(media_type, tmdb_id)
+    data = tmdb_request(
+        f"/{media_type}/{tmdb_id}",
+        params={"append_to_response": "credits,aggregate_credits"},
+        tag="follow.create",
+    )
+    info = get_tmdb_info(media_type, tmdb_id, data=data, tag="follow.create")
     release_date = body.get("release_date") or (info or {}).get("release_date")
     if vote_average is None:
         vote_average = (info or {}).get("vote_average") or 0
@@ -91,7 +130,7 @@ def follow():
     conn.commit()
 
     if info:
-        _credits = get_tmdb_credits(media_type, tmdb_id)
+        _credits = get_tmdb_credits(media_type, tmdb_id, data=data, tag="follow.create")
         save_details(conn, new_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
         conn.commit()
 
@@ -1533,6 +1572,7 @@ def _build_response(media_type, d):
 
 
 @followed_bp.route("/api/details")
+@_qlog_route("detail.view")
 def details():
     media_type = request.args.get("media_type")
     tmdb_id = request.args.get("tmdb_id")
@@ -1562,9 +1602,9 @@ def details():
         if not data:
             conn.close()
             return jsonify({"error": "TMDB'den veri alınamadı"}), 400
-        info = get_tmdb_info_fallback(media_type, tmdb_id, lang=None)
-        title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=data)
-        credits = get_tmdb_credits(media_type, tmdb_id)
+        info = get_tmdb_info_fallback(media_type, tmdb_id, lang=None, sel_data=data, tag="detail.view")
+        title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=None, sel_data=data, tag="detail.view")
+        credits = get_tmdb_credits(media_type, tmdb_id, data=data, tag="detail.view")
         cst = credits.get("cast") or []
         if follow:
             save_details(conn, follow["id"], info, cst, directors=credits.get("directors") or [])
@@ -1602,13 +1642,14 @@ def details():
         return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
     # Cache miss: secilen dil + bos alanlar icin en-US fallback, sonra o dile yaz.
-    data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale)
+    data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale, tag="detail.refresh"
+                        if refresh else "detail.view")
     if not data:
         conn.close()
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
-    info = get_tmdb_info_fallback(media_type, tmdb_id, lang=locale)
-    title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=locale, sel_data=data)
-    credits = get_tmdb_credits(media_type, tmdb_id)
+    info = get_tmdb_info_fallback(media_type, tmdb_id, lang=locale, sel_data=data, tag="detail.view")
+    title, title_fb = get_tmdb_title_fallback(media_type, tmdb_id, lang=locale, sel_data=data, tag="detail.view")
+    credits = get_tmdb_credits(media_type, tmdb_id, data=data, tag="detail.view")
     cst = credits.get("cast") or []
     fb_fields = list((info or {}).get("_fallback_fields") or [])
     if title_fb and "title" not in fb_fields:

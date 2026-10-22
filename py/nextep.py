@@ -4,7 +4,8 @@ from config import app
 from db import init_db, get_setting
 from ramcache import list_cache, end_startup
 from rate_track import set_startup_grace
-from scheduler import backfill_votes, start_scheduler
+from scheduler import start_scheduler
+import query_log
 from jsver import startup_report  # 2.19: damga zinciri denetimi (tek kaynak, sh yok)
 
 from routes.search import search_bp
@@ -63,7 +64,13 @@ except (TypeError, ValueError):
 list_cache.configure(ttl)
 if ttl > 0:
     list_cache.restore_from_db()   # restart sonrasi kalici cache geri yükleme
-backfill_votes()                    # startup zarfi: bump'lar bastirilir
+# 2.19.25: sorgu gunlugu (log/query.log, 05:00 devirli). Seviye ayardan gelir.
+try:
+    query_log.configure(get_setting("query_log_level") or "info")
+except Exception:
+    query_log.configure("info")
+# 2.19.25: acilista backfill_votes() CAGRILMAZ. Tum takipli ogeler icin puan
+# tazelemesi acilisa ~100 TMDB istegi ekliyordu; gorev 05:10 cron'unda zaten var.
 start_scheduler()
 # 2.19.6: senkron havuzu (outbox + Trakt gelen yoklama + Emby WS oge kuyrugu).
 # Scheduler'dan sonra baslar: giden isler olayla, gelen yoklama 10 sn aktif /

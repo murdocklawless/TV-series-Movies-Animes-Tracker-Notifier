@@ -1,5 +1,6 @@
 import json
 import datetime
+import functools
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from zoneinfo import ZoneInfo
@@ -519,6 +520,29 @@ def build_movie_message(title, date, poster_path=None):
     return text, None
 
 
+def _logged_job(flow):
+    """Is (run) grubu: isin tum dis istekleri tek `run` kimligiyle loglanir (2.19.25)."""
+    def deco(fn):
+        @functools.wraps(fn)
+        def wrapper(*a, **kw):
+            try:
+                import query_log
+                query_log.begin_run(flow)
+            except Exception:
+                query_log = None
+            try:
+                return fn(*a, **kw)
+            finally:
+                try:
+                    if query_log:
+                        query_log.end_run()
+                except Exception:
+                    pass
+        return wrapper
+    return deco
+
+
+@_logged_job("sync.releases")
 def sync_releases():
     """Takip edilen dizi/film verilerini TMDB/TVMaze'den güncelleyip DB'ye işler (dizi bölümleri + film detayları, anime hariç)."""
     conn = get_db()
@@ -909,6 +933,7 @@ def check_anime_notifications(user_id=None):
     bump()
 
 
+@_logged_job("backfill")
 def backfill_votes():
     """Takip edilen dizi/film ve anime verilerini TMDB/AniList'ten güncel çekip DB'yi yeniler."""
     conn = get_db()
@@ -1326,6 +1351,14 @@ def _maint_alert(err):
 def db_maint_job():
     """Haftalik bakim (fail-soft): once yerel yedek (+30 rotasyon), sonra
     yetim taramasi (journal-only). Yedek patlarsa tarama KOSMAZ."""
+    try:
+        try:
+            import query_log
+            query_log.prune()          # 2.19.25: log/ budama (jsonl 30g, md 365g)
+        except Exception:
+            pass
+    except Exception:
+        pass
     try:
         try:
             path = _maint_backup()

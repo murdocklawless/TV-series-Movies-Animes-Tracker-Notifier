@@ -326,6 +326,15 @@ def init_db():
             ts REAL NOT NULL
         )"""
     )
+    # Anime sezgisi memo (2.19.25): TMDB detayindan "Animation + JP" sonucu.
+    # Ayni oge icin her izleme sinyalinde TMDB'ye sorulmasini engeller (90 gun).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS tmdb_anime_probe (
+            id INTEGER PRIMARY KEY,
+            is_anime INTEGER NOT NULL DEFAULT 0,
+            ts REAL NOT NULL
+        )"""
+    )
     # Favori oyuncu/tur liste cache'i (actor limitsiz, genre 30; guncellik fp=today)
     conn.execute(
         """CREATE TABLE IF NOT EXISTS fav_listing_cache (

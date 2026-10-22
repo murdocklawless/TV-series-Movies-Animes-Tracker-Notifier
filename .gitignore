@@ -5,6 +5,8 @@ data.db
 nextep.db
 *.db
 *.log
+# 2.19.25: sorgu gunlugu (05:00 devirli JSONL + gunluk md ozet) — veri, kod degil
+log/
 backup_pre_calendar/
 .env
 baglanti-bilgileri.md

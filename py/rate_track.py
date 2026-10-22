@@ -61,6 +61,30 @@ def _today_key():
     return datetime.datetime.fromtimestamp(_wall()).date().isoformat()
 
 
+def _restore_from_log(day_key):
+    """2.19.25: restart sonrasi gun-ici toplam/pik degerlerini sorgu
+    gunlugunden geri hesaplar (canli JSONL dosyasi hesap gunu 05:00'dir).
+
+    Neden: `record()` acilis zarfinda (backfill) saymaz ve RAM sayaclari
+    restart'ta sifirlanir; gosterge "bugun 0 istek" gibi yanlis gorunuyordu.
+    Log zaten her ag istegini yaziyor -> toparlama tek kaynaktan yapilir.
+    Yalnizca gun degisiminde / ilk kullanimda bir kez calisir.
+    """
+    try:
+        import query_log
+    except Exception:
+        return
+    for name, cfg in LIMITS.items():
+        try:
+            total, peak = query_log.stats_today(name, cfg.get("window_sec") or 10)
+        except Exception:
+            continue
+        if total > _total.get(name, 0):
+            _total[name] = int(total)
+        if peak > _peak.get(name, 0):
+            _peak[name] = int(peak)
+
+
 def _rollover_locked():
     """Gun degismisse mandalli pikleri ve gunluk toplamlari sifirlar
     (kilit altinda cagrilir)."""
@@ -72,6 +96,7 @@ def _rollover_locked():
             _peak[name] = 0
         for name in _total:
             _total[name] = 0
+        _restore_from_log(key)
 
 
 def _ensure(name):

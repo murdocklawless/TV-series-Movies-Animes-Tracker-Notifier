@@ -15,8 +15,19 @@ import time
 
 import requests
 
+import query_log
 from config import BASE_DIR
 from db import get_setting, set_setting, db_version_get, db_version_set
+
+
+def _qlog(path, t0, status, err="", tag="update"):
+    """Guncelleme kontrolu/download'u sorgu gunlugune yazar (2.19.25)."""
+    try:
+        query_log.log("update", "GET", path, status=int(status or 0),
+                      ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                      err=str(err or "")[:120])
+    except Exception:
+        pass
 
 REPO_SLUG = "murdocklawless/TV-series-Movies-Animes-Tracker-Notifier"
 BRANCH = "main"
@@ -47,7 +58,13 @@ def local_version():
 
 
 def fetch_remote_version(timeout=8):
-    r = requests.get(REMOTE_VERSION_URL, timeout=timeout)
+    t0 = time.time()
+    try:
+        r = requests.get(REMOTE_VERSION_URL, timeout=timeout)
+    except Exception as exc:
+        _qlog("/VERSION", t0, 0, err=str(exc))
+        raise
+    _qlog("/VERSION", t0, r.status_code)
     r.raise_for_status()
     return r.text.strip()
 
@@ -274,7 +291,13 @@ def fetch_published_versions():
 
 
 def fetch_remote_changelog(timeout=8):
-    r = requests.get(REMOTE_CHANGELOG_URL, timeout=timeout)
+    t0 = time.time()
+    try:
+        r = requests.get(REMOTE_CHANGELOG_URL, timeout=timeout)
+    except Exception as exc:
+        _qlog("/CHANGELOG.md", t0, 0, err=str(exc))
+        raise
+    _qlog("/CHANGELOG.md", t0, r.status_code)
     r.raise_for_status()
     return r.text
 

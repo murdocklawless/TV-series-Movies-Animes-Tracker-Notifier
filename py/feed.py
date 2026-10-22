@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 from db import get_db, get_setting
 from tmdb import tmdb_request
 from anilist import anilist_query, _anime_title, _anime_cover, _anime_next_ep
+import query_log
 from recommendations import (
     _rec_uid,
     _followed_ids,
@@ -438,9 +439,9 @@ def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=Fal
     tv_items = [c for c in chosen if c.get("media_type") == "tv"]
     mv_items = [c for c in chosen if c.get("media_type") == "movie"]
     if tv_items:
-        _attach_tv_details(tv_items, force=force)
+        _attach_tv_details(tv_items, force=force, tag="feed.detail")
     if mv_items:
-        _attach_movie_details(mv_items, force=force)
+        _attach_movie_details(mv_items, force=force, tag="feed.detail")
     for c in chosen:
         try:
             c["can_move_watched"] = _can_move_watched(c)
@@ -454,9 +455,15 @@ def refresh_feed_source(source):
 
     1.99: Gösterim sorgusuz olsun diye havuzla birlikte kart detaylari
     (networks/status, yapimci) da rec_detail'e on-Isitilir.
+
+    2.19.25: `force=True` KALDIRILDI. Eski davranis haftada bir kez havuzun
+    TAMAMININ (60 dizi + 60 film, iki kaynak) detayini yeniden cekiyordu
+    (~360 TMDB istegi / 20 dk). Artik yalnizca rec_detail'te KAYDI OLMAYAN
+    ogeler cekilir; gosterim yolu da ayni kaydi kullanir.
     """
     if source not in FEED_SOURCES:
         return
+    run = query_log.begin_run("feed.refresh", sec=f"feed:{source}")
     try:
         for media in MEDIA_ORDER:
             pool = _fetch_pool(media, source)
@@ -465,13 +472,15 @@ def refresh_feed_source(source):
                 tv_items = [c for c in pool if c.get("media_type") == "tv"]
                 mv_items = [c for c in pool if c.get("media_type") == "movie"]
                 if tv_items:
-                    _attach_tv_details(tv_items, force=True)
+                    _attach_tv_details(tv_items, force=False, tag="feed.pool")
                 if mv_items:
-                    _attach_movie_details(mv_items, force=True)
+                    _attach_movie_details(mv_items, force=False, tag="feed.pool")
             except Exception:
                 pass
     except Exception as e:
         print(f"[feed] refresh hata ({source}): {e}", flush=True)
+    finally:
+        query_log.end_run()
 
 
 def refresh_all_feeds():

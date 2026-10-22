@@ -55,6 +55,7 @@ def _pset(uid, key, value):
     set_setting(key, value)
 from tmdb import tmdb_request, _genre_names_to_ids, _genre_ids_for_media
 from anilist import _anime_title, _anime_cover, _anime_next_ep, anilist_recommend
+import query_log
 
 LIMIT = 12      # bölüm başına gösterilen öneri (dizi/film/belgesel/anime)
 BUFFER = 60     # hariç tutmalar sonrası doldurmak için toplanan aday sayısı
@@ -699,11 +700,12 @@ def _pool_candidates(kind, names, wanted):
     return _fetch_tmdb_candidates("tv" if kind == "shows" else "movie", gids, wanted)
 
 
-def _attach_tv_details(items, force=False):
+def _attach_tv_details(items, force=False, tag="rec.detail"):
     """Dizi önerileri için networks (ilk 3) + status çeker. Önce rec_detail
     tablosuna bakar; force=False ise kayıt VARSA (yaştan bağımsız) kullanır,
     yoksa TMDB'den çeker. force=True ise 7 günden eski kayıtları da tazeler.
-    Fail-soft: hata durumunda boş kalır."""
+    Fail-soft: hata durumunda boş kalır.
+    2.19.25: `tag` sorgu günlüğünde kural adı olarak yazılır (feed.detail vb.)."""
     now = time.time()
     cached = {}
     missing = []
@@ -728,8 +730,9 @@ def _attach_tv_details(items, force=False):
         missing = list(items)
 
     def fetch(item):
+        query_log.bind(snap)
         try:
-            data = tmdb_request(f"/tv/{item['tmdb_id']}")
+            data = tmdb_request(f"/tv/{item['tmdb_id']}", tag=tag)
             if not data:
                 return item["tmdb_id"], [], None
             nets = [n.get("name") for n in (data.get("networks") or []) if n.get("name")][:3]
@@ -739,6 +742,7 @@ def _attach_tv_details(items, force=False):
 
     results = {}
     if missing:
+        snap = query_log.snapshot()
         with ThreadPoolExecutor(max_workers=8) as ex:
             results = {tid: (nets, status) for tid, nets, status in ex.map(fetch, missing)}
 
@@ -769,7 +773,7 @@ def _attach_tv_details(items, force=False):
         it["tv_status"] = status
 
 
-def _attach_movie_details(items, force=False):
+def _attach_movie_details(items, force=False, tag="rec.detail"):
     """Film/belgesel önerileri için yapımcı (ilk production_company) çeker.
     force=False ise rec_detail kaydı VARSA (yaştan bağımsız) kullanır; yoksa
     TMDB'den çeker. force=True ise 7 günden eski kayıtları da tazeler.
@@ -798,8 +802,9 @@ def _attach_movie_details(items, force=False):
         missing = list(items)
 
     def fetch(item):
+        query_log.bind(snap)
         try:
-            data = tmdb_request(f"/movie/{item['tmdb_id']}")
+            data = tmdb_request(f"/movie/{item['tmdb_id']}", tag=tag)
             if not data:
                 return item["tmdb_id"], []
             comps = [c.get("name") for c in (data.get("production_companies") or []) if c.get("name")][:1]
@@ -809,6 +814,7 @@ def _attach_movie_details(items, force=False):
 
     results = {}
     if missing:
+        snap = query_log.snapshot()
         with ThreadPoolExecutor(max_workers=8) as ex:
             results = {tid: comps for tid, comps in ex.map(fetch, missing)}
 

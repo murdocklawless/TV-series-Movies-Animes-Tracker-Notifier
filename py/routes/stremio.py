@@ -18,6 +18,7 @@ import os
 import re
 import socket
 import threading
+import time
 import uuid
 
 import requests
@@ -43,6 +44,7 @@ from anilist import (
 )
 from ramcache import bump
 from recommendations import remove_rec_item
+import query_log
 from stremio_buffer import (
     record_signal,
     signals_for_tv,
@@ -691,49 +693,72 @@ def _resolve_tmdb(provider, ident, route_norm):
 
 
 def _tmdb_find(external_id, source):
-    api_key = get_setting("tmdb_api_key")
-    if not api_key:
-        return None
-    acquire("tmdb")
+    """TMDB /find (2.19.25: tmdb_request uzerinden -> 6 saat onbellek + log)."""
+    return tmdb_request(f"/find/{external_id}", params={"external_source": source},
+                        lang="en-US", tag="stremio.find")
+
+
+def _tmdb_detail(media_type, tmdb_id, tag=None):
+    return tmdb_request(f"/{media_type}/{tmdb_id}", tag=tag)
+
+
+# ---------------------------------------------------------------------------
+# Anime sezgisi memo (2.19.25)
+# ---------------------------------------------------------------------------
+# `_is_anime_like` her izleme sinyalinde TMDB detayi istiyordu; Trakt ayni
+# ogeyi tekrar tekrar gonderdiginde bu istek 10 sn'de bir tekrarlaniyordu.
+# Sonuc 90 gun `tmdb_anime_probe` tablosunda tutulur; oge bir kez siniflandirilir.
+_ANIME_PROBE_TTL = 90 * 86400
+
+
+def _anime_probe_read(tmdb_id):
+    """-> True/False (taze kayit) | None (kayit yok/bayat)."""
     try:
-        r = requests.get(
-            "https://api.themoviedb.org/3/find/" + str(external_id),
-            params={"api_key": api_key, "external_source": source, "language": "en-US"},
-            timeout=15,
+        conn = get_db()
+        row = conn.execute(
+            "SELECT is_anime, ts FROM tmdb_anime_probe WHERE id=?", (tmdb_id,)
+        ).fetchone()
+        conn.close()
+        if row and (time.time() - (row["ts"] or 0)) < _ANIME_PROBE_TTL:
+            return bool(row["is_anime"])
+    except Exception:
+        pass
+    return None
+
+
+def _anime_probe_write(tmdb_id, is_anime):
+    try:
+        conn = get_db()
+        conn.execute(
+            "INSERT OR REPLACE INTO tmdb_anime_probe (id, is_anime, ts) VALUES (?, ?, ?)",
+            (tmdb_id, 1 if is_anime else 0, time.time()),
         )
-    except requests.RequestException:
-        return None
-    record("tmdb")
-    if r.status_code == 429:
-        handle_429("tmdb", r)
-        acquire("tmdb")
-        try:
-            r = requests.get(
-                "https://api.themoviedb.org/3/find/" + str(external_id),
-                params={"api_key": api_key, "external_source": source, "language": "en-US"},
-                timeout=15,
-            )
-        except requests.RequestException:
-            return None
-        record("tmdb")
-    if r.status_code != 200:
-        return None
-    return r.json()
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 
-def _tmdb_detail(media_type, tmdb_id):
-    return tmdb_request(f"/{media_type}/{tmdb_id}")
+def _is_anime_like(media_type, tmdb_id, tag="stremio.probe"):
+    """TMDB sezgisi: turlerde Animation (16) + koken JP -> anime.
 
-
-def _is_anime_like(media_type, tmdb_id):
-    """TMDB sezgisi: turlerde Animation (16) + koken JP -> anime."""
+    2.19.25: sonuc `tmdb_anime_probe` tablosunda 90 gun saklanir; ayni oge
+    icin TMDB'ye tekrar sorulmaz (Trakt esit cursor dongusunun ana kaynagi).
+    """
+    memo = _anime_probe_read(tmdb_id)
+    if memo is not None:
+        query_log.log("tmdb", "MEMO", f"/{media_type}/{tmdb_id}", status=200,
+                      ms=0, src="cache", tag=tag, ids={"tmdb_id": tmdb_id})
+        return memo
     try:
-        detail = _tmdb_detail(media_type, tmdb_id)
+        detail = _tmdb_detail(media_type, tmdb_id, tag=tag)
         if not detail:
             return False
         gids = {(g or {}).get("id") for g in (detail.get("genres") or [])}
         oc = detail.get("origin_country") or []
-        return (16 in gids) and ("JP" in oc)
+        is_anime = bool((16 in gids) and ("JP" in oc))
+        _anime_probe_write(tmdb_id, is_anime)
+        return is_anime
     except Exception:
         return False
 
@@ -1386,12 +1411,17 @@ def _ensure_tmdb_follow(conn, media_type, tmdb_id, owner_id=0):
     ).fetchone()
     if row:
         return row["id"]
-    detail = _tmdb_detail(media_type, tmdb_id)
+    detail = tmdb_request(
+        f"/{media_type}/{tmdb_id}",
+        params={"append_to_response": "credits,aggregate_credits"},
+        tag="stremio.follow",
+    )
     if not detail:
         return None
     title = detail.get("title") or detail.get("name") or detail.get("original_name") or ""
     poster = detail.get("poster_path")
-    info = get_tmdb_info(media_type, tmdb_id)
+    # 2.19.25: tek istek — detay hem info hem credits icin kullanilir.
+    info = get_tmdb_info(media_type, tmdb_id, data=detail, tag="stremio.follow")
     release_date = detail.get("release_date") or detail.get("first_air_date")
     vote_average = (info or {}).get("vote_average") or 0
     networks = (info or {}).get("networks") or []
@@ -1409,7 +1439,7 @@ def _ensure_tmdb_follow(conn, media_type, tmdb_id, owner_id=0):
         return None
     new_id = row["id"]
     if info:
-        _credits = get_tmdb_credits(media_type, tmdb_id)
+        _credits = get_tmdb_credits(media_type, tmdb_id, data=detail, tag="stremio.follow")
         save_details(conn, new_id, info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
         conn.commit()
     try:

@@ -458,7 +458,15 @@ def _api(path, params=None, timeout=20):
     if not url or not key:
         return False, None, "not-configured"
     try:
+        t0 = time.time()
         r = requests.get(url + path, headers={"X-Emby-Token": key}, params=params or {}, timeout=timeout)
+        try:
+            import query_log
+            query_log.log("emby", "GET", path, status=r.status_code,
+                          ms=int((time.time() - t0) * 1000), src="net",
+                          tag="emby", params=params, level="debug")
+        except Exception:
+            pass
         if r.status_code != 200:
             return False, None, f"HTTP {r.status_code}"
         return True, r.json(), ""

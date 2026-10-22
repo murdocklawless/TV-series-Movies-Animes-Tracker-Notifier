@@ -1,6 +1,28 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.25 - 22/10/2026-05:00
+### TR
+- **Yeni — sorgu günlüğü (`log/query.log`):** her dış HTTP isteği tek satır JSON olarak yazılır: `svc` (tmdb/anilist/tvmaze/trakt/notify/update/geo/img/emby), `tag` (hangi kural), `sec` (hangi bölüm), `card`/`ids` (hangi kart), `ms`, `st`, `src` (`net`/`cache`), `u` (uid) ve varsa `err`. Aynı istek grubu `run` kimliğiyle işaretlenir; iş sonunda `run_end` özeti (istek/önbellek/hata sayısı) düşer. Gizli alanlar (`api_key`, `token`, `secret`, `password`, `authorization`) **hiç yazılmaz**.
+- **Gün devri 05:00:** hesap günü 05:00'te kapanır; `query.log` → `query-YYYY-MM-DD.jsonl` olarak arşivlenir (30 gün) ve aynı gün için otomatik **Markdown özet** üretilir (`query-YYYY-MM-DD.md`, 365 gün): kurala/saatlik dağılım, en çok sorgulanan kartlar, tekrar eden URL'ler, en yavaş istekler, hatalar.
+- **A0 — feed haftalık tazeleme fırtınası kesildi:** `refresh_feed_source()` artık `force=True` kullanmıyor. Eski davranış her hafta havuzun **tamamının** (2 kaynak × 60 dizi + 60 film) detayını yeniden çekiyordu (~360 TMDB isteği / 20 dk); yeni davranış yalnızca `rec_detail`'te **kaydı olmayan** öğeleri çeker.
+- **A1 — Trakt eşit cursor döngüsü:** `watched_at` dakikaya yuvarlandığı için cursor'a eşit kayıt her yoklamada (10 sn) yeniden işleniyordu (Yeraltı S02E03 → 10 sn'de 1 TMDB isteği). `tp_trakt_in_seen` (son 100 öğe anahtarı) eklendi; aynı öğe bir kez işlenir.
+- **A2 — anime sezgisi memo:** `_is_anime_like` sonucu yeni `tmdb_anime_probe` tablosunda 90 gün saklanır; aynı TMDB id'si için tekrar sorgu atılmaz. `_tmdb_find` artık ortak TMDB önbelleğini kullanır.
+- **B1 — TMDB yanıt önbelleği (6 saat, 500 kayıt):** aynı `(path, params, dil)` tekrar sorulmaz; kullanıcı kaynaklı yenilemeler `no_cache=True` ile baypas eder. Önbellek isabetleri de günlüğe `src=cache` olarak yazılır.
+- **B2 — tek istekte detay:** `/api/follow`, `/api/details` ve Stremio takip oluşturma `append_to_response=credits,aggregate_credits` ile **tek** TMDB isteği yapar; başlık/kadro/yönetmen aynı yanıttan üretilir.
+- **Açılış yükü:** `nextep.py` açılışında `backfill_votes()` **çağrılmıyor** (05:10 cron'u duruyor). `rate_track` gün-ici toplam/pik değerlerini açılışta canlı günlükten geri hesaplar — restart sonrası gösterge sıfırlanmış görünmez.
+- **Ayar:** `query_log_level` (`info` varsayılan / `debug`). `debug` seviyesinde görsel indirme (img) ve Emby (LAN) satırları da yazılır.
+### EN
+- **New — query log (`log/query.log`):** every outbound HTTP request is one JSON line: `svc` (tmdb/anilist/tvmaze/trakt/notify/update/geo/img/emby), `tag` (which rule), `sec` (which section), `card`/`ids` (which card), `ms`, `st`, `src` (`net`/`cache`), `u` (uid) and optional `err`. Requests are grouped under a `run` id, closed by a `run_end` summary (requests/cache hits/errors). Secrets (`api_key`, `token`, `secret`, `password`, `authorization`) are **never written**.
+- **05:00 rotation:** the billing day ends at 05:00; `query.log` is moved to `query-YYYY-MM-DD.jsonl` (kept 30 days) and an automatic **Markdown summary** is generated (`query-YYYY-MM-DD.md`, kept 365 days): per-rule/hourly split, most-queried cards, repeated URLs, slowest requests, errors.
+- **A0 — feed weekly refresh storm removed:** `refresh_feed_source()` no longer uses `force=True`. The old behaviour re-fetched details for the **entire** pool every week (2 sources × 60 shows + 60 movies, ~360 TMDB requests in 20 min); now only entries **missing** from `rec_detail` are fetched.
+- **A1 — Trakt equal-cursor loop:** because `watched_at` is rounded to the minute, an entry equal to the cursor was re-processed on every poll (10 s), e.g. Yeraltı S02E03 → 1 TMDB request every 10 s. Added `tp_trakt_in_seen` (last 100 item keys) so each entry is processed once.
+- **A2 — anime probe memo:** `_is_anime_like` results are cached for 90 days in the new `tmdb_anime_probe` table; `_tmdb_find` now shares the TMDB response cache.
+- **B1 — TMDB response cache (6 h, 500 entries):** identical `(path, params, language)` is not re-queried; user-triggered refreshes bypass it with `no_cache=True`. Cache hits are logged as `src=cache`.
+- **B2 — single-request details:** `/api/follow`, `/api/details` and Stremio follow creation use `append_to_response=credits,aggregate_credits` (**one** TMDB request); title/cast/directors come from the same payload.
+- **Startup load:** `backfill_votes()` is **no longer called** at startup (the 05:10 cron stays). `rate_track` restores the day's totals/peak from the live log after a restart, so the gauge no longer appears reset.
+- **Setting:** `query_log_level` (`info` default / `debug`); `debug` also logs poster downloads (img) and Emby (LAN) lines.
+
 ## 2.19.24 - 22/10/2026-01:40
 ### TR
 - **Sürüm damgası senkronizasyonu — kod değişikliği yok.** 2.19.23'ün (satır görünümünde "uçan kart" küçülerek yok olma + yeşil satır bandı vurgusu) dağıtımı sonrası sürüm hem `VERSION` dosyasında hem pi5 DB'sindeki `version` tablosunda (`id=1`) eşitlenerek ilerletildi: **2.19.23 → 2.19.24**.

@@ -590,20 +590,39 @@ def _inbound(uid, direct=False):
     sessizce atlaniyordu. Artik sayfalar sirayla okunur ve cursor'dan eski
     kayda rastlaninca durulur.
 
-    Cursor karsilastirmasi: `watched_at < cursor` atlanir (esit olan islenir).
-    Trakt watched_at'in saniyelerini sifirladigi icin ayni dakikadaki iki kayit
-    `<=` ile atlanabiliyordu; tekrarlar process_signal tarafinda idempotent.
+    2.19.25: `tp_trakt_in_seen` ring buffer (son 100 oge anahtari) eklendi.
+    Trakt `watched_at`i dakikaya yuvarladigi icin cursor'a ESIT kayit eskiden
+    her yoklamada (10 sn'de bir) yeniden isleniyordu; artik ayni anahtar bir
+    kez islenir. Bu, oge basina 1 TMDB sorgusunun sonsuz tekrarini keser.
+
+    Cursor karsilastirmasi: `watched_at < cursor` atlanir (esit olan
+    gorulmemisse islenir).
     """
     cursor = _uget(uid, "tp_trakt_in_cursor")
+    try:
+        seen = json.loads(_uget(uid, "tp_trakt_in_seen") or "[]")
+        if not isinstance(seen, list):
+            seen = []
+    except Exception:
+        seen = []
+    seen_set = set(str(x) for x in seen)
+    done = []
     n = 0
     newest = cursor
     pages = 0
     truncated = False
+    t0 = time.time()
+
+    def _key(typ, tmdb, season=None, ep=None, watched_at=""):
+        return "%s|%s|%s|%s|%s" % (typ, tmdb, season if season is not None else "-",
+                                   ep if ep is not None else "-", watched_at)
+
     while pages < IN_MAX_PAGES:
         pages += 1
         data, err = _get(uid, "/sync/history", {"limit": IN_LIMIT, "page": pages})
         if data is None:
             _uset(uid, "tp_trakt_error", err or "history")
+            _log_inbound(uid, n, 0, cursor, t0)
             return n
         if not isinstance(data, list) or not data:
             break
@@ -620,11 +639,16 @@ def _inbound(uid, direct=False):
                     mv = it.get("movie") or {}
                     tmdb = ((mv.get("ids") or {}).get("tmdb"))
                     title = mv.get("title") or ""
-                    if tmdb:
-                        _mark_inbound(uid, tmdb, "movie", None, None, title, None, direct=direct)
-                        n += 1
-                    else:
+                    if not tmdb:
                         print(f"[trakt] atlandi (film id yok): {title or '?'} @ {watched_at}", flush=True)
+                        continue
+                    k = _key("movie", tmdb, watched_at=watched_at)
+                    if k in seen_set:
+                        continue
+                    _mark_inbound(uid, tmdb, "movie", None, None, title, None, direct=direct)
+                    seen_set.add(k)
+                    done.append(k)
+                    n += 1
                 elif typ == "episode":
                     ep = it.get("episode") or {}
                     # 2.19.3: Trakt /sync/history'de show UST DUZEYDE gelir (episode icinde degil).
@@ -633,11 +657,16 @@ def _inbound(uid, direct=False):
                     season = ep.get("season")
                     number = ep.get("number")
                     title = show.get("title") or ""
-                    if tmdb and season is not None and number is not None:
-                        _mark_inbound(uid, tmdb, "tv", int(season), int(number), title, None, direct=direct)
-                        n += 1
-                    else:
+                    if not (tmdb and season is not None and number is not None):
                         print(f"[trakt] atlandi (id/se eksik): {title or '?'} S{season}E{number} @ {watched_at}", flush=True)
+                        continue
+                    k = _key("tv", tmdb, season, number, watched_at)
+                    if k in seen_set:
+                        continue
+                    _mark_inbound(uid, tmdb, "tv", int(season), int(number), title, None, direct=direct)
+                    seen_set.add(k)
+                    done.append(k)
+                    n += 1
                 if watched_at and (not newest or watched_at > newest):
                     newest = watched_at
             except Exception:
@@ -652,6 +681,12 @@ def _inbound(uid, direct=False):
     if truncated:
         print(f"[trakt] inbound uid={uid}: {IN_MAX_PAGES} sayfa doldu, "
               f"daha eski kayitlar sonraki yoklamaya kaldi", flush=True)
+    if done:
+        try:
+            merged = (seen + done)[-100:]
+            _uset(uid, "tp_trakt_in_seen", json.dumps(merged, ensure_ascii=False))
+        except Exception:
+            pass
     # 2.19.3: ileri damgali bir oge cursor'i gelecege tasiyip tum akisi kilitlemesin.
     # Tavani "simdi"ye kirp; oge bir sonraki yoklamada yeniden denenir.
     now_iso = _iso(int(time.time()))
@@ -661,7 +696,23 @@ def _inbound(uid, direct=False):
     if newest and newest != cursor:
         _uset(uid, "tp_trakt_in_cursor", newest)
     _uset(uid, "tp_trakt_error", "")
+    _log_inbound(uid, n, len(done), newest or cursor, t0)
     return n
+
+
+def _log_inbound(uid, processed, new, cursor, t0):
+    """Gelen yoklama olay satiri (10 sn'lik heartbeat degil, etkisi yazilir)."""
+    try:
+        import query_log
+        query_log.log(
+            "trakt", "GET", "/sync/history", status=200,
+            ms=int((time.time() - t0) * 1000), src="net", tag="trakt.inbound",
+            uid=uid,
+            params={"in": processed, "new": new, "cursor": str(cursor or "")[:32]},
+            level="info" if (processed or new) else "debug",
+        )
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------

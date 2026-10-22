@@ -22,6 +22,7 @@ from anilist import anilist_detail, _anime_title, _anime_cover, save_anime_detai
 from scheduler import sync_episodes, save_watch_snapshot
 from poster_store import download_tmdb_poster_with_sizes
 from feed import generate_feed, feed_last_run, feed_next_run, FEED_SOURCES
+import query_log
 
 recommendations_bp = Blueprint("recommendations", __name__)
 
@@ -115,11 +116,15 @@ def recommendations_feed():
     if source not in FEED_SOURCES:
         return jsonify({"error": "Gecersiz source parametresi"}), 400
     refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
+    # 2.19.25: besleme istegi tek `run` altinda loglanir (uid + bolum = media:kaynak).
+    query_log.begin_run("feed.request", sec="feed:%s:%s" % (media, source),
+                        uid=_uid(), card={"media": media, "source": source})
     conn = get_db()
     try:
         items = generate_feed(conn, media, source, user_id=_uid(), force=refresh)
     finally:
         conn.close()
+        query_log.end_run()
     return jsonify({
         "media": media,
         "source": source,

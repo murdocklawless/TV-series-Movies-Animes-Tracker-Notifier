@@ -1,7 +1,24 @@
+import time
+
 import requests
 
+import query_log
 from db import get_setting, get_user_setting
 from messages_i18n import t, get_lang
+
+
+def _qlog(svc, path, t0, status, err="", tag="notify"):
+    """Bildirim gonderimini sorgu gunlugune yazar (2.19.25).
+
+    Gizli deger YAZILMAZ: Telegram bot token, Discord webhook URL'i ve
+    Brevo api-key yalnizca servis adiyla gecer; yol sabit tutulur.
+    """
+    try:
+        query_log.log(svc, "POST", path, status=int(status or 0),
+                      ms=int((time.time() - t0) * 1000), src="net", tag=tag,
+                      err=err[:120] if err else "")
+    except Exception:
+        pass
 
 
 def _uget(user_id, key):
@@ -38,6 +55,7 @@ def send_telegram(text, poster_url=None, user_id=None):
     if not token or not chat_id:
         return False
     safe = _tg_md_escape(text)
+    t0 = time.time()
     try:
         if poster_url:
             r = requests.post(
@@ -50,14 +68,17 @@ def send_telegram(text, poster_url=None, user_id=None):
                 },
                 timeout=20,
             )
+            _qlog("telegram", "/sendPhoto", t0, r.status_code)
         else:
             r = requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
                 json={"chat_id": chat_id, "text": safe, "parse_mode": "Markdown"},
                 timeout=15,
             )
+            _qlog("telegram", "/sendMessage", t0, r.status_code)
         return r.status_code == 200
-    except Exception:
+    except Exception as exc:
+        _qlog("telegram", "/sendMessage", t0, 0, err=str(exc))
         return False
 
 
@@ -69,6 +90,7 @@ def send_discord(text, poster_url=None, card=None, user_id=None):
     url = (_uget(user_id, "discord_webhook_url") or "").strip()
     if not url.startswith("https://discord.com/api/webhooks/"):
         return False
+    t0 = time.time()
     try:
         if card:
             status_color = str(card.get("status_color") or "#22c55e").strip()
@@ -110,8 +132,10 @@ def send_discord(text, poster_url=None, card=None, user_id=None):
         else:
             payload = {"content": text}
         r = requests.post(url, json=payload, timeout=20)
+        _qlog("discord", "/api/webhooks", t0, r.status_code)
         return r.status_code in (200, 204)
-    except Exception:
+    except Exception as exc:
+        _qlog("discord", "/api/webhooks", t0, 0, err=str(exc))
         return False
 
 
@@ -131,14 +155,17 @@ def send_ntfy(text, poster_url=None, user_id=None):
     topic = ntfy_topic_clean(_uget(user_id, "ntfy_topic"))
     if not topic:
         return False
+    t0 = time.time()
     try:
         r = requests.post(
             f"https://ntfy.sh/{topic}",
             data=text.encode("utf-8"),
             timeout=15,
         )
+        _qlog("ntfy", "/", t0, r.status_code)
         return r.status_code == 200
-    except Exception:
+    except Exception as exc:
+        _qlog("ntfy", "/", t0, 0, err=str(exc))
         return False
 
 
@@ -276,6 +303,7 @@ def _log_email_send_failure(provider_label, detail=""):
 
 def _send_brevo(text, poster_url=None, api_key=None, email_from=None, email_to=None, card=None):
     """Brevo API v3 ile gonderim."""
+    t0 = time.time()
     try:
         payload = {
             "sender": {"name": "NextEp", "email": email_from},
@@ -300,8 +328,10 @@ def _send_brevo(text, poster_url=None, api_key=None, email_from=None, email_to=N
             except Exception:
                 detail = ""
             _log_email_send_failure("Brevo", detail)
+        _qlog("brevo", "/v3/smtp/email", t0, r.status_code)
         return r.status_code in (200, 201)
     except Exception as e:
+        _qlog("brevo", "/v3/smtp/email", t0, 0, err=str(e))
         _log_email_send_failure("Brevo", str(e)[:120])
         return False
 
