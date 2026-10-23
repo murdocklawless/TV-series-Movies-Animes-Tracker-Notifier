@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.20.2 - 23/10/2026-22:35
+### TR
+- **Mobil kısaltmalar (yalnız mobil; masaüstü + TV aynen kalır):** takvim (yayın takvimi) satırlarındaki etiket artık **"Sez 1 · Böl 1"** — yeni i18n anahtarı `season_ep_mini` (14 dil); dokunmatik cihazlarda ilk sütun %52 olduğu için "Sezon 1 · Bölüm 1" bölüm numarasını kesiyordu. Kartlardaki sezon/bölüm hapları da mobilde **"2 Sez 34 Böl"** (`seasons_short` / `episodes_short`). Anime kartları, LOKAL ARA kompakt hap yolu ve bilgi modalı rozetleri **değişmedi**.
+- **İzlenmemiş Bölümler modalı punto düzeltmesi (mobil):** modalın tablosu **tek kolonlu** olduğu için o hücre hem `:first-child` hem `:last-child` olup tarih sütununun **0.7rem**'ini kapıyordu → etiket takvimdekiyle **aynı puntoya** çekildi (`#unwatched-modal .releases-table td { font-size: inherit }`, mobil tablo font'u 0.88rem). **Metin değişmedi** ("Sezon 1 · Bölüm 4" kalır).
+- **Dokunulmayanlar:** masaüstü görünüm, TV/APK, anime kart hapı, LOKAL ARA kompakt hapları, bilgi modalı rozetleri, izlenmemiş modalı metni — hiçbiri değişmedi (koşullar `isMobile() && !isTvUIActive()` ile sınırlı).
+- **Cache-buster:** `mobil.css?v=556 → 557`; `py/jsver.py bump` → **build 662** (i18n + views + components zinciri). Statik değişiklik → servis restart **gerekmedi**, tarayıcıda **Ctrl+F5**.
+- **Doğrulama:** `node --check` (i18n/views/components) OK; `jsver check` OK; modül bağ testi **LINK_TEMIZ**; pi'de 6 dosya md5 **eşit**, canlı `mobil.css?v=557` + `nextep.js?v=662`, servis `active`.
+- **Sürüm:** 2.20.2 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/kisaltma_20261023_211913/` (yerel + pi, 5 dosya), `bak/surum_2.20.2_20261023_212500/` (`nextep.db.pre` + `nextep.db`).
+### EN
+- **Mobile-only abbreviations (desktop + TV unchanged):** the calendar (release schedule) rows now read **"Sez 1 · Böl 1"** via the new `season_ep_mini` i18n key (14 languages) — on touch devices the first column is 52 % wide and "Sezon 1 · Bölüm 1" was clipping the episode number. Card season/episode pills also use the short form on mobile (**"2 Sez 34 Böl"**, `seasons_short` / `episodes_short`). Anime cards, the compact LOKAL ARA pill path and the info-modal badges are **unchanged**.
+- **Unwatched Episodes modal font-size fix (mobile):** because that modal's table has a **single column**, the cell is both `:first-child` and `:last-child` and inherited the date column's **0.7rem** — it now matches the calendar label (`#unwatched-modal .releases-table td { font-size: inherit }`, 0.88rem mobile table font). The **text is unchanged** ("Sezon 1 · Bölüm 4" stays).
+- **Untouched:** desktop view, TV/APK, anime card pill, compact LOKAL ARA pills, info-modal badges, the unwatched modal's text — gated by `isMobile() && !isTvUIActive()`.
+- **Cache-buster:** `mobil.css?v=556 → 557`; `py/jsver.py bump` → **build 662**. Static-only change → no service restart, just **Ctrl+F5**.
+- **Verified:** `node --check` OK; `jsver check` OK; module link test **LINK_TEMIZ**; on pi 6 files md5-equal, live `mobil.css?v=557` + `nextep.js?v=662`, service `active`.
+- **Version:** 2.20.2 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/kisaltma_20261023_211913/`, `bak/surum_2.20.2_20261023_212500/`.
+
 ## 2.20.1 - 23/10/2026-22:15
 ### TR
 - **Panel sayacı 05:00'e hizalandı (ölçüm düzeltmesi):** `rate_track` artık **05:00 hesap günü** sınırında sıfırlanır (`query_log.billing_day()` / `billing_day_start()`); restart'taki geri sayım `stats_today(..., since=...)` ile **yalnız geçerli hesap gününü** sayar (yeni opsiyonel `since` parametresi). Önceden gece yarısı + her restart'ta canlı günlük dosyasının tamamı geri sayıldığı için panel **2 hesap gününü** topluyordu. **Ölçüm: TMDB "Toplam" 1.046 → 330** (o günün gerçek net isteği). `rate_peak_tip` 14 dilde "05:00'te sıfırlanır" olarak güncellendi.

@@ -1391,3 +1391,13 @@
 - **Test:** sahte `src`/`dst` ağacıyla `_sync_tree` → posterler **korundu (4→4)**, repo dosyaları güncellendi, repoda olmayan eski dosya silindi (temiz senkron korunuyor), `static/bak` korundu; snapshot'tan geri yükleme 3 dosya kurtardı.
 - **Dağıtım:** `app_update.py` **pi5 + pi4**'e scp edildi ve iki makinede `systemctl restart nextep` (düzeltme, pi4'ün 04:00 otomatik güncellemesinden ÖNCE kuruldu → bir sonraki güncelleme posterleri silmeyecek; otomatik güncelleme aynı zamanda düzeltmenin canlı testi olacak).
 - **Sürüm:** **2.20.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`; pre/post DB yedeği `bak/surum_2.20.1_20261023_211500/`).
+
+## FAZ NOTLARI — Mobil kısaltmalar (takvim + kart hapları) + izlenmemiş modalı punto (2026-10-23, sürüm 2.20.2)
+
+- **Bildirilen:** (1) mobil takvimde satırlar "Sezon 1 · Bölüm 1" yazıyor ve bölüm rakamı kesiliyor → "Sez 1 · Böl 1" olsun; (2) mobilde kartlardaki sezon/bölüm hapları kısaltılsın; (3) izlenmemiş modalındaki "Sezon 1 · Bölüm 4" metni dizi takviminden **daha küçük** → punto eşitlensin. **Kısıt:** masaüstü ve TV'de (ve başka hiçbir yerde) değişiklik yok.
+- **Takvim (mobil):** yeni i18n anahtarı **`season_ep_mini`** (14 dil, "Sez {s} · Böl {e}"); `components.js` yayın takvimi satırında `(!isTvUIActive() && isMobile())` ise kısa etiket, aksi halde mevcut `season_ep`. Kesilme nedeni: `mobil.css` `@media (hover:none)` içinde ilk sütun **%52**.
+- **Kart hapları (mobil):** `views.js` → `seasonEpMid()`; kompakt olmayan yolda `mini = isMobile() && !isTvUIActive()` ise `seasons_short` / `episodes_short` ("2 Sez" / "34 Böl"). LOKAL ARA kompakt yolu, **anime kartları** (`animeEpMid` → "34 Bölüm") ve bilgi modalı rozetleri değişmedi.
+- **İzlenmemiş modalı punto:** modalın tablosu **tek kolonlu** → o `<td>` hem `:first-child` hem `:last-child` olup tarih sütununun **0.7rem**'ini kapıyordu; `#unwatched-modal .releases-table td { font-size: inherit }` (mobil, aynı `hover:none` bloğu) ile takvim etiketiyle aynı punto (0.88rem). **Metin değişmedi.**
+- **Cache-buster:** `mobil.css?v=556 → 557`; `py/jsver.py bump` → **build 662** (i18n → views → components zinciri).
+- **Doğrulama:** `node --check` (3 js) OK; `jsver check` OK; modül bağ testi **LINK_TEMIZ**; pi'de 6 dosya md5 **eşit**; canlı `mobil.css?v=557` + `nextep.js?v=662`; servis `active`; statik → restart yok (Ctrl+F5).
+- **Sürüm:** **2.20.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/kisaltma_20261023_211913/` (yerel + pi), `bak/surum_2.20.2_20261023_212500/` (DB pre/post).

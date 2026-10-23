@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=661";
+import { t } from "./i18n.js?v=662";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=661";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=661";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=661";
+} from "./utils.js?v=662";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=662";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=662";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -306,8 +306,14 @@ function seasonEpMid(item, mode) {
   const hasE = !!item.number_of_episodes;
   const both = hasS && hasE;
   const compact = mode === "compact";
-  const sKey = compact ? (both ? (isMobile() ? "seasons_mini" : "seasons_short") : "seasons") : "seasons";
-  const eKey = compact ? (both ? (isMobile() ? "episodes_mini" : "episodes_short") : "episodes") : "episodes";
+  // 2.20.2: MOBIL (TV haric) kart haplari kisa yazilir: "2 Sezon" -> "2 Sez",
+  // "34 Bolum" -> "34 Bol". Masaustu ve TV tam sozcukleri korur; kompakt
+  // (LOKAL ARA) yolu degismez.
+  const mini = isMobile() && !isTvUIActive();
+  const sKey = compact ? (both ? (isMobile() ? "seasons_mini" : "seasons_short") : "seasons")
+                       : (mini ? "seasons_short" : "seasons");
+  const eKey = compact ? (both ? (isMobile() ? "episodes_mini" : "episodes_short") : "episodes")
+                       : (mini ? "episodes_short" : "episodes");
   const s = hasS ? `<span class="season-count-badge">${t(sKey, { n: item.number_of_seasons })}</span>` : "";
   const e = hasE ? `<span class="episode-count">${t(eKey, { n: item.number_of_episodes })}</span>` : "";
   return s + e;

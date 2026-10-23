@@ -9,17 +9,17 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=661";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=662";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   SOURCE_SVG,
   posterHTML, scoreTag, typeLabel, formatDate, resultCardRows, cardDateLine,
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
-  canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem,
+  canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem, isMobile,
   srcKey, srcName,
-} from "./utils.js?v=661";
-import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=661";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=661";
+} from "./utils.js?v=662";
+import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=662";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=662";
 
 let currentDetails = null;
 
@@ -121,7 +121,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const dateText = f.text;
           html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectableAttr}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
           if (data.media_type === "tv") {
-            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
+            html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${(!isTvUIActive() && isMobile()) ? t("season_ep_mini", { s: it.season, e: it.episode }) : t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
           } else {
             html += `<td><button class="${btnCls}" data-g="${seasonKey}" data-i="${i}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("movie_release_date")}</span>${epName}</span></td>`;
           }

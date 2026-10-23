@@ -459,6 +459,14 @@
       padding-right: 10px;
     }
 
+    /* 2.20.2: Izlenmemis modalinin tablosu TEK kolonlu -> o hucre hem
+       :first-child hem :last-child olup yukaridaki tarih sutunu font'unu
+       (0.7rem) kapar. Takvim etiketiyle AYNI punto (tablonun kendi font'u)
+       kullanilir; metin DEGISMEZ ("Sezon 1 . Bolum 4" kalir). */
+    html:not(.is-tv):not(.tv-mode) #unwatched-modal .releases-table td {
+      font-size: inherit;
+    }
+
     /* Tarih basligini tarih metnine ortala: sagda buton bolgesi (24+4+8) kor birakilir */
     html:not(.is-tv):not(.tv-mode) .releases-table thead th:last-child {
       text-align: center;
