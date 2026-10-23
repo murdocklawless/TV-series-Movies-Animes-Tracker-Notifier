@@ -1521,6 +1521,35 @@ input:-webkit-autofill:focus {
   }
 }
 
+/* 2.20.3: NextEp Güncelleme modalı butonları — yükleme sırasında etiket
+   gizlenir, dönen yuvarlak butonun tam ORTASINDA belirir ve istek bitince
+   (başarı/hata) JS `.loading` sınıfını kaldırınca kaybolur.
+   `#appupdate-run`: güncelleme isteği (senkron, 10-60 sn).
+   `#appupdate-check`: "Güncellemeleri Kontrol Et" isteği. */
+#appupdate-run,
+#appupdate-check {
+  position: relative;
+}
+#appupdate-run.loading,
+#appupdate-check.loading {
+  color: transparent !important;
+  pointer-events: none;
+}
+#appupdate-run.loading::after,
+#appupdate-check.loading::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 .filter-chips {
   display: flex;
   flex-wrap: wrap;

@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=662";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=662";
-import { activateUtilityTab } from "./views.js?v=662";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=662";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=663";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=663";
+import { activateUtilityTab } from "./views.js?v=663";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=663";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1048,7 +1048,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=662");
+      const { errText: _err } = await import("./i18n.js?v=663");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1057,9 +1057,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=662");
-    const { openDetails } = await import("./components.js?v=662");
-    const { loadFollowed } = await import("./views.js?v=662");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=663");
+    const { openDetails } = await import("./components.js?v=663");
+    const { loadFollowed } = await import("./views.js?v=663");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1095,7 +1095,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=662");
+        const { t: _t } = await import("./i18n.js?v=663");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1487,6 +1487,9 @@ if (nxOnce("app_update")) (function initAppUpdate() {
   if (runBtn) runBtn.addEventListener("click", async () => {
     if (runBtn.disabled) return;
     runBtn.disabled = true;
+    // 2.20.3: guncelleme istegi (senkron, 10-60 sn) boyunca butonun ORTASINDA
+    // donen yuvarlak gosterilir; istek bitince (basari/hata) kaldirilir.
+    runBtn.classList.add("loading");
     try {
       const r = await fetch("/api/app-update/run", { method: "POST" });
       const j = await r.json().catch(() => ({}));
@@ -1501,6 +1504,8 @@ if (nxOnce("app_update")) (function initAppUpdate() {
     } catch (e) {
       showMsg(t("error"), false);
       runBtn.disabled = !!lastAppVer.available;
+    } finally {
+      runBtn.classList.remove("loading");
     }
   });
   // Modal acilirken: ONCE agsiz hizli durum (aninda "Mevcut surum"), aga YALNIZ "Kontrol Et" ile cikilir.
@@ -2081,7 +2086,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=662").then((m) => {
+  import("./notification.js?v=663").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

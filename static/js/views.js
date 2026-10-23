@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=662";
+import { t } from "./i18n.js?v=663";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=662";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=662";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=662";
+} from "./utils.js?v=663";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=663";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=663";
 function isTvUIActive() {
   try {
     const d = document.documentElement;

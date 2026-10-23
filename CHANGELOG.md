@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.20.3 - 23/10/2026-22:45
+### TR
+- **"NextEp'i Güncelle" butonuna dönen yuvarlak animasyon:** Ayarlar → NextEp Güncelleme modalındaki güncelleme butonu tıklandığında etiket gizlenir ve **butonun tam ortasında** beyaz dönen yuvarlak görünür; istek bittiğinde (başarı **veya** hata) animasyon kaldırılır. Pseudo-element (`::after`) + mevcut `@keyframes spin` kullanıldığı için DOM'a eklenen bir düğüm yok → dil değişimi/`textContent` güncellemeleriyle çakışmaz.
+- **"Güncellemeleri Kontrol Et" butonu da aynı animasyonu aldı:** bu buton zaten `.loading` sınıfını ekleyip kaldırıyordu ama **görsel geri bildirim yoktu**; artık kontrol isteği boyunca aynı dönen yuvarlak görünür.
+- **Kapsam:** yalnız bu iki buton (`#appupdate-run`, `#appupdate-check`); diğer `.loading` kullanan butonlar, güncelleme akışı, `/api/app-update/*` uçları ve diğer modallar **değişmedi**.
+- **Cache-buster:** `style.css?v=636 → 637`; `py/jsver.py bump` → **build 663** (settings.js zinciri). Statik değişiklik → servis restart **gerekmedi**, tarayıcıda **Ctrl+F5**.
+- **Doğrulama:** `node --check` (settings.js) OK; `jsver check` OK; modül bağ testi **LINK_TEMIZ**; CSS parantez dengesi 1135/1136 (mevcut fark aynı, yeni bloklar dengeli); pi'de 4 dosya md5 **eşit**, canlı `style.css?v=637` + `nextep.js?v=663`, servis `active`.
+- **Sürüm:** 2.20.3 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/appupdate_spinner_20261023_212456/` (yerel + pi, 3 dosya), `bak/surum_2.20.3_20261023_213000/` (`nextep.db.pre` + `nextep.db`).
+### EN
+- **Spinner on the "Update NextEp" button:** clicking the update button in Settings → NextEp Update hides the label and shows a **white spinning circle centred in the button**; the animation is removed when the request finishes (success **or** error). Implemented with a pseudo-element (`::after`) + the existing `@keyframes spin`, so no DOM node is inserted → no conflict with language switching / `textContent` updates.
+- **The "Check for Updates" button got the same spinner:** that button already toggled a `.loading` class but had **no visual feedback**; now the same spinner shows while the check request runs.
+- **Scope:** only these two buttons (`#appupdate-run`, `#appupdate-check`); other buttons using `.loading`, the update flow, the `/api/app-update/*` endpoints and other modals are **unchanged**.
+- **Cache-buster:** `style.css?v=636 → 637`; `py/jsver.py bump` → **build 663**. Static-only change → no service restart, just **Ctrl+F5**.
+- **Verified:** `node --check` OK; `jsver check` OK; module link test **LINK_TEMIZ**; CSS brace balance unchanged (new blocks balanced); on pi 4 files md5-equal, live `style.css?v=637` + `nextep.js?v=663`, service `active`.
+- **Version:** 2.20.3 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/appupdate_spinner_20261023_212456/`, `bak/surum_2.20.3_20261023_213000/`.
+
 ## 2.20.2 - 23/10/2026-22:35
 ### TR
 - **Mobil kısaltmalar (yalnız mobil; masaüstü + TV aynen kalır):** takvim (yayın takvimi) satırlarındaki etiket artık **"Sez 1 · Böl 1"** — yeni i18n anahtarı `season_ep_mini` (14 dil); dokunmatik cihazlarda ilk sütun %52 olduğu için "Sezon 1 · Bölüm 1" bölüm numarasını kesiyordu. Kartlardaki sezon/bölüm hapları da mobilde **"2 Sez 34 Böl"** (`seasons_short` / `episodes_short`). Anime kartları, LOKAL ARA kompakt hap yolu ve bilgi modalı rozetleri **değişmedi**.

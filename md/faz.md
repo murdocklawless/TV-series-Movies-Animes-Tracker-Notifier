@@ -1401,3 +1401,19 @@
 - **Cache-buster:** `mobil.css?v=556 → 557`; `py/jsver.py bump` → **build 662** (i18n → views → components zinciri).
 - **Doğrulama:** `node --check` (3 js) OK; `jsver check` OK; modül bağ testi **LINK_TEMIZ**; pi'de 6 dosya md5 **eşit**; canlı `mobil.css?v=557` + `nextep.js?v=662`; servis `active`; statik → restart yok (Ctrl+F5).
 - **Sürüm:** **2.20.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/kisaltma_20261023_211913/` (yerel + pi), `bak/surum_2.20.2_20261023_212500/` (DB pre/post).
+
+## FAZ NOTLARI — Güncelleme modalı butonlarına dönen yuvarlak animasyon (2026-10-23, sürüm 2.20.3)
+
+- **Bildirilen:** Ayarlar → **NextEp Güncelleme** modalında "NextEp'i Güncelle" butonuna tıklayınca butonun **ortasında dönen yuvarlak** görünsün, güncelleme bitince kalksın; ardından "Güncellemeleri Kontrol Et" butonu için de aynısı istendi.
+- **Butonlar:** `static/index.html` → `#settings-appupdate-modal` içindeki `test-row`: **`#appupdate-check`** ("Güncellemeleri Kontrol Et") ve **`#appupdate-run`** ("NextEp'i Güncelle", başlangıçta `disabled`).
+- **Uygulama (CSS):** `style.css`, `@keyframes spin` bloğunun hemen ardına:
+  - `#appupdate-run, #appupdate-check { position: relative }`
+  - `…​.loading { color: transparent !important; pointer-events: none }` (etiket gizlenir, spinner görünür kalır)
+  - `…​.loading::after { content:""; position:absolute; left/top:50%; width/height:16px; margin:-8px 0 0 -8px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation: spin .7s linear infinite }`
+  - Pseudo-element seçildi çünkü `data-i18n` dil değişiminde butonun `textContent`'ini yeniden yazar; DOM'a düğüm eklemek spinner'ı silerdi.
+- **Uygulama (JS):** `settings.js` → `#appupdate-run` handler'ına tıklamada `classList.add("loading")`, `finally`'de `classList.remove("loading")`. `#appupdate-check` zaten `checkAppUpdate()` içinde `.loading` ekleyip kaldırıyordu (JS değişmedi, sadece CSS ile görünür oldu).
+- **Zamanlama:** `/api/app-update/run` **senkron** çalışır (klon + senkron 10-60 sn) ve yanıt **restart'tan önce** döner (restart 3 sn sonra zamanlanır) → animasyon yanıtla birlikte temiz şekilde kalkar.
+- **Kapsam dışı (değişmedi):** diğer `.loading` kullanan butonlar (trakt/emby/geri yükleme vb. kendi stillerini kullanır), güncelleme akışı, `/api/app-update/*` uçları, diğer modallar.
+- **Cache-buster:** `style.css?v=636 → 637`; `py/jsver.py bump` → **build 663**.
+- **Doğrulama:** `node --check` (settings.js) OK; `jsver check` OK; **LINK_TEMIZ**; CSS parantez 1135/1136 (mevcut fark korunuyor); pi'de `index.html`, `style.css`, `settings.js`, `nextep.js` md5 **eşit**; canlı `style.css?v=637` + `nextep.js?v=663`; servis `active`; statik → restart yok (Ctrl+F5).
+- **Sürüm:** **2.20.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/appupdate_spinner_20261023_212456/` (yerel + pi), `bak/surum_2.20.3_20261023_213000/` (DB pre/post).
