@@ -40,6 +40,12 @@ UPDATE_WINDOW_SEC = 30 * 60
 
 SYNC_TREES = ("py", "static", "requirements", "service", "sh")
 SYNC_FILES = ("VERSION", "CHANGELOG.md")
+# 2.20.1: guncelleme YEREL calisma-zamani verisini SILMEZ. Bu dizinler
+# repoda yok (gitignore) ama canli makinede dolu:
+#   static/images/posters -> indirilen posterler (w500/w185/thumbnail)
+#   static/bak            -> yerel statik yedekleri
+# _sync_tree rmtree ONCESI tasir, copytree SONRASI geri getirir.
+PRESERVE_TREES = {"static": ("images/posters", "bak")}
 SKIP_DIRS = {"venv", "__pycache__", ".git", "bak", "backup", "tmp_push", ".opencode", "md"}
 SKIP_FILES = {".env", ".smtp_secret"}
 
@@ -413,12 +419,65 @@ def _file_hash(path):
         return ""
 
 
+def _count_files(root):
+    n = 0
+    try:
+        for _r, _d, files in os.walk(root):
+            n += len(files)
+    except OSError:
+        return n
+    return n
+
+
+def _restore_from_snapshot(snap_dir, dst_root, rel_root="static/images/posters"):
+    """Emniyet kemeri (2.20.1): snapshot code.tar.gz icindeki `rel_root`
+    dosyalarindan hedefte OLMAYANLARI geri yukler (var olanlara dokunmaz)."""
+    tar_path = os.path.join(snap_dir, "code.tar.gz")
+    if not os.path.isfile(tar_path):
+        return 0
+    restored = 0
+    try:
+        with tarfile.open(tar_path, "r:gz") as tar:
+            for m in tar.getmembers():
+                if not m.isfile() or not m.name.startswith(rel_root + "/"):
+                    continue
+                target = os.path.join(dst_root, m.name)
+                if os.path.exists(target):
+                    continue
+                try:
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    f = tar.extractfile(m)
+                    if not f:
+                        continue
+                    with open(target, "wb") as out:
+                        shutil.copyfileobj(f, out)
+                    restored += 1
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"app-update snapshot restore failed: {e}", flush=True)
+    return restored
+
+
 def _sync_tree(src_root, dst_root):
     for tree in SYNC_TREES:
         src = os.path.join(src_root, tree)
         dst = os.path.join(dst_root, tree)
         if not os.path.isdir(src):
             continue
+        # 2.20.1: yerel calisma-zamani verisini rmtree'den KORU
+        keep = []
+        for rel in PRESERVE_TREES.get(tree, ()):
+            p = os.path.join(dst, rel)
+            if not os.path.isdir(p):
+                continue
+            try:
+                tmp = tempfile.mkdtemp(prefix="nextep-keep-")
+                saved = os.path.join(tmp, "keep")
+                shutil.move(p, saved)
+                keep.append((rel, saved))
+            except Exception as e:
+                print(f"app-update preserve failed ({rel}): {e}", flush=True)
         if os.path.isdir(dst):
             shutil.rmtree(dst, ignore_errors=True)
         shutil.copytree(
@@ -428,6 +487,18 @@ def _sync_tree(src_root, dst_root):
                 ".opencode", "md", ".env", ".smtp_secret", "*.db",
             ),
         )
+        for rel, saved in keep:
+            target = os.path.join(dst, rel)
+            try:
+                if os.path.isdir(target):
+                    shutil.copytree(saved, target, dirs_exist_ok=True)
+                else:
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    shutil.move(saved, target)
+            except Exception as e:
+                print(f"app-update preserve restore failed ({rel}): {e}", flush=True)
+            finally:
+                shutil.rmtree(os.path.dirname(saved), ignore_errors=True)
     for fn in SYNC_FILES:
         src = os.path.join(src_root, fn)
         if os.path.isfile(src):
@@ -466,7 +537,19 @@ def apply_update(remote_url=None):
         old_req = os.path.join(BASE_DIR, "requirements", "requirements.txt")
         pip_needed = _file_hash(new_req) != _file_hash(old_req)
         snap = take_snapshot()
+        # 2.20.1: poster sayimini once/sonra karsilastir; koruma bir gun
+        # bozulsa bile kaybolan posterler snapshot'tan geri yuklenir.
+        _posters_root = os.path.join(BASE_DIR, "static", "images", "posters")
+        _posters_before = _count_files(_posters_root)
         _sync_tree(tmp, BASE_DIR)
+        _posters_after = _count_files(_posters_root)
+        if _posters_after < _posters_before:
+            _n = _restore_from_snapshot(snap, BASE_DIR)
+            print(
+                f"app-update poster koruma: {_posters_before} -> {_posters_after}, "
+                f"snapshot'tan +{_n} geri yuklendi",
+                flush=True,
+            )
         pip_log = os.path.join(snap, "pip.log")
         if pip_needed and os.path.isfile(new_req):
             with open(pip_log, "w", encoding="utf-8") as log:

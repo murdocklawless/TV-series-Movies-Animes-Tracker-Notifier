@@ -50,7 +50,7 @@ _wall = time.time  # testler sahte duvar-saati enjekte eder
 
 
 def _billing_day_key():
-    """2.20.0 rev2: sayac siniri = 05:00 hesap gunu (query_log ile TEK kaynak)."""
+    """2.20.1: sayac siniri = 05:00 hesap gunu (query_log ile TEK kaynak)."""
     try:
         import query_log
         return query_log.billing_day()

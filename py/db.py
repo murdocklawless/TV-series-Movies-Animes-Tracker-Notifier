@@ -98,7 +98,7 @@ def init_db():
     # Arsiv (1.83): takipten cikarmadan yapimi arsive alir; bildirimler durur.
     if "archived" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN archived INTEGER DEFAULT 0")
-    # 2.20.0 rev2 (madde 4): kart basina EKLEMELI nadir kontrol capalari.
+    # 2.20.1 (madde 4): kart basina EKLEMELI nadir kontrol capalari.
     # added_at = kartin eklenme ani; season_check_at = siradaki eski-sezon
     # taramasi (eklenme + 45 gun); detail_check_at = siradaki detay/credits
     # tazelemesi (eklenme + 90 gun). Her turdan sonra +45/+90 eklenir.
@@ -260,7 +260,7 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN in_watched INTEGER DEFAULT 0")
     if "deferred" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN deferred INTEGER DEFAULT 0")
-    # 2.20.0 rev2 (madde 4): anime icin de capalar (bitmis: 90 gun, yayinda: 7 gun).
+    # 2.20.1 (madde 4): anime icin de capalar (bitmis: 90 gun, yayinda: 7 gun).
     if "added_at" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN added_at INTEGER")
     if "detail_check_at" not in acols:

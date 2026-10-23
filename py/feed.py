@@ -38,9 +38,9 @@ MEDIA_ORDER = ("dizi", "film", "belgesel", "anime")
 
 FEED_LIMIT = 18
 POOL_BUFFER = 60
-# 2.20.0 rev2 (feed D): belgesel havuzu AYDA BIR tazelenir (dar kitle, pahali havuz).
+# 2.20.1 (feed D): belgesel havuzu AYDA BIR tazelenir (dar kitle, pahali havuz).
 FEED_DOCS_DAYS = 30
-# 2.20.0 rev2 (feed B): saglayici kaynaklari tek platformlu -> kartin platform
+# 2.20.1 (feed B): saglayici kaynaklari tek platformlu -> kartin platform
 # etiketi kaynaktan bilinir; film/belgesel kartlari icin TMDB detay istegi
 # ATILMAZ (tv kartlarinda status icin detay yine cekilir).
 PROVIDER_LABELS = {
@@ -368,7 +368,7 @@ def _anime_pool(source, wanted):
 def _fetch_pool(media, source):
     """Ham aday havuzu (dislama uygulanmaz). random: dort tur karisik.
 
-    2.20.0 rev2 (feed B): saglayici kaynaklarinda ogelere `source_provider` yazilir;
+    2.20.1 (feed B): saglayici kaynaklarinda ogelere `source_provider` yazilir;
     boylece film/belgesel kartlarinin platform etiketi TMDB'ye sorulmadan
     kaynaktan turetilir."""
     if source == "random":
@@ -477,7 +477,7 @@ def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=Fal
 
 
 def _docs_due():
-    """2.20.0 rev2 (feed D): belgesel havuzu en son 30+ gun once tazelendiyse due."""
+    """2.20.1 (feed D): belgesel havuzu en son 30+ gun once tazelendiyse due."""
     try:
         last = int(get_setting("feed_docs_last") or 0)
     except Exception:
@@ -496,10 +496,10 @@ def refresh_feed_source(source):
     """Bir kaynagin ham cache'lerini yeniler (scheduler).
 
     2.19.25: havuzun TAMAMININ detayi yeniden cekilmiyordu (force kaldirildi).
-    2.20.0 rev2 (feed A): havuz detay ON-ISITMASI tamamen kaldirildi — kart detayi
+    2.20.1 (feed A): havuz detay ON-ISITMASI tamamen kaldirildi — kart detayi
     yalniz GOSTERILEN kartlar icin, gosterim yolunda cekilir (rec_detail
     kalici oldugu icin her kart en fazla bir kez sorulur).
-    2.20.0 rev2 (feed D): belgesel havuzu ayda bir tazelenir.
+    2.20.1 (feed D): belgesel havuzu ayda bir tazelenir.
     """
     if source not in FEED_SOURCES:
         return

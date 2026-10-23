@@ -414,7 +414,7 @@ def _iter_records(path):
 def stats_today(service, window_sec=10, since=None):
     """Bugun (05:00'dan beri) agdan yapilan istek sayisi + pencere pik dolulugu.
 
-    2.20.0 rev2: `since` (epoch) verilirse yalniz o andan SONRAKI kayitlar sayilir.
+    2.20.1: `since` (epoch) verilirse yalniz o andan SONRAKI kayitlar sayilir.
     Panel sayaci 05:00 hesap gunune hizalanirken, 05:00 ile dosya devri
     arasindaki boslukta canli dosyada hala duran ONCEKI gun kayitlari
     sayilmasin diye kullanilir (aksi halde panel 2 gunu toplar).

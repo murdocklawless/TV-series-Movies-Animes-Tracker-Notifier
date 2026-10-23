@@ -1373,7 +1373,7 @@
 - **İçerik özeti (2.19.28–2.19.30):** bölüm içi arama kutusu akışı (ilk karakterde sonuç modalı, kart tıklaması → bilgi modalı, butonlar aktif), `#section-results-modal` `z-index:190` → bilgi/takvim modalları panelin üstünde, filtre menüsü sağ kenarı turuncu dotted çizgiye hizalı, mobil dizi/film/belgesel/anime arama kutusu çizginin **3px üstünde** ve **125px** genişlikte. İzlenmiş/izlenmemiş, arşiv, öneriler, masaüstü ve APK/TV ölçüleri değişmedi.
 - **Canlı durum:** `style.css?v=636`, `mobil.css?v=556`, `style.css` tablet 514, tv 561, JS build 660; statik değişiklik yok → restart yok.
 
-## FAZ NOTLARI — Sorgu trafiği planı uygulandı: panel 05:00 + kademeli TTL + kart çapaları + feed eleme (2026-10-23, sürüm 2.20.0 rev2)
+## FAZ NOTLARI — Sorgu trafiği planı uygulandı: panel 05:00 + kademeli TTL + kart çapaları + feed eleme + poster koruması (2026-10-23, sürüm 2.20.1)
 
 - **Kapsam:** `sorgu.md` planının tamamı (0 + a + 1B + 4 + 5). Kullanıcı kararı: **sürüm yükseltilmedi** (VERSION/DB 2.20.0 kaldı) → kayıtlar "2.20.0 rev2" etiketiyle.
 - **Yedek:** `bak/sorgu_plan_20261023_203519/` — yerel (HEAD kopyaları) + pi (`py/*.py`, `routes/`, `js/i18n.js`, `nextep.db.pre`).
@@ -1386,3 +1386,8 @@
 - **Canlı ölçüm (manuel run, pi5):** `sync.releases` **293 → 79 istek**, **132 → 16,4 sn**; ayrı backfill dahil **351 → 79 (−%77)**; `run_end` tek satır (`requests=79 cache=0 errors=0`); servis `active`, `http=200`, `jsver check` pi'de OK (build 661).
 - **Beklenen günlük ortalama:** ~596 → **~110-130 istek** (feed'in ilk haftalık turundan sonra netleşecek).
 - **Kalan doğrulama:** yarın 05:10 gerçek run (`requests ~80-100`, `errors=0`), 05:00 panel sıfırlaması, feed turunda `feed.pool` ~16.
+- **Poster koruması (aynı sürümün ikinci yarısı):** `py/app_update.py` → `_sync_tree()` güncellemede `static/images/posters` + `static/bak` dizinlerini **silmiyor** (rmtree öncesi taşı, copytree sonrası geri getir/birleştir). Kök neden: her güncelleme hedef `static/` ağacını rmtree + klonla değiştiriyordu; `static/images/posters/**` repoda olmadığı için (gitignore) pi4'te 23 Eki 19:11 güncellemesi 4 dizi posterini sildi → kartlar 404. **Emniyet kemeri:** `_count_files` ile önce/sonra sayım; düşüş olursa snapshot `code.tar.gz`'den eksik posterler geri yüklenir (regresyon tespiti de olur).
+- **pi4 kurtarma:** snapshot `/etc/snapshot/app-update/20261023-191112/code.tar.gz` → `static/images/posters` çıkarıldı (153312, 196322, 247718, 288673) + `venv/bin/python py/migrate_posters.py` (213562, 333101) → **7 dizi × w500/w185, hepsi HTTP 200**; `thumbnail` 4 (talep üzerine üretilir).
+- **Test:** sahte `src`/`dst` ağacıyla `_sync_tree` → posterler **korundu (4→4)**, repo dosyaları güncellendi, repoda olmayan eski dosya silindi (temiz senkron korunuyor), `static/bak` korundu; snapshot'tan geri yükleme 3 dosya kurtardı.
+- **Dağıtım:** `app_update.py` **pi5 + pi4**'e scp edildi ve iki makinede `systemctl restart nextep` (düzeltme, pi4'ün 04:00 otomatik güncellemesinden ÖNCE kuruldu → bir sonraki güncelleme posterleri silmeyecek; otomatik güncelleme aynı zamanda düzeltmenin canlı testi olacak).
+- **Sürüm:** **2.20.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`; pre/post DB yedeği `bak/surum_2.20.1_20261023_211500/`).

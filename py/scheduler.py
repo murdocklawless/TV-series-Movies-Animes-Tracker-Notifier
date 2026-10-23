@@ -362,7 +362,7 @@ def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_pa
     return card
 
 
-# --- 2.20.0 rev2: EKLEMELI NADIR KONTROL KADEMELERI (madde a + 4) ---
+# --- 2.20.1: EKLEMELI NADIR KONTROL KADEMELERI (madde a + 4) ---
 # Taze sezon (son bolum <= 30 gun): gunluk. Eski sezon: kartin eklenme tarihine
 # capali 45 gun. Detay/credits: ayni capa ile 90 gun. Statu her gun okunur;
 # statu degisirse kartin TUM sezonlari aninda taranir.
@@ -395,7 +395,7 @@ def _season_state(conn, tmdb_id, season):
 def _fetch_show_bundle(tmdb_id, extra_titles=(), conn=None, rows=None):
     """/tv + sezon verisini bir kez ceker.
 
-    2.20.0 rev2 kademeleri (conn + rows verilirse):
+    2.20.1 kademeleri (conn + rows verilirse):
       - sezon hic yok / eksik / son bolum tarihi NULL -> cek
       - son bolum <= 30 gun (taze) -> cek
       - kartin season_check_at'i geldiyse (45 gun capasi) -> TUM sezonlar
@@ -458,7 +458,7 @@ def _fetch_show_bundle(tmdb_id, extra_titles=(), conn=None, rows=None):
         "status_changed": status_changed,
         "slow_scan": full_scan,
         "season_count": sum(1 for s in data.get("seasons", []) if s.get("season_number")),
-        # 2.20.0 rev2: gunluk /tv yanitindan gelen hafif alanlar (ek istek YOK)
+        # 2.20.1: gunluk /tv yanitindan gelen hafif alanlar (ek istek YOK)
         "vote_average": data.get("vote_average") or 0,
         "vote_count": data.get("vote_count"),
         "number_of_seasons": data.get("number_of_seasons"),
@@ -552,7 +552,7 @@ def pop_watch_snapshot(conn, uid, kind, ident):
 
 
 def _apply_bundle_meta(conn, tmdb_id, bundle):
-    """2.20.0 rev2: statu her gun yazilir (bekci yarin dogru karsilastirsin) ve
+    """2.20.1: statu her gun yazilir (bekci yarin dogru karsilastirsin) ve
     yalniz YAVAS (45 gun capali / statu degisimi) tarama yapildiysa sezon
     capasi 45 gun ileri alinir; gunluk taze-sezon cekimi capayi oynatmaz."""
     if not bundle:
@@ -608,7 +608,7 @@ def sync_episodes_multi(conn, follows):
     """Aynı diziyi takip eden TÜM satırlar için tek fetch + satır-bazlı yazım
     (aile ölçeği tekillemesi). Fetch paylaşılır, yazımlar follow_id bazlıdır;
     watched dahil kullanıcı verilerine dokunulmaz. Satır hatası diğerlerini
-    durdurmaz (fail-soft). 2.20.0 rev2: kademeli sezon kararı + statü bekçisi."""
+    durdurmaz (fail-soft). 2.20.1: kademeli sezon kararı + statü bekçisi."""
     groups = {}
     for follow in follows:
         if follow["media_type"] != "tv":
@@ -679,7 +679,7 @@ def sync_releases():
     """Takip edilen dizi bolumlerini KADEMELI tazeler; ardindan capasi gelen
     kartlarin detay/credits verisini yeniler.
 
-    2.20.0 rev2: film detaylari + credits artik ayri bir cron degil, bu run'in
+    2.20.1: film detaylari + credits artik ayri bir cron degil, bu run'in
     sonunda calisan `backfill_votes()` ile gelir (onbellek SICAK) ve yalniz
     capasi gelen kartlar islenir (eklenme + 90 gun). Ayrica ayri
     `follow_data_sync` cron'u kaldirildi -> restart cezasi yok."""
@@ -689,7 +689,7 @@ def sync_releases():
     sync_episodes_multi(conn, follows)
     conn.commit()
     conn.close()
-    # 2.20.0 rev2 (1B): backfill ayni run'da, onbellek sicakken (eskiden 05:20 ayri
+    # 2.20.1 (1B): backfill ayni run'da, onbellek sicakken (eskiden 05:20 ayri
     # cron'du; 05:18 restart'i ~107 fazladan istek uretiyordu).
     try:
         _backfill_votes_impl()
@@ -1059,13 +1059,13 @@ def check_anime_notifications(user_id=None):
 @_logged_job("backfill")
 def backfill_votes():
     """Ayarlar'daki "Puan Kontrol Senkronu" (data_hour) cron'u.
-    2.20.0 rev2: mantik `_backfill_votes_impl` ile TEK kaynaktan gelir; sync
+    2.20.1: mantik `_backfill_votes_impl` ile TEK kaynaktan gelir; sync
     run'i de ayni govdeyi cagirir (ic ice run olusturmaz)."""
     return _backfill_votes_impl()
 
 
 def _backfill_votes_impl():
-    """Capasi gelen kartlarin detay + credits verisini tazeler (2.20.0 rev2).
+    """Capasi gelen kartlarin detay + credits verisini tazeler (2.20.1).
 
     Kademe: `followed.detail_check_at` <= simdi (kartin eklenme + 90 gunu)
     VEYA vizyona girmemis/yeni film (release_date >= bugun - 30 gun) -> her gun.
@@ -1719,7 +1719,7 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
-    # 2.20.0 rev2 (1B): backfill artik `sync_releases` run'inin SONUNDA da calisir
+    # 2.20.1 (1B): backfill artik `sync_releases` run'inin SONUNDA da calisir
     # (onbellek sicak -> restart cezasi yok). Ayri `follow_data_sync` cron'u
     # KORUNUR cunku Ayarlar'daki "Puan Kontrol Senkronu" (data_hour) saatini
     # yonetir; capa (detail_check_at) sayesinde ikinci gecis EK ISTEK URETMEZ.
