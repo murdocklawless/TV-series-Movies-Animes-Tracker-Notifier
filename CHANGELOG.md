@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.29 - 23/10/2026-18:40
+### TR
+- **Mobil bölüm arama kutusu konumu:** dizi / film / belgesel / anime bölüm başlıklarındaki satır içi arama kutusu artık **dotted turuncu yatay çizginin 3px üzerinde** duruyor — `top: 40%` + `translateY(-50%)` yerine `top: auto; bottom: 3px; transform: none` (kutunun **alt kenarı** çizgiye 3px mesafede; kutu kısa olduğu için üst kenarı başlığın ~2-3px üstüne taşabilir).
+- **Genişlik 100px:** aynı dört bölümde kutu `170px` → **`100px`** (`width:100px; max-width:100px`). Önceki `max-width: calc(100vw - 130px)` (375px ekranda 245px hesaplanıyordu) kaldırıldı; artık sabit tavan.
+- **Kapsam bilinçli olarak dar:** yalnız dizi/film/belgesel/anime. **İzlenmiş / izlenmemiş** (çizginin 3px altı, `160px`), **arşiv**, **öneriler**, **masaüstü** (`style.css` taban `width:230px`) ve **APK/TV** (`tv.css`, `html.is-tv`) ölçüleri **değişmedi** — yeni kural `html:not(.is-tv):not(.tv-mode)` + `@media (max-width:600px)` ile sınırlı.
+- **Cache-buster:** `mobil.css?v=554` → **555** (JS build 660, `style.css?v=636`, tablet/tv aynı).
+- **Doğrulama:** pi'de 2 dosya md5 eşit, `mobil.css?v=555` canlı, `repl=0` / `BOM=0`; statik değişiklik → restart yok, tarayıcıda **Ctrl+F5**.
+- **Sürüm:** 2.19.29 (DB `version` + `VERSION` eşit, integrity ok). Yedek: `bak/arama_kutusu_100px_20261023_183756/` (yerel: HEAD kopyaları; pi: `mobil.css`, `index.html`, `nextep.db.pre` + `nextep.db`).
+### EN
+- **Mobile section search box position:** in the dizi / film / belgesel / anime headers the inline search box now sits **3px above the orange dotted horizontal line** — `top: 40%` + `translateY(-50%)` replaced by `top: auto; bottom: 3px; transform: none` (the box's **bottom edge** is 3px away from the line; since the box is short its top edge may stick ~2-3px above the header).
+- **Width 100px:** in those four sections the box goes from `170px` to **`100px`** (`width:100px; max-width:100px`). The old `max-width: calc(100vw - 130px)` (245px on a 375px screen) is gone; the cap is now fixed.
+- **Deliberately narrow scope:** only dizi/film/belgesel/anime. **Watched / unwatched** (3px below the line, `160px`), **archive**, **recommendations**, **desktop** (`style.css` base `width:230px`) and **APK/TV** (`tv.css`, `html.is-tv`) sizes are **unchanged** — the new rule is limited by `html:not(.is-tv):not(.tv-mode)` + `@media (max-width:600px)`.
+- **Cache-buster:** `mobil.css?v=554` → **555** (JS build 660, `style.css?v=636`, tablet/tv unchanged).
+- **Verified:** on pi both files md5-equal, `mobil.css?v=555` live, `repl=0` / `BOM=0`; static-only change → no restart, just **Ctrl+F5**.
+- **Version:** 2.19.29 (DB `version` + `VERSION` in lockstep, integrity ok). Backup: `bak/arama_kutusu_100px_20261023_183756/` (local: HEAD copies; pi: `mobil.css`, `index.html`, `nextep.db.pre` + `nextep.db`).
+
 ## 2.19.28 - 23/10/2026-18:10
 ### TR
 - **Düzeltme — bölüm başlığı büyüteci yine satır içi arama kutusunu açıyor:** 2.19.27'de kaldırılan eski akış geri geldi. Büyüteç (`#view-dizi`, `#view-film`, `#view-belgesel`, `#view-anime`, `#view-unwatched`, `#view-watched`, `#view-archive`) `.rec-search-input` kutusunu açar; masaüstünde butonun **soluna**, mobilde dizi/film/belgesel/anime için yine **butonun soluna** (buton 60px → kutu 92px, arşiv anahtarı varken 90px → 122px), izlenmiş/izlenmemiş ve arşivde **dotted turuncu çizginin 3px altına**, sağ kenarı çizginin bittiği noktaya hizalı.
