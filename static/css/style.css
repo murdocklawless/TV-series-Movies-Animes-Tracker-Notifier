@@ -1809,6 +1809,13 @@ input:-webkit-autofill:focus {
 /* 2.19.27: BÖLÜM İÇİ ARAMA sonuç modalı — LOKAL ARA'dan AYRI modal.
    Görsel dil LOKAL ARA ile aynı; yazma yüzeyi her platformda header'daki kutudur
    (mobilde de ayrı header kutusu yok, doğrudan bu kutu kullanılır). */
+/* 2.19.28: katman sırası — bu panel .modal-overlay'lerin (z-index 200) ALTINDA
+   kalır. Kartın bilgi modalı ve takvim (releases) modalı bu panelin ÜSTÜNDE
+   açılır; panel açık kalır, ESC önce üstteki modalı kapatır. */
+#section-results-modal {
+  z-index: 190;
+}
+
 .section-results-input {
   flex: 0 1 240px;
   min-width: 0;
@@ -6268,19 +6275,21 @@ body.logged-out main { padding: 0; }
 /* Faz 31c: onay modali iki satirli metin (silme onayi soru + aciklama) */
 #confirm-text { white-space: pre-line; }
 /* Desktop bolum filtre menuleri (601px+, TV haric; mobil mobil.css'ten gelir):
-   - Izlenmis/izlenmemis + oneriler: sag kenar turuncu cizginin en sagina
-     dayali (menu wrap'in cocugu oldugu icin wrap'in h2 sag boslugu kadar
-     negatiflenir: izlenmis/izlenmemis -52px, oneriler -112px).
-   - Tum bolum menuleri (dizi/film/belgesel/anime dahil) 3px asagi. */
+   - Menunun SAG DIKEY KENARI turuncu dotted cizginin sag bitis noktasina (= h2 sag
+     kenari) hizali. Menu, konumlandirilmis .section-sort-wrap'in cocugu oldugu icin
+     wrap'in sag ofseti kadar NEGATIFE cekilir: dizi/film/belgesel/anime -30px
+     (arsiv anahtari varken -60px), izlenmis/izlenmemis + arsiv -82px, oneriler -142px.
+   - Tum bolum menuleri 3px asagi. */
 @media (min-width: 601px) {
   html:not(.is-tv):not(.tv-mode) #view-unwatched .follow-sort-menu.sort-menu,
-  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu {
-    right: -52px;
+  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-archive .follow-sort-menu.sort-menu {
+    right: -82px;
     top: calc(100% + 11px);
   }
   html:not(.is-tv):not(.tv-mode) #view-recommend .rec-sort-menu {
     left: auto;
-    right: -112px;
+    right: -142px;
     transform: none;
     top: calc(100% + 11px);
   }
@@ -6288,7 +6297,19 @@ body.logged-out main { padding: 0; }
   html:not(.is-tv):not(.tv-mode) #view-film .follow-sort-menu.sort-menu,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .follow-sort-menu.sort-menu,
   html:not(.is-tv):not(.tv-mode) #view-anime .follow-sort-menu.sort-menu {
+    right: -30px;
     top: calc(100% + 11px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-film .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .follow-sort-menu.sort-menu {
+    right: -60px;
+  }
+  #view-recommend #feed-header .rec-sort-menu {
+    left: auto;
+    right: -90px;
+    transform: none;
   }
 }
 

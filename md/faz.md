@@ -1326,3 +1326,21 @@
 - **Doğrulama:** `node --check` (views/tv/rowview) + `py_compile` (recommendations, routes/recommendations) OK; değişen statik dosyalarda `BOM=0`, `U+FFFD=0`, `moji=0`; `py/jsver.py bump` → build **659**, `check` → OK.
 - **Sürüm:** 2.19.27 (DB `version` + `VERSION` eşit). Yedek: `bak/2.19.27_bolum_arama_modal_<ts>/` (yerel + pi).
 
+
+## FAZ NOTLARI — Bölüm içi arama kutusu + sonuç modalı katmanı + filtre menüsü hizası (2026-10-23, sürüm 2.19.28)
+
+- **Bildirilen:** (1) Bölüm başlıklarındaki büyüteçte eski satır içi arama kutusu akışı geri istendi: kutu açılsın, **kutuya yazınca** sonuç modalı açılsın, kartlar yazıya göre süzülüp **azalsın**; karta tıklayınca bilgi modalı açılsın, kart butonları çalışsın; takvim (releases) ve bilgi modalları arama sonuç modalının **üstünde** açılsın. (2) Mobil + masaüstünde filtre menüsünün **sağ dikey kenarı** turuncu dotted çizginin sağ bitiş noktasıyla hizalansın.
+- **Karar (kullanıcı seçimi):** "Yazınca sonuç modalı açılsın" — kutu yalnız ilk adım; ilk karakterde kutu kapanır, metin modala devredilir ve yazıya modalın kendi kutusunda devam edilir. (Alternatif "yerinde süzme" reddedildi.)
+- **JS (`static/js/views.js`):**
+  - Yeni `followSearchInputFor(section)` — bölümün `.rec-search-input` kutusunu `followSectionView` üzerinden bulur.
+  - `openSectionResults(section, initialQuery)` — ikinci parametre eklendi: modal kutusuna başlangıç metni yazılır, `setSelectionRange(seed, seed)` ile imleç sona alınır (`preventScroll`, TV UI'da atlanır).
+  - `closeSectionResults()` — kapanışta satır içi kutu da sıfırlanır (`value=""`, `display:none`, `.open` kaldırılır).
+  - `wireFollowSearch()` yeniden yazıldı: büyüteç tıklaması kutuyu **açar/kapatır** (`.open` + `display:block`, odak kutuda); kutu `input` olayında **ilk boş olmayan karakterde** `closeBox` + `openSectionResults(section, q)`; Escape kutuyu kapatır; `closeOtherBoxes` `.rec-search-input.open` üzerinden çalışır.
+  - **Değişmeyen:** kartlar klonlanmaz, bölüm grid'inden **taşınır** (2.19.27 davranışı) — kart tıklaması bilgi modalını açar, butonlar bölümün kendi handler'larıyla çalışır; LOKAL ARA (`#local-search-modal`) hiç dokunulmadı.
+- **CSS katman (`static/css/style.css`):** `#section-results-modal { z-index: 190 }` (ID seçici `.modal-overlay`in 200'ünü ezer) → bilgi ve takvim modalları panelin üstünde açılır; ESC yakalama fazı zaten "üstte modal varsa önce onu kapat" kuralını uygular.
+- **CSS hiza (`style.css` masaüstü `@media (min-width:601px)` + `mobil.css` `@media (max-width:600px)`):** menü `.section-sort-wrap`'in çocuğu olduğu için wrap'in sağ ofseti kadar **negatif** `right` verilir. Efektif ofsetler: dizi/film/belgesel/anime **30px** (arşiv anahtarı varken **60px**), izlenmiş/izlenmemiş + arşiv **82px**, öneriler **142px** masaüstü / **122px** mobil, öneri feed başlığı **90px** masaüstü / **75px** mobil → menü `-30/-60/-82/-142/-122/-90/-75px`.
+- **CSS kutu (`mobil.css`):** dizi/film/belgesel/anime kutusu artık **butonun solunda** (`right:92px`, arşiv anahtarı varken `122px`, `top:40%`, `translateY(-50%)`, genişlik 170px, `max-width: calc(100vw - 130px)`); izlenmiş/izlenmemiş ve arşiv `right:0` + `top: calc(100% + 3px)` (çizginin 3px altı, sağ kenar hizalı). Masaüstü ofsetleri (`.rec-search-input`) zaten `92/122/142px` idi.
+- **Temizlik:** `mobil.css` içinde kalan yinelenen/eski filtre menüsü yorumu kaldırıldı; feed başlığı menüsü tek kaynağa indirildi (eski `right:0` kuralı `-75px` yapıldı, geçersiz kılınan kopya silindi).
+- **Doğrulama:** `node --check static/js/views.js` → OK, `​` (ZWSP) taraması 0; `py/jsver.py check` → **OK (build 660)**; modül grafı named-import bağ testi → **LINK_TEMIZ**; CSS parantez dengesi style 1132/1133 (2.19.27'den beri süregelen fazlalık), mobil 235/235; dosyalarda `BOM=0`, `U+FFFD=0`, `moji=0`.
+- **Dağıtım:** pi `bak/bolum_arama_20261023_180637/` yedeği (15 dosya), ardından 15 dosya scp — md5 **15/15 eşit**, servis `active`, canlı `style.css?v=636` / `mobil.css?v=554` / `nextep.js?v=660` (`__NX_BUILD "660"`). Statik değişiklik → restart gerekmedi, tarayıcıda **Ctrl+F5**.
+- **Sürüm:** 2.19.28 — pi DB `version` (`UPDATE version SET number='2.19.28'`) + `VERSION` dosyası eşitlendi; DB yedeği `bak/2.19.28_bolum_arama_20261023_180637/` (`nextep.db.pre` güncelleme öncesi satırla, `nextep.db` sonrası; `integrity_check=ok`).

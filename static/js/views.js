@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=659";
+import { t } from "./i18n.js?v=660";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=659";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=659";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=659";
+} from "./utils.js?v=660";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=660";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=660";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -2974,7 +2974,14 @@ function renderSectionResults(fresh) {
   sectionResultsApplyFilter();
 }
 
-function openSectionResults(section) {
+// Bölümün satır içi arama kutusu (başlıktaki büyütecin açtığı .rec-search-input).
+function followSearchInputFor(section) {
+  const viewId = followSectionView[section] || "view-dizi";
+  try { return document.querySelector(`#${viewId} .rec-search-input[data-section="${section}"]`); } catch (_) { return null; }
+}
+
+// initialQuery: satır içi kutuya yazılan ilk metin modala devredilir (2.19.28).
+function openSectionResults(section, initialQuery) {
   const grid = followSectionGrid(section);
   if (!grid) return;
   const st = sectionResultsState;
@@ -2986,12 +2993,16 @@ function openSectionResults(section) {
   const titleEl = sectionResultsEl("section-results-title");
   const inp = sectionResultsEl("section-results-input");
   if (titleEl) titleEl.textContent = sectionResultsTitle(section);
-  if (inp) inp.value = "";
+  if (inp) inp.value = initialQuery == null ? "" : String(initialQuery);
   if (modalEl) modalEl.style.display = "flex";
   document.querySelectorAll(`.section-search[data-section="${section}"]`).forEach((b) => b.classList.add("active"));
   renderSectionResults(false);
+  const seed = inp ? inp.value.length : 0;
   if (!isTvUIActive() && inp) {
-    setTimeout(() => { try { inp.focus(); } catch (_) {} }, 20);
+    setTimeout(() => {
+      try { inp.focus({ preventScroll: true }); inp.setSelectionRange(seed, seed); }
+      catch (_) { try { inp.focus(); } catch (_) {} }
+    }, 20);
   }
 }
 
@@ -3017,6 +3028,9 @@ function closeSectionResults() {
   // kendi satır içi arama kutusu .active durumunu kullanıyor, ona dokunulmaz.
   if (sec) {
     document.querySelectorAll(`.section-search[data-section="${sec}"]`).forEach((b) => b.classList.remove("active"));
+    // 2.19.28: satır içi kutu da sıfırlanır (modal kapandı → arama baştan başlar).
+    const box = followSearchInputFor(sec);
+    if (box) { box.value = ""; box.style.display = "none"; box.classList.remove("open"); }
   }
   try { if (sec) applyFollowSectionState(sec); } catch (_) {}
   try { if (sec) updateFollowSectionControls(sec); } catch (_) {}
@@ -3245,10 +3259,57 @@ document.addEventListener("app:external-refresh", () => {
   try { refreshListsAfterWatch(); } catch (_) {}
 });
 (function wireFollowSearch() {
-  // 2.19.27: bölüm başlığındaki büyüteç satır içi filtre yerine KENDİ sonuç modalını
-  // açar (#section-results-modal). Sayfadaki kartlar artık süzülmez; arama modalda.
-  document.querySelectorAll("#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search, #view-archive .section-search").forEach((btn) => {
-    btn.onclick = () => { openSectionResults(btn.dataset.section); };
+  // 2.19.28: bölüm başlığındaki büyüteç YİNE satır içi arama kutusunu açar
+  // (yerleşim: masaüstünde butonun solu; mobilde dizi/film/belgesel/anime için
+  // butonun solu, izlenmiş/izlenmemiş için dotted çizginin 3px altı + sağ bitişi).
+  // Kutuya YAZILINCA bölümün sonuç modalı (#section-results-modal) açılır, kartlar
+  // yazıya göre süzülür; yazıya devam modalın kendi kutusunda edilir (kartlar azalır).
+  const FOLLOW_SEARCH_BTN = "#view-dizi .section-search, #view-film .section-search, #view-belgesel .section-search, #view-anime .section-search, #view-unwatched .section-search, #view-watched .section-search, #view-archive .section-search";
+  const FOLLOW_SEARCH_INP = "#view-dizi .rec-search-input, #view-film .rec-search-input, #view-belgesel .rec-search-input, #view-anime .rec-search-input, #view-unwatched .rec-search-input, #view-watched .rec-search-input, #view-archive .rec-search-input";
+
+  function boxButton(box) {
+    try { return box.closest("h2").querySelector(`.section-search[data-section="${box.dataset.section}"]`); } catch (_) { return null; }
+  }
+  function closeBox(box) {
+    if (!box) return;
+    box.value = "";
+    box.style.display = "none";
+    box.classList.remove("open");
+    const btn = boxButton(box);
+    if (btn) btn.classList.remove("active");
+  }
+  function closeOtherBoxes(except) {
+    document.querySelectorAll(".rec-search-input.open").forEach((i) => { if (i !== except) closeBox(i); });
+  }
+
+  document.querySelectorAll(FOLLOW_SEARCH_BTN).forEach((btn) => {
+    btn.onclick = () => {
+      const section = btn.dataset.section;
+      const box = followSearchInputFor(section);
+      if (!box) return;
+      const isOpen = box.classList.contains("open");
+      closeOtherBoxes(box);
+      if (isOpen) { closeBox(box); return; }
+      box.value = "";
+      box.style.display = "block";
+      box.classList.add("open");
+      btn.classList.add("active");
+      try { box.focus({ preventScroll: true }); } catch (_) { try { box.focus(); } catch (_) {} }
+    };
+  });
+
+  document.querySelectorAll(FOLLOW_SEARCH_INP).forEach((box) => {
+    box.addEventListener("input", () => {
+      const section = box.dataset.section;
+      const q = box.value || "";
+      if (!q.trim()) return;              // boş metin: kutu açık kalır
+      closeBox(box);                      // yazma yüzeyi artık modalın kendi kutusu
+      openSectionResults(section, q);
+    });
+    box.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && box.classList.contains("open")) closeBox(box);
+      e.stopPropagation();
+    });
   });
 })();
 

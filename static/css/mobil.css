@@ -940,20 +940,28 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
     border-radius: 50% !important;
   }
   html:not(.is-tv):not(.tv-mode) .section-summary { font-size: 0.5rem; }
-  /* Mobil bolum arama kutulari: sag kenar turuncu cizginin en sag noktasina
-     (h2 sag kenari, right:0) hizali, ust kenar cizginin 3px alti (filtre
-     menusuyle ayni hizada). Genislik sabit 160px. */
+  /* Mobil bolum arama kutulari:
+     - dizi/film/belgesel/anime: masaustundeki gibi ARAMA BUTONUNUN SOLUNA dogru
+       acilir (buton 60px'te -> kutu 92px'te; arsiv anahtari varken 90px -> 122px).
+     - izlenmis/izlenmemis: dotted turuncu cizginin 3px altinda, sag kenari cizginin
+       en sag bitti noktasina (h2 sag kenari, right:0) hizali. Genislik sabit 160px. */
   html:not(.is-tv):not(.tv-mode) #view-dizi .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-film .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-anime .rec-search-input.open {
     position: absolute;
     left: auto;
-    right: 0;
-    top: calc(100% + 3px);
-    transform: none;
-    width: 160px;
-    max-width: 45vw;
+    right: 92px;
+    top: 40%;
+    transform: translateY(-50%);
+    width: 170px;
+    max-width: calc(100vw - 130px);
+  }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .has-archived-toggle .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-film .has-archived-toggle .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .has-archived-toggle .rec-search-input.open,
+  html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .rec-search-input.open {
+    right: 122px;
   }
   html:not(.is-tv):not(.tv-mode) #view-unwatched .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-watched .rec-search-input.open {
@@ -974,27 +982,33 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
     width: 160px;
     max-width: 45vw;
   }
-  /* Mobil bolum filtre menuleri: sag kenar turuncu cizginin en sag
-     noktasina (h2 sag kenarina) dayali, arama kutusuyla ayni hizada
-     (ust kenar cizginin ~3px alti = wrap_alt + 10px).
-     Menu wrap'in cocugu oldugu icin right negatiflenir (wrap'in h2 sag
-     boslugu kadar): dizi grubu -12px, izlenmis/izlenmemis -52px. */
+  /* Mobil bolum filtre menuleri: SAG DIKEY KENAR turuncu cizginin en sag
+     bittigi noktaya (h2 sag kenari) dayali. Menu wrap'in cocugu oldugu icin
+     wrap'in sag ofseti kadar negatiflenir: dizi grubu -30px (arsiv anahtari
+     varken -60px), izlenmis/izlenmemis + arsiv -82px, oneriler -122px. */
   html:not(.is-tv):not(.tv-mode) #view-dizi .follow-sort-menu.sort-menu,
   html:not(.is-tv):not(.tv-mode) #view-film .follow-sort-menu.sort-menu,
   html:not(.is-tv):not(.tv-mode) #view-belgesel .follow-sort-menu.sort-menu,
   html:not(.is-tv):not(.tv-mode) #view-anime .follow-sort-menu.sort-menu {
     position: absolute;
     top: calc(100% + 10px);
-    right: 0;
+    right: -30px;
     left: auto;
     transform: none;
     max-width: calc(100vw - 16px);
   }
+  html:not(.is-tv):not(.tv-mode) #view-dizi .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-film .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .has-archived-toggle .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .follow-sort-menu.sort-menu {
+    right: -60px;
+  }
   html:not(.is-tv):not(.tv-mode) #view-unwatched .follow-sort-menu.sort-menu,
-  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu {
+  html:not(.is-tv):not(.tv-mode) #view-watched .follow-sort-menu.sort-menu,
+  html:not(.is-tv):not(.tv-mode) #view-archive .follow-sort-menu.sort-menu {
     position: absolute;
     top: calc(100% + 10px);
-    right: -52px;
+    right: -82px;
     left: auto;
     transform: none;
     max-width: calc(100vw - 16px);
@@ -1003,7 +1017,7 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
     position: absolute;
     top: calc(100% + 10px);
     left: auto;
-    right: -97px;
+    right: -122px;
     transform: none;
     max-width: calc(100vw - 16px);
   }
@@ -1110,7 +1124,7 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-sort-wrap { right: 75px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-refresh   { right: 25px; }
   html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .section-hide      { right: 0; }
-  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .rec-sort-menu     { left: auto; right: 0; transform: none; }
+  html:not(.is-tv):not(.tv-mode) #view-recommend #feed-header .rec-sort-menu     { left: auto; right: -75px; transform: none; }
 }
 
 /* Oneriler besleme pulldown'lari: mobilde 140px + tek satir */
