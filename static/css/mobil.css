@@ -944,7 +944,7 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
      - dizi/film/belgesel/anime: masaustundeki gibi ARAMA BUTONUNUN SOLUNA dogru
        acilir (buton 60px'te -> kutu 92px'te; arsiv anahtari varken 90px -> 122px).
        2.19.29: kutu YATAY DOTTED CIZGININ 3px USTUNDE durur (alt kenar cizgiye
-       3px mesafe, top:auto + bottom:3px) ve genisligi 100px'tir. Genislik
+       3px mesafe, top:auto + bottom:3px). 2.19.30: genislik 125px'tir. Genislik
        yalniz bu dort bolumde degisir; izlenmis/izlenmemis, arsiv, oneriler,
        masaustu ve APK/TV olculeri korunur.
      - izlenmis/izlenmemis: dotted turuncu cizginin 3px altinda, sag kenari cizginin
@@ -959,8 +959,8 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
     top: auto;
     bottom: 3px;
     transform: none;
-    width: 100px;
-    max-width: 100px;
+    width: 125px;
+    max-width: 125px;
   }
   html:not(.is-tv):not(.tv-mode) #view-dizi .has-archived-toggle .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-film .has-archived-toggle .rec-search-input.open,

@@ -1355,3 +1355,12 @@
 - **Cache-buster:** `static/index.html` → `mobil.css?v=554` → **555** (style 636, tablet 514, tv 561, JS build 660 aynı).
 - **Doğrulama:** CSS parantez dengesi mobil 235/235; `BOM=0`, `U+FFFD=0`; pi'de 2 dosya md5 **eşit**, canlı `mobil.css?v=555`, `nextep.service active`; statik → restart yok.
 - **Sürüm:** 2.19.29 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/arama_kutusu_100px_20261023_183756/` — yerelde HEAD kopyaları (`static/css/mobil.css`, `static/index.html`), pi'de aynı iki dosya + `nextep.db.pre` (güncelleme öncesi) ve `nextep.db` (sonrası).
+
+## FAZ NOTLARI — Mobil bölüm arama kutusu genişliği 125px (2026-10-23, sürüm 2.19.30)
+
+- **Bildirilen:** dizi / film / belgesel / anime bölüm başlığındaki arama kutusu 100px'ten **125px**'e çıkarılsın; **yalnız mobil** — masaüstü ve APK değişmeyecek. (Önce 150px planlandı, "150 çok olacak" geri bildirimiyle 125px'e çekildi.)
+- **Değişiklik (`static/css/mobil.css`, `@media (max-width:600px)`):** `width: 100px; max-width: 100px` → **`width: 125px; max-width: 125px`** (yorum satırı 2.19.30 notuyla güncellendi). Konum aynı: `right: 92px` (arşiv anahtarı varken `122px`), `top:auto; bottom:3px` → alt kenar dotted çizginin **3px üstünde**.
+- **Kapsam:** kural `html:not(.is-tv):not(.tv-mode) #view-dizi|#view-film|#view-belgesel|#view-anime .rec-search-input.open` → **masaüstü** (`style.css` taban `width:230px` + `#view-*` ofsetleri) ve **APK/TV** (`tv.css`, `html.is-tv`) değişmedi; izlenmiş/izlenmemiş (`160px`, çizginin 3px altı), arşiv ve öneriler de aynı.
+- **Cache-buster:** `static/index.html` → `mobil.css?v=555` → **556** (style 636, tablet 514, tv 561, JS build 660 aynı).
+- **Doğrulama:** `git diff` yalnız `static/css/mobil.css` (2 bildirim + yorum) ve `static/index.html` (`?v=`) — başka dosya değişmedi; CSS parantez 235/235; `BOM=0`, `U+FFFD=0`; pi'de 2 dosya md5 **eşit**, canlı `mobil.css?v=556`, `nextep.service active`; statik → restart yok.
+- **Sürüm:** 2.19.30 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/arama_kutusu_125px_20261023_185406/` — yerelde HEAD kopyaları, pi'de `mobil.css`, `index.html`, `nextep.db.pre` (güncelleme öncesi) + `nextep.db` (sonrası).

@@ -1,6 +1,20 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.19.30 - 23/10/2026-18:55
+### TR
+- **Mobil bölüm arama kutusu genişliği 125px:** dizi / film / belgesel / anime bölüm başlıklarındaki satır içi arama kutusu `100px` → **`125px`** (`width:125px; max-width:125px`). Konum değişmedi: butonun solunda (`right:92px`, arşiv anahtarı varken `122px`) ve **alt kenarı dotted turuncu çizginin 3px üstünde** (`top:auto; bottom:3px`).
+- **Sadece mobil:** kural `html:not(.is-tv):not(.tv-mode)` + `@media (max-width:600px)` içinde → **masaüstü** (`style.css`, taban `width:230px`) ve **APK/TV** (`tv.css`, `html.is-tv`) **değişmedi**. İzlenmiş / izlenmemiş (`160px`, çizginin 3px altı), arşiv ve öneriler de aynı kaldı.
+- **Cache-buster:** `mobil.css?v=555` → **556** (style 636, tablet 514, tv 561, JS build 660 aynı).
+- **Doğrulama:** `git diff` yalnız `mobil.css` (2 satır + yorum) ve `index.html` (`?v=`) — başka dosya yok; CSS parantez 235/235, `BOM=0`, `U+FFFD=0`; pi'de md5 **eşit**, canlı `mobil.css?v=556`, servis `active`; statik → restart yok.
+- **Sürüm:** 2.19.30 (DB `version` + `VERSION` eşit, integrity ok). Yedek: `bak/arama_kutusu_125px_20261023_185406/` — yerelde HEAD kopyaları; pi'de `mobil.css`, `index.html`, `nextep.db.pre` + `nextep.db`.
+### EN
+- **Mobile section search box width 125px:** the inline search box in the dizi / film / belgesel / anime headers goes `100px` → **`125px`** (`width:125px; max-width:125px`). Position unchanged: left of the button (`right:92px`, `122px` with the archive toggle) and its **bottom edge 3px above the orange dotted line** (`top:auto; bottom:3px`).
+- **Mobile only:** the rule lives under `html:not(.is-tv):not(.tv-mode)` + `@media (max-width:600px)`, so **desktop** (`style.css`, base `width:230px`) and **APK/TV** (`tv.css`, `html.is-tv`) are **unchanged**. Watched / unwatched (`160px`, 3px below the line), archive and recommendations stay as they were.
+- **Cache-buster:** `mobil.css?v=555` → **556** (style 636, tablet 514, tv 561, JS build 660 unchanged).
+- **Verified:** `git diff` touches only `mobil.css` (2 declarations + comment) and `index.html` (`?v=`); CSS braces 235/235, `BOM=0`, `U+FFFD=0`; on pi md5-equal, `mobil.css?v=556` live, service `active`; static-only → no restart.
+- **Version:** 2.19.30 (DB `version` + `VERSION` in lockstep, integrity ok). Backup: `bak/arama_kutusu_125px_20261023_185406/` — HEAD copies locally; on pi `mobil.css`, `index.html`, `nextep.db.pre` + `nextep.db`.
+
 ## 2.19.29 - 23/10/2026-18:40
 ### TR
 - **Mobil bölüm arama kutusu konumu:** dizi / film / belgesel / anime bölüm başlıklarındaki satır içi arama kutusu artık **dotted turuncu yatay çizginin 3px üzerinde** duruyor — `top: 40%` + `translateY(-50%)` yerine `top: auto; bottom: 3px; transform: none` (kutunun **alt kenarı** çizgiye 3px mesafede; kutu kısa olduğu için üst kenarı başlığın ~2-3px üstüne taşabilir).
