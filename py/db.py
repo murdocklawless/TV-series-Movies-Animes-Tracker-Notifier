@@ -98,6 +98,52 @@ def init_db():
     # Arsiv (1.83): takipten cikarmadan yapimi arsive alir; bildirimler durur.
     if "archived" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN archived INTEGER DEFAULT 0")
+    # 2.20.0 rev2 (madde 4): kart basina EKLEMELI nadir kontrol capalari.
+    # added_at = kartin eklenme ani; season_check_at = siradaki eski-sezon
+    # taramasi (eklenme + 45 gun); detail_check_at = siradaki detay/credits
+    # tazelemesi (eklenme + 90 gun). Her turdan sonra +45/+90 eklenir.
+    if "added_at" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN added_at INTEGER")
+    if "season_check_at" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN season_check_at INTEGER")
+    if "detail_check_at" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN detail_check_at INTEGER")
+    # Yeni kartlar: INSERT sonrasi capalar otomatik kurulur (tum ekleme yollari
+    # ayni kurala uysun diye INSERT'lere dokunmak yerine TRIGGER kullanilir).
+    try:
+        conn.execute(
+            """CREATE TRIGGER IF NOT EXISTS followed_anchor_ai AFTER INSERT ON followed
+               WHEN NEW.added_at IS NULL
+               BEGIN
+                 UPDATE followed SET
+                   added_at = CAST(strftime('%s','now') AS INTEGER),
+                   season_check_at = CAST(strftime('%s','now') AS INTEGER) + 45*86400,
+                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + 90*86400
+                 WHERE id = NEW.id;
+               END"""
+        )
+    except Exception:
+        pass
+    # Mevcut (eski) kartlar: gercek eklenme tarihi bilinmedigi icin capalar BIR
+    # KEZ dagitilir — hepsi ayni gune yigilmasin (kullanici kurali: "tum kartlar
+    # ayni gun kontrol edilmesin"). Ilk tur 90 gune esit yayilir.
+    try:
+        legacy = conn.execute(
+            "SELECT id FROM followed WHERE added_at IS NULL"
+        ).fetchall()
+        _now = int(datetime.datetime.now().timestamp())
+        for _r in legacy:
+            _id = int(_r["id"])
+            _age = (_id * 7) % 90                 # gecmis eklenme yasi (gun, deterministik)
+            _added = _now - _age * 86400
+            _season = _now + ((_id * 13) % 45) * 86400
+            _detail = _now + ((_id * 7) % 90) * 86400
+            conn.execute(
+                "UPDATE followed SET added_at=?, season_check_at=?, detail_check_at=? WHERE id=?",
+                (_added, _season, _detail, _id),
+            )
+    except Exception:
+        pass
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -214,6 +260,36 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN in_watched INTEGER DEFAULT 0")
     if "deferred" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN deferred INTEGER DEFAULT 0")
+    # 2.20.0 rev2 (madde 4): anime icin de capalar (bitmis: 90 gun, yayinda: 7 gun).
+    if "added_at" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN added_at INTEGER")
+    if "detail_check_at" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN detail_check_at INTEGER")
+    try:
+        conn.execute(
+            """CREATE TRIGGER IF NOT EXISTS anime_anchor_ai AFTER INSERT ON anime
+               WHEN NEW.added_at IS NULL
+               BEGIN
+                 UPDATE anime SET
+                   added_at = CAST(strftime('%s','now') AS INTEGER),
+                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + 90*86400
+                 WHERE id = NEW.id;
+               END"""
+        )
+    except Exception:
+        pass
+    try:
+        _alegacy = conn.execute("SELECT id FROM anime WHERE added_at IS NULL").fetchall()
+        _anow = int(datetime.datetime.now().timestamp())
+        for _r in _alegacy:
+            _id = int(_r["id"])
+            _age = (_id * 11) % 90
+            conn.execute(
+                "UPDATE anime SET added_at=?, detail_check_at=? WHERE id=?",
+                (_anow - _age * 86400, _anow + ((_id * 17) % 90) * 86400, _id),
+            )
+    except Exception:
+        pass
     if "poster_local" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN poster_local TEXT")
     if "poster_local_w185" not in acols:

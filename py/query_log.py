@@ -411,19 +411,32 @@ def _iter_records(path):
         return
 
 
-def stats_today(service, window_sec=10):
-    """Bugun (05:00'dan beri) agdan yapilan istek sayisi + pencere pik dolulugu."""
+def stats_today(service, window_sec=10, since=None):
+    """Bugun (05:00'dan beri) agdan yapilan istek sayisi + pencere pik dolulugu.
+
+    2.20.0 rev2: `since` (epoch) verilirse yalniz o andan SONRAKI kayitlar sayilir.
+    Panel sayaci 05:00 hesap gunune hizalanirken, 05:00 ile dosya devri
+    arasindaki boslukta canli dosyada hala duran ONCEKI gun kayitlari
+    sayilmasin diye kullanilir (aksi halde panel 2 gunu toplar).
+    """
     window_sec = int(window_sec or 10)
+    try:
+        since = float(since) if since else None
+    except (TypeError, ValueError):
+        since = None
     total = 0
     stamps = []
     for rec in _iter_records(_live_path()):
         if rec.get("svc") != service or rec.get("src") != "net":
             continue
-        total += 1
         try:
-            stamps.append(datetime.datetime.fromisoformat(rec.get("t")).timestamp())
+            ts = datetime.datetime.fromisoformat(rec.get("t")).timestamp()
         except Exception:
             continue
+        if since is not None and ts < since:
+            continue
+        total += 1
+        stamps.append(ts)
     peak = 0
     if stamps:
         stamps.sort()

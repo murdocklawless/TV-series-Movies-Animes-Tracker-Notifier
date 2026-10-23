@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from db import get_db, get_setting
+from db import get_db, get_setting, set_setting
 from tmdb import tmdb_request
 from anilist import anilist_query, _anime_title, _anime_cover, _anime_next_ep
 import query_log
@@ -38,6 +38,20 @@ MEDIA_ORDER = ("dizi", "film", "belgesel", "anime")
 
 FEED_LIMIT = 18
 POOL_BUFFER = 60
+# 2.20.0 rev2 (feed D): belgesel havuzu AYDA BIR tazelenir (dar kitle, pahali havuz).
+FEED_DOCS_DAYS = 30
+# 2.20.0 rev2 (feed B): saglayici kaynaklari tek platformlu -> kartin platform
+# etiketi kaynaktan bilinir; film/belgesel kartlari icin TMDB detay istegi
+# ATILMAZ (tv kartlarinda status icin detay yine cekilir).
+PROVIDER_LABELS = {
+    "netflix": "Netflix",
+    "hbo_max": "HBO Max",
+    "disney_plus": "Disney+",
+    "paramount": "Paramount+",
+    "apple_tv": "Apple TV+",
+    "prime_video": "Prime Video",
+    "amc": "AMC+",
+}
 
 # TMDB watch provider ID'leri (US katalogu). Bölge sabit: kullanıcı tercihi değil.
 REGION = "US"
@@ -227,7 +241,7 @@ def _norm_anime(m):
 
 # ---------------- kaynak havuzları ----------------
 
-def _tmdb_pages(path, base_params, norm, wanted, pages=(1, 2, 3)):
+def _tmdb_pages(path, base_params, norm, wanted, pages=(1, 2)):
     out = []
     seen = set()
     for page in pages:
@@ -352,7 +366,11 @@ def _anime_pool(source, wanted):
 
 
 def _fetch_pool(media, source):
-    """Ham aday havuzu (dışlama uygulanmaz). random: dört tür karışık."""
+    """Ham aday havuzu (dislama uygulanmaz). random: dort tur karisik.
+
+    2.20.0 rev2 (feed B): saglayici kaynaklarinda ogelere `source_provider` yazilir;
+    boylece film/belgesel kartlarinin platform etiketi TMDB'ye sorulmadan
+    kaynaktan turetilir."""
     if source == "random":
         if media == "anime":
             pool = _anime_pool("trend", 50)
@@ -363,16 +381,24 @@ def _fetch_pool(media, source):
         else:
             pool = _tmdb_media("tv", "shows", "trend", 50)
         random.shuffle(pool)
-        return pool
-    if media == "anime":
-        return _anime_pool(source, POOL_BUFFER)
-    if media == "belgesel":
-        return _tmdb_docs(source, POOL_BUFFER)
-    if media == "dizi":
-        return _tmdb_media("tv", "shows", source, POOL_BUFFER)
-    if media == "film":
-        return _tmdb_media("movie", "movies", source, POOL_BUFFER)
-    return []
+    elif media == "anime":
+        pool = _anime_pool(source, POOL_BUFFER)
+    elif media == "belgesel":
+        pool = _tmdb_docs(source, POOL_BUFFER)
+    elif media == "dizi":
+        pool = _tmdb_media("tv", "shows", source, POOL_BUFFER)
+    elif media == "film":
+        pool = _tmdb_media("movie", "movies", source, POOL_BUFFER)
+    else:
+        pool = []
+    label = PROVIDER_LABELS.get(source)
+    if label:
+        for it in pool:
+            try:
+                it["source_provider"] = label
+            except Exception:
+                pass
+    return pool
 
 
 # ---------------- üretim ----------------
@@ -450,34 +476,44 @@ def generate_feed(conn, media, source, user_id=None, limit=FEED_LIMIT, force=Fal
     return chosen
 
 
+def _docs_due():
+    """2.20.0 rev2 (feed D): belgesel havuzu en son 30+ gun once tazelendiyse due."""
+    try:
+        last = int(get_setting("feed_docs_last") or 0)
+    except Exception:
+        last = 0
+    return (time.time() - last) >= FEED_DOCS_DAYS * 86400
+
+
+def _docs_mark():
+    try:
+        set_setting("feed_docs_last", int(time.time()))
+    except Exception:
+        pass
+
+
 def refresh_feed_source(source):
-    """Bir kaynağın ham cache'lerini + kart detaylarini yeniler (scheduler).
+    """Bir kaynagin ham cache'lerini yeniler (scheduler).
 
-    1.99: Gösterim sorgusuz olsun diye havuzla birlikte kart detaylari
-    (networks/status, yapimci) da rec_detail'e on-Isitilir.
-
-    2.19.25: `force=True` KALDIRILDI. Eski davranis haftada bir kez havuzun
-    TAMAMININ (60 dizi + 60 film, iki kaynak) detayini yeniden cekiyordu
-    (~360 TMDB istegi / 20 dk). Artik yalnizca rec_detail'te KAYDI OLMAYAN
-    ogeler cekilir; gosterim yolu da ayni kaydi kullanir.
+    2.19.25: havuzun TAMAMININ detayi yeniden cekilmiyordu (force kaldirildi).
+    2.20.0 rev2 (feed A): havuz detay ON-ISITMASI tamamen kaldirildi — kart detayi
+    yalniz GOSTERILEN kartlar icin, gosterim yolunda cekilir (rec_detail
+    kalici oldugu icin her kart en fazla bir kez sorulur).
+    2.20.0 rev2 (feed D): belgesel havuzu ayda bir tazelenir.
     """
     if source not in FEED_SOURCES:
         return
     query_log.begin_run("feed.refresh", sec=f"feed:{source}")
     query_log.set_tag("feed.pool")
+    docs_due = _docs_due()
     try:
         for media in MEDIA_ORDER:
+            if media == "belgesel" and not docs_due:
+                continue
             pool = _fetch_pool(media, source)
             _cache_put(f"{media}:{source}", pool)
-            try:
-                tv_items = [c for c in pool if c.get("media_type") == "tv"]
-                mv_items = [c for c in pool if c.get("media_type") == "movie"]
-                if tv_items:
-                    _attach_tv_details(tv_items, force=False, tag="feed.pool")
-                if mv_items:
-                    _attach_movie_details(mv_items, force=False, tag="feed.pool")
-            except Exception:
-                pass
+            if media == "belgesel":
+                _docs_mark()
     except Exception as e:
         print(f"[feed] refresh hata ({source}): {e}", flush=True)
     finally:

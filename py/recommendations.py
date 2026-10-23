@@ -778,6 +778,12 @@ def _attach_movie_details(items, force=False, tag="rec.detail"):
     force=False ise rec_detail kaydı VARSA (yaştan bağımsız) kullanır; yoksa
     TMDB'den çeker. force=True ise 7 günden eski kayıtları da tazeler.
     Fail-soft: hata durumunda boş kalır."""
+    # 2.20.0 rev2 (feed B): kaynak tek platformlu (netflix/amc/...) -> kartin
+    # platform etiketi kaynaktan bilinir; TMDB detay istegi ATILMAZ.
+    if items and all(it.get("source_provider") for it in items):
+        for it in items:
+            it["networks"] = [it["source_provider"]]
+        return
     now = time.time()
     cached = {}
     missing = []

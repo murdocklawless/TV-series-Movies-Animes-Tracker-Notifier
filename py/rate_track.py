@@ -5,7 +5,7 @@ TVmaze'e kova yok (kayit yalnizca).
 
 Limitler tek yerden ayarlanir (asagidaki LIMITS).
 Kovalar dolu baslar; kayit kuyruklari bos baslar.
-Pik: gun-ici maksimum (pi yerel tarihi), gece yarisinda sifirlanir.
+Pik: gun-ici maksimum (05:00 hesap gunu), 05:00'te sifirlanir.
 """
 
 import collections
@@ -28,7 +28,7 @@ _hits = {name: collections.deque() for name in LIMITS}
 
 # Kuyruklar gun-basi + pencere tutulur; bar sayimi okuma aninda pencereye
 # gore filtrelenir. Pik mandallidir: yalniz record() aninda yukselir,
-# snapshot() asla yeniden saymaz (titreme yapmaz), gece yarisinda sifirlanir.
+# snapshot() asla yeniden saymaz (titreme yapmaz), 05:00'te sifirlanir.
 _PEAK_STEP = 60  # korunuyor (eski test uyumlulugu); taramada artik kullanilmiyor
 _peak = {name: 0 for name in LIMITS}
 _total = {name: 0 for name in LIMITS}
@@ -49,16 +49,39 @@ _now = time.monotonic  # testler sahte saat enjekte eder
 _wall = time.time  # testler sahte duvar-saati enjekte eder
 
 
+def _billing_day_key():
+    """2.20.0 rev2: sayac siniri = 05:00 hesap gunu (query_log ile TEK kaynak)."""
+    try:
+        import query_log
+        return query_log.billing_day()
+    except Exception:
+        d = datetime.datetime.fromtimestamp(_wall()) - datetime.timedelta(hours=5)
+        return d.date().isoformat()
+
+
+def _billing_start_epoch():
+    """Hesap gununun baslangic epoch'i (05:00)."""
+    try:
+        import query_log
+        return float(query_log.billing_day_start())
+    except Exception:
+        now_w = _wall()
+        d = datetime.datetime.fromtimestamp(now_w)
+        start = d.replace(hour=5, minute=0, second=0, microsecond=0)
+        if d < start:
+            start -= datetime.timedelta(days=1)
+        return start.timestamp()
+
+
 def _day_start_mono():
-    """Pi yerel tarihiyle gun-basi aninin monotonik karsiligi (gece-yarisi siniri)."""
+    """Hesap gunu basi (05:00) aninin monotonik karsiligi."""
     now_w = _wall()
-    mid_w = datetime.datetime.fromtimestamp(now_w).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-    return _now() - (now_w - mid_w)
+    return _now() - (now_w - _billing_start_epoch())
 
 
 def _today_key():
-    """Pi yerel tarihi (gun-degisimi = pik sifirlama siniri)."""
-    return datetime.datetime.fromtimestamp(_wall()).date().isoformat()
+    """Hesap gunu anahtari (05:00 siniri) — gece yarisi DEGIL."""
+    return _billing_day_key()
 
 
 def _restore_from_log(day_key):
@@ -76,7 +99,9 @@ def _restore_from_log(day_key):
         return
     for name, cfg in LIMITS.items():
         try:
-            total, peak = query_log.stats_today(name, cfg.get("window_sec") or 10)
+            total, peak = query_log.stats_today(
+                name, cfg.get("window_sec") or 10, since=_billing_start_epoch()
+            )
         except Exception:
             continue
         if total > _total.get(name, 0):
@@ -172,8 +197,8 @@ def handle_429(service, response):
 
 def snapshot():
     """{tmdb: {pct, peak, hits}, anilist: {...}, tvmaze: {...}} (yalniz RAM okur).
-    pct: o anki pencere dolulugu; peak: mandalli gun-ici tavan (gece yarisi
-    sifirlanir; trafik yokken kimildamaz, cizgi titremez)."""
+    pct: o anki pencere dolulugu; peak: mandalli gun-ici tavan (05:00 hesap
+    gununde sifirlanir; trafik yokken kimildamaz, cizgi titremez)."""
     now = _now()
     day0 = _day_start_mono()
     out = {}

@@ -362,30 +362,119 @@ def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_pa
     return card
 
 
-def _fetch_show_bundle(tmdb_id, extra_titles=()):
-    """/tv + sezon verisini bir kez çeker.
-    Dönüş: {"seasons": {no: season_data}, "tvmaze_times": ...} ya da None.
-    extra_titles: TVmaze saat eşleşmesi için denenecek ek başlıklar."""
+# --- 2.20.0 rev2: EKLEMELI NADIR KONTROL KADEMELERI (madde a + 4) ---
+# Taze sezon (son bolum <= 30 gun): gunluk. Eski sezon: kartin eklenme tarihine
+# capali 45 gun. Detay/credits: ayni capa ile 90 gun. Statu her gun okunur;
+# statu degisirse kartin TUM sezonlari aninda taranir.
+SEASON_FRESH_DAYS = 30
+SEASON_SLOW_DAYS = 45
+DETAIL_SLOW_DAYS = 90
+DAY_SEC = 86400
+
+
+def _now_epoch():
+    return int(datetime.datetime.now().timestamp())
+
+
+def _season_state(conn, tmdb_id, season):
+    """(eldeki bolum sayisi, son bolum tarihi) — aile tekillemesi (tmdb_id)."""
+    try:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT e.episode) AS have, MAX(e.air_date) AS last_air "
+            "FROM episodes e JOIN followed f ON f.id = e.follow_id "
+            "WHERE f.tmdb_id=? AND e.season=?",
+            (tmdb_id, season),
+        ).fetchone()
+    except Exception:
+        return (0, None)
+    if not row:
+        return (0, None)
+    return (int(row["have"] or 0), row["last_air"])
+
+
+def _fetch_show_bundle(tmdb_id, extra_titles=(), conn=None, rows=None):
+    """/tv + sezon verisini bir kez ceker.
+
+    2.20.0 rev2 kademeleri (conn + rows verilirse):
+      - sezon hic yok / eksik / son bolum tarihi NULL -> cek
+      - son bolum <= 30 gun (taze) -> cek
+      - kartin season_check_at'i geldiyse (45 gun capasi) -> TUM sezonlar
+      - statu degistiyse (kartin kayitli status'u != yeni) -> TUM sezonlar
+    `rows`: ayni tmdb_id'yi takip eden kartlar (capa karsilastirmasi icin).
+    """
     data = tmdb_request(f"/tv/{tmdb_id}")
     if not data:
         return None
-    tvmaze_times = None
-    titles = [data.get("original_name"), data.get("name")]
-    titles.extend(extra_titles or ())
-    for t in titles:
-        if t:
-            tvmaze_times = _tvmaze_episode_times(t)
-            if tvmaze_times is not None:
-                break
+    now = _now_epoch()
+    fresh_cut = (datetime.date.today() - datetime.timedelta(days=SEASON_FRESH_DAYS)).isoformat()
+    status_new = (data.get("status") or "").strip()
+    status_old = ""
+    slow_due = False
+    if rows:
+        try:
+            status_old = (rows[0]["status"] or "").strip()
+        except Exception:
+            status_old = ""
+        for r in rows:
+            try:
+                if int(r["season_check_at"] or 0) <= now:
+                    slow_due = True
+                    break
+            except Exception:
+                continue
+    status_changed = bool(status_old) and bool(status_new) and status_new != status_old
+    full_scan = slow_due or status_changed
     seasons = {}
     for season in data.get("seasons", []):
         season_number = season.get("season_number")
         if season_number is None or season_number == 0:
             continue
+        need = full_scan
+        if conn is None:
+            need = True                      # tekli cagri (yeni takip) -> eski davranis
+        elif not need:
+            have, last_air = _season_state(conn, tmdb_id, season_number)
+            need_count = int(season.get("episode_count") or 0)
+            if have < need_count or not last_air or last_air >= fresh_cut:
+                need = True
+        if not need:
+            continue
         season_data = tmdb_request(f"/tv/{tmdb_id}/season/{season_number}")
         if season_data:
             seasons[season_number] = season_data
-    return {"seasons": seasons, "tvmaze_times": tvmaze_times}
+    tvmaze_times = None
+    if seasons:
+        titles = [data.get("original_name"), data.get("name")]
+        titles.extend(extra_titles or ())
+        for t in titles:
+            if t:
+                tvmaze_times = _tvmaze_episode_times(t)
+                if tvmaze_times is not None:
+                    break
+    return {
+        "seasons": seasons,
+        "tvmaze_times": tvmaze_times,
+        "status": status_new,
+        "status_changed": status_changed,
+        "slow_scan": full_scan,
+        "season_count": sum(1 for s in data.get("seasons", []) if s.get("season_number")),
+        # 2.20.0 rev2: gunluk /tv yanitindan gelen hafif alanlar (ek istek YOK)
+        "vote_average": data.get("vote_average") or 0,
+        "vote_count": data.get("vote_count"),
+        "number_of_seasons": data.get("number_of_seasons"),
+        "number_of_episodes": data.get("number_of_episodes"),
+        "first_air_date": data.get("first_air_date"),
+        "season_list": [
+            {
+                "season_number": _s.get("season_number"),
+                "name": _s.get("name") or "",
+                "air_date": _s.get("air_date"),
+                "episode_count": _s.get("episode_count"),
+            }
+            for _s in (data.get("seasons") or [])
+            if _s.get("season_number") and _s.get("season_number") != 0
+        ],
+    }
 
 
 def _write_episodes(conn, follow, bundle):
@@ -462,17 +551,56 @@ def pop_watch_snapshot(conn, uid, kind, ident):
         return None
 
 
+def _apply_bundle_meta(conn, tmdb_id, bundle):
+    """2.20.0 rev2: statu her gun yazilir (bekci yarin dogru karsilastirsin) ve
+    yalniz YAVAS (45 gun capali / statu degisimi) tarama yapildiysa sezon
+    capasi 45 gun ileri alinir; gunluk taze-sezon cekimi capayi oynatmaz."""
+    if not bundle:
+        return
+    status_new = bundle.get("status") or ""
+    try:
+        conn.execute(
+            "UPDATE followed SET status=?, vote_average=?, vote_count=?, number_of_seasons=?, "
+            "number_of_episodes=?, first_air_date=COALESCE(?, first_air_date), season_list=? "
+            "WHERE tmdb_id=? AND media_type='tv'",
+            (
+                status_new,
+                bundle.get("vote_average") or 0,
+                bundle.get("vote_count"),
+                bundle.get("number_of_seasons"),
+                bundle.get("number_of_episodes"),
+                bundle.get("first_air_date") or None,
+                json.dumps(bundle.get("season_list") or []),
+                tmdb_id,
+            ),
+        )
+    except Exception:
+        pass
+    if bundle.get("slow_scan"):
+        try:
+            nxt = _now_epoch() + SEASON_SLOW_DAYS * DAY_SEC
+            conn.execute(
+                "UPDATE followed SET season_check_at=? WHERE tmdb_id=? AND media_type='tv'",
+                (nxt, tmdb_id),
+            )
+        except Exception:
+            pass
+
+
 def sync_episodes(conn, follow):
     """Takip edilen dizinin tüm sezon/bölüm tarihlerini episodes tablosuna işler."""
     if follow["media_type"] != "tv":
         return
     try:
-        bundle = _fetch_show_bundle(follow["tmdb_id"], (follow["title"],))
+        bundle = _fetch_show_bundle(
+            follow["tmdb_id"], (follow["title"],), conn=conn, rows=[follow]
+        )
     except Exception:
         return
     if not bundle:
         return
     _write_episodes(conn, follow, bundle)
+    _apply_bundle_meta(conn, follow["tmdb_id"], bundle)
     conn.commit()
 
 
@@ -480,7 +608,7 @@ def sync_episodes_multi(conn, follows):
     """Aynı diziyi takip eden TÜM satırlar için tek fetch + satır-bazlı yazım
     (aile ölçeği tekillemesi). Fetch paylaşılır, yazımlar follow_id bazlıdır;
     watched dahil kullanıcı verilerine dokunulmaz. Satır hatası diğerlerini
-    durdurmaz (fail-soft)."""
+    durdurmaz (fail-soft). 2.20.0 rev2: kademeli sezon kararı + statü bekçisi."""
     groups = {}
     for follow in follows:
         if follow["media_type"] != "tv":
@@ -488,7 +616,9 @@ def sync_episodes_multi(conn, follows):
         groups.setdefault((follow["media_type"], follow["tmdb_id"]), []).append(follow)
     for (_mt, tmdb_id), rows in groups.items():
         try:
-            bundle = _fetch_show_bundle(tmdb_id, [r["title"] for r in rows])
+            bundle = _fetch_show_bundle(
+                tmdb_id, [r["title"] for r in rows], conn=conn, rows=rows
+            )
         except Exception:
             continue
         if not bundle:
@@ -498,6 +628,7 @@ def sync_episodes_multi(conn, follows):
                 _write_episodes(conn, r, bundle)
             except Exception:
                 continue
+        _apply_bundle_meta(conn, tmdb_id, bundle)
     conn.commit()
 
 
@@ -545,35 +676,26 @@ def _logged_job(flow):
 
 @_logged_job("sync.releases")
 def sync_releases():
-    """Takip edilen dizi/film verilerini TMDB/TVMaze'den güncelleyip DB'ye işler (dizi bölümleri + film detayları, anime hariç)."""
+    """Takip edilen dizi bolumlerini KADEMELI tazeler; ardindan capasi gelen
+    kartlarin detay/credits verisini yeniler.
+
+    2.20.0 rev2: film detaylari + credits artik ayri bir cron degil, bu run'in
+    sonunda calisan `backfill_votes()` ile gelir (onbellek SICAK) ve yalniz
+    capasi gelen kartlar islenir (eklenme + 90 gun). Ayrica ayri
+    `follow_data_sync` cron'u kaldirildi -> restart cezasi yok."""
     conn = get_db()
     follows = conn.execute("SELECT * FROM followed").fetchall()
-    # Dizi sezon taraması grup başına tek fetch (aile tekillemesi)
+    # Dizi sezon taramasi grup basina tek fetch (aile tekillemesi) + kademeler
     sync_episodes_multi(conn, follows)
-    for follow in follows:
-        if follow["media_type"] == "tv":
-            continue
-        elif follow["media_type"] == "movie":
-            try:
-                info = get_tmdb_info("movie", follow["tmdb_id"])
-                if info:
-                    conn.execute(
-                        "UPDATE followed SET vote_average=?, networks=?, release_date=? WHERE id=?",
-                        (
-                            info.get("vote_average") or 0,
-                            json.dumps(info.get("networks") or []),
-                            info.get("release_date") or follow["release_date"],
-                            follow["id"],
-                        ),
-                    )
-                    _credits = get_tmdb_credits("movie", follow["tmdb_id"])
-                    save_details(conn, follow["id"], info, _credits.get("cast") or [], directors=_credits.get("directors") or [])
-            except Exception:
-                pass
     conn.commit()
     conn.close()
+    # 2.20.0 rev2 (1B): backfill ayni run'da, onbellek sicakken (eskiden 05:20 ayri
+    # cron'du; 05:18 restart'i ~107 fazladan istek uretiyordu).
+    try:
+        _backfill_votes_impl()
+    except Exception as e:
+        print(f"[sync] backfill hata: {e}", flush=True)
     bump()
-
 
 def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None, card=None, score=None, platform=None, status_line=None, status_color=None, user_id=None):
     try:
@@ -936,35 +1058,58 @@ def check_anime_notifications(user_id=None):
 
 @_logged_job("backfill")
 def backfill_votes():
-    """Takip edilen dizi/film ve anime verilerini TMDB/AniList'ten güncel çekip DB'yi yeniler."""
+    """Ayarlar'daki "Puan Kontrol Senkronu" (data_hour) cron'u.
+    2.20.0 rev2: mantik `_backfill_votes_impl` ile TEK kaynaktan gelir; sync
+    run'i de ayni govdeyi cagirir (ic ice run olusturmaz)."""
+    return _backfill_votes_impl()
+
+
+def _backfill_votes_impl():
+    """Capasi gelen kartlarin detay + credits verisini tazeler (2.20.0 rev2).
+
+    Kademe: `followed.detail_check_at` <= simdi (kartin eklenme + 90 gunu)
+    VEYA vizyona girmemis/yeni film (release_date >= bugun - 30 gun) -> her gun.
+    Detay + credits TEK istekte cekilir (append_to_response) -> film basina
+    2 istek yerine 1. Anime: bitmis yapimlar 90 gunde bir, yayinda olanlar
+    haftada bir. Sezon taramasi sync_releases'in isidir; burada tekrarlanmaz."""
     conn = get_db()
-    # Sezon taraması sync_releases'in işidir (05:10); burada tekrarlanmaz (A).
-    # info/cast grup başına tek fetch (aile tekillemesi), yazım satır-bazlıdır.
+    now = _now_epoch()
+    fresh_cut = (datetime.date.today() - datetime.timedelta(days=SEASON_FRESH_DAYS)).isoformat()
     groups = {}
     for row in conn.execute("SELECT * FROM followed").fetchall():
-        groups.setdefault((row["media_type"], row["tmdb_id"]), []).append(row)
+        try:
+            due = int(row["detail_check_at"] or 0) <= now
+        except Exception:
+            due = True
+        fast = row["media_type"] == "movie" and (row["release_date"] or "") >= fresh_cut
+        if due or fast:
+            groups.setdefault((row["media_type"], row["tmdb_id"]), []).append(row)
     for (_mt, _tid), rows in groups.items():
         try:
-            info = get_tmdb_info(_mt, _tid)
-        except Exception:
-            continue
-        if not info:
-            continue
-        try:
-            _credits = get_tmdb_credits(_mt, _tid)
+            if _mt == "tv":
+                params = {"append_to_response": "credits,aggregate_credits"}
+            else:
+                params = {"append_to_response": "credits"}
+            data = tmdb_request(f"/{_mt}/{_tid}", params=params, tag="backfill")
+            if not data:
+                continue
+            info = get_tmdb_info(_mt, _tid, data=data, tag="backfill")
+            if not info:
+                continue
+            _credits = get_tmdb_credits(_mt, _tid, data=data, tag="backfill")
             cast = _credits.get("cast") or []
             directors = _credits.get("directors") or []
         except Exception:
-            cast = []
-            directors = []
+            continue
         for row in rows:
             try:
                 conn.execute(
-                    "UPDATE followed SET vote_average=?, networks=?, release_date=? WHERE id=?",
+                    "UPDATE followed SET vote_average=?, networks=?, release_date=?, detail_check_at=? WHERE id=?",
                     (
                         info.get("vote_average") or 0,
                         json.dumps(info.get("networks") or []),
                         info.get("release_date") or row["release_date"],
+                        now + DETAIL_SLOW_DAYS * DAY_SEC,
                         row["id"],
                     ),
                 )
@@ -972,15 +1117,25 @@ def backfill_votes():
             except Exception:
                 continue
     for row in conn.execute("SELECT * FROM anime").fetchall():
+        st = (row["status"] or "").upper()
+        airing = st in ("RELEASING", "NOT_YET_RELEASED")
+        try:
+            due = int(row["detail_check_at"] or 0) <= now
+        except Exception:
+            due = True
+        if not (due or airing):
+            continue
         detail = anilist_detail(row["anilist_id"])
         if detail:
             studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
             conn.execute(
-                "UPDATE anime SET score=?, studios=?, episodes=? WHERE id=?",
+                "UPDATE anime SET score=?, studios=?, episodes=?, status=COALESCE(?, status), detail_check_at=? WHERE id=?",
                 (
                     detail.get("averageScore"),
                     studios[0] if studios else None,
                     detail.get("episodes") or row["episodes"],
+                    detail.get("status"),
+                    now + (7 * DAY_SEC if airing else DETAIL_SLOW_DAYS * DAY_SEC),
                     row["id"],
                 ),
             )
@@ -998,7 +1153,6 @@ def backfill_votes():
     conn.commit()
     conn.close()
     bump()
-
 
 def early_watched_threshold():
     """Ayarlardaki erken-izlenmiş eşiği (gün). Değer yoksa/geçersizse 14."""
@@ -1565,7 +1719,11 @@ def schedule_releases():
         misfire_grace_time=3600,
     )
 
-    data_h, data_m = parse_notify_hour(get_setting("data_hour") or "05:10")
+    # 2.20.0 rev2 (1B): backfill artik `sync_releases` run'inin SONUNDA da calisir
+    # (onbellek sicak -> restart cezasi yok). Ayri `follow_data_sync` cron'u
+    # KORUNUR cunku Ayarlar'daki "Puan Kontrol Senkronu" (data_hour) saatini
+    # yonetir; capa (detail_check_at) sayesinde ikinci gecis EK ISTEK URETMEZ.
+    data_h, data_m = parse_notify_hour(get_setting("data_hour") or "05:20")
     if SCHEDULER.get_job("follow_data_sync"):
         SCHEDULER.remove_job("follow_data_sync")
     SCHEDULER.add_job(
