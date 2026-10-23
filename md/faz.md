@@ -1364,3 +1364,11 @@
 - **Cache-buster:** `static/index.html` → `mobil.css?v=555` → **556** (style 636, tablet 514, tv 561, JS build 660 aynı).
 - **Doğrulama:** `git diff` yalnız `static/css/mobil.css` (2 bildirim + yorum) ve `static/index.html` (`?v=`) — başka dosya değişmedi; CSS parantez 235/235; `BOM=0`, `U+FFFD=0`; pi'de 2 dosya md5 **eşit**, canlı `mobil.css?v=556`, `nextep.service active`; statik → restart yok.
 - **Sürüm:** 2.19.30 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/arama_kutusu_125px_20261023_185406/` — yerelde HEAD kopyaları, pi'de `mobil.css`, `index.html`, `nextep.db.pre` (güncelleme öncesi) + `nextep.db` (sonrası).
+
+## FAZ NOTLARI — Sürüm 2.20.0 (minor damga, 2026-10-23)
+
+- **Talep:** kullanıcı "git commit + push" öncesi sürüm sorusunda **minor** yükseltmeyi seçti (2.19.30 → **2.20.0**). Bu oturumda kod değişikliği kalmamıştı (2.19.28/29/30 zaten commit + push edilmişti: `4a233b6`, `ae0872a`, `f102bdd`), bu yüzden commit içeriği **sürüm damgası** oldu.
+- **Yeni kalıcı kural:** `md/AGENTS.md` içine "git commit + push = ÖNCE SÜRÜM SORULUR (asla atlanmaz)" bölümü eklendi (2026-10-23). Sıra: DB yedeği → DB `version` → `VERSION` dosyası → doğrulama → CHANGELOG → `md/faz.md` → pi'ye scp → **en son** commit + push.
+- **Sürüm taşıma (dosya + DB):** pi `bak/surum_2.20.0_20261023_190657/` yedeği (`nextep.db.pre` güncelleme öncesi, `nextep.db` sonrası); `UPDATE version SET number='2.20.0', updated_at=datetime('now') WHERE id=1` (script + pi venv python); `VERSION` dosyası `2.20.0` + scp. Doğrulama: `VERSION` = DB = **2.20.0**, `integrity_check=ok`, servis `active`.
+- **İçerik özeti (2.19.28–2.19.30):** bölüm içi arama kutusu akışı (ilk karakterde sonuç modalı, kart tıklaması → bilgi modalı, butonlar aktif), `#section-results-modal` `z-index:190` → bilgi/takvim modalları panelin üstünde, filtre menüsü sağ kenarı turuncu dotted çizgiye hizalı, mobil dizi/film/belgesel/anime arama kutusu çizginin **3px üstünde** ve **125px** genişlikte. İzlenmiş/izlenmemiş, arşiv, öneriler, masaüstü ve APK/TV ölçüleri değişmedi.
+- **Canlı durum:** `style.css?v=636`, `mobil.css?v=556`, `style.css` tablet 514, tv 561, JS build 660; statik değişiklik yok → restart yok.

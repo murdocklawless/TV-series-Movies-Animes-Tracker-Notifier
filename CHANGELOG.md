@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.20.0 - 23/10/2026-19:10
+### TR
+- **Minor sürüm damgası (kod değişikliği yok):** 2.19.28 → 2.19.30 arasındaki üç düzeltme bu sürümde toplu olarak işaretlendi. Sürüm numarası hem pi DB `version` tablosuna hem `VERSION` dosyasına yazıldı (dosya = DB, `integrity_check=ok`).
+- **Kapsam özeti:**
+  - **2.19.28** — bölüm başlığı büyüteci satır içi arama kutusunu açıyor; ilk karakterde `#section-results-modal` açılıp yazıya göre süzülüyor (kartlar azalıyor); kart tıklaması bilgi modalını açıyor, butonlar çalışıyor; `#section-results-modal` `z-index:190` ile bilgi ve takvim modalları artık panelin **üstünde**; filtre menüsünün sağ dikey kenarı turuncu dotted çizginin bitiş noktasına hizalı (mobil + masaüstü).
+  - **2.19.29** — mobil dizi/film/belgesel/anime arama kutusu dotted çizginin **3px üstünde** (`top:auto; bottom:3px`) ve genişlik 100px.
+  - **2.19.30** — aynı kutunun genişliği **125px**.
+- **Kapsam dışı:** izlenmiş / izlenmemiş / arşiv / öneriler, masaüstü (`style.css`) ve APK/TV (`tv.css`) ölçüleri değişmedi.
+- **Doğrulama:** `VERSION` = DB = **2.20.0**, `integrity_check=ok`; canlı `mobil.css?v=556`, `style.css?v=636`, JS build 660; servis `active`; restart gerekmedi.
+- **Yedek:** pi `bak/surum_2.20.0_20261023_190657/` (`nextep.db.pre` + `nextep.db`).
+### EN
+- **Minor version stamp (no code change):** the three fixes from 2.19.28 → 2.19.30 are labelled under this release. The version was written to both the pi DB `version` table and the `VERSION` file (file = DB, `integrity_check=ok`).
+- **Scope summary:**
+  - **2.19.28** — the section-header magnifier opens the inline search box again; the first character opens `#section-results-modal` filtered by the typed text (cards decrease); a card click opens the info modal and its buttons work; with `#section-results-modal` at `z-index:190` the info and calendar modals now open **above** the panel; the filter menu's right vertical edge lines up with the end of the orange dotted line (mobile + desktop).
+  - **2.19.29** — the mobile dizi/film/belgesel/anime search box sits **3px above** the dotted line (`top:auto; bottom:3px`) at 100px width.
+  - **2.19.30** — the same box is **125px** wide.
+- **Out of scope:** watched / unwatched / archive / recommendations, desktop (`style.css`) and APK/TV (`tv.css`) sizes unchanged.
+- **Verified:** `VERSION` = DB = **2.20.0**, `integrity_check=ok`; live `mobil.css?v=556`, `style.css?v=636`, JS build 660; service `active`; no restart needed.
+- **Backup:** pi `bak/surum_2.20.0_20261023_190657/` (`nextep.db.pre` + `nextep.db`).
+
 ## 2.19.30 - 23/10/2026-18:55
 ### TR
 - **Mobil bölüm arama kutusu genişliği 125px:** dizi / film / belgesel / anime bölüm başlıklarındaki satır içi arama kutusu `100px` → **`125px`** (`width:125px; max-width:125px`). Konum değişmedi: butonun solunda (`right:92px`, arşiv anahtarı varken `122px`) ve **alt kenarı dotted turuncu çizginin 3px üstünde** (`top:auto; bottom:3px`).
