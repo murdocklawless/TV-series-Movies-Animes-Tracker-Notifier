@@ -18,6 +18,7 @@ import io
 import json
 import re
 import sqlite3
+import time
 
 from urllib.parse import quote, unquote
 
@@ -229,16 +230,32 @@ def _existing(conn, uid, card):
     ).fetchone()
 
 
-def preview_import(conn, uid, cards):
-    """Kuru çalıştırma: kaç kart yeni, kaç tanesi zaten var (tür dağılımıyla)."""
+def preview_import(conn, uid, cards, verify=False):
+    """Kuru çalıştırma: tür bazında kart/bölüm/dakika özeti (yeni/mevcut dahil).
+
+    verify=True: her kartın TMDB'de var olduğu doğrulanır (1 istek/kart, 1 saat
+    önbellekli); doğrulanamayanlar `unverified` olarak sayılır.
+    """
     types = {}
-    new = exist = eps = weps = 0
+    new = exist = eps = weps = unverified = 0
     for card in cards:
-        buckets = types.setdefault(card["type"], {"total": 0, "new": 0, "existing": 0})
+        buckets = types.setdefault(card["type"], {
+            "total": 0, "new": 0, "existing": 0, "unverified": 0,
+            "episodes": 0, "watched": 0, "unwatched": 0,
+            "watched_min": 0, "unwatched_min": 0,
+        })
         buckets["total"] += 1
-        list_eps = card.get("episodes") or []
-        eps += len(list_eps)
-        weps += sum(1 for e in list_eps if _as_int(e.get("watched")) == 1)
+        tot, w, wm, um = _card_ep_stats(card)
+        buckets["episodes"] += tot
+        buckets["watched"] += w
+        buckets["unwatched"] += max(0, tot - w)
+        buckets["watched_min"] += wm
+        buckets["unwatched_min"] += um
+        eps += tot
+        weps += w
+        if verify and not _verify_one(card["type"], card.get("tmdb_id") or card.get("anilist_id")):
+            unverified += 1
+            buckets["unverified"] += 1
         if _existing(conn, uid, card):
             exist += 1
             buckets["existing"] += 1
@@ -249,10 +266,79 @@ def preview_import(conn, uid, cards):
         "total": len(cards),
         "new": new,
         "existing": exist,
+        "unverified": unverified,
         "episodes": eps,
         "watched_episodes": weps,
         "types": types,
     }
+
+
+_VERIFY_TTL = 3600
+_verify_cache = {}
+
+
+def _verify_one(kind, ident):
+    """Kart kimliği TMDB'de gerçekten var mı? Anime atlanır (AniList'e gidilmez)."""
+    if kind == "anime":
+        return True
+    try:
+        ident = int(ident or 0)
+    except (TypeError, ValueError):
+        ident = 0
+    if not ident:
+        return False
+    key = (kind, ident)
+    now = time.time()
+    hit = _verify_cache.get(key)
+    if hit and now - hit[0] < _VERIFY_TTL:
+        return hit[1]
+    ok = False
+    try:
+        from tmdb import tmdb_request  # döngüsel import olmasın diye geç yükleme
+        media = "tv" if kind == "tv" else "movie"
+        data = tmdb_request("/%s/%d" % (media, ident), {}, tag="cards.verify")
+        ok = bool(data and data.get("id"))
+    except Exception:
+        ok = False
+    _verify_cache[key] = (now, ok)
+    return ok
+
+
+def _card_ep_stats(card):
+    """(toplam_bölüm, izlenen_bölüm, izlenen_dk, izlenmeyen_dk).
+
+    Süre: bölümün `runtime`'ı → yoksa yapımın `runtime`'ı (anime: `duration`).
+    Film/belgesel 1 bölüm sayılır. Bölüm satırı olmayan kartlarda süre 0 döner.
+    """
+    kind = card.get("type")
+    fallback = card.get("duration") if kind == "anime" else card.get("runtime")
+    try:
+        fallback = int(fallback or 0)
+    except (TypeError, ValueError):
+        fallback = 0
+    eps = card.get("episodes") or []
+    if not eps:
+        if kind in ("movie", "doc"):
+            st = card.get("state") or {}
+            w = 1 if (_as_int(st.get("watched")) == 1 or _as_int(st.get("in_watched")) == 1) else 0
+            return 1, w, (fallback if w else 0), (0 if w else fallback)
+        total = card.get("number_of_episodes") or card.get("episodes_count") or 0
+        try:
+            total = int(total or 0)
+        except (TypeError, ValueError):
+            total = 0
+        return total, 0, 0, 0
+    total = len(eps)
+    w = wm = um = 0
+    for e in eps:
+        rt = _as_int(e.get("runtime")) or fallback
+        rt = rt or 0
+        if _as_int(e.get("watched")) == 1:
+            w += 1
+            wm += rt
+        else:
+            um += rt
+    return total, w, wm, um
 
 
 def _insert(conn, table, row):
@@ -299,11 +385,17 @@ def _mark_watched(conn, table, where_sql, args, watched_at, now):
     )
 
 
-def apply_import(conn, uid, cards, now=None):
-    """Yeni kartları + bölümlerini yazar. Var olan kart atlanır (birleştir)."""
+def apply_import(conn, uid, cards, now=None, verify=False):
+    """Yeni kartları + bölümlerini yazar. Var olan kart atlanır (birleştir).
+
+    verify=True ise TMDB'de bulunamayan kartlar eklenmez (unverified sayacı).
+    """
     now = int(now or datetime.datetime.now().timestamp())
-    added = skipped = eps_added = 0
+    added = skipped = eps_added = unverified = 0
     for card in cards:
+        if verify and not _verify_one(card["type"], card.get("tmdb_id") or card.get("anilist_id")):
+            unverified += 1
+            continue
         if _existing(conn, uid, card):
             skipped += 1
             continue
@@ -359,7 +451,7 @@ def apply_import(conn, uid, cards, now=None):
             continue
         added += 1
     conn.commit()
-    return {"added": added, "skipped": skipped, "episodes": eps_added}
+    return {"added": added, "skipped": skipped, "episodes": eps_added, "unverified": unverified}
 
 
 # ------------------------------------------------------------ CSV (tam yedek)

@@ -5800,47 +5800,103 @@ select#s-email-provider.email-lit {
   z-index: 60;
 }
 
-/* İçe aktarma önizlemesi: TEK grid (11 kolon = 6 hücre + 5 boru).
-   Alt satırlar aynı ızgaraya yerleştiği için `|` borular alt alta hizalanır;
-   kolonlar `auto` → en uzun metne göre dinamik genişlik. */
-.cards-imp {
+/* İçe aktarma önizlemesi: tür bazlı kırılım. TEK grid (7 kolon = 4 hücre + 3 boru);
+   her satır dolgu ile 7 öğeye tamamlandığı için `|` borular satırlar arasında
+   ALT ALTA hizalanır; kolon genişlikleri `auto` → içeriğe göre dinamik.
+   Görünüm "dizi takip" özet satırıyla aynı: turuncu, 0.68rem, tek boşluklu `|`.
+   NOT: id ile yazılır — `.channel-frame > div { display:flex; column }` kuralı
+   (0,1,1) sınıf seçicisini eziyordu; id+class (1,1,0) onu yener. */
+#cards-import-stats.cards-imp {
   display: grid;
-  grid-template-columns: repeat(11, auto);
+  grid-template-columns: repeat(7, auto);
   align-items: baseline;
   justify-content: start;
-  row-gap: 6px;
+  row-gap: 5px;
   margin: 8px 0 2px;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;   /* yatay scrollbar YOK */
   max-width: 100%;
-  overflow-x: auto;
 }
 .cards-imp-cell {
   white-space: nowrap;
-  color: #ddd;
-  font-weight: 600;
+  color: #fff;
+  font-weight: 500;
 }
 .cards-imp-pipe {
   white-space: nowrap;
-  color: #f97316;
-  font-weight: 700;
-  padding: 0 10px;
+  color: #F97316;
+  font-weight: 600;
+  padding: 0;
 }
 .cards-imp-note {
   margin-top: 6px;
   font-size: 0.7rem;
   color: #8a90a0;
 }
-html.is-tv .cards-imp,
-html.tv-mode .cards-imp {
-  font-size: calc(0.8rem * var(--tv-scale));
+.cards-imp-unv {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: #f97316;
+}
+/* İçe aktarma geçmişi (adanmış modal listesi) */
+.import-hist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.import-hist-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  justify-content: space-between;
+  padding: 6px 2px;
+  border-bottom: 1px solid #262a36;
+  font-size: 0.72rem;
+  color: #cfd3dc;
+}
+.import-hist-head {
+  color: #fff;
+}
+.import-hist-delta {
+  color: #f97316;
+  font-weight: 600;
+}
+.import-hist-snap {
+  flex: 1 0 100%;
+  color: #8a90a0;
+  font-size: 0.66rem;
+}
+/* 4 kolon sığsın (film/dizi/anime satırları) */
+#cards-import-confirm-modal .modal {
+  max-width: 560px;
+}
+html.is-tv #cards-import-stats,
+html.tv-mode #cards-import-stats {
+  font-size: calc(0.75rem * var(--tv-scale));
 }
 @media (max-width: 600px) {
-  .cards-imp {
-    font-size: 0.7rem;
+  /* Mobil: grid KORUNUR (borular alt alta hizalı) + satır yana kaydırılır.
+     Kaydırma çubuğu gizli — dokunmatikle sağa/sola sürüklenir. */
+  #cards-import-stats.cards-imp {
+    display: grid;
+    grid-template-columns: repeat(7, auto);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.62rem;
     row-gap: 4px;
   }
+  #cards-import-stats.cards-imp::-webkit-scrollbar {
+    display: none;
+  }
   .cards-imp-pipe {
-    padding: 0 6px;
+    padding: 0;
   }
 }
 

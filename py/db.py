@@ -551,6 +551,26 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_sync_events_due "
         "ON sync_events(state, next_ts)"
     )
+    # Kart disa/ice aktarma gunlugu (2.22.0): her basarili apply icin tek satir.
+    # Kullanici bazli; snapshot yolu geri alma icin saklanir.
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS import_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL DEFAULT 0,
+            ts INTEGER NOT NULL DEFAULT 0,
+            format TEXT,
+            filename TEXT,
+            total INTEGER DEFAULT 0,
+            added INTEGER DEFAULT 0,
+            skipped INTEGER DEFAULT 0,
+            unverified INTEGER DEFAULT 0,
+            snapshot TEXT,
+            extra TEXT
+        )"""
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_import_log_user ON import_log(user_id, ts DESC)"
+    )
     # Izlendi-sor karar deposu (1.87): Evet/Hayir karari bildirim satirlarindan
     # bagimsiz tutulur; "tum ask'leri temizle" yalniz bekleyenleri siler.
     conn.execute(

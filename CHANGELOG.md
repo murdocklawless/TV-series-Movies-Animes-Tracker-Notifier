@@ -1,6 +1,26 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.22.0 - 28/10/2026-23:48
+### TR
+- **İçe aktarma öncesi otomatik DB snapshot:** `POST /api/cards/import/apply` artık yazmadan önce **tutarlı** bir kopya alır — `bak/import_<YYYYmmdd_HHMMSS>/nextep.db.pre` (SQLite `backup()` API, düz `cp` değil). Yalnız dosya geçerliyse oluşur; **en yeni 10** klasör kalacak şekilde budanır. Yanıtta `snapshot` yolu döner.
+- **“Geri al” bilgisi:** başarılı aktarımdan sonra ikinci toast — `Geri almak için: bak/import_…`.
+- **İsteğe bağlı TMDB doğrulaması (varsayılan KAPALI):** onay penceresinde `TMDB'de doğrula` anahtarı. Açıkken her kart için `GET /movie/{id}` / `/tv/{id}` çağrılır (kart başına **1 istek**), sonuç **1 saat** önbelleklenir → önizlemeden sonra apply aynı istekleri **tekrar atmaz**. Anime atlanır (AniList'e gidilmez). Doğrulanamayanlar `N doğrulanamadı` olarak raporlanır ve **eklenmez**. Kapalıyken **hiç ağ isteği yok**.
+- **İçe aktarma geçmişi:** yeni `import_log` tablosu (`user_id, ts, format, filename, total, added, skipped, unverified, snapshot, extra`) + `GET /api/cards/import/history?limit=20`. Akordeona **Geçmiş** butonu ve **adanmış modal** (`#cards-import-history-modal`, son 20 kayıt: tarih · biçim · sonuç · snapshot yolu, boş durum metni). TV `hookModals`'a eklendi.
+- **i18n:** 8 yeni anahtar × 14 dil (`cards_import_verify`, `tip_cards_import_verify`, `cards_import_unverified`, `cards_import_rollback`, `cards_import_history`, `tip_cards_import_history`, `cards_import_history_title`, `cards_import_history_empty`).
+- **Cache-buster:** `style.css?v=657 → 658`; `py/jsver.py bump` → **build 685**. `py/` değiştiği için servis **restart** edildi.
+- **Doğrulama (gerçek uçlarla):** snapshot `integrity_check=ok` (2.7 MB) · budama testi 11 → **10** · `verify=0` 83 kart **24 ms / 0 istek** · `verify=1` (2 gerçek + 1 sahte) `unverified=1` · ikinci geçiş **14 ms** (önbellek) · geçersiz dosya **400** ve **snapshot/log yok** · geçmiş kaydı doğru · test kalıntıları temizlendi (`import_log=0`, `bak/import_*=0`). `py_compile` + `node --check` + HTML/CSS denetimi + `jsver check` + `eol` OK; md5 yerel = pi.
+- **Sürüm:** 2.22.0 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.22.0_20261028_234829/` (pre + post), `bak/imp_hardening_20261028_201042/` (8 dosya + DB).
+### EN
+- **Automatic DB snapshot before import:** `POST /api/cards/import/apply` now takes a **consistent** copy before writing — `bak/import_<YYYYmmdd_HHMMSS>/nextep.db.pre` (SQLite `backup()` API, not a plain `cp`). Created only when the file parses; the newest **10** folders are kept. The response returns the `snapshot` path.
+- **Rollback hint:** after a successful import a second toast shows `To roll back: bak/import_…`.
+- **Optional TMDB verification (OFF by default):** a `Verify on TMDB` switch in the confirm modal. When on, each card is checked with `GET /movie/{id}` / `/tv/{id}` (**1 request per card**), results cached for **1 hour** so `apply` does not repeat them. Anime is skipped (no AniList call). Unverified cards are reported as `N not verified` and **not added**. When off, **no network request** is made.
+- **Import history:** new `import_log` table (`user_id, ts, format, filename, total, added, skipped, unverified, snapshot, extra`) plus `GET /api/cards/import/history?limit=20`. The accordion gained a **History** button and a **dedicated modal** (`#cards-import-history-modal`, last 20 entries: date · format · result · snapshot path). Added to TV `hookModals`.
+- **i18n:** 8 new keys × 14 languages.
+- **Cache-buster:** `style.css?v=657 → 658`; `py/jsver.py bump` → **build 685**; service **restarted** (py change).
+- **Verified against live endpoints:** snapshot `integrity_check=ok` (2.7 MB) · prune test 11 → **10** · `verify=0` 83 cards **24 ms / 0 requests** · `verify=1` (2 real + 1 fake) `unverified=1` · second pass **14 ms** (cache) · invalid file **400** with **no snapshot/log** · history row correct · test artefacts cleaned (`import_log=0`, `bak/import_*=0`). `py_compile`, `node --check`, HTML/CSS checks, `jsver check`, `eol` all OK; md5 local = pi.
+- **Version:** 2.22.0 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.22.0_20261028_234829/`, `bak/imp_hardening_20261028_201042/`.
+
 ## 2.21.1 - 28/10/2026-19:06
 ### TR
 - **Güncelleme butonlarında turuncu yükleme görünümü:** “Güncellemeleri Kontrol Et” (`#appupdate-check`) ve “NextEp'i Güncelle” (`#appupdate-run`) tıklanınca buton **çerçevesi turuncu** (`#f97316`), **zemini %30 şeffaf turuncu** olur; etiket gizlenir, butonun ortasında beyaz spinner döner ve istek bitince (başarı/hata) eski hâline döner. Yedekle butonundaki (`#backup-now`) mevcut görünümle **tek kurala** birleştirildi (yinelenen blok kaldırıldı).

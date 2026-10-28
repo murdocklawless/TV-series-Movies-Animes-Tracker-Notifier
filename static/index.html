@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=653" />
+  <link rel="stylesheet" href="/static/css/style.css?v=658" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=518" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=564" />
   <link rel="stylesheet" href="/static/css/tv.css?v=562" />
@@ -705,6 +705,9 @@
               <button id="cards-export" class="tab" data-i18n="cards_export" data-tip="Tüm kartları seçilen biçimde indir" data-i18n-title="tip_cards_export">Dışa Aktar</button>
               <button id="cards-import" class="tab" data-i18n="cards_import" data-tip="Seçilen biçimdeki dosyadan kartları içe aktar" data-i18n-title="tip_cards_import">İçe Aktar</button>
             </div>
+            <div class="test-row" style="margin-top:8px; justify-content:center; display:flex; gap:8px;">
+              <button id="cards-import-history-btn" class="tab" data-i18n="cards_import_history" data-tip="Son içe aktarmalar" data-i18n-title="tip_cards_import_history">Geçmiş</button>
+            </div>
             <input type="file" id="cards-import-file" accept=".json,application/json" style="display:none" />
           </div>
         </div>
@@ -723,11 +726,28 @@
           <div class="app-version-line"><span id="cards-import-file-name"></span></div>
           <div id="cards-import-stats" class="cards-imp"></div>
           <div id="cards-import-note" class="cards-imp-note"></div>
+          <div id="cards-import-unverified" class="cards-imp-unv"></div>
+        </div>
+        <div class="notify-row" id="cards-import-verify-row">
+          <span class="notify-name" data-i18n="cards_import_verify" data-tip="Her kartın TMDB'de var olduğunu kontrol eder (kart başına 1 istek)" data-i18n-title="tip_cards_import_verify">TMDB'de doğrula</span>
+          <label class="switch"><input type="checkbox" id="cards-import-verify" /><span class="slider"></span></label>
         </div>
         <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
           <button id="cards-import-cancel" class="tab" data-i18n="cancel">İptal</button>
           <button id="cards-import-apply" class="tab" data-i18n="cards_import_apply">İçe Aktar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cards-import-history-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="cards_import_history_title">İçe Aktarma Geçmişi</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="cards-import-history-list" class="import-hist"></div>
       </div>
     </div>
   </div>
@@ -1696,6 +1716,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=683"></script>
+  <script type="module" src="/static/js/nextep.js?v=685"></script>
 </body>
 </html>
