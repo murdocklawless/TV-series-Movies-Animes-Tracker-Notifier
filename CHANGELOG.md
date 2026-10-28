@@ -1,6 +1,30 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.21.1 - 28/10/2026-19:06
+### TR
+- **Güncelleme butonlarında turuncu yükleme görünümü:** “Güncellemeleri Kontrol Et” (`#appupdate-check`) ve “NextEp'i Güncelle” (`#appupdate-run`) tıklanınca buton **çerçevesi turuncu** (`#f97316`), **zemini %30 şeffaf turuncu** olur; etiket gizlenir, butonun ortasında beyaz spinner döner ve istek bitince (başarı/hata) eski hâline döner. Yedekle butonundaki (`#backup-now`) mevcut görünümle **tek kurala** birleştirildi (yinelenen blok kaldırıldı).
+- **İçe aktarma önizlemesi yeniden tasarlandı:** onay modalındaki düz metin yerine **hizalı boru düzeni**:
+  `83 Kart | 79 Yeni | 4 Mevcut | 1639 Bölüm | İzlenmiş 871 Bölüm | İzlenmemiş 768 Bölüm`
+  `44 Dizi | 32 Film | 7 Anime`
+  `83 Satır | 83 Kart | 0 ID'siz | 0 Bozuk` (yalnız CSV yüklemesinde)
+  Borular **turuncu**; tek **11 kolonlu grid** (6 hücre + 5 boru) sayesinde kolon genişlikleri içeriğe göre **dinamik**, `|` işaretleri satırlar arasında **alt alta hizalı**. “Var olan kartlar atlanır (birleştirme)” notu ayrı satıra alındı. `İzlenmemiş` = `bölüm − izlenmiş`.
+- **i18n:** 7 yeni anahtar × 14 dil (`cards_imp_new`, `cards_imp_existing`, `cards_imp_watched`, `cards_imp_unwatched`, `csv_rows`, `csv_no_id`, `csv_bad`); kullanılmayan `cards_import_summary` ve `csv_import_summary` kaldırıldı.
+- **Cache-buster:** `style.css?v=652 → 653`, `py/jsver.py bump` → **build 683**. Statik değişiklik → servis restart **gerekmedi**, tarayıcıda **Ctrl+F5**.
+- **Doğrulama:** `node --check` (settings.js, i18n.js) OK; HTML (41 tekil ID) + CSS (denge/mojibake) denetimi OK; 14 dil anahtar tamlığı OK; `jsver check` + `eol.py check` OK; md5 yerel = pi; canlı `style.css?v=653`, `__NX_BUILD=683`, servis `active`.
+- **Sürüm:** 2.21.1 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.21.1_20261028_190620/` (`nextep.db.pre` + post).
+### EN
+- **Orange loading state on the update buttons:** clicking “Check for Updates” (`#appupdate-check`) or “Update NextEp” (`#appupdate-run`) turns the button **border orange** (`#f97316`) with a **30 % translucent orange background**; the label is hidden, a white spinner rotates in the centre and everything reverts when the request finishes (success or error). Merged with the existing `#backup-now` rule into a **single rule** (duplicate block removed).
+- **Import preview redesigned:** the plain text in the confirm modal is replaced by an **aligned pipe layout**:
+  `83 Cards | 79 New | 4 Existing | 1639 Episodes | Watched 871 Episodes | Unwatched 768 Episodes`
+  `44 Shows | 32 Movies | 7 Anime`
+  `83 Rows | 83 Cards | 0 Without ID | 0 Invalid` (CSV uploads only)
+  Pipes are **orange**; a single **11-column grid** (6 cells + 5 pipes) makes column widths **dynamic** to content and keeps the `|` separators **aligned across rows**. The “existing cards are skipped (merge)” note moved to its own line. `Unwatched` = `episodes − watched`.
+- **i18n:** 7 new keys × 14 languages (`cards_imp_new`, `cards_imp_existing`, `cards_imp_watched`, `cards_imp_unwatched`, `csv_rows`, `csv_no_id`, `csv_bad`); unused `cards_import_summary` and `csv_import_summary` removed.
+- **Cache-buster:** `style.css?v=652 → 653`, `py/jsver.py bump` → **build 683**. Static-only change → no service restart, just **Ctrl+F5**.
+- **Verified:** `node --check` OK; HTML (41 unique ids) + CSS (balance/mojibake) checks OK; all 14 languages complete; `jsver check` + `eol.py check` OK; md5 local = pi; live `style.css?v=653`, `__NX_BUILD=683`, service `active`.
+- **Version:** 2.21.1 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backup: `bak/release_2.21.1_20261028_190620/` (pre + post).
+
 ## 2.21.0 - 28/10/2026-18:41
 ### TR
 - **Kartları dışa / içe aktarma (yeni):** Yedekleme modalı iki akordeona bölündü — **YEDEKLE** (Database / Herşeyi + **Rsync** + **Samba** + Yedekle / Geri Yükle; Rsync/Samba artık iç içe akordeon) ve **KARTLARI DIŞA & İÇE AKTAR** (tek satır: biçim pulldown'u + **Dışa Aktar** + **İçe Aktar**). Alt akordeona tıklamak üstteki YEDEKLE'yi kapatmaz.

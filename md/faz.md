@@ -1439,3 +1439,21 @@
 - **Cache-buster:** `style.css?v=651`, `mobil.css?v=564`, `py/jsver.py bump` → **build 682**; `py/` değiştiği için servis restart.
 - **Doğrulama:** `py_compile` + `node --check` + modül bağ testi; birim testleri (JSON/CSV roundtrip, eski biçim, bozuk/boş dosya, ID'siz satır, tek satır kuralı); pi DB **kopyasında** gerçek tur — 83 kart / 1639 bölüm / 859 izlenmiş / `in_watched=34` / `arşiv=2` / `ertelenmiş=5` **birebir**, CSV 84 fiziksel satır; `jsver check` + `eol.py check` OK; md5 yerel = pi; canlı `style.css?v=651`, `mobil.css?v=564`, `nextep.js?v=682`.
 - **Sürüm:** **2.21.0** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/cards_transfer_20261028_172711/`, `bak/cards_csv_20261028_174328/`, `bak/cards_full_20261028_181321/`, `bak/pulldown_clip_20261028_181755/`, `bak/csv_flat_20261028_182404/`, `bak/cards_desc_20261028_183044/`, `bak/release_2.21.0_20261028_184051/` (DB pre).
+
+## FAZ NOTLARI — Güncelleme butonlarında turuncu yükleme + içe aktarma önizleme tasarımı (28/10/2026, sürüm 2.21.1)
+
+- **Bildirilen:** ① “Güncellemeleri Kontrol Et” ve “NextEp'i Güncelle” butonları tıklanınca animasyon var ama **çerçeve turuncu + zemin %30 şeffaf turuncu** olsun. ② İçe aktarma önizlemesi (Toplam/Yeni/Mevcut/Bölüm + tür satırı + not) yeniden tasarlansın; **borular turuncu** ve **satırlar arasında alt alta hizalı** olsun (uzun metin kolonların hizasını bozmasın); CSV satırı da aynı düzende.
+- **CSS — yükleme durumu:** `style.css` içinde iki ayrı `.loading` bloğu **tek kurala** birleştirildi:
+  `#appupdate-run.loading, #appupdate-check.loading, #backup-now.loading { color:transparent !important; pointer-events:none; background:rgba(249,115,22,.3); border-color:#f97316 }`
+  Spinner (`::after`, beyaz halka, `@keyframes spin`) bloğu değişmedi; `#backup-now` yinelenen kuralı kaldırıldı.
+- **HTML — önizleme:** `#cards-import-confirm-modal` içindeki `#cards-import-summary` (`.cache-info`) kaldırıldı → **`#cards-import-stats`** (`.cards-imp` grid) + **`#cards-import-note`** (`.cards-imp-note`). Dosya adı satırı (`#cards-import-file-name`) kaldı.
+- **JS — önizleme:** `settings.js` → `IMP_COLS = 11`, `impRow(cells)` (hücre + boru üretir, satırı dolgu ile 11 öğeye tamamlar), `impRowsHTML(info)`:
+  1. satır: `stats_cards` · `cards_imp_new` · `cards_imp_existing` · `summary_episodes` · `cards_imp_watched` · `cards_imp_unwatched` (**hesap:** `episodes - watched_episodes`)
+  2. satır: `summary_shows/films/docs/anime` (yalnız >0 olanlar)
+  3. satır (yalnız `info.csv`): `csv_rows` · `stats_cards` · `csv_no_id` · `csv_bad`
+  Not: `cards_import_skip_note`.
+- **Hizalama tekniği:** tek grid (`grid-template-columns: repeat(11, auto)`) — alt satırlar aynı ızgaraya dolgu ile yerleştiği için `|` borular **alt alta** hizalanır, kolon genişlikleri içeriğe göre **dinamik**. CSS: `.cards-imp`, `.cards-imp-cell`, `.cards-imp-pipe` (`#f97316`, `padding 0 10px`), `.cards-imp-note`; ≤600px punto 0.7rem + boru 6px; TV `calc(0.8rem * var(--tv-scale))`.
+- **i18n:** 7 yeni anahtar × 14 dil (`cards_imp_new`, `cards_imp_existing`, `cards_imp_watched`, `cards_imp_unwatched`, `csv_rows`, `csv_no_id`, `csv_bad`); `cards_import_summary` + `csv_import_summary` silindi.
+- **Cache-buster:** `style.css?v=652 → 653`; `py/jsver.py bump` → **build 683** (tüm 12 js damgası + `index.html`); statik → restart yok.
+- **Doğrulama:** `node --check` (settings/i18n) OK; HTML 41 tekil ID; CSS mojibake/FFFD = 0, yeni bloklar dengeli; 14 dil anahtar tamlığı OK; `jsver check` + `eol.py check` OK; md5 yerel = pi; canlı `style.css?v=653`, `__NX_BUILD=683`; servis `active`.
+- **Sürüm:** **2.21.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.21.1_20261028_190620/` (`nextep.db.pre` + post), `bak/imp_design_20261028_190033/` (4 dosya), `bak/appupdate_lit_20261028_184315/` (2 dosya).

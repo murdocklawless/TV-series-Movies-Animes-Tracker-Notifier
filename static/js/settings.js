@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=682";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=682";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=682";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=682";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=683";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=683";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=683";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=683";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1146,7 +1146,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=682");
+      const { errText: _err } = await import("./i18n.js?v=683");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1155,9 +1155,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=682");
-    const { openDetails } = await import("./components.js?v=682");
-    const { loadFollowed } = await import("./views.js?v=682");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=683");
+    const { openDetails } = await import("./components.js?v=683");
+    const { loadFollowed } = await import("./views.js?v=683");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1193,7 +1193,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=682");
+        const { t: _t } = await import("./i18n.js?v=683");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1533,7 +1533,8 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   const fmtSel = document.getElementById("cards-format");
   const confirmModal = document.getElementById("cards-import-confirm-modal");
   const fileNameEl = document.getElementById("cards-import-file-name");
-  const summaryEl = document.getElementById("cards-import-summary");
+  const statsEl = document.getElementById("cards-import-stats");
+  const noteEl = document.getElementById("cards-import-note");
   const applyBtn = document.getElementById("cards-import-apply");
   const cancelBtn = document.getElementById("cards-import-cancel");
   let pendingFile = null;
@@ -1581,31 +1582,54 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     }
   });
 
-  function typeLine(types) {
-    const map = [["tv", "summary_shows"], ["movie", "summary_films"], ["doc", "summary_docs"], ["anime", "summary_anime"]];
-    return map.filter(([k]) => types && types[k] && types[k].total > 0)
-      .map(([k, key]) => t(key, { n: types[k].total })).join(" · ");
+  // Önizleme tablosu: TEK grid (11 kolon = 6 hücre + 5 boru). Alt satırlar aynı
+  // ızgaraya sırayla yerleştiği için `|` boruları satırlar arasında ALT ALTA hizalanır;
+  // kolon genişlikleri "auto" → en uzun metne göre dinamik.
+  const IMP_COLS = 11;
+
+  function impRow(cells) {
+    const items = [];
+    cells.forEach((c, i) => {
+      if (i) items.push(`<span class="cards-imp-pipe">|</span>`);
+      items.push(`<span class="cards-imp-cell">${escAttr(c)}</span>`);
+    });
+    while (items.length % IMP_COLS !== 0) items.push(`<span class="cards-imp-fill"></span>`);
+    return items.join("");
+  }
+
+  function impRowsHTML(info) {
+    info = info || {};
+    const eps = info.episodes || 0;
+    const weps = info.watched_episodes || 0;
+    const rows = [[
+      t("stats_cards", { n: info.total || 0 }),
+      t("cards_imp_new", { n: info.new || 0 }),
+      t("cards_imp_existing", { n: info.existing || 0 }),
+      t("summary_episodes", { n: eps }),
+      t("cards_imp_watched", { n: weps }),
+      t("cards_imp_unwatched", { n: Math.max(0, eps - weps) }),
+    ]];
+    const types = info.types || {};
+    const typeCells = [["tv", "summary_shows"], ["movie", "summary_films"], ["doc", "summary_docs"], ["anime", "summary_anime"]]
+      .filter(([k]) => types[k] && types[k].total > 0)
+      .map(([k, key]) => t(key, { n: types[k].total }));
+    if (typeCells.length) rows.push(typeCells);
+    if (info.csv) {
+      rows.push([
+        t("csv_rows", { n: info.csv.rows || 0 }),
+        t("stats_cards", { n: info.csv.ok || 0 }),
+        t("csv_no_id", { n: info.csv.no_id || 0 }),
+        t("csv_bad", { n: info.csv.bad || 0 }),
+      ]);
+    }
+    return rows.map(impRow).join("");
   }
 
   function openImportConfirm(name, info) {
     if (!confirmModal) return;
     if (fileNameEl) fileNameEl.textContent = name || "";
-    if (summaryEl) {
-      const lines = [t("cards_import_summary", {
-        total: info.total || 0, "new": info.new || 0, existing: info.existing || 0,
-        episodes: info.episodes || 0, watched: info.watched_episodes || 0,
-      })];
-      const tl = typeLine(info.types);
-      if (tl) lines.push(tl);
-      if (info.csv) {
-        lines.push(t("csv_import_summary", {
-          rows: info.csv.rows || 0, ok: info.csv.ok || 0,
-          noid: info.csv.no_id || 0, bad: info.csv.bad || 0,
-        }));
-      }
-      lines.push(t("cards_import_skip_note"));
-      summaryEl.innerHTML = lines.map((l) => `<div>${escAttr(l)}</div>`).join("");
-    }
+    if (statsEl) statsEl.innerHTML = impRowsHTML(info);
+    if (noteEl) noteEl.textContent = t("cards_import_skip_note");
     confirmModal.style.display = "flex";
     try { if (applyBtn) applyBtn.focus(); } catch (_) {}
   }
@@ -2362,7 +2386,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=682").then((m) => {
+  import("./notification.js?v=683").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

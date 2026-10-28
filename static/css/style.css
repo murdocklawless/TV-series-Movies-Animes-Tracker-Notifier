@@ -1533,13 +1533,11 @@ input:-webkit-autofill:focus {
 #backup-now {
   position: relative;
 }
+/* Yükleme sırasında üç buton da hover/aktif görünümünde sabitlenir —
+   etiket gizlenir, spinner döner, çerçeve turuncu + zemin %30 şeffaf turuncu.
+   `#appupdate-run` (güncelleme), `#appupdate-check` (kontrol), `#backup-now`. */
 #appupdate-run.loading,
-#appupdate-check.loading {
-  color: transparent !important;
-  pointer-events: none;
-}
-/* 2.20.7: yedekleme butonu animasyon boyunca hover/aktif görünümünde sabitlenir:
-   turuncu çerçeve + %30 şeffaf turuncu zemin (etiket gizli kalır). */
+#appupdate-check.loading,
 #backup-now.loading {
   color: transparent !important;
   pointer-events: none;
@@ -5800,6 +5798,50 @@ select#s-email-provider.email-lit {
 #settings-backup-modal #cards-format-list {
   max-height: 180px;
   z-index: 60;
+}
+
+/* İçe aktarma önizlemesi: TEK grid (11 kolon = 6 hücre + 5 boru).
+   Alt satırlar aynı ızgaraya yerleştiği için `|` borular alt alta hizalanır;
+   kolonlar `auto` → en uzun metne göre dinamik genişlik. */
+.cards-imp {
+  display: grid;
+  grid-template-columns: repeat(11, auto);
+  align-items: baseline;
+  justify-content: start;
+  row-gap: 6px;
+  margin: 8px 0 2px;
+  font-size: 0.78rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.cards-imp-cell {
+  white-space: nowrap;
+  color: #ddd;
+  font-weight: 600;
+}
+.cards-imp-pipe {
+  white-space: nowrap;
+  color: #f97316;
+  font-weight: 700;
+  padding: 0 10px;
+}
+.cards-imp-note {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: #8a90a0;
+}
+html.is-tv .cards-imp,
+html.tv-mode .cards-imp {
+  font-size: calc(0.8rem * var(--tv-scale));
+}
+@media (max-width: 600px) {
+  .cards-imp {
+    font-size: 0.7rem;
+    row-gap: 4px;
+  }
+  .cards-imp-pipe {
+    padding: 0 6px;
+  }
 }
 
 /* Oneriler beslemesi (feed): ortalanmis iki pulldown + tek izgara (ayarlar
