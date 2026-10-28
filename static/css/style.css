@@ -5848,31 +5848,68 @@ select#s-email-provider.email-lit {
   flex-direction: column;
   gap: 8px;
 }
+/* Satır: sol tarafta 5 kolonlu meta (tarih | biçim | N Kart Eklendi),
+   sağda iki satırı kaplayan, dikeyde tam ortalanmış büyük buton. */
 .import-hist-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  justify-content: space-between;
-  padding: 6px 2px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 2px;
   border-bottom: 1px solid #262a36;
-  font-size: 0.72rem;
   color: #cfd3dc;
 }
-.import-hist-head {
+.import-hist-meta {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.import-hist-cell {
   color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.import-hist-pipe {
+  color: #F97316;
+  font-weight: 600;
+  font-size: 0.72rem;
+  padding: 0 3px;
 }
 .import-hist-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   align-self: center;
-  padding: 4px 10px;
-  font-size: 0.7rem;
+  justify-self: end;
+  min-width: 104px;
+  min-height: 36px;
+  padding: 8px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 .import-hist-empty {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
   color: #8a90a0;
 }
 .import-hist-snap {
-  flex: 1 0 100%;
+  grid-column: 1;
   color: #8a90a0;
   font-size: 0.66rem;
+}
+@media (max-width: 600px) {
+  .import-hist-row {
+    grid-template-columns: 1fr;
+  }
+  .import-hist-btn {
+    grid-row: auto;
+    justify-self: stretch;
+    width: 100%;
+    margin-top: 6px;
+  }
 }
 /* 4 kolon sığsın (film/dizi/anime satırları) */
 #cards-import-confirm-modal .modal {

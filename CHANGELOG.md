@@ -1,6 +1,30 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.1 - 29/10/2026-00:41
+### TR
+- **Geçmiş satırı yeni biçim:** `28.10.2026 23:57 | JSON | 2 Kart Eklendi`
+  - Tarih **`GG.AA.YYYY SS:DD`** (dil-bağımsız, elle biçimlendi)
+  - `|` ayırıcılar **turuncu** ve 5 kolonlu grid sayesinde **satırlar arasında alt alta hizalı**
+  - Yeni i18n anahtarı **`cards_added_n`** (“{n} Kart Eklendi”, 14 dil)
+- **Snapshot yolu sadeleşti:** ekranda `bak/` öneki **gizleniyor** → `import_20261029_000709` (DB/API’de tam yol korunuyor)
+- **Geri Al / Geri Yükle butonu büyütüldü ve ortalandı:** min **104×36 px**, `0.8rem` kalın; satırın **üst/alt çizgilerine göre dikey tam orta** (`grid-row: 1 / span 2`); mobilde tam genişlik. Eski (2.23.0 öncesi) kayıtlarda buton **pasif** + tooltip **`cards_undo_no_data`** — `history` yanıtına **`can_undo`** alanı eklendi.
+- **Sıfır aktarımlı geçmiş kayıtları:** listede **görünmüyor** (`AND COALESCE(added,0) > 0`); ayrıca haftalık `_import_cleanup()` bu kayıtları **kalıcı olarak siliyor**.
+- **Cache-buster:** `style.css?v=659 → 660`; `py/jsver.py bump` → **build 687**; `py/` değiştiği için servis **restart**.
+- **Doğrulama (canlı uçlarla):** sahte 0 kartlık + 2 kartlık kayıt → history yalnız 2 kartlık olanı döndürdü (`can_undo=1`); iş temizliği “1 boş aktarım kaydı silindi”; API’de tam snapshot yolu, arayüzde `bak/` gizli; md5 yerel = pi (6 dosya); `style.css?v=660`, **build 687**, servis `active`; test kalıntıları silindi (`import_log=0`, `followed=76`, `anime=7`). `py_compile` + `node --check` + CSS/`eol`/`jsver` OK.
+- **Sürüm:** 2.23.1 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.23.1_20261029_004127/` (pre + post), `bak/hist_ui_20261029_003841/` (6 dosya + DB pre).
+### EN
+- **New history row format:** `28.10.2026 23:57 | JSON | 2 Cards Added`
+  - Date as **`DD.MM.YYYY HH:MM`** (locale-independent, formatted manually)
+  - `|` separators are **orange** and **aligned across rows** thanks to a 5-column grid
+  - New i18n key **`cards_added_n`** (14 languages)
+- **Snapshot path simplified:** the `bak/` prefix is **hidden in the UI** → `import_20261029_000709` (the full path stays in DB/API)
+- **Undo/Restore button enlarged and centred:** min **104×36 px**, `0.8rem` bold; **vertically centred between the row's top/bottom borders** (`grid-row: 1 / span 2`); full width on mobile. Legacy (pre-2.23.0) records show a **disabled** button with the **`cards_undo_no_data`** tooltip — the `history` response now includes **`can_undo`**.
+- **Zero-added history rows:** **not listed** (`AND COALESCE(added,0) > 0`) and additionally **deleted permanently** by the weekly `_import_cleanup()`.
+- **Cache-buster:** `style.css?v=659 → 660`; `py/jsver.py bump` → **build 687**; service **restarted** (py change).
+- **Verified against live endpoints:** fake 0-card + 2-card rows → history returned only the 2-card one (`can_undo=1`); cleanup job printed “1 empty import row deleted”; full snapshot path in API, `bak/` hidden in UI; md5 local = pi (6 files); `style.css?v=660`, **build 687**, service `active`; test rows removed (`import_log=0`, `followed=76`, `anime=7`).
+- **Version:** 2.23.1 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.23.1_20261029_004127/`, `bak/hist_ui_20261029_003841/`.
+
 ## 2.23.0 - 29/10/2026-00:27
 ### TR
 - **Boş aktarım artık hiçbir iz bırakmıyor:** `apply` başında “eklenecek yeni kart” sayısı hesaplanıyor (yalnız okuma). **0 ise** kart yazılmıyor, **snapshot alınmıyor**, **`import_log` kaydı atılmıyor** ve arayüz **“İçe aktarılacak kart yok.”** toast’ı gösteriyor.

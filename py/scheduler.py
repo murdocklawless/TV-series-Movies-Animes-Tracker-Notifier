@@ -1716,6 +1716,16 @@ def _import_cleanup():
     conn = get_db()
     try:
         now = int(datetime.datetime.now().timestamp())
+        # 2.23.1: 0 kart ekleyen (ise yaramaz) eski kayitlari sil
+        try:
+            cur = conn.execute(
+                "DELETE FROM import_log WHERE COALESCE(added,0)=0 AND rolled_back=0"
+                " AND (undo_payload IS NULL OR undo_payload='')"
+            )
+            if cur.rowcount:
+                print("import cleanup: %d bos aktarim kaydi silindi" % cur.rowcount, flush=True)
+        except Exception as e:
+            print("import cleanup: bos kayit silme hata:", e, flush=True)
         rows = conn.execute(
             "SELECT id, ts, undo_payload, poster_cleaned FROM import_log"
             " WHERE rolled_back=1 AND undo_payload IS NOT NULL"

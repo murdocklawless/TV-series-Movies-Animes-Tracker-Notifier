@@ -226,8 +226,11 @@ def cards_import_history():
         rows = conn.execute(
             "SELECT id, ts, format, filename, total, added, skipped, unverified, snapshot,"
             " rolled_back,"
-            " CASE WHEN undo_payload IS NULL OR undo_payload='' THEN 0 ELSE 1 END AS has_payload"
-            " FROM import_log WHERE user_id=? ORDER BY ts DESC, id DESC LIMIT ?",
+            " CASE WHEN undo_payload IS NULL OR undo_payload='' THEN 0 ELSE 1 END AS has_payload,"
+            " CASE WHEN COALESCE(added,0) > 0 AND added_ids IS NOT NULL"
+            " AND added_ids NOT IN ('', '[]') THEN 1 ELSE 0 END AS can_undo"
+            " FROM import_log WHERE user_id=? AND COALESCE(added,0) > 0"
+            " ORDER BY ts DESC, id DESC LIMIT ?",
             (uid, limit),
         ).fetchall()
     except Exception:

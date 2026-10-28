@@ -1486,3 +1486,16 @@
 - **Cache-buster:** `style.css?v=658 → 659`; `jsver bump` → **build 686**; py → restart.
 - **Doğrulama:** boş aktarım `empty=true`, log 0, snapshot artmadı · 2 kartlık dosya `added=2` + snapshot · Geri Al `removed=2` + payload 1711 bayt · Geri Yükle `restored=2` (bölüm korundu) · tekrar Geri Al çalıştı · iş testi `poster_cleaned=1` (payload korunur), 40 gün sonra payload NULL · temizlik sonrası `followed=76, anime=7, import_log=0, bak/import_*=0`, ayarlar 30/30 · `py_compile` (5 dosya) + `node --check` + HTML 55 id + CSS + `jsver check` + `eol` OK · md5 yerel = pi · servis `active`.
 - **Sürüm:** **2.23.0** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.0_20261029_002708/` (DB pre + post), `bak/undo_restore_20261029_002156/` (9 dosya + DB pre).
+
+## FAZ NOTLARI — Geçmiş satırı biçimi + büyük ortalanmış Geri Al + sıfır aktarım temizliği (29/10/2026, sürüm 2.23.1)
+
+- **Bildirilen:** ① geçmiş başlığı **`28.10.2026 23:57 | JSON | {n} Kart Eklendi`** biçiminde olsun, `|` turuncu ve **alt alta hizalı** ② snapshot yolundaki **`bak/`** gizlensin (`import_20261029_000709`) ③ Geri Al butonu **büyütülüp satırın üst/alt çizgilerine göre tam ortalansın** ④ **sıfır aktarımlı geçmiş satırları silinsin**.
+- **Başlık (`static/js/settings.js`):** `histDate()` artık `GG.AA.YYYY SS:DD` üretiyor; satır içeriği 3 hücre + 2 boru = **5 kolonlu grid** (`import-hist-meta/cell/pipe`) → borular satırlar arasında hizalı. 3. hücre yeni anahtar **`cards_added_n`** (“{n} Kart Eklendi”).
+- **Snapshot:** arayüzde `String(it.snapshot).replace(/^bak\//, "")`; DB/API’de tam yol duruyor (geri alma dosya erişimi bozulmuyor).
+- **Buton:** `.import-hist-row` grid (`1fr auto`), `.import-hist-btn` → `grid-row: 1 / span 2`, `align-self:center`, min **104×36 px**, `0.8rem`, kalın; ≤600px’te tek kolon + tam genişlik.
+- **Sıfır aktarım:** `history` sorgusuna `AND COALESCE(added,0) > 0`; `py/scheduler.py` `_import_cleanup()` başında `added=0 AND rolled_back=0 AND undo_payload IS NULL/''` kayıtları **silinir** (haftalık bakım).
+- **Eski kayıtlar:** `history` yanıtına **`can_undo`** (`added>0 AND added_ids NOT IN ('','[]')`) eklendi; `can_undo=0` ise buton **pasif** + tooltip **`cards_undo_no_data`**.
+- **i18n:** `cards_added_n`, `cards_undo_no_data` (×14 dil).
+- **Cache-buster:** `style.css?v=659 → 660`; `jsver bump` → **build 687**; py → restart.
+- **Doğrulama:** sahte `zero.json` (added=0) + `two.csv` (added=2, added_ids dolu) → history yalnız `two.csv`, `can_undo=1`; `_import_cleanup()` “1 boş aktarım kaydı silindi”; API’de `bak/import_TEST_ADI`, arayüzde kırpılmış; md5 yerel = pi (6 dosya); `style.css?v=660`, build 687, servis `active`; test kalıntıları silindi (`import_log=0`, `followed=76`, `anime=7`).
+- **Sürüm:** **2.23.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.1_20261029_004127/` (DB pre + post), `bak/hist_ui_20261029_003841/` (6 dosya + DB pre).
