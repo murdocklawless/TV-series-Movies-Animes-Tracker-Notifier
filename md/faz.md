@@ -1516,3 +1516,11 @@
 - **Cache-buster:** `style.css?v=661 → 662`; statik → restart yok, Ctrl+F5.
 - **Doğrulama:** sunucudan gelen CSS’te flex satır + sıfır boşluk doğrulandı; md5 yerel = pi (`style.css` `b6e9ed57…`, `index.html` `9be7e7fa…`); `css662=200`; servis `active`; CSS mojibake/FFFD 0; `eol.py check` OK.
 - **Sürüm:** **2.23.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.3_20261029_005521/` (pre + post), `bak/hist_flex_20261029_005242/` (2 dosya).
+
+## FAZ NOTLARI — Geçmiş satırında | çevresine 1 karakter boşluk (29/10/2026, sürüm 2.23.4)
+
+- **Bildirilen:** metin ile `|` tamamen bitişik oldu; **sadece 1 karakter** boşluk olsun.
+- **Değişiklik:** `static/css/style.css` → `.import-hist-pipe { padding: 0 → 0 0.25em }`. `0.25em`, standart sans-serif yazı tiplerinde **bir boşluk karakteri** genişliğidir. Flex satır yapısı (`display:flex; flex-direction:row; flex-wrap:nowrap; gap:0`) ve satırlar arası hizalama değişmedi.
+- **Cache-buster:** `style.css?v=662 → 663`; statik → restart yok, Ctrl+F5.
+- **Doğrulama:** sunucudan gelen CSS’te `padding: 0 0.25em`; md5 yerel = pi (`style.css` `89b4c968…`, `index.html` `829110e6…`); `css663=200`; servis `active`; CSS mojibake/FFFD 0; `eol.py check` OK.
+- **Sürüm:** **2.23.4** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.4_20261029_010108/` (pre + post), `bak/hist_space_20261029_005904/` (2 dosya).

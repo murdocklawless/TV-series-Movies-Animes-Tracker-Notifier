@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.4 - 29/10/2026-01:01
+### TR
+- **Geçmiş satırında `|` çevresine tam 1 karakter boşluk:** `.import-hist-pipe` kuralı `padding: 0 → 0 0.25em` oldu (`0.25em` = standart yazı tiplerinde bir boşluk karakteri genişliği). Satır: `28.10.2026 23:57 | JSON | 79 Kart Eklendi` — boru turuncu, satırlar arasında hizalama korunuyor, flex satır yapısı değişmedi.
+- **Cache-buster:** `style.css?v=662 → 663`. Statik → restart **gerekmedi**, **Ctrl+F5**.
+- **Doğrulama:** sunucudan gelen CSS’te `padding: 0 0.25em` doğrulandı; md5 yerel = pi (`style.css` `89b4c968…`, `index.html` `829110e6…`); `css663=200`; servis `active`; CSS mojibake/FFFD **0**; `eol` **OK**.
+- **Sürüm:** 2.23.4 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.23.4_20261029_010108/` (pre + post), `bak/hist_space_20261029_005904/` (2 dosya).
+### EN
+- **Exactly one character of space around `|` in history rows:** `.import-hist-pipe` changed from `padding: 0` to `padding: 0 0.25em` (`0.25em` ≈ one space character in standard fonts). Row: `28.10.2026 23:57 | JSON | 79 Cards Added` — pipe stays orange, cross-row alignment and the flex row structure are unchanged.
+- **Cache-buster:** `style.css?v=662 → 663`. Static-only → no restart, just **Ctrl+F5**.
+- **Verified:** served CSS contains `padding: 0 0.25em`; md5 local = pi (`style.css` `89b4c968…`, `index.html` `829110e6…`); `css663=200`; service `active`; CSS mojibake/FFFD **0**; `eol` OK.
+- **Version:** 2.23.4 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.23.4_20261029_010108/`, `bak/hist_space_20261029_005904/`.
+
 ## 2.23.3 - 29/10/2026-00:55
 ### TR
 - **Geçmiş satırı artık flex satır:** `.import-hist-meta` `display: grid` → **`display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0`**. Böylece üst kapsayıcıdan gelebilecek `flex-direction: column` etkisi veya grid şablonu sorunları satırı **asla alt alta düşüremiyor**. `.import-hist-cell` / `.import-hist-pipe` → `flex: 0 0 auto; white-space: nowrap`; boruya ayrıca `margin: 0; padding: 0` (metin ile `|` **bitişik**).
