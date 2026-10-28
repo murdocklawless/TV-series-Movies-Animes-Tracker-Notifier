@@ -14,6 +14,7 @@ Kimlik: Trakt OAuth device code. Global `trakt_client_id` + `trakt_client_secret
 (kullanici kendi Trakt uygulamasini olusturur). Per-user token `user_settings`
 icinde sifreli saklanir.
 """
+import datetime
 import json
 import threading
 import time
@@ -31,6 +32,8 @@ POLL_DEFAULT = 10
 # 2.19.6: hizli yoklama icin kucuk sayfa; gerektiginde sayfalama yapilir.
 IN_LIMIT = 20          # sayfa basina history kaydi
 IN_MAX_PAGES = 5       # tek yoklamada en fazla 100 kayit
+# 2.20.4: Trakt `watched_at`i dakikaya yuvarlar -> tombstone kiyasinda tolerans.
+IGNORE_TOL = 60
 
 
 # ---------------------------------------------------------------------------
@@ -560,7 +563,180 @@ def _stamp_last_watch(uid, title, kind, season=None, episode=None, ts=None):
     _uset(uid, "tp_trakt_last_watch", json.dumps(payload, ensure_ascii=False))
 
 
-def _mark_inbound(uid, tmdb_id, kind, season, episode, title, ts, direct=False):
+def _iso_ts(value):
+    """Trakt ISO8601 ("...Z") -> epoch saniye. Cozulemezse 0."""
+    try:
+        v = str(value or "").strip()
+        if not v:
+            return 0
+        if v.endswith("Z"):
+            v = v[:-1] + "+00:00"
+        return int(datetime.datetime.fromisoformat(v).timestamp())
+    except Exception:
+        return 0
+
+
+def ignore_add(uid, kind, tmdb_id, season=None, episode=None, ts=None):
+    """Yerelde 'izlenmedi' tombstone'u yaz (2.20.4). Fail-soft -> bool.
+
+    Film ve "tum dizi" icin season=0, episode=0 kullanilir (NULL tekillik
+    sorunu olmasin). Ayni anahtar tekrar yazilirsa ts guncellenir.
+    """
+    k = "movie" if (kind or "").lower() == "movie" else "tv"
+    try:
+        tmdb = int(tmdb_id)
+    except Exception:
+        return False
+    if tmdb <= 0:
+        return False
+    s = 0 if k == "movie" else int(season or 0)
+    e = 0 if k == "movie" else int(episode or 0)
+    try:
+        conn = get_db()
+        try:
+            conn.execute(
+                "INSERT INTO trakt_in_ignore (user_id, kind, tmdb_id, season, episode, ts) "
+                "VALUES (?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(user_id, kind, tmdb_id, season, episode) "
+                "DO UPDATE SET ts=excluded.ts",
+                (int(uid), k, tmdb, s, e, int(ts or time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return True
+    except Exception:
+        return False
+
+
+def ignore_ts(uid, kind, tmdb_id, season=None, episode=None):
+    """En son tombstone zamani -> epoch|0 (tam eslesme + tum dizi maksimumu)."""
+    k = "movie" if (kind or "").lower() == "movie" else "tv"
+    try:
+        tmdb = int(tmdb_id)
+    except Exception:
+        return 0
+    s = 0 if k == "movie" else int(season or 0)
+    e = 0 if k == "movie" else int(episode or 0)
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT MAX(ts) AS ts FROM trakt_in_ignore "
+                "WHERE user_id=? AND kind=? AND tmdb_id=? "
+                "AND ((season=0 AND episode=0) OR (season=? AND episode=?))",
+                (int(uid), k, tmdb, s, e),
+            ).fetchone()
+            return int(row["ts"] or 0) if row else 0
+        finally:
+            conn.close()
+    except Exception:
+        return 0
+
+
+def ignore_clear(uid, kind, tmdb_id, season=None, episode=None):
+    """Tombstone sil (tam eslesme). Fail-soft -> bool."""
+    k = "movie" if (kind or "").lower() == "movie" else "tv"
+    try:
+        tmdb = int(tmdb_id)
+    except Exception:
+        return False
+    s = 0 if k == "movie" else int(season or 0)
+    e = 0 if k == "movie" else int(episode or 0)
+    try:
+        conn = get_db()
+        try:
+            conn.execute(
+                "DELETE FROM trakt_in_ignore "
+                "WHERE user_id=? AND kind=? AND tmdb_id=? AND season=? AND episode=?",
+                (int(uid), k, tmdb, s, e),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return True
+    except Exception:
+        return False
+
+
+def _local_watched(uid, kind, tmdb_id, season=None, episode=None):
+    """Yerelde izlendi mi? (inbound 'ayni durum' filtresi icin) -> bool."""
+    try:
+        conn = get_db()
+        try:
+            if (kind or "").lower() == "movie":
+                row = conn.execute(
+                    "SELECT watched FROM followed "
+                    "WHERE user_id=? AND tmdb_id=? AND media_type='movie'",
+                    (int(uid), int(tmdb_id)),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT e.watched AS watched FROM episodes e "
+                    "JOIN followed f ON f.id=e.follow_id "
+                    "WHERE f.user_id=? AND f.tmdb_id=? AND e.season=? AND e.episode=?",
+                    (int(uid), int(tmdb_id), int(season), int(episode)),
+                ).fetchone()
+            return bool(row and int(row["watched"] or 0) == 1)
+        finally:
+            conn.close()
+    except Exception:
+        return False
+
+
+def _pushed_by_us(uid, kind, tmdb_id, season=None, episode=None):
+    """Bu izlemeyi BIZ mi Trakt'a gonderdik? -> bool (kendi ekho'muz, 2.20.5).
+
+    `queue_remove` ve `_reconcile` izlenmedi'de satiri sildigi icin, satirin
+    durmasi "yerelde hala izlendi" demektir; bu halde gelen Trakt kaydi kendi
+    gonderimimizin yankisidir.
+    """
+    k = "movie" if (kind or "").lower() == "movie" else "tv"
+    try:
+        tmdb = int(tmdb_id)
+    except Exception:
+        return False
+    s = 0 if k == "movie" else int(season or 0)
+    e = 0 if k == "movie" else int(episode or 0)
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM trakt_out_pushed "
+                "WHERE user_id=? AND kind=? AND tmdb_id=? AND season=? AND episode=?",
+                (int(uid), k, tmdb, s, e),
+            ).fetchone()
+            return bool(row)
+        finally:
+            conn.close()
+    except Exception:
+        return False
+
+
+def _inbound_skip(uid, kind, tmdb_id, season, episode, watched_at):
+    """Trakt 'izlendi' sinyali yok sayilmali mi? -> (skip, neden)
+
+    1. Kayit bizim gonderimimiz -> kendi ekho'muz (yazma/ask yok).
+    2. Yerelde zaten izlendi -> ayni durum.
+    3. Tombstone var + sinyal tombstone+60 sn'den eski -> eski echo.
+       Tombstone'dan YENI sinyal ise tombstone temizlenir (yeni izleme).
+    """
+    if _pushed_by_us(uid, kind, tmdb_id, season, episode):
+        return True, "kendi-gonderimiz"
+    if _local_watched(uid, kind, tmdb_id, season, episode):
+        return True, "zaten-izlendi"
+    ts = ignore_ts(uid, kind, tmdb_id, season, episode)
+    if ts:
+        wts = _iso_ts(watched_at)
+        if not wts or wts <= ts + IGNORE_TOL:
+            return True, "eski-echo"
+        ignore_clear(uid, kind, tmdb_id, season, episode)
+        print(f"[trakt] tombstone temizlendi (yeni izleme): {kind} tmdb={tmdb_id} "
+              f"S{season}E{episode} @ {watched_at}", flush=True)
+    return False, ""
+
+
+def _mark_inbound(uid, tmdb_id, kind, season, episode, title, ts, direct=True):
     """Trakt izlemesini NextEp'e yaz (source='trakt').
 
     direct=True: manuel "Simdi kontrol et" -> soru uretmeden dogrudan izlendi
@@ -582,8 +758,13 @@ def _mark_inbound(uid, tmdb_id, kind, season, episode, title, ts, direct=False):
         print(f"[trakt] mark hata: {e}", flush=True)
 
 
-def _inbound(uid, direct=False):
+def _inbound(uid, direct=True):
     """Trakt history -> NextEp. Yeni izlemeleri isler. -> islenen sayisi.
+
+    2.20.4: Trakt'tan gelen yeni izleme HER ZAMAN dogrudan yazilir (ask yok).
+    Yalnizca iki sinyal filtrelenir:
+      * ayni durum (yerelde zaten izlendi),
+      * eski echo (tombstone + 60 sn tolerans; bkz. `_inbound_skip`).
 
     2.19.6: sayfalama. Eski surum tek sayfa (IN_LIMIT) okuyup cursor'i
     ilerletiyordu; tek yoklamada IN_LIMIT'ten fazla yeni kayit varsa eskiler
@@ -645,7 +826,12 @@ def _inbound(uid, direct=False):
                     k = _key("movie", tmdb, watched_at=watched_at)
                     if k in seen_set:
                         continue
-                    _mark_inbound(uid, tmdb, "movie", None, None, title, None, direct=direct)
+                    _skip, _why = _inbound_skip(uid, "movie", tmdb, None, None, watched_at)
+                    if _skip:
+                        print(f"[trakt] inbound atlandi ({_why}): film {title or tmdb} @ {watched_at}", flush=True)
+                        seen_set.add(k)
+                        continue
+                    _mark_inbound(uid, tmdb, "movie", None, None, title, None, direct=True)
                     seen_set.add(k)
                     done.append(k)
                     n += 1
@@ -663,7 +849,13 @@ def _inbound(uid, direct=False):
                     k = _key("tv", tmdb, season, number, watched_at)
                     if k in seen_set:
                         continue
-                    _mark_inbound(uid, tmdb, "tv", int(season), int(number), title, None, direct=direct)
+                    _skip, _why = _inbound_skip(uid, "tv", tmdb, int(season), int(number), watched_at)
+                    if _skip:
+                        print(f"[trakt] inbound atlandi ({_why}): {title or tmdb} "
+                              f"S{season}E{number} @ {watched_at}", flush=True)
+                        seen_set.add(k)
+                        continue
+                    _mark_inbound(uid, tmdb, "tv", int(season), int(number), title, None, direct=True)
                     seen_set.add(k)
                     done.append(k)
                     n += 1
@@ -874,6 +1066,11 @@ def _reconcile(uid):
                     "WHERE follow_id=? AND season=? AND episode=?",
                     (r["follow_id"], r["season"], r["episode"]),
                 )
+                # 2.20.4: dizi karti Izlenenler'de kalmasin (kendi sekmesine donsun).
+                conn.execute(
+                    "UPDATE followed SET in_watched=0 WHERE id=? AND in_watched=1",
+                    (r["follow_id"],),
+                )
                 conn.execute(
                     "DELETE FROM trakt_out_pushed WHERE user_id=? AND kind='tv' "
                     "AND tmdb_id=? AND season=? AND episode=?",
@@ -888,8 +1085,8 @@ def _reconcile(uid):
                     continue
                 removed.append(("m", int(tmdb)))
                 conn.execute(
-                    "UPDATE followed SET watched=0, watched_at=NULL, watched_source=NULL, "
-                    "direct_mark=0 WHERE id=?",
+                    "UPDATE followed SET watched=0, in_watched=0, watched_at=NULL, "
+                    "watched_source=NULL, direct_mark=0 WHERE id=?",
                     (r["id"],),
                 )
                 conn.execute(
@@ -1124,7 +1321,7 @@ def _outbound(uid):
                 "SELECT f.tmdb_id AS tmdb_id, e.season AS season, e.episode AS episode, e.watched_at AS watched_at "
                 "FROM episodes e JOIN followed f ON f.id=e.follow_id "
                 "WHERE f.user_id=? AND e.watched=1 AND e.watched_at IS NOT NULL AND e.watched_at>? "
-                "AND LOWER(IFNULL(f.watched_source,''))<>'trakt' "
+                "AND LOWER(IFNULL(e.source,''))<>'trakt' "
                 "ORDER BY e.watched_at ASC",
                 (int(uid), since),
             ).fetchall()

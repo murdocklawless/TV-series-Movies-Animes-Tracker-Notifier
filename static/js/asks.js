@@ -1,9 +1,9 @@
 // asks.js — "Izlendi Bilgisi Sor" paneli (navbar utils, canin solunda).
 // ask_before_watched ON iken buton + rozet + panel gorunur; OFF iken hepsi kapali.
-import { t, errText } from "./i18n.js?v=663";
-import { escAttr, toast, CHECK_SVG } from "./utils.js?v=663";
-import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=663";
-import { openAskClearConfirm, fmtDateTime } from "./components.js?v=663";
+import { t, errText } from "./i18n.js?v=682";
+import { escAttr, toast, CHECK_SVG } from "./utils.js?v=682";
+import { closeMenu as closeNotifMenu, notifMediaKind, notifTypePill, notifMsgHTML, notifTitleLine } from "./notification.js?v=682";
+import { openAskClearConfirm, openAskPrevConfirm, fmtDateTime } from "./components.js?v=682";
 
 let askEnabled = true;
 let askTimer = null;
@@ -181,6 +181,32 @@ async function resolveAsk(id, yes) {
     const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
     let j = {};
     try { j = await r.json(); } catch (_) { j = {}; }
+    // 2.20.4: hedeften once (24 saat icindeki) isaretsiz ask satiri var ->
+    // onay yazilmadi; adanmis modal ask penceresindeki bolumleri gosterir.
+    if (yes && j && j.needs_confirm && j.plan) {
+      openAskPrevConfirm(j.plan, {
+        onToggle: async (askId, watched, askIds) => {
+          try {
+            const rr = await fetch(`/api/asks/${askId}/row`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ watched: !!watched, ask_ids: askIds || [] }),
+            });
+            let jj = {};
+            try { jj = await rr.json(); } catch (_) { jj = {}; }
+            if (!rr.ok) {
+              toast((jj && jj.error) || t("error"), true);
+              fetchAskList();
+              fetchAskCount();
+              return { ok: false };
+            }
+            fetchAskList();
+            fetchAskCount();
+            return { ok: true, rows: jj.rows || [] };
+          } catch (_) { toast(t("error"), true); return { ok: false }; }
+        },
+      });
+      return;
+    }
     if (!r.ok) {
       toast((j && j.error) || t("error"), true);
       return;

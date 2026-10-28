@@ -6,7 +6,7 @@ from db import get_db
 from auth import get_current_user
 from ramcache import list_cache, bump, gen, cached_response
 from poster_store import versioned_web_path
-from ask_store import clear_pending, record_decision
+from ask_store import clear_pending, record_decision, ask_key
 
 notification_bp = Blueprint("notification", __name__)
 
@@ -398,11 +398,290 @@ def _mark_ask_watched(row):
                     (frow["id"], season, episode, ts, src),
                 )
         conn.commit()
+        # 2.20.4: ask onayiyla yazilan izleme tombstone'u gecersiz kilar.
+        try:
+            import trakt
+            if media == "movie":
+                trakt.ignore_clear(uid, "movie", row["tmdb_id"])
+            elif media == "tv":
+                trakt.ignore_clear(uid, "tv", row["tmdb_id"], season, episode)
+        except Exception:
+            pass
         print(f"[asks] onay: watched_at=ask zamani ({ts}) media={media} s{season} e{episode} kaynak={src}", flush=True)
         return True
     except Exception as e:
         print(f"[asks] watched yazma hata: {e}", flush=True)
         return None
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# 2.20.4: sirali (prefix) bolum kontrolu — ask onayinda bolum bolum soru
+# ---------------------------------------------------------------------------
+def _ep_int(v):
+    """Guvenli int (None/'' -> None)."""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+ASK_ROW_TTL = 86400  # saniye: 24 saatten eski ask satiri modala girmez
+
+
+def _ask_rows(row, only_ids=None):
+    """Modal plani: AYNI yapimdaki ask satirlari (24 saat) + hedef.
+
+    only_ids verilirse yalniz o ask id'leri kullanilir (arayuzun o an
+    gosterdigi satirlar) -> toggle'lar arasinda plan sabit kalir.
+    Donus: {"kind","title","season","episode","target",
+            "rows":[{"ask_id","season","episode","watched"}]}
+    Film / bolumsuz / cozulemeyen ask -> None. Siralama (sezon, bolum).
+    Tiklanan (hedef) ask, yasi ne olursa olsun listede kalir.
+    """
+    media = (row["media_type"] or "").lower()
+    if media == "movie":
+        return None
+    target_ep = _ep_int(row["episode"])
+    if target_ep is None:
+        return None
+    uid = row["user_id"]
+    now = int(time.time())
+    conn = get_db()
+    try:
+        if media == "anime":
+            arow = conn.execute(
+                "SELECT id FROM anime WHERE user_id=? AND anilist_id=?",
+                (uid, row["anilist_id"]),
+            ).fetchone()
+            if not arow:
+                return None
+            watched_map = {
+                int(r["episode"]): int(r["watched"] or 0) == 1
+                for r in conn.execute(
+                    "SELECT episode, watched FROM anime_episodes WHERE anime_id=?", (arow["id"],)
+                ).fetchall()
+            }
+        else:
+            frow = conn.execute(
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+                (uid, row["tmdb_id"]),
+            ).fetchone()
+            if not frow:
+                return None
+            watched_map = {
+                (int(r["season"]), int(r["episode"])): int(r["watched"] or 0) == 1
+                for r in conn.execute(
+                    "SELECT season, episode, watched FROM episodes WHERE follow_id=?", (frow["id"],)
+                ).fetchall()
+            }
+        if only_ids:
+            id_list = [int(x) for x in only_ids if _ep_int(x) is not None]
+            if not id_list:
+                return None
+            ph = ",".join("?" * len(id_list))
+            asks = conn.execute(
+                "SELECT id, season, episode, created_at FROM notifications "
+                "WHERE type='watched_ask' AND user_id=? AND media_type=? "
+                "AND id IN (" + ph + ") "
+                "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "ORDER BY season, episode, id",
+                tuple([uid, media] + id_list + [row["tmdb_id"], row["anilist_id"]]),
+            ).fetchall()
+        else:
+            asks = conn.execute(
+                "SELECT id, season, episode, created_at FROM notifications "
+                "WHERE type='watched_ask' AND user_id=? AND resolved=0 AND media_type=? "
+                "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "ORDER BY season, episode, id",
+                (uid, media, row["tmdb_id"], row["anilist_id"]),
+            ).fetchall()
+    except Exception as e:
+        print(f"[asks] plan okuma hata: {e}", flush=True)
+        return None
+    finally:
+        conn.close()
+
+    target_id = int(row["id"])
+    ask_list = [dict(a) for a in asks]
+    # Hedef ask cozulmus olabilir (tick sonrasi): satir yine gorunsun.
+    if not any(int(a["id"]) == target_id for a in ask_list):
+        ask_list.append({"id": target_id, "season": row["season"],
+                         "episode": row["episode"], "created_at": row["created_at"]})
+
+    rows = []
+    index = {}
+    for a in ask_list:
+        s = _ep_int(a["season"])
+        e = _ep_int(a["episode"])
+        if e is None:
+            continue
+        is_target = int(a["id"]) == target_id
+        if int(a["created_at"] or 0) < now - ASK_ROW_TTL and not is_target:
+            continue  # 24 saatten eski ask -> listeye girmez
+        key = (s, e)
+        if key in index:
+            if is_target:
+                rows[index[key]]["ask_id"] = int(a["id"])
+            continue
+        watched = watched_map.get(e if media == "anime" else (s, e), False)
+        index[key] = len(rows)
+        rows.append({"ask_id": int(a["id"]), "season": s, "episode": e,
+                     "watched": bool(watched)})
+    if not rows:
+        return None
+    rows.sort(key=lambda r: ((r["season"] or 0), r["episode"]))
+    return {"kind": media, "title": row["title"], "season": _ep_int(row["season"]),
+            "episode": target_ep, "target": target_id, "rows": rows}
+
+
+def _ask_plan_needed(row):
+    """Onaydan once modal gerekiyor mu? (hedeften ONCE isaretsiz ask satiri varsa)."""
+    info = _ask_rows(row)
+    if not info or len(info["rows"]) < 2:
+        return None
+    ids = [r["ask_id"] for r in info["rows"]]
+    try:
+        idx = ids.index(int(row["id"]))
+    except ValueError:
+        return None
+    if any(not r["watched"] for r in info["rows"][:idx]):
+        return info
+    return None
+
+
+def _reopen_ask_episode(row, season, episode):
+    """Izlemeyi geri al: watched=0 + ask yeniden beklemede + 'Evet' karari silinir."""
+    uid = row["user_id"]
+    kind = (row["media_type"] or "").lower()
+    conn = get_db()
+    try:
+        if kind == "anime":
+            arow = conn.execute(
+                "SELECT id FROM anime WHERE user_id=? AND anilist_id=?",
+                (uid, row["anilist_id"]),
+            ).fetchone()
+            if arow:
+                conn.execute(
+                    "UPDATE anime_episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 "
+                    "WHERE anime_id=? AND episode=?",
+                    (arow["id"], episode),
+                )
+        else:
+            frow = conn.execute(
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+                (uid, row["tmdb_id"]),
+            ).fetchone()
+            if frow and season is not None:
+                conn.execute(
+                    "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 "
+                    "WHERE follow_id=? AND season=? AND episode=?",
+                    (frow["id"], season, episode),
+                )
+        conn.execute(
+            "UPDATE notifications SET resolved=0, is_read=0 "
+            "WHERE type='watched_ask' AND user_id=? AND media_type=? "
+            "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+            "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+            "AND IFNULL(CAST(season AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+            "AND IFNULL(CAST(episode AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1')",
+            (uid, kind, row["tmdb_id"], row["anilist_id"], season, episode),
+        )
+        conn.execute(
+            "DELETE FROM ask_decisions WHERE dedupe=?",
+            (ask_key(uid, kind, row["tmdb_id"], row["anilist_id"], season, episode),),
+        )
+        conn.commit()
+        print(f"[asks] geri alindi: media={kind} s{season} e{episode}", flush=True)
+        return True
+    except Exception as e:
+        print(f"[asks] geri alma hata: {e}", flush=True)
+        return False
+    finally:
+        conn.close()
+
+
+def _close_ask_episode(row, season, episode, resolved):
+    """Ayni yapim+bolum icin ask satirlarini kapat + kalici karar yaz (fail-soft)."""
+    uid = row["user_id"]
+    kind = (row["media_type"] or "").lower()
+    try:
+        conn = get_db()
+        try:
+            conn.execute(
+                "UPDATE notifications SET resolved=?, is_read=1 "
+                "WHERE type='watched_ask' AND user_id=? AND media_type=? "
+                "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "AND IFNULL(CAST(season AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                "AND IFNULL(CAST(episode AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1')",
+                (resolved, uid, kind, row["tmdb_id"], row["anilist_id"], season, episode),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[asks] ask kapatma hata: {e}", flush=True)
+    try:
+        record_decision(uid, kind, "watched" if resolved == 1 else "rejected",
+                        tmdb_id=row["tmdb_id"], anilist_id=row["anilist_id"],
+                        season=season, episode=episode, source=_ask_source(row))
+    except Exception:
+        pass
+
+
+def _write_ask_episode(row, season, episode):
+    """Modal satiri: bolumu izlendi yaz (watched_at = ask zamani). -> bool"""
+    conn = get_db()
+    uid = row["user_id"]
+    media = (row["media_type"] or "").lower()
+    ts = _ask_ts(row)
+    src = _ask_source(row)
+    try:
+        if media == "anime":
+            arow = conn.execute(
+                "SELECT id FROM anime WHERE user_id=? AND anilist_id=?",
+                (uid, row["anilist_id"]),
+            ).fetchone()
+            if not arow:
+                return False
+            conn.execute(
+                "INSERT INTO anime_episodes (anime_id, episode, watched, watched_at, source, direct_mark) "
+                "VALUES (?,?,1,?,?,0) "
+                "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
+                "source=COALESCE(excluded.source, source), direct_mark=0",
+                (arow["id"], episode, ts, src),
+            )
+        else:
+            frow = conn.execute(
+                "SELECT id FROM followed WHERE user_id=? AND tmdb_id=? AND media_type='tv'",
+                (uid, row["tmdb_id"]),
+            ).fetchone()
+            if not frow or season is None:
+                return False
+            conn.execute(
+                "INSERT INTO episodes (follow_id, season, episode, watched, watched_at, source, direct_mark) "
+                "VALUES (?,?,?,1,?,?,0) "
+                "ON CONFLICT(follow_id, season, episode) DO UPDATE SET watched=1, watched_at=excluded.watched_at, "
+                "source=COALESCE(excluded.source, source), direct_mark=0",
+                (frow["id"], season, episode, ts, src),
+            )
+        conn.commit()
+        try:
+            if media != "anime":
+                import trakt
+                trakt.ignore_clear(uid, "tv", row["tmdb_id"], season, episode)
+        except Exception:
+            pass
+        print(f"[asks] satir: watched_at=ask zamani ({ts}) media={media} s{season} e{episode} kaynak={src}",
+              flush=True)
+        return True
+    except Exception as e:
+        print(f"[asks] satir yazma hata: {e}", flush=True)
+        return False
     finally:
         conn.close()
 
@@ -417,6 +696,11 @@ def approve_ask(aid):
     conn.close()
     if not row:
         return jsonify({"error": "ask bulunamadi"}), 404
+    # 2.20.4: hedeften once izlenmemis bolum varsa ONAY YAZILMAZ; arayuz
+    # adanmis modalla bolum bolum sorar (sirada bosluk birakilamaz).
+    plan = _ask_plan_needed(row)
+    if plan:
+        return jsonify({"ok": False, "needs_confirm": True, "plan": plan})
     _mark_ask_watched(row)
     # Kalici karar (ask_decisions): "Evet" — ask listesi temizlense de kalir.
     try:
@@ -431,6 +715,57 @@ def approve_ask(aid):
     conn.close()
     bump()
     return jsonify({"ok": True})
+
+
+@notification_bp.route("/api/asks/<int:aid>/row", methods=["POST"])
+def ask_toggle_row(aid):
+    """Modal satiri: bu ask'in bolumunu izlendi/izlenmedi yap (aninda yazar).
+
+    watched=true  -> bolum izlendi yazilir, ask "Evet" kapanir. Bu satirdan
+                     ONCE isaretsiz satir varsa 400 (sirada bosluk olmaz).
+    watched=false -> izleme kaydi silinir, ask beklemede kalir; bu satirdan
+                     SONRAKI tum satirlar da geri alinir (3✗ 4✓ imkansiz).
+    """
+    uid = _me_id()
+    data = request.get_json(silent=True) or {}
+    want = bool(data.get("watched", True))
+    conn = get_db()
+    row = conn.execute(
+        "SELECT * FROM notifications WHERE id=? AND type='watched_ask' AND user_id=?", (aid, uid)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({"error": "ask bulunamadi"}), 404
+    season = _ep_int(row["season"])
+    episode = _ep_int(row["episode"])
+    if episode is None:
+        return jsonify({"error": "bolum yok"}), 400
+    only_ids = data.get("ask_ids")
+    if not isinstance(only_ids, list):
+        only_ids = None
+    info = _ask_rows(row, only_ids=only_ids)
+    if not info:
+        return jsonify({"error": "plan yok"}), 400
+    ids = [r["ask_id"] for r in info["rows"]]
+    if aid not in ids:
+        return jsonify({"error": "satir planda yok"}), 400
+    idx = ids.index(aid)
+    if want:
+        gap = [r["episode"] for r in info["rows"][:idx] if not r["watched"]]
+        if gap:
+            return jsonify({"error": "onceki bolum izlenmemis", "gap": gap}), 400
+        if not _write_ask_episode(row, season, episode):
+            return jsonify({"error": "yazma hatasi"}), 500
+        _close_ask_episode(row, season, episode, 1)
+        info["rows"][idx]["watched"] = True
+    else:
+        _reopen_ask_episode(row, season, episode)
+        for r in info["rows"][idx + 1:]:
+            _reopen_ask_episode(row, r["season"], r["episode"])
+        for r in info["rows"][idx:]:
+            r["watched"] = False
+    bump()
+    return jsonify({"ok": True, "rows": info["rows"]})
 
 
 @notification_bp.route("/api/asks/<int:aid>/reject", methods=["POST"])

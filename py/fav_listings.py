@@ -6,7 +6,7 @@ import json
 import threading
 import time
 
-from db import get_db, today_str
+from db import get_db, today_str, get_setting
 from tmdb import tmdb_request, _genre_names_to_ids, _genre_ids_for_media
 
 GENRE_LIMIT = 30
@@ -285,8 +285,14 @@ def refresh_all_fav_listings():
                     save_fav_listing("genre", ident, items)
             except Exception:
                 continue
-        # 30 günden eski fav cache temizle
-        cutoff = time.time() - 30 * 86400
+        # 30 günden eski fav cache temizle (2.20.7: Isler > "Favori liste tazeligi")
+        try:
+            _fav_days = int(str(get_setting("job_fav_days") or "").strip())
+        except (TypeError, ValueError):
+            _fav_days = 0
+        except Exception:
+            _fav_days = 0
+        cutoff = time.time() - (_fav_days if _fav_days > 0 else 30) * 86400
         try:
             c2 = get_db()
             c2.execute("DELETE FROM fav_listing_cache WHERE ts < ?", (cutoff,))

@@ -976,6 +976,22 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .rec-search-input.open {
     right: 122px;
   }
+  /* 2.20.7: "Sonra İzlenecek" alt bölümleri — izlenmiş/izlenmemiş deseni:
+     dotted turuncu çizginin 3px ALTINDA, sağ kenarı çizginin en sağında (right:0).
+     Yalnız ...-later kutuları; ana bölüm kutusu (butonun solunda, çizginin üstünde)
+     ve masaüstü/APK/TV ölçüleri değişmez. */
+  html:not(.is-tv):not(.tv-mode) #view-dizi .rec-search-input.open[data-section$="-later"],
+  html:not(.is-tv):not(.tv-mode) #view-film .rec-search-input.open[data-section$="-later"],
+  html:not(.is-tv):not(.tv-mode) #view-belgesel .rec-search-input.open[data-section$="-later"],
+  html:not(.is-tv):not(.tv-mode) #view-anime .rec-search-input.open[data-section$="-later"] {
+    left: auto;
+    right: 0;
+    top: calc(100% + 3px);
+    bottom: auto;
+    transform: none;
+    width: 160px;
+    max-width: 45vw;
+  }
   html:not(.is-tv):not(.tv-mode) #view-unwatched .rec-search-input.open,
   html:not(.is-tv):not(.tv-mode) #view-watched .rec-search-input.open {
     position: absolute;
@@ -1128,6 +1144,20 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   .feed-sched-time {
     width: 100%;
   }
+  /* 2.20.7: Isler satiri — ad ustte, pulldown alt satirda saga yanasik */
+  html:not(.is-tv):not(.tv-mode) .job-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) .job-name {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+  html:not(.is-tv):not(.tv-mode) .job-select {
+    width: 100px;
+    max-width: none;
+    margin-left: auto;
+  }
 }
 
 /* Oneriler besleme basligi: 4 kontrol cizginin en sagina yanasik (input mevcut kalir) */
@@ -1157,4 +1187,65 @@ html:not(.is-tv):not(.tv-mode) #view-anime .has-archived-toggle .section-search 
   html:not(.is-tv):not(.tv-mode) .history-arrow[data-dir="1"] i { transform: rotate(-90deg); }
   html:not(.is-tv):not(.tv-mode) .history-cal { gap: 5px; }
   html:not(.is-tv):not(.tv-mode) .history-cell:not(.blank) { aspect-ratio: auto; min-height: 62px; }
+}
+
+/* 2.20.4: ask onayi — mobilde yapim adi sutunu gizlenir (baslikta var) */
+@media (max-width: 520px) {
+  html:not(.is-tv):not(.tv-mode) .ask-prev-list {
+    grid-template-columns: repeat(var(--cols-narrow, 5), max-content);
+    gap: 8px;
+    font-size: 0.84rem;
+  }
+  html:not(.is-tv):not(.tv-mode) .ask-prev-list .ask-ep-title,
+  html:not(.is-tv):not(.tv-mode) .ask-prev-list .ask-ep-title + .ask-prev-sep {
+    display: none;
+  }
+  html:not(.is-tv):not(.tv-mode) .ask-prev-modal {
+    max-width: 96vw;
+  }
+}
+
+/* Kart disa/ice aktarma: pulldown + iki buton tek satirda kalsin (mobil) */
+@media (max-width: 600px) {
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row {
+    gap: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row .provider-combobox#cards-format-combo {
+    width: 120px;
+    min-width: 0;
+    max-width: 130px;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-backup-modal select#cards-format {
+    height: 32px;
+    padding: 0 24px 0 10px;
+    font-size: 0.82rem;
+    background-size: 12px;
+  }
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row .tab {
+    height: 32px;
+    font-size: 0.82rem;
+    padding: 0 10px;
+  }
+}
+
+/* Cok dar ekran (<=400px): esit genislikler kuculur, satir tek satir kalir */
+@media (max-width: 400px) {
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row {
+    gap: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row .provider-combobox#cards-format-combo {
+    flex: 0 0 96px;
+    width: 96px;
+    max-width: 96px;
+  }
+  html:not(.is-tv):not(.tv-mode) #cards-transfer-row .tab {
+    flex: 0 0 96px;
+    width: 96px;
+    max-width: 96px;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  html:not(.is-tv):not(.tv-mode) #settings-backup-modal select#cards-format {
+    padding: 0 22px 0 8px;
+  }
 }

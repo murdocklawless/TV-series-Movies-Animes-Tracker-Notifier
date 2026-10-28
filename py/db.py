@@ -108,17 +108,26 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN season_check_at INTEGER")
     if "detail_check_at" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN detail_check_at INTEGER")
+    # 2.20.6: toplu yayin (tum bolumler ayni tarih) sezonu 60 gun degismeden
+    # durursa status='Ended' yazilir. auto_ended bayragi TMDB'nin gunluk
+    # "Returning Series" yaziminin bu karari ezmesini engeller.
+    if "auto_ended" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN auto_ended INTEGER DEFAULT 0")
     # Yeni kartlar: INSERT sonrasi capalar otomatik kurulur (tum ekleme yollari
     # ayni kurala uysun diye INSERT'lere dokunmak yerine TRIGGER kullanilir).
+    # 2.20.7: capalar artik Ayarlar > Guncelleme Saatleri > Isler'den okunur
+    # (ayar yoksa eski varsayilanlar: sezon 45, detay 90). Trigger govdesi
+    # degistigi icin DROP + CREATE (IF NOT EXISTS eski govdeyi birakirdi).
     try:
+        conn.execute("DROP TRIGGER IF EXISTS followed_anchor_ai")
         conn.execute(
-            """CREATE TRIGGER IF NOT EXISTS followed_anchor_ai AFTER INSERT ON followed
+            """CREATE TRIGGER followed_anchor_ai AFTER INSERT ON followed
                WHEN NEW.added_at IS NULL
                BEGIN
                  UPDATE followed SET
                    added_at = CAST(strftime('%s','now') AS INTEGER),
-                   season_check_at = CAST(strftime('%s','now') AS INTEGER) + 45*86400,
-                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + 90*86400
+                   season_check_at = CAST(strftime('%s','now') AS INTEGER) + COALESCE((SELECT CAST(value AS INTEGER) FROM settings WHERE key='job_season_slow_days'), 45)*86400,
+                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + COALESCE((SELECT CAST(value AS INTEGER) FROM settings WHERE key='job_detail_slow_days'), 90)*86400
                  WHERE id = NEW.id;
                END"""
         )
@@ -126,18 +135,29 @@ def init_db():
         pass
     # Mevcut (eski) kartlar: gercek eklenme tarihi bilinmedigi icin capalar BIR
     # KEZ dagitilir — hepsi ayni gune yigilmasin (kullanici kurali: "tum kartlar
-    # ayni gun kontrol edilmesin"). Ilk tur 90 gune esit yayilir.
+    # ayni gun kontrol edilmesin"). Ilk tur ayarlanan araliga esit yayilir.
     try:
         legacy = conn.execute(
             "SELECT id FROM followed WHERE added_at IS NULL"
         ).fetchall()
         _now = int(datetime.datetime.now().timestamp())
+
+        def _cfg_days(k, dflt):
+            try:
+                _rw = conn.execute("SELECT value FROM settings WHERE key=?", (k,)).fetchone()
+                _v = int(str(_rw["value"]).strip()) if _rw and _rw["value"] is not None else 0
+                return _v if _v > 0 else dflt
+            except Exception:
+                return dflt
+
+        _slow = _cfg_days("job_season_slow_days", 45)
+        _det = _cfg_days("job_detail_slow_days", 90)
         for _r in legacy:
             _id = int(_r["id"])
             _age = (_id * 7) % 90                 # gecmis eklenme yasi (gun, deterministik)
             _added = _now - _age * 86400
-            _season = _now + ((_id * 13) % 45) * 86400
-            _detail = _now + ((_id * 7) % 90) * 86400
+            _season = _now + ((_id * 13) % _slow) * 86400
+            _detail = _now + ((_id * 7) % _det) * 86400
             conn.execute(
                 "UPDATE followed SET added_at=?, season_check_at=?, detail_check_at=? WHERE id=?",
                 (_added, _season, _detail, _id),
@@ -261,18 +281,20 @@ def init_db():
     if "deferred" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN deferred INTEGER DEFAULT 0")
     # 2.20.1 (madde 4): anime icin de capalar (bitmis: 90 gun, yayinda: 7 gun).
+    # 2.20.7: bitmis anime capasi Isler ayarindan okunur (yoksa 90).
     if "added_at" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN added_at INTEGER")
     if "detail_check_at" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN detail_check_at INTEGER")
     try:
+        conn.execute("DROP TRIGGER IF EXISTS anime_anchor_ai")
         conn.execute(
-            """CREATE TRIGGER IF NOT EXISTS anime_anchor_ai AFTER INSERT ON anime
+            """CREATE TRIGGER anime_anchor_ai AFTER INSERT ON anime
                WHEN NEW.added_at IS NULL
                BEGIN
                  UPDATE anime SET
                    added_at = CAST(strftime('%s','now') AS INTEGER),
-                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + 90*86400
+                   detail_check_at = CAST(strftime('%s','now') AS INTEGER) + COALESCE((SELECT CAST(value AS INTEGER) FROM settings WHERE key='job_anime_done_days'), 90)*86400
                  WHERE id = NEW.id;
                END"""
         )
@@ -281,12 +303,18 @@ def init_db():
     try:
         _alegacy = conn.execute("SELECT id FROM anime WHERE added_at IS NULL").fetchall()
         _anow = int(datetime.datetime.now().timestamp())
+        try:
+            _arw = conn.execute("SELECT value FROM settings WHERE key='job_anime_done_days'").fetchone()
+            _adone = int(str(_arw["value"]).strip()) if _arw and _arw["value"] is not None else 0
+        except Exception:
+            _adone = 0
+        _adone = _adone if _adone > 0 else 90
         for _r in _alegacy:
             _id = int(_r["id"])
             _age = (_id * 11) % 90
             conn.execute(
                 "UPDATE anime SET added_at=?, detail_check_at=? WHERE id=?",
-                (_anow - _age * 86400, _anow + ((_id * 17) % 90) * 86400, _id),
+                (_anow - _age * 86400, _anow + ((_id * 17) % _adone) * 86400, _id),
             )
     except Exception:
         pass
@@ -461,6 +489,40 @@ def init_db():
             episode INTEGER NOT NULL DEFAULT 0,
             ts INTEGER NOT NULL,
             PRIMARY KEY(user_id, kind, tmdb_id, season, episode)
+        )"""
+    )
+    # Emby UserData onbellegi (2.20.4): "izlenmedi" sinyalinin GERCEK degisiklik
+    # olup olmadigini anlamak icin son bilinen Emby durumu tutulur. Emby'de
+    # izlenmemis oge varsayilan olarak Played=false bildirir; onceki deger 1
+    # degilse gelen Played=false sinyal sayilmaz (Jellyfin/Trakt kaydi korunur).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS emby_userdata (
+            user_id INTEGER NOT NULL,
+            item_id TEXT NOT NULL,
+            tmdb_id INTEGER,
+            kind TEXT,
+            season INTEGER,
+            episode INTEGER,
+            play_count INTEGER DEFAULT 0,
+            played INTEGER DEFAULT 0,
+            last_played TEXT,
+            position_ticks INTEGER DEFAULT 0,
+            ts INTEGER NOT NULL,
+            PRIMARY KEY (user_id, item_id)
+        )"""
+    )
+    # Trakt echo tombstone'lari (2.20.4): yerelde "izlenmedi" yapilan oge icin
+    # Trakt'tan gelen eski izleme kaydi yok sayilir. Film / tum dizi icin
+    # season=0, episode=0 kullanilir (SQLite NULL tekillik sorunu).
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS trakt_in_ignore (
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            tmdb_id INTEGER NOT NULL,
+            season INTEGER NOT NULL DEFAULT 0,
+            episode INTEGER NOT NULL DEFAULT 0,
+            ts INTEGER NOT NULL,
+            PRIMARY KEY (user_id, kind, tmdb_id, season, episode)
         )"""
     )
     # Senkron havuzu (2.19.6): kalici outbox. Trakt giden islemleri burada

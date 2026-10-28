@@ -1,18 +1,18 @@
 // Faz 4: tracker.js — giriş noktası. Tüm mantık modüllere bölündü; bu dosya
 // modülleri bağlar, başlangıç yüklemelerini yapar ve genel (global) olayları kurar.
-window.__NX_BUILD = "663";
+window.__NX_BUILD = "682";
 import { state } from "./state.js";
-import { checkTmdbKey, applyLang, t } from "./i18n.js?v=663";
-import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=663";
-import { closeResultsModal } from "./search.js?v=663";
-import "./settings.js?v=663";
-import "./notification.js?v=663";
-import "./asks.js?v=663";
-import "./stats.js?v=663";
-  import "./history.js?v=663";
-  import "./tv.js?v=663";
-  import "./rowview.js?v=663";
-import { bootAuth } from "./auth.js?v=663";
+import { checkTmdbKey, applyLang, t } from "./i18n.js?v=682";
+import { switchView, loadFollowed, loadBelgesel, loadAnime, loadUnwatched, loadWatched, loadRecommendations, views } from "./views.js?v=682";
+import { closeResultsModal } from "./search.js?v=682";
+import "./settings.js?v=682";
+import "./notification.js?v=682";
+import "./asks.js?v=682";
+import "./stats.js?v=682";
+  import "./history.js?v=682";
+  import "./tv.js?v=682";
+  import "./rowview.js?v=682";
+import { bootAuth } from "./auth.js?v=682";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
 // Faz 30: oturum yoksa auth.js giriş ekranını gösterir; uygulama
@@ -167,7 +167,9 @@ function maybeShowGeoBanner(s) {
 }
 
 document.addEventListener("click", (e) => {
-  const sw = e.target.closest(".switch[data-tip]");
+  // 2.20.7: akordeon basliklarindaki "?" (dokunmatik) ve Isler satir adlari da
+  // ayni tooltip'i kullanir (mobilde satir ikonu kaldirildi -> isme dokun).
+  const sw = e.target.closest(".switch[data-tip], .acc-help[data-tip], .job-name[data-tip]");
   if (sw) {
     const r = sw.getBoundingClientRect();
     showTip(sw.dataset.tip, r.left + r.width / 2, r.top - 6);

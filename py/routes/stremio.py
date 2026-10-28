@@ -84,7 +84,19 @@ THIRDPARTY_APPS = [
 # Webhook tabanli uygulamalar (Plex / Jellyfin / Emby): /webhook/<app>/<token>
 WEBHOOK_APPS = ("plex", "jellyfin", "emby")
 
-SIGNAL_TTL = 30 * 86400  # tampon budama suresi (gecelik is)
+SIGNAL_TTL = 30 * 86400  # tampon budama suresi (gecelik is) — varsayilan
+
+
+def _signal_ttl():
+    """Tampon budama yasi (sn). 2.20.7: Isler > "Stremio sinyal TTL"."""
+    try:
+        from db import get_setting
+        v = int(str(get_setting("job_stremio_ttl_days") or "").strip())
+    except (TypeError, ValueError):
+        return SIGNAL_TTL
+    except Exception:
+        return SIGNAL_TTL
+    return v * 86400 if v > 0 else SIGNAL_TTL
 
 
 # ---------------------------------------------------------------------------
@@ -711,6 +723,18 @@ def _tmdb_detail(media_type, tmdb_id, tag=None):
 _ANIME_PROBE_TTL = 90 * 86400
 
 
+def _anime_probe_ttl():
+    """Anime sezgisi memo yasi (sn). 2.20.7: Isler > "Anime arama prob cache"."""
+    try:
+        from db import get_setting
+        v = int(str(get_setting("job_anime_probe_days") or "").strip())
+    except (TypeError, ValueError):
+        return _ANIME_PROBE_TTL
+    except Exception:
+        return _ANIME_PROBE_TTL
+    return v * 86400 if v > 0 else _ANIME_PROBE_TTL
+
+
 def _anime_probe_read(tmdb_id):
     """-> True/False (taze kayit) | None (kayit yok/bayat)."""
     try:
@@ -719,7 +743,7 @@ def _anime_probe_read(tmdb_id):
             "SELECT is_anime, ts FROM tmdb_anime_probe WHERE id=?", (tmdb_id,)
         ).fetchone()
         conn.close()
-        if row and (time.time() - (row["ts"] or 0)) < _ANIME_PROBE_TTL:
+        if row and (time.time() - (row["ts"] or 0)) < _anime_probe_ttl():
             return bool(row["is_anime"])
     except Exception:
         pass
@@ -957,6 +981,92 @@ def _find_live_ask(conn, uid, kind, tmdb_id=None, anilist_id=None, season=None, 
     ).fetchone()
 
 
+def _already_watched(uid, kind, tmdb_id=None, anilist_id=None, season=None, episode=None):
+    """Oge yerelde zaten izlendi mi? (2.20.5 ask veto'su) -> bool
+
+    Dizi/belgesel: ilgili sezon+bolum `watched=1` VEYA yapim `in_watched=1`.
+    Film/belgesel filmi: `watched=1` VEYA `in_watched=1`.
+    Anime: bolum `watched=1`; anime filmi (bolum yok): `in_watched=1`.
+    """
+    try:
+        conn = get_db()
+        try:
+            if kind == "anime":
+                arow = conn.execute(
+                    "SELECT id, in_watched FROM anime WHERE user_id=? AND anilist_id=?",
+                    (uid, anilist_id),
+                ).fetchone()
+                if not arow:
+                    return False
+                if episode is None:
+                    return int(arow["in_watched"] or 0) == 1
+                r = conn.execute(
+                    "SELECT watched FROM anime_episodes WHERE anime_id=? AND episode=?",
+                    (arow["id"], episode),
+                ).fetchone()
+                return bool(r and int(r["watched"] or 0) == 1)
+            mt = "movie" if kind == "movie" else "tv"
+            row = conn.execute(
+                "SELECT id, watched, in_watched FROM followed "
+                "WHERE user_id=? AND tmdb_id=? AND media_type=?",
+                (uid, tmdb_id, mt),
+            ).fetchone()
+            if not row:
+                return False
+            if mt == "movie":
+                return int(row["watched"] or 0) == 1 or int(row["in_watched"] or 0) == 1
+            # Dizi: SADECE ilgili sezon+bolum belirleyicidir. Yapim duzeyi
+            # `in_watched` bilerek kullanilmaz; aksi halde "onceki bolum
+            # izlenmeden bu bolum" KILIT sorusu yanlislikla bastirilirdi.
+            if season is None or episode is None:
+                return int(row["in_watched"] or 0) == 1
+            r = conn.execute(
+                "SELECT watched FROM episodes WHERE follow_id=? AND season=? AND episode=?",
+                (row["id"], season, episode),
+            ).fetchone()
+            return bool(r and int(r["watched"] or 0) == 1)
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[stremio] ask veto kontrolu hata: {e}", flush=True)
+        return False
+
+
+def close_pending_ask(uid, kind, tmdb_id=None, anilist_id=None, season=None,
+                      episode=None, source=None):
+    """Bekleyen (resolved=0) watched_ask'i kapat + karar deposunu 'watched' yap.
+
+    season/episode None ise o alan filtreye GIRMEZ (esnek kapatma; ornek: anime
+    bolumunde UI sezon bilmez). Fail-soft.
+    """
+    try:
+        conn = get_db()
+        try:
+            sql = ("UPDATE notifications SET resolved=1, is_read=1 "
+                   "WHERE type='watched_ask' AND user_id=? AND media_type=? "
+                   "AND IFNULL(CAST(tmdb_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                   "AND IFNULL(CAST(anilist_id AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1') "
+                   "AND COALESCE(resolved,0)=0")
+            args = [int(uid or 0), kind, tmdb_id, anilist_id]
+            if season is not None:
+                sql += " AND IFNULL(CAST(season AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1')"
+                args.append(season)
+            if episode is not None:
+                sql += " AND IFNULL(CAST(episode AS TEXT),'-1')=IFNULL(CAST(? AS TEXT),'-1')"
+                args.append(episode)
+            conn.execute(sql, tuple(args))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[stremio] ask kapatma hatasi: {e}", flush=True)
+    try:
+        record_decision(uid, kind, "watched", tmdb_id=tmdb_id, anilist_id=anilist_id,
+                        season=season, episode=episode, source=source)
+    except Exception:
+        pass
+
+
 def _create_watched_ask_unlocked(uid, kind, title, tmdb_id=None, anilist_id=None, season=None, episode=None, is_doc=False, source=None, lock_prev=None):
     """ask_before_watched ON iken watched_ask bildirimi olusturur (poster/thumbs dahil).
 
@@ -976,6 +1086,16 @@ def _create_watched_ask_unlocked(uid, kind, title, tmdb_id=None, anilist_id=None
         tekrar izlemeyi bloklardi).
       * Karar deposu yalniz kalici bilgidir (ask listesi temizlense de kalir).
     """
+    # 2.20.5 veto: oge yerelde ZATEN izlenmisse ask uretilmez (kaynak fark etmez).
+    # Posterde "izlendi" isaretleme, manuel isaretleme veya baska kaynaktan gelen
+    # sinyal tekrar tekrar soru uretmesin. Sirali KILIT sorusu bundan etkilenmez:
+    # kilit yalnizca oge izlenmemisken devreye girer (cagiran dal).
+    if _already_watched(uid, kind, tmdb_id, anilist_id, season, episode):
+        print(f"[stremio] ask veto: yerelde izlenmis -> ask yok "
+              f"({kind} tmdb={tmdb_id} anilist={anilist_id} s{season} e{episode})", flush=True)
+        close_pending_ask(uid, kind, tmdb_id=tmdb_id, anilist_id=anilist_id,
+                          season=season, episode=episode, source=source)
+        return None
     # Tarihten bagimsiz dedupe: ayni oge icin bekleyen (resolved=0) veya onaylanmis
     # (resolved=1) ask varsa tekrar uretme. Yalniz 'Hayir' (resolved=2) sonrasi
     # yeniden sorulabilir. Ayni oturumda gelen mükerrer sinyaller boylece engellenir.
@@ -1092,14 +1212,18 @@ def _ask_enabled(uid, source=None):
 
 
 def _refresh_ep_source(conn, follow_id, season, episode, source):
-    """Zaten izlenmis bolumde kaynak tazeleme (1.86): bos kaynak ezmez, son DOLU kaynak kazanir."""
+    """Zaten izlenmis bolumde kaynak tazeleme (1.86): bos kaynak ezmez, son DOLU kaynak kazanir.
+
+    2.20.4: Trakt echo'u gercek kaynagi (jellyfin/emby) EZMEZ; ayni deger zaten atlanir.
+    """
     if not source:
         return
     try:
         conn.execute(
             "UPDATE episodes SET source=? WHERE follow_id=? AND season=? AND episode=? "
-            "AND watched=1 AND IFNULL(source,'')<>?",
-            (source, follow_id, season, episode, source),
+            "AND watched=1 AND IFNULL(source,'')<>? "
+            "AND NOT (LOWER(?)='trakt' AND LOWER(IFNULL(source,'')) NOT IN ('','trakt'))",
+            (source, follow_id, season, episode, source, source),
         )
         conn.commit()
     except Exception as e:
@@ -1113,8 +1237,9 @@ def _refresh_anime_source(conn, anime_db_id, episode, source):
     try:
         conn.execute(
             "UPDATE anime_episodes SET source=? WHERE anime_id=? AND episode=? "
-            "AND watched=1 AND IFNULL(source,'')<>?",
-            (source, anime_db_id, episode, source),
+            "AND watched=1 AND IFNULL(source,'')<>? "
+            "AND NOT (LOWER(?)='trakt' AND LOWER(IFNULL(source,'')) NOT IN ('','trakt'))",
+            (source, anime_db_id, episode, source, source),
         )
         conn.commit()
     except Exception as e:
@@ -1122,13 +1247,17 @@ def _refresh_anime_source(conn, anime_db_id, episode, source):
 
 
 def _refresh_movie_source(conn, follow_id, source):
-    """Izlenmis filmde kaynak tazeleme (bos kaynak ezmez)."""
+    """Izlenmis filmde kaynak tazeleme (bos kaynak ezmez).
+
+    2.20.4: Trakt echo'u gercek kaynagi (jellyfin/emby) EZMEZ.
+    """
     if not source:
         return
     try:
         conn.execute(
-            "UPDATE followed SET watched_source=? WHERE id=? AND watched=1 AND IFNULL(watched_source,'')<>?",
-            (source, follow_id, source),
+            "UPDATE followed SET watched_source=? WHERE id=? AND watched=1 AND IFNULL(watched_source,'')<>? "
+            "AND NOT (LOWER(?)='trakt' AND LOWER(IFNULL(watched_source,'')) NOT IN ('','trakt'))",
+            (source, follow_id, source, source),
         )
         conn.commit()
     except Exception as e:
@@ -1168,19 +1297,19 @@ def _confirm_watched(uid, kind, tmdb_id=None, anilist_id=None, season=None, epis
 
 
 def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, source=None):
-    """Korumali geri alma (Jellyfin/Emby "izlendi" isaretinin kaldirilmasi).
+    """Disaridan gelen "izlenmedi" sinyali (Emby/Jellyfin) — 2.20.4.
 
-    Kural: kayit yoksa veya kayit BASKA kaynaktan yazilmissa DOKUNULMAZ
-    (ornek: Stremio'nun yazdigi bolum, Jellyfin'de isaret kaldirilinca silinmesin).
-    Yalnizca `source` ile ayni kaynaktan yazilmis movie/tv kaydi geri alinir;
-    ayrica sinyal tamponu satiri silinir (clear-apply geri yazmasin) ve ask
-    karari sifirlanir.
+    Karar: celisen sinyalde DISARIDAN GELEN kazanir; kaynak eslesmesi aranmaz.
+    Yerelde izlenmiyorsa "no-record" doner (ayni durum -> yok say).
 
-    Film: `in_watched=0` de yazilir -> kart "Izlenenler" listesinden cikip
-    "Takip" listesine doner (mark ile tam simetri: mark in_watched=1 yazar).
-    Dizi bolumu: dizi karti listede KALIR (yalniz ilgili bolumun watched'i sifirlanir).
+    Film: `watched=0, in_watched=0` -> kart kendi sekmesinde izlenmemis olarak
+    gorunur (silinmez). Dizi bolumu: yalniz ilgili bolum sifirlanir, yapim
+    `in_watched=0` yapilir (kart takipte kalir).
 
-    Donus: "ok" | "no-record" | "source-mismatch" | "bad-media" | "error"
+    Basarida: sinyal tamponu silinir, ask karari sifirlanir, Trakt gecmisi
+    silinir (`queue_remove`) ve Trakt echo tombstone'u yazilir (`ignore_add`).
+
+    Donus: "ok" | "no-record" | "bad-media" | "error"
     """
     uid = int(owner_id or 0)
     src = (source or "").strip().lower()
@@ -1199,13 +1328,11 @@ def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, so
         try:
             if kind == "movie":
                 row = conn.execute(
-                    "SELECT id, watched, watched_source FROM followed "
+                    "SELECT id, watched FROM followed "
                     "WHERE user_id=? AND tmdb_id=? AND media_type='movie'", (uid, tmdb)
                 ).fetchone()
                 if not row or int(row["watched"] or 0) != 1:
                     return "no-record"
-                if str(row["watched_source"] or "").strip().lower() != src:
-                    return "source-mismatch"
                 conn.execute(
                     "UPDATE followed SET watched=0, in_watched=0, watched_at=NULL, "
                     "watched_source=NULL, direct_mark=0 WHERE id=?",
@@ -1218,17 +1345,19 @@ def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, so
                 if not frow:
                     return "no-record"
                 row = conn.execute(
-                    "SELECT watched, source FROM episodes WHERE follow_id=? AND season=? AND episode=?",
+                    "SELECT watched FROM episodes WHERE follow_id=? AND season=? AND episode=?",
                     (frow["id"], season, episode),
                 ).fetchone()
                 if not row or int(row["watched"] or 0) != 1:
                     return "no-record"
-                if str(row["source"] or "").strip().lower() != src:
-                    return "source-mismatch"
                 conn.execute(
                     "UPDATE episodes SET watched=0, watched_at=NULL, source=NULL, direct_mark=0 "
                     "WHERE follow_id=? AND season=? AND episode=?",
                     (frow["id"], season, episode),
+                )
+                conn.execute(
+                    "UPDATE followed SET in_watched=0 WHERE id=? AND in_watched=1",
+                    (frow["id"],),
                 )
             conn.commit()
         finally:
@@ -1240,6 +1369,18 @@ def unwatch_from_source(kind, tmdb_id, season=None, episode=None, owner_id=0, so
             pass
         try:
             reset_decision(uid, kind, tmdb_id=tmdb, season=season, episode=episode)
+        except Exception:
+            pass
+        # Trakt: gecmisten sil + echo tombstone (yerelde "izlenmedi" son soz)
+        try:
+            import trakt
+            trakt.queue_remove(uid, kind, tmdb, season, episode)
+            trakt.ignore_add(uid, kind, tmdb, season, episode)
+        except Exception as e:
+            print(f"[stremio] trakt kaldirma hatasi: {e}", flush=True)
+        try:
+            import sync_pool
+            sync_pool.kick_trakt_out(uid)
         except Exception:
             pass
         print(f"[stremio] UNWATCH ({src}): kind={kind} tmdb={tmdb} s{season} e{episode}", flush=True)
@@ -1295,7 +1436,7 @@ def _anime_branch(conn, anilist_id, season, episode, tmdb_id=None, owner_id=0, s
         record_signal("anime", tmdb_id, anilist_id, season, episode, user_id=uid, source=source)
         _create_watched_ask(uid, "anime", (trow["title"] if trow else ""), tmdb_id=tmdb_id, anilist_id=anilist_id,
                             season=season, episode=episode, source=source,
-                            lock_prev=((None, prev_ep) if (direct and not lock_ok) else None))
+                            lock_prev=((None, prev_ep) if not lock_ok else None))
         bump()
         return
     if not lock_ok:
@@ -1344,7 +1485,7 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0, source="stremio", dir
         record_signal("tv", tmdb_id, None, season, episode, user_id=uid, source=source)
         _create_watched_ask(uid, "tv", (trow["title"] if trow else ""), tmdb_id=tmdb_id, season=season, episode=episode,
                             is_doc=_is_doc_row(trow) if trow else False, source=source,
-                            lock_prev=(prev_pair if (direct and not lock_ok) else None))
+                            lock_prev=(prev_pair if not lock_ok else None))
         bump()
         return
     if not lock_ok:
@@ -1360,6 +1501,12 @@ def _tv_branch(conn, tmdb_id, season, episode, owner_id=0, source="stremio", dir
         (follow_id, season, episode, _now, source, 1 if direct else 0),
     )
     conn.commit()
+    # 2.20.4: yeni yazim tombstone'u gecersiz kilar (eski unmark artik gecerli degil).
+    try:
+        import trakt
+        trakt.ignore_clear(uid, "tv", tmdb_id, season, episode)
+    except Exception:
+        pass
     _stamp_verified_ts(uid)
     if direct:
         _confirm_watched(uid, "tv", tmdb_id=tmdb_id, season=season, episode=episode, source=source)
@@ -1395,6 +1542,12 @@ def _movie_branch(conn, tmdb_id, owner_id=0, source="stremio", direct=False):
         (_now, source, 1 if direct else 0, movie_id),
     )
     conn.commit()
+    # 2.20.4: yeni yazim tombstone'u gecersiz kilar.
+    try:
+        import trakt
+        trakt.ignore_clear(uid, "movie", tmdb_id)
+    except Exception:
+        pass
     _stamp_verified_ts(uid)
     if direct:
         _confirm_watched(uid, "movie", tmdb_id=tmdb_id, source=source)
@@ -2144,10 +2297,10 @@ def _clear_apply_anime(conn, anilist_id, owner_id=0):
 
 
 def prune_stremio_signals():
-    """Gecelik budama (scheduler): SIGNAL_TTL'den eski sinyalleri siler."""
+    """Gecelik budama (scheduler): ayarlanan TTL'den eski sinyalleri siler."""
     try:
         from stremio_buffer import prune_signals
-        prune_signals(SIGNAL_TTL)
+        prune_signals(_signal_ttl())
         print("[stremio] sinyal budama tamam", flush=True)
     except Exception as e:
         print(f"[stremio] sinyal budama hata: {e}", flush=True)

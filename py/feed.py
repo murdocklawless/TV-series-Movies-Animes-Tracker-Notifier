@@ -70,7 +70,18 @@ FEED_SOURCES = ("trend", "popular", "top_rated", "netflix", "hbo_max",
 TMDB_SOURCE_LABEL = {"trend": "trend", "popular": "popular", "top_rated": "top_rated"}
 
 # Cache güvenlik süresi (haftalık cron gecikirse on-demand yenilenir)
+# 2.20.7: Ayarlar > Guncelleme Saatleri > Isler > "Oneri beslemesi cache"
+# (job_feed_ttl_days). Asagidaki deger yalnizca VARSAYILAN'dir.
 FEED_TTL = 8 * 86400
+
+
+def feed_ttl():
+    """Besleme cache TTL (sn) — ayardan, yoksa FEED_TTL."""
+    try:
+        v = int(str(get_setting("job_feed_ttl_days") or "").strip())
+    except (TypeError, ValueError):
+        return FEED_TTL
+    return v * 86400 if v > 0 else FEED_TTL
 # 2.00: Bos sonucun cache omru (anime + AMC+/Apple TV+/Paramount gibi gercekten
 # bos donen kaynaklar her bakista sorgulanmasin; 24 saat sonra yeniden denenir).
 FEED_EMPTY_TTL = 24 * 3600
@@ -140,7 +151,9 @@ def _cache_key(media, source):
     return f"{media}:{source}"
 
 
-def _cache_get(key, max_age=FEED_TTL):
+def _cache_get(key, max_age=None):
+    if max_age is None:
+        max_age = feed_ttl()
     try:
         conn = get_db()
         try:

@@ -1417,3 +1417,25 @@
 - **Cache-buster:** `style.css?v=636 → 637`; `py/jsver.py bump` → **build 663**.
 - **Doğrulama:** `node --check` (settings.js) OK; `jsver check` OK; **LINK_TEMIZ**; CSS parantez 1135/1136 (mevcut fark korunuyor); pi'de `index.html`, `style.css`, `settings.js`, `nextep.js` md5 **eşit**; canlı `style.css?v=637` + `nextep.js?v=663`; servis `active`; statik → restart yok (Ctrl+F5).
 - **Sürüm:** **2.20.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/appupdate_spinner_20261023_212456/` (yerel + pi), `bak/surum_2.20.3_20261023_213000/` (DB pre/post).
+
+## FAZ NOTLARI — Kartları dışa/içe aktarma (JSON + tam CSV) + yedekleme modalı iki akordeon (28/10/2026, sürüm 2.21.0)
+
+- **Bildirilen (3 tur):** ① dizi/film/belgesel/anime + izlenmiş/izlenmemiş/arşiv kartları için dışa/içe aktarma; yedekleme modalında **YEDEKLE** ve **KARTLARI DIŞA & İÇE AKTAR** adlı iki akordeon. ② CSV de tam olsun. ③ pulldown **Dil ve Zaman** modalındaki gibi olsun, yalnız **JSON/CSV** yazsın, butonlarla aynı yükseklik/genişlikte ve tek satırda olsun; “TMDB'den bilgileri tamamla” kalksın.
+- **Arayüz (`static/index.html`):** `#settings-backup-modal` ikiye bölündü:
+  - `#backup-main-box` **YEDEKLE** → `#backup-mode-frame` (Database/Herşeyi) + `#backup-rsync-box` + `#backup-samba-box` (iç içe akordeon, mevcut toggle/autosave/port autofill korundu) + `#backup-now` / `#backup-restore`.
+  - `#cards-transfer-box` **KARTLARI DIŞA & İÇE AKTAR** → tek satır `#cards-transfer-row`: `.provider-combobox` + `#cards-format` (`JSON` / `CSV`) + `#cards-export` + `#cards-import`; gizli `#cards-import-file`.
+  - Yeni adanmış onay modalı `#cards-import-confirm-modal` (dosya adı + özet + tür dağılımı + “var olanlar atlanır” notu + İptal/İçe Aktar).
+  - `#cards-import-confirm-modal` ve `settings-backup-modal`, TV `hookModals` listesine eklendi.
+- **JS (`static/js/settings.js`):** yeni `nxOnce("cards_transfer")` bloğu — üst akordeon toggle'ları (`e.target.closest(".notif-type-head")` ve iç akordeon guard'ı: `closest(".accordion-box") !== box`), `initPulldownCombobox("cards-format", "cards-format-list")` (Dil ve Zaman deseni), biçim değişiminde `accept` güncelleme, dışa aktarma (`fetch` → `Blob` → dosya adı `Content-Disposition`'dan), içe aktarma (dosya → `/preview` → onay → `/apply` → `refreshListsAfterWatch()`).
+- **Backend:** yeni `py/cards_transfer.py` (dışa/içe aktarma çekirdeği) + `py/routes/cards.py` (blueprint, `py/nextep.py`'ye kayıt):
+  - `GET /api/cards/export?format=json|csv` · `POST /api/cards/import/preview` · `POST /api/cards/import/apply`
+  - `format:1` JSON şeması: kart başına `type (tv/movie/doc/anime)`, kimlik, metadata, `state`, `episodes[]` (+`air_time`)
+  - **Birleştirme:** `(user_id, tmdb_id, media_type)` / `(user_id, anilist_id)` varsa atlanır; limit 5 MB / 20.000 kart; `ramcache.bump()`
+  - Kolon süzgeci (`PRAGMA table_info`) → eski/yeni şema farkına dayanıklı; taşınmayanlar: `id`, `user_id`, `poster_local*`, `added_at`/`*_check_at` çapaları
+- **CSV (tam yedek):** 34 kolon + tüm bölümler tek hücrede `S1E1~tarih~saat~izlendi~izlenme~süre~ad` (ad percent-encoded); `;` + UTF-8 BOM + CRLF; `_flat()` ile alan içi satır sonları boşluğa indirilir (kayıt **tek satır**); eski 19 kolonlu CSV ve `S1E1|ts` biçimi okunmaya devam eder.
+- **Kaldırılanlar:** “TMDB'den bilgileri tamamla” anahtarı + `fill_tmdb`/`_tmdb_lookup` (kimliksiz satırlar artık **ağ isteği olmadan** raporlanıp atlanır), kart aktarma akordeonundaki açıklama paragrafı ve `cards_transfer_desc` anahtarı.
+- **CSS:** `#settings-backup-modal select#cards-format` → `.settings-form select` ile aynı koyu kutu + chevron + focus turuncu; satır `nowrap` + `justify-content:center`; üç öğe **120px eşit** (`flex:0 0 120px`), 36px yükseklik (mobil 32px, ≤400px 96px); sarmalayıcı `overflow:visible` (pencere kırpılmasın — ilk denemede `overflow:hidden` pulldown'ı görünmez yapmıştı).
+- **Bu sürümde biriken diğer işler:** “Sıradaki Yayınlanmış İzlenmemiş Bölümler” başlığı (`nextup_title` TR + index fallback'leri); bölüm özetinde tür↔bölüm arasındaki `|` kaldırıldı (`renderSectionSummary`, `parts[0] +=`).
+- **Cache-buster:** `style.css?v=651`, `mobil.css?v=564`, `py/jsver.py bump` → **build 682**; `py/` değiştiği için servis restart.
+- **Doğrulama:** `py_compile` + `node --check` + modül bağ testi; birim testleri (JSON/CSV roundtrip, eski biçim, bozuk/boş dosya, ID'siz satır, tek satır kuralı); pi DB **kopyasında** gerçek tur — 83 kart / 1639 bölüm / 859 izlenmiş / `in_watched=34` / `arşiv=2` / `ertelenmiş=5` **birebir**, CSV 84 fiziksel satır; `jsver check` + `eol.py check` OK; md5 yerel = pi; canlı `style.css?v=651`, `mobil.css?v=564`, `nextep.js?v=682`.
+- **Sürüm:** **2.21.0** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/cards_transfer_20261028_172711/`, `bak/cards_csv_20261028_174328/`, `bak/cards_full_20261028_181321/`, `bak/pulldown_clip_20261028_181755/`, `bak/csv_flat_20261028_182404/`, `bak/cards_desc_20261028_183044/`, `bak/release_2.21.0_20261028_184051/` (DB pre).

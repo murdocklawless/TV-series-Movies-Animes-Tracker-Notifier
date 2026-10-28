@@ -1,14 +1,14 @@
 // Faz 4: views — görünüm (tab) yönetimi, sıralama ve ana liste yükleyicileri (takip edilenler / anime / izlenmemiş).
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=663";
+import { t } from "./i18n.js?v=682";
 import {
   posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint, cardRows,
   CARD_SLOT, formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   dateState, isReleaseToday, todayInTzStr, dayStrInTz, FILM_SVG, CALENDAR_SVG, CHECK_SVG, INFO_SVG, ARROW_DOWN_SVG, ARROW_UP_SVG, toast, tzLocale,
   parseGenres, isDocItem,
-} from "./utils.js?v=663";
-import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=663";
-import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=663";
+} from "./utils.js?v=682";
+import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, openTvUnfollowConfirm, openAnimeUnfollowConfirm, openUnwatchedModal } from "./components.js?v=682";
+import { renderChips, closeResultsModal, setMedia, closeLocalSearchModal } from "./search.js?v=682";
 function isTvUIActive() {
   try {
     const d = document.documentElement;
@@ -255,6 +255,11 @@ function tvStatusText(item) {
   if (status === "Planned") return `<div class="next-ep muted">${t("tv_status_planned")}</div>`;
   if (status === "Pilot") return `<div class="next-ep muted">${t("tv_status_pilot")}</div>`;
   if (status === "Returning Series") {
+    // 2.20.6: toplu yayın (tüm bölümler aynı tarih) sezonu — karar backend'de.
+    const ws = item.tv_wait_state || "";
+    if (ws === "ended") return `<div class="next-ep muted">${t("tv_status_ended")}</div>`;
+    if (ws === "season_wait") return `<div class="next-ep muted">${t("tv_status_returning")}</div>`;
+    if (ws === "next_episode") return `<div class="next-ep muted">${t("tv_status_new_episode")}</div>`;
     // Gelecek sezon bilgisi yoksa: son sezon başladı mı?
     if (startedSeason) {
       // "Yeni bölüm" (sezon sürüyor) vs "Yeni sezon" (sezon bitmiş):
@@ -2811,6 +2816,9 @@ function setFollowSortAttrs(div, item, typeOverride) {
     div.dataset.sortScore = String(Number(sc) || 0);
     div.dataset.sortDate = followSortDateISO(item, typeOverride);
     div.dataset.sortAdded = String(item.id || 0);
+    // "Yaklaşan tarih" gruplaması için ham izleme durumu (film: watched_eps=watched).
+    div.dataset.sortStarted = Number(item.watched_eps || item.watched || 0) > 0 ? "1" : "0";
+    div.dataset.sortCompleted = item.completed ? "1" : "0";
     const isAnime = item.isAnime || item.anilist_id || typeOverride === "anime";
     div.dataset.sortType = isAnime ? "anime" : item.media_type || item.format || "";
   } catch (_) {}
@@ -2819,10 +2827,28 @@ function followStrCmp(a, b) {
   const x = String(a || "").toLocaleLowerCase(), y = String(b || "").toLocaleLowerCase();
   return x < y ? -1 : x > y ? 1 : 0;
 }
+// 2.20.7: "Yaklaşan tarih" gruplaması. Dizi/Belgesel/Anime: ① izlenmeye başlanmış
+// ② hiç izlenmemiş ③ tamamı izlenmiş. Film: ① izlenmemiş ② izlenmiş.
+// Grup sırası ok yönünden bağımsızdır; ok yalnız grup içi tarih sırasını çevirir.
+const DATE_GROUP_SECTIONS = new Set([
+  "dizi", "dizi-later", "belgesel", "belgesel-later",
+  "anime-list", "anime-list-later", "film", "film-later",
+]);
+const DATE_FILM_SECTIONS = new Set(["film", "film-later"]);
+function followDateTier(el, section) {
+  const started = !!(el.dataset && el.dataset.sortStarted === "1");
+  if (DATE_FILM_SECTIONS.has(section)) return started ? 1 : 0;
+  if (el.dataset && el.dataset.sortCompleted === "1") return 2;
+  return started ? 0 : 1;
+}
 // Global compareItems'ın bölüm-parametreli karşılığı: baz yönde karşılaştır, dir tersse çevir.
-function compareFollowCards(a, b, key, dir) {
+function compareFollowCards(a, b, key, dir, section) {
   let r = 0;
   try {
+    if (key === "date" && DATE_GROUP_SECTIONS.has(section || "")) {
+      const at = followDateTier(a, section), bt = followDateTier(b, section);
+      if (at !== bt) return at - bt;   // grup sırası sabit (flip uygulanmaz)
+    }
     if (key === "added") {
       r = (Number((b.dataset && b.dataset.sortAdded) || 0)) - (Number((a.dataset && a.dataset.sortAdded) || 0));
     } else if (key === "score") {
@@ -2859,7 +2885,7 @@ function applyFollowSectionState(section) {
   const key = st.sort || "added";
   const dir = st.dir || FOLLOW_DEFAULT_DIR[key] || "asc";
   if (cards.length > 1) {
-    try { cards.sort((a, b) => compareFollowCards(a, b, key, dir)).forEach((c) => grid.appendChild(c)); } catch (_) {}
+    try { cards.sort((a, b) => compareFollowCards(a, b, key, dir, section)).forEach((c) => grid.appendChild(c)); } catch (_) {}
   }
 }
 // İkiden az kartlı bölümde arama + filtre simgeleri kilitlenir (üst/alt bölüm ayrı sayılır).
@@ -3169,7 +3195,8 @@ function renderSectionSummary(grid) {
   });
   const nounKey = SUMMARY_KIND_KEY[kind] || "summary_shows";
   const parts = [t(nounKey, { n: cards.length })];
-  if (SUMMARY_HAS_EPISODES[kind] && eps > 0) parts.push(t("summary_episodes", { n: eps }));
+  // 2.20.4: tur sayisi ile bolum sayisi arasinda ayirici YOK (bosluk); kalan parcalar " | ".
+  if (SUMMARY_HAS_EPISODES[kind] && eps > 0) parts[0] += " " + t("summary_episodes", { n: eps });
   const inUnwatched = !!(wrap && wrap.closest && wrap.closest("#view-unwatched"));
   const inWatched = !!(wrap && wrap.closest && wrap.closest("#view-watched"));
   if (!inUnwatched && hours && weps > 0 && wmin > 0) {

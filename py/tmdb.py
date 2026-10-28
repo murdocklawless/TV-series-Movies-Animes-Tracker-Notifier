@@ -138,6 +138,11 @@ def _has_content(data):
         return bool(data)
     if "results" in data:
         return bool(data.get("results"))
+    # 2.20.4: /find yaniti sonuc listelerini "movie_results" / "tv_results"
+    # anahtarlariyla dondurur (results degil). Stremio IMDb -> TMDB cozumlemesi
+    # bu dal olmadigi icin "cozulemedi" dusuyordu.
+    if "movie_results" in data or "tv_results" in data:
+        return bool(data.get("movie_results") or data.get("tv_results"))
     if data.get("title") or data.get("name") or data.get("overview"):
         return True
     if data.get("cast") or data.get("crew") or data.get("episodes"):

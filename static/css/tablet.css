@@ -9,14 +9,36 @@
   }
 }
 
+/* 2.20.7: TABLET (601-1366px) — ana sekmelerde satırda 7 yerine 6 kart.
+   Kart genişliği kalan alanı 6'ya böler; kart arası boşluk 7'li düzenle AYNI
+   kalır (--card-gap: 12px). "Sıradaki Bölüm" şeridi de aynı genişliği alır ki
+   sütunlar hizalı kalsın. Kapsam: yalnız bu 8 görünüm; mobil (<=600px),
+   masaüstü (>1366px), modallar ve APK/TV etkilenmez. */
+@media (min-width: 601px) and (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode)
+    :is(#view-dizi, #view-film, #view-belgesel, #view-anime,
+        #view-unwatched, #view-watched, #view-archive, #view-recommend)
+    .poster-grid .card,
+  html:not(.is-tv):not(.tv-mode)
+    :is(#view-dizi, #view-film, #view-belgesel, #view-anime,
+        #view-unwatched, #view-watched, #view-archive, #view-recommend)
+    .nextup-strip .nextup-card {
+    width: calc((100% - 5 * var(--card-gap)) / 6);
+    min-width: var(--card-w);   /* 120px taban: 601-807px'te eski düzen korunur */
+  }
+}
+
 @media (max-width: 1366px) {
   html:not(.is-tv):not(.tv-mode) nav {
     display: grid;
-    grid-template-columns: 1fr auto;
+    /* 2.20.7: 1fr | medya | utils | 1fr -> medya+utils kumesi navbar'a ORTALANIR.
+       column-gap 30px = medya ile utils arasinda bir buton (30x30) boyu bosluk. */
+    grid-template-columns: 1fr auto auto 1fr;
     grid-template-areas:
-      "logo logo"
-      "media utils";
-    gap: 10px;
+      "logo logo logo logo"
+      ". media utils .";
+    row-gap: 10px;
+    column-gap: 30px;
     padding: 12px 14px;
     align-items: center;
   }
@@ -36,22 +58,22 @@
 
   html:not(.is-tv):not(.tv-mode) .media-tabs-group {
     grid-area: media;
-    justify-self: start;
+    justify-self: center;
     display: flex;
     align-items: center;
     gap: 4px;
     width: auto;
-    margin-left: -14px;
+    margin-left: 0;
   }
 
   html:not(.is-tv):not(.tv-mode) .utils-tabs-group {
     grid-area: utils;
-    justify-self: end;
+    justify-self: center;
     display: flex;
     align-items: center;
     gap: 4px;
     width: auto;
-    margin-right: -14px;
+    margin-right: 0;
   }
 
   html:not(.is-tv):not(.tv-mode) .tabs-group {
@@ -374,5 +396,34 @@ html:not(.is-tv):not(.tv-mode) #tab-dizi span,
   }
   html:not(.is-tv):not(.tv-mode) #view-recommend .feed-combo .provider-cell {
     font-size: 0.8rem;
+  }
+}
+
+/* 2.20.7: Öneri/öneri-feed kartlarında üst buton şeridi desktop .poster-top gibi
+   EŞİT ARALIKLI: gizle · taşı · arşiv · kaldır. Bu kartlarda .poster-top yok ve
+   arşiv butonunun konum kuralı olmadığı için normal akışa düşüp kartın ALT-SOLUNA
+   gidiyordu. Yalnız tablet bandı + yalnız .card doğrudan çocukları (takip/arşiv
+   kartları .poster-top içinde olduğundan etkilenmez). Mobil/masaüstü/APK değişmez. */
+@media (min-width: 601px) and (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) #view-recommend .poster-grid .card > .move-btn {
+    left: calc(8px + (100% - 46px) / 3);
+    transform: none;
+  }
+  html:not(.is-tv):not(.tv-mode) #view-recommend .poster-grid .card > .archive-btn {
+    position: absolute;
+    top: 8px;
+    left: calc(8px + (100% - 46px) / 3 * 2);
+    z-index: 2;
+  }
+}
+
+/* 2.20.7: TABLET — "taşı / geri taşı" butonları her zaman görünür. Mobilde
+   (<=600px) zaten `display:flex !important` ile zorlanıyor; tablette ise buton
+   yalnız :hover'da açılıyordu, dokunmatikte hover olmadığı için erişilemiyordu.
+   Buton yine sadece taşınabilir kartlarda DOM'da bulunur (can_move_watched). */
+@media (min-width: 601px) and (max-width: 1366px) {
+  html:not(.is-tv):not(.tv-mode) .card .move-btn,
+  html:not(.is-tv):not(.tv-mode) .card .move-back-btn {
+    display: flex;
   }
 }

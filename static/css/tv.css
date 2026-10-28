@@ -730,6 +730,12 @@ html.is-tv .feed-schedule-field, html.tv-mode .feed-schedule-field { gap: calc(6
 html.is-tv .feed-schedule-toggle, html.tv-mode .feed-schedule-toggle { gap: calc(8px * var(--tv-scale)); padding: calc(10px * var(--tv-scale)) calc(12px * var(--tv-scale)); font-size: calc(0.9rem * var(--tv-scale)); }
 html.is-tv .feed-schedule-body, html.tv-mode .feed-schedule-body { gap: calc(10px * var(--tv-scale)); padding: calc(12px * var(--tv-scale)); }
 html.is-tv .feed-sched-row, html.tv-mode .feed-sched-row { grid-template-columns: 1fr calc(150px * var(--tv-scale)) calc(120px * var(--tv-scale)); gap: calc(8px * var(--tv-scale)); }
+/* 2.20.7: Isler satirlari (Guncelleme Saatleri > Isler) */
+html.is-tv .job-row, html.tv-mode .job-row { gap: calc(8px * var(--tv-scale)); }
+html.is-tv .job-name, html.tv-mode .job-name { font-size: calc(0.85rem * var(--tv-scale)); }
+html.is-tv .job-select, html.tv-mode .job-select { width: calc(150px * var(--tv-scale)); }
+html.is-tv .job-select select, html.tv-mode .job-select select { padding: calc(8px * var(--tv-scale)) calc(30px * var(--tv-scale)) calc(8px * var(--tv-scale)) calc(10px * var(--tv-scale)); font-size: calc(0.85rem * var(--tv-scale)); background-position: right calc(10px * var(--tv-scale)) center; background-size: calc(14px * var(--tv-scale)); }
+html.is-tv .job-load-warn, html.tv-mode .job-load-warn { font-size: calc(0.72rem * var(--tv-scale)); }
 
 /* Sağlayıcı (provider) combo/list + login dil listesi */
 html.is-tv .provider-list, html.tv-mode .provider-list { top: calc(100% + (4px * var(--tv-scale))); padding: calc(8px * var(--tv-scale)); max-height: calc(260px * var(--tv-scale)); }

@@ -238,7 +238,7 @@ function statsModalMove(top, dir, e){
 
 // Hook existing modals: when display:flex, push; when none, pop
 function hookModals() {
-  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-form","notification-modal","search-results-modal","local-search-modal","section-results-modal"];
+  const ids = ["releases-modal","episode-info-modal","details-modal","tv-unfollow-modal","anime-unfollow-modal","reject-confirm-modal","member-delete-modal","member-deactivate-modal","logout-confirm-modal","notif-clear-modal","ask-clear-modal","ask-prev-modal","stremio-disconnect-modal","calendar-disconnect-modal","plex-disconnect-modal","jellyfin-disconnect-modal","emby-disconnect-modal","remote-disconnect-modal","remote-peer-delete-modal","stremio-install-modal","stremio-tunnel-remove-modal","remote-reset-modal","person-modal","director-modal","fav-listing-modal","picker-modal","value-modal","unwatched-modal","hidden-modal","stats-modal","history-modal","settings-notify-modal","settings-thirdparty-modal","settings-backup-modal","cards-import-confirm-modal","settings-form","notification-modal","search-results-modal","local-search-modal","section-results-modal"];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -281,6 +281,16 @@ document.addEventListener("keydown", (e) => {
       e.preventDefault(); e.stopPropagation(); LL2.exitToOrigin(); return;
     }
   } catch {}
+  // 2.20.4: ask onayi modali tepedeyken Geri once ONU kapatir (arkadaki ask paneli kapanmaz).
+  try {
+    const _apTop = topModal();
+    if (_apTop && _apTop.id === 'ask-prev-modal'){
+      e.preventDefault(); e.stopPropagation();
+      try { _apTop.style.display = "none"; } catch {}
+      popModal(_apTop);
+      return;
+    }
+  } catch(_){}
   if (openMenuItems().length || isMenuOpen('#watched-ask-menu')) {
     e.preventDefault(); e.stopPropagation();
     // Hangi pencere açıksa kapatınca onun butonunda kal (bildirim/ayarlar/arama-filtre/öneri-sıralama/gizlenen-sıralama/kişi-sıralama).
@@ -1314,7 +1324,7 @@ document.addEventListener("keydown", (e)=>{
         }
       }
     }
-    const list = Array.from(top.querySelectorAll('button, [href], input, select, [tabindex]:not([tabindex="-1"])')).filter(isVisible);
+    const list = Array.from(top.querySelectorAll('button, [href], input, select, [tabindex]:not([tabindex="-1"])')).filter(el => isVisible(el) && !el.disabled);
     if (!list.length) return;
     let i = list.indexOf(document.activeElement);
     let n = (dir==='right'||dir==='down') ? (i===-1?0:(i+1)%list.length) : (i===-1?list.length-1:(i-1+list.length)%list.length);

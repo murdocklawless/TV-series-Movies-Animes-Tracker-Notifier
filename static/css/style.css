@@ -1525,9 +1525,12 @@ input:-webkit-autofill:focus {
    gizlenir, dönen yuvarlak butonun tam ORTASINDA belirir ve istek bitince
    (başarı/hata) JS `.loading` sınıfını kaldırınca kaybolur.
    `#appupdate-run`: güncelleme isteği (senkron, 10-60 sn).
-   `#appupdate-check`: "Güncellemeleri Kontrol Et" isteği. */
+   `#appupdate-check`: "Güncellemeleri Kontrol Et" isteği.
+   2.20.7: `#backup-now` (Yedekleme modalı, "Yedek Al") — yeşil "yedek alındı"
+   toast'ı görünene kadar aynı halka döner. */
 #appupdate-run,
-#appupdate-check {
+#appupdate-check,
+#backup-now {
   position: relative;
 }
 #appupdate-run.loading,
@@ -1535,8 +1538,17 @@ input:-webkit-autofill:focus {
   color: transparent !important;
   pointer-events: none;
 }
+/* 2.20.7: yedekleme butonu animasyon boyunca hover/aktif görünümünde sabitlenir:
+   turuncu çerçeve + %30 şeffaf turuncu zemin (etiket gizli kalır). */
+#backup-now.loading {
+  color: transparent !important;
+  pointer-events: none;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+}
 #appupdate-run.loading::after,
-#appupdate-check.loading::after {
+#appupdate-check.loading::after,
+#backup-now.loading::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -1771,7 +1783,8 @@ input:-webkit-autofill:focus {
 }
 
 /* 2.19.17: LOKAL ARA sonuç başlığı — dizi bölümündeki gibi TURUNCU YATAY DOTTED ÇİZGİ
-   (kenarlardan 20px içeride). "{n} Sonuç" çizginin SAĞ ÜSTÜNDE, çizginin ALTINDA ise o an
+   (kenarlardan 20px içeride). "{n} Sonuç" çizginin SOL ÜSTÜNDE (2.20.7: tüm platformlar;
+   mobilde 2.19.20'den beri sol), çizginin ALTINDA ise o an
    dizilen kartlardan üretilen tür özeti ("4 Dizi | 2 Film | 1 Belgesel") yazılır.
    2.19.14'ün "sayaç header ortasında" (mutlak konum) kuralı böylece İPTAL edildi. */
 .local-results-head {
@@ -1779,7 +1792,7 @@ input:-webkit-autofill:focus {
 }
 
 .local-search-count {
-  text-align: right;
+  text-align: left;
   font-size: 0.85rem;
   color: #f97316;
   padding: 0 0 4px 0;
@@ -1800,6 +1813,28 @@ input:-webkit-autofill:focus {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 2.20.7: Lokal Ara sonuç kartlarındaki butonlar %25 küçük (30 → 22.5px,
+   ikon 16 → 12px). Yalnız bu modal + yalnız 601px ve üzeri; mobil (<=600px,
+   zaten 21px) ve APK/TV kendi ölçülerini korur. */
+@media (min-width: 601px) {
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-top > button,
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-wrap .defer-btn {
+    width: 22.5px;
+    height: 22.5px;
+  }
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-top > button svg,
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-wrap .defer-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-top > button i {
+    font-size: 0.64rem;
+  }
+  html:not(.is-tv):not(.tv-mode) #local-search-modal .poster-top > .remove {
+    font-size: 0.825rem;
+  }
 }
 
 /* 2.19.17: header ortasındaki arama kutusu — YALNIZ mobilde görünür (mobil.css açar).
@@ -4976,6 +5011,111 @@ html:not(.is-tv):not(.tv-mode) .rec-search-input {
   color: #fff;
 }
 
+/* ============ 2.20.4: ask onayi — ask penceresindeki bolumler ============ */
+.ask-prev-modal {
+  width: 720px;
+  max-width: min(720px, 96vw);
+}
+
+#ask-prev-body {
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+/* Satirlar TABLO DEGIL: Yapim | Sezon N | Bolum N | tick
+   Tek grid -> ayraclar (|) alt alta hizali, "Bolum 9/10" kaymaz. */
+.ask-prev-list {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 7), max-content);
+  align-items: center;
+  justify-content: center;
+  grid-auto-rows: 21px;
+  line-height: 1;
+  gap: 8px 10px;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ask-prev-list .ask-ep-title {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ask-prev-list .ask-prev-sep {
+  color: #f97316;
+  user-select: none;
+}
+
+.ask-prev-list .ask-ep-season,
+.ask-prev-list .ask-ep-ep {
+  white-space: nowrap;
+}
+
+/* Kartlardaki hap renkleriyle ayni: sezon teal (.season-count-badge), bolum violet (.episode-count) */
+.ask-prev-list .ask-ep-season {
+  color: #14b8a6;
+  font-weight: 600;
+}
+
+.ask-prev-list .ask-ep-ep {
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+/* Tick: kartlardaki yuvarlak butonun aynisi, %20 kucuk (24 -> 19) */
+.ask-prev-list .watch-btn {
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid #3a4050;
+  background: transparent;
+  color: transparent;
+  font-size: 0.85rem;
+  line-height: 0;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  justify-self: center;
+}
+
+.ask-prev-list .watch-btn:hover {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.ask-prev-list .watch-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #2a2f3d;
+  color: transparent;
+}
+
+.ask-prev-list .watch-btn.on {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.ask-prev-list .watch-btn.on:disabled,
+.ask-prev-list .watch-btn.on:disabled:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+/* Ikinci boyut: buton 19px kalirken tik SVG'si de %20 kucuk (14 -> 11) */
+.ask-prev-list .watch-btn svg {
+  display: block;
+  width: 11px;
+  height: 11px;
+}
+
 .releases-table tr.today-release .episode-label,
 .releases-table tr.today-release .episode-name {
   color: #6f9ec9;
@@ -5595,6 +5735,73 @@ select#s-email-provider.email-lit {
   font-weight: 600;
 }
 
+/* Kart disa/ice aktarma: TEK satir (pulldown + iki buton). Pulldown gorunumu
+   Dil ve Zaman modalindaki s-lang ile ayni; modal govdesi .settings-form
+   olmadigi icin select stili burada acikca yazilir. */
+#cards-transfer-row {
+  flex-wrap: nowrap !important;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+/* Üç öğe (pulldown + 2 buton) EŞİT genişlikte ve ortada.
+   Sarmalayıcı KIRPMAZ (overflow:visible) — pulldown penceresi
+   `top:calc(100%+4px)` ile dışarı taşıyor; overflow:hidden pencereyi
+   tamamen gizliyordu (açılmıyor gibi görünüyordu). */
+#cards-transfer-row .provider-combobox#cards-format-combo {
+  flex: 0 0 120px;
+  width: 120px;
+  min-width: 0;
+  max-width: 120px;
+  overflow: visible;
+}
+#cards-transfer-row .tab {
+  flex: 0 0 120px;
+  width: 120px;
+  min-width: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#settings-backup-modal select#cards-format {
+  width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  line-height: 1.15;
+  padding: 0 30px 0 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: #171a23;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  color-scheme: dark;
+  cursor: pointer;
+  outline: none;
+  margin: 0;
+}
+#settings-backup-modal select#cards-format:focus {
+  border-color: #f97316;
+}
+#cards-transfer-row .tab {
+  white-space: nowrap;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#settings-backup-modal #cards-format-list {
+  max-height: 180px;
+  z-index: 60;
+}
+
 /* Oneriler beslemesi (feed): ortalanmis iki pulldown + tek izgara (ayarlar
    dil/tmdb dili pulldown stiliyle birebir). */
 .rec-legacy { display: none !important; }
@@ -5716,6 +5923,82 @@ select#s-email-provider.email-lit {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
+}
+/* 2.20.7: Guncelleme Saatleri — Kart Senkronizasyonu / Guncelleme-Yedekleme-Bakim
+   / Isler akordeonlari. Baslik satirinin sag ucunda kaydetme ipucu + "?" durur. */
+.acc-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.acc-help {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1px solid #3a4152;
+  background: #1b1f2a;
+  color: #9aa3b5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+/* "?" yalnizca dokunmatik cihazlarda gorunur; masaustu ve Android TV/APK gizli. */
+@media (hover: none) and (pointer: coarse) {
+  html:not(.is-tv):not(.tv-mode) .acc-help {
+    display: inline-flex;
+  }
+}
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.job-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: #cfd3dd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.job-list .provider-list,
+.job-select .provider-list {
+  z-index: 5;
+}
+.job-select {
+  flex: 0 0 auto;
+  width: 150px;
+  max-width: 45%;
+}
+.settings-form .job-select select,
+.job-select select {
+  width: 100%;
+  padding: 8px 30px 8px 10px;
+  font-size: 0.85rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+.job-load-warn {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #22c55e;
+  line-height: 1.35;
+  text-align: center;
 }
 .feed-sched-row {
   display: grid;

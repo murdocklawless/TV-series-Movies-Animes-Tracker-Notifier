@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=663";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=663";
-import { activateUtilityTab } from "./views.js?v=663";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=663";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=682";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=682";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=682";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=682";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -616,6 +616,87 @@ function saveFeedSchedule() {
   saveSettingsPartial({ feed_schedule: JSON.stringify(obj) }, hint);
 }
 
+// ---- 2.20.7: Guncelleme Saatleri akordeonlari ----
+// Kart Senkronizasyonu / Guncelleme-Yedekleme-Bakim / Isler. Oneri blogunun
+// (feed-schedule) ayni gorsel dilini kullanir: toggle "Seciniz" + chevron.
+function initAccordion(toggleId, bodyId) {
+  const toggle = document.getElementById(toggleId);
+  const body = document.getElementById(bodyId);
+  if (!toggle || !body) return;
+  if (toggle.dataset.accInit === "1") return;   // cift baglama korumasi
+  toggle.dataset.accInit = "1";
+  toggle.addEventListener("click", () => {
+    const open = body.style.display !== "none";
+    body.style.display = open ? "none" : "";
+    const icon = toggle.querySelector("i");
+    if (icon) icon.style.transform = open ? "" : "rotate(180deg)";
+  });
+}
+
+// Isler: gun cinsinden kontrol araliklari — py/routes/settings.py JOB_DAYS ile
+// birebir ayni anahtar/varsayilan/izinli degerler.
+const JOB_DEFS = [
+  { key: "job_season_fresh_days", label: "job_season_fresh", tip: "tip_job_season_fresh", def: "30", opts: ["7", "14", "30", "45", "60"] },
+  { key: "job_season_slow_days", label: "job_season_slow", tip: "tip_job_season_slow", def: "45", opts: ["30", "45", "60", "90", "120"] },
+  { key: "job_detail_slow_days", label: "job_detail_slow", tip: "tip_job_detail_slow", def: "90", opts: ["45", "60", "90", "120", "180"] },
+  { key: "job_batch_end_days", label: "job_batch_end", tip: "tip_job_batch_end", def: "60", opts: ["30", "60", "90", "120"] },
+  { key: "job_anime_airing_days", label: "job_anime_airing", tip: "tip_job_anime_airing", def: "7", opts: ["3", "7", "14", "30"] },
+  { key: "job_anime_done_days", label: "job_anime_done", tip: "tip_job_anime_done", def: "90", opts: ["60", "90", "120", "180"] },
+  { key: "job_unwatched_bulk_days", label: "job_unwatched_bulk", tip: "tip_job_unwatched_bulk", def: "7", opts: ["3", "7", "14", "30"] },
+  { key: "job_feed_ttl_days", label: "job_feed_ttl", tip: "tip_job_feed_ttl", def: "8", opts: ["3", "7", "8", "14", "30"] },
+  { key: "job_fav_days", label: "job_fav", tip: "tip_job_fav", def: "30", opts: ["7", "14", "30", "60"] },
+  { key: "job_stremio_ttl_days", label: "job_stremio_ttl", tip: "tip_job_stremio_ttl", def: "30", opts: ["7", "14", "30", "60"] },
+  { key: "job_anime_probe_days", label: "job_anime_probe", tip: "tip_job_anime_probe", def: "90", opts: ["45", "90", "180"] },
+];
+function jobSelectId(key) {
+  return "s-" + key.replace(/_/g, "-");
+}
+let jobsBuilt = false;
+function initJobs(s) {
+  const body = document.getElementById("jobs-body");
+  if (!body) return;
+  if (!jobsBuilt) {
+    const unit = escAttr(t("job_unit_days"));
+    body.innerHTML = JOB_DEFS.map((j) => {
+      const id = jobSelectId(j.key);
+      const opts = j.opts.map((v) => `<option value="${v}">${v} ${unit}</option>`).join("");
+      const name = escAttr(t(j.label));
+      return `<div class="job-row" data-job-key="${j.key}">`
+        + `<span class="job-name" data-i18n="${j.label}" data-i18n-title="${j.tip}">${name}</span>`
+        + `<span class="saved-hint" data-i18n="saved">${escAttr(t("saved"))}</span>`
+        + `<div class="provider-combobox job-select">`
+        + `<select id="${id}" data-job-key="${j.key}">${opts}</select>`
+        + `<div id="${id}-list" class="provider-list" style="display:none"></div>`
+        + `</div></div>`;
+    }).join("") + `<div class="job-load-warn" data-i18n="job_load_warn">${escAttr(t("job_load_warn"))}</div>`;
+    JOB_DEFS.forEach((j) => {
+      const id = jobSelectId(j.key);
+      initPulldownCombobox(id, id + "-list");
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", () => {
+        const hint = el.closest(".job-row").querySelector(".saved-hint");
+        saveSettingsPartial({ [j.key]: el.value }, hint);
+      });
+    });
+    jobsBuilt = true;
+    // dil degisince "gun/days" birimi de guncellensin (select'ler bir kez kurulur)
+    document.addEventListener("app:langchange", () => {
+      if (!jobsBuilt) return;
+      const u = t("job_unit_days");
+      JOB_DEFS.forEach((j) => {
+        const sel = document.getElementById(jobSelectId(j.key));
+        if (!sel) return;
+        Array.from(sel.options).forEach((o) => { o.textContent = `${o.value} ${u}`; });
+      });
+    });
+  }
+  JOB_DEFS.forEach((j) => {
+    const el = document.getElementById(jobSelectId(j.key));
+    if (el) el.value = String((s && s[j.key]) || j.def);
+  });
+}
+
 async function loadSettings() {
   const res = await fetch("/api/settings");
   const s = await res.json();
@@ -686,6 +767,11 @@ async function loadSettings() {
   initTimePicker("s-appupdate-hour");
   initTimePicker("s-maint-hour");
   initFeedSchedule(s.feed_schedule);
+  // 2.20.7: yeni akordeonlar (varsayilan kapali) + Isler satirlari
+  initAccordion("cardsync-toggle", "cardsync-body");
+  initAccordion("gmb-toggle", "gmb-body");
+  initAccordion("jobs-toggle", "jobs-body");
+  initJobs(s);
   state.currentTz = s.timezone || "Europe/Istanbul";
   state.serverToday = s.server_today || null;
   document.getElementById("s-tz").value = state.currentTz;
@@ -756,6 +842,18 @@ function applyReadonlyGlobals(s) {
     smtp_port: ["s-smtp-port"],
     smtp_user: ["s-smtp-user"],
     smtp_pass: ["s-smtp-cred"],
+    // 2.20.7: Isler (gun) — admin yonetir, uye salt-okunur
+    job_season_fresh_days: ["s-job-season-fresh-days"],
+    job_season_slow_days: ["s-job-season-slow-days"],
+    job_detail_slow_days: ["s-job-detail-slow-days"],
+    job_batch_end_days: ["s-job-batch-end-days"],
+    job_anime_airing_days: ["s-job-anime-airing-days"],
+    job_anime_done_days: ["s-job-anime-done-days"],
+    job_unwatched_bulk_days: ["s-job-unwatched-bulk-days"],
+    job_feed_ttl_days: ["s-job-feed-ttl-days"],
+    job_fav_days: ["s-job-fav-days"],
+    job_stremio_ttl_days: ["s-job-stremio-ttl-days"],
+    job_anime_probe_days: ["s-job-anime-probe-days"],
   };
   const ro = new Set(s && s.readonly_global ? s.readonly_global : []);
   Object.entries(keyToIds).forEach(([key, ids]) => {
@@ -1048,7 +1146,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=663");
+      const { errText: _err } = await import("./i18n.js?v=682");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1057,9 +1155,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=663");
-    const { openDetails } = await import("./components.js?v=663");
-    const { loadFollowed } = await import("./views.js?v=663");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=682");
+    const { openDetails } = await import("./components.js?v=682");
+    const { loadFollowed } = await import("./views.js?v=682");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1095,7 +1193,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=663");
+        const { t: _t } = await import("./i18n.js?v=682");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1385,9 +1483,19 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
     e.stopPropagation();
     const target = nowBtn.dataset.target || getOpenBackupTarget() || (isRsyncDolu() && !isSambaDolu() ? "rsync" : !isRsyncDolu() && isSambaDolu() ? "samba" : "");
     if (!target) return;
-    const r = await fetch("/api/backup/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }) });
-    const j = await r.json().catch(() => ({}));
-    showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
+    if (nowBtn.classList.contains("loading")) return;   // 2.20.7: cift tiklama korumasi
+    // 2.20.7: istek boyunca butonun ORTASINDA donen yuvarlak; yesil "yedek alindi"
+    // toast'i gosterildikten sonra (finally) kaldirilir.
+    nowBtn.classList.add("loading");
+    try {
+      const r = await fetch("/api/backup/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }) });
+      const j = await r.json().catch(() => ({}));
+      showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
+    } catch (_) {
+      showMsg(t("error"), false);
+    } finally {
+      nowBtn.classList.remove("loading");
+    }
   });
   const restoreBtn = document.getElementById("backup-restore");
   if (restoreBtn) restoreBtn.addEventListener("click", async (e) => {
@@ -1397,6 +1505,174 @@ if (nxOnce("backup_accordion")) (function initBackupAccordion() {
     const r = await fetch("/api/backup/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target }) });
     const j = await r.json().catch(() => ({}));
     showMsg(r.ok ? (j.msg || t("saved")) : j.error || t("error"), r.ok);
+  });
+})();
+
+// KARTLARI DIŞA & İÇE AKTAR (2.20.4): iki üst akordeon + JSON aktarımı.
+// "YEDEKLE" akordeonu mevcut Database/Herşeyi + Rsync + Samba'yı içine alır;
+// iç akordeona (Rsync/Samba) tıklamak üst akordeonu kapatmaz.
+if (nxOnce("cards_transfer")) (function initCardsTransfer() {
+  const pairs = [
+    [document.getElementById("backup-main-box"), document.getElementById("backup-main-body")],
+    [document.getElementById("cards-transfer-box"), document.getElementById("cards-transfer-body")],
+  ];
+  pairs.forEach(([box, body]) => {
+    if (!box || !body) return;
+    box.addEventListener("click", (e) => {
+      if (!e.target.closest(".notif-type-head")) return;      // yalnız başlık açar/kapatır
+      if (e.target.closest(".accordion-box") !== box) return;  // iç akordeon başlığı üstü etkilemez
+      const open = body.style.display !== "none";
+      body.style.display = open ? "none" : "";
+      box.classList.toggle("accordion-open", !open);
+    });
+  });
+
+  const exportBtn = document.getElementById("cards-export");
+  const importBtn = document.getElementById("cards-import");
+  const fileInput = document.getElementById("cards-import-file");
+  const fmtSel = document.getElementById("cards-format");
+  const confirmModal = document.getElementById("cards-import-confirm-modal");
+  const fileNameEl = document.getElementById("cards-import-file-name");
+  const summaryEl = document.getElementById("cards-import-summary");
+  const applyBtn = document.getElementById("cards-import-apply");
+  const cancelBtn = document.getElementById("cards-import-cancel");
+  let pendingFile = null;
+
+  function errKey(code) {
+    const c = String(code || "");
+    return c.indexOf("cards_err_") === 0 ? c : "cards_err_bad_format";
+  }
+
+  // Biçim pulldown'u (Dil ve Zaman modalındaki s-lang deseni) + satır davranışı.
+  initPulldownCombobox("cards-format", "cards-format-list");
+  function syncImportFmt() {
+    const csv = !!(fmtSel && fmtSel.value === "csv");
+    if (fileInput) fileInput.accept = csv ? ".csv,text/csv" : ".json,application/json";
+  }
+  if (fmtSel) fmtSel.addEventListener("change", () => syncImportFmt());
+  syncImportFmt();
+
+  // Dışa aktar: seçilen biçimde (JSON/CSV) dosyayı indirir.
+  if (exportBtn) exportBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (exportBtn.classList.contains("loading")) return;
+    exportBtn.classList.add("loading");
+    const fmt = (fmtSel && fmtSel.value) || "json";
+    try {
+      const r = await fetch("/api/cards/export?format=" + encodeURIComponent(fmt), { credentials: "same-origin" });
+      if (!r.ok) throw new Error("http " + r.status);
+      const blob = await r.blob();
+      const cd = r.headers.get("Content-Disposition") || "";
+      const m = /filename="?([^";]+)"?/.exec(cd);
+      const name = (m && m[1]) || ("nextep-cards." + (fmt === "csv" ? "csv" : "json"));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 1500);
+      toast(t("cards_export_done"));
+    } catch (_) {
+      toast(t("cards_export_fail"), true);
+    } finally {
+      exportBtn.classList.remove("loading");
+    }
+  });
+
+  function typeLine(types) {
+    const map = [["tv", "summary_shows"], ["movie", "summary_films"], ["doc", "summary_docs"], ["anime", "summary_anime"]];
+    return map.filter(([k]) => types && types[k] && types[k].total > 0)
+      .map(([k, key]) => t(key, { n: types[k].total })).join(" · ");
+  }
+
+  function openImportConfirm(name, info) {
+    if (!confirmModal) return;
+    if (fileNameEl) fileNameEl.textContent = name || "";
+    if (summaryEl) {
+      const lines = [t("cards_import_summary", {
+        total: info.total || 0, "new": info.new || 0, existing: info.existing || 0,
+        episodes: info.episodes || 0, watched: info.watched_episodes || 0,
+      })];
+      const tl = typeLine(info.types);
+      if (tl) lines.push(tl);
+      if (info.csv) {
+        lines.push(t("csv_import_summary", {
+          rows: info.csv.rows || 0, ok: info.csv.ok || 0,
+          noid: info.csv.no_id || 0, bad: info.csv.bad || 0,
+        }));
+      }
+      lines.push(t("cards_import_skip_note"));
+      summaryEl.innerHTML = lines.map((l) => `<div>${escAttr(l)}</div>`).join("");
+    }
+    confirmModal.style.display = "flex";
+    try { if (applyBtn) applyBtn.focus(); } catch (_) {}
+  }
+
+  function closeImportConfirm() {
+    if (confirmModal) confirmModal.style.display = "none";
+    pendingFile = null;
+  }
+
+  // İçe aktar: dosya -> önizleme -> adanmış onay modalı -> uygula.
+  if (importBtn && fileInput) {
+    importBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+    fileInput.addEventListener("change", async () => {
+      const f = (fileInput.files && fileInput.files[0]) || null;
+      fileInput.value = "";
+      if (!f) return;
+      pendingFile = f;
+      try {
+        const fd = new FormData();
+        fd.append("file", f, f.name);
+        const r = await fetch("/api/cards/import/preview", { method: "POST", body: fd, credentials: "same-origin" });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          pendingFile = null;
+          toast(t(errKey(j.error)), true);
+          return;
+        }
+        openImportConfirm(f.name, j);
+      } catch (_) {
+        pendingFile = null;
+        toast(t("cards_import_fail"), true);
+      }
+    });
+  }
+
+  if (cancelBtn) cancelBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeImportConfirm();
+  });
+
+  if (applyBtn) applyBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!pendingFile || applyBtn.disabled) return;
+    const file = pendingFile;
+    applyBtn.disabled = true;
+    applyBtn.classList.add("loading");
+    try {
+      const fd = new FormData();
+      fd.append("file", file, file.name);
+      const r = await fetch("/api/cards/import/apply", { method: "POST", body: fd, credentials: "same-origin" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast(t(errKey(j.error)), true);
+        return;
+      }
+      closeImportConfirm();
+      toast(t("cards_import_done", { added: j.added || 0, skipped: j.skipped || 0 }));
+      try { refreshListsAfterWatch(); } catch (_) {}
+    } catch (_) {
+      toast(t("cards_import_fail"), true);
+    } finally {
+      applyBtn.disabled = false;
+      applyBtn.classList.remove("loading");
+    }
   });
 })();
 
@@ -2086,7 +2362,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=663").then((m) => {
+  import("./notification.js?v=682").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

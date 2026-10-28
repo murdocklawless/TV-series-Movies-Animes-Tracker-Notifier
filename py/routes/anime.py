@@ -420,8 +420,25 @@ def anime_episode_watch():
          int(datetime.datetime.now(datetime.timezone.utc).timestamp()) if watched else None,
          "other" if watched else None),
     )
+    if not watched:
+        # 2.20.4: bolum izlenmedi -> anime Izlenenler'den cikip Anime sekmesine doner.
+        conn.execute("UPDATE anime SET in_watched=0 WHERE id=? AND in_watched=1", (anime_id,))
     conn.commit()
     conn.close()
+    if watched:
+        # 2.20.5: manuel isaretleme -> bekleyen ask kapanir (anime: sezon bilinmez).
+        try:
+            aconn = get_db()
+            try:
+                arow = aconn.execute("SELECT anilist_id FROM anime WHERE id=?", (anime_id,)).fetchone()
+            finally:
+                aconn.close()
+            if arow and arow["anilist_id"]:
+                from routes.stremio import close_pending_ask
+                close_pending_ask(uid, "anime", anilist_id=arow["anilist_id"],
+                                  episode=episode, source="other")
+        except Exception:
+            pass
     bump()
     return jsonify({"ok": True, "watched": watched})
 
@@ -464,9 +481,12 @@ def anime_move_watched():
         except Exception:
             auto = []
         if auto:
+            # 2.20.5: watched_at de yazilir (Trakt gonderim sarti + izleme gecmisi).
             conn.execute(
-                "UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other'), direct_mark=0 WHERE anime_id=? AND watched=0",
-                (anime_id,),
+                "UPDATE anime_episodes SET watched=1, source=COALESCE(source, 'other'), "
+                "watched_at=COALESCE(watched_at, ?), direct_mark=0 "
+                "WHERE anime_id=? AND watched=0",
+                (now_ts, anime_id),
             )
             save_watch_snapshot(conn, uid, "anime", anime_id, auto)
             conn.execute(
@@ -495,6 +515,19 @@ def anime_move_watched():
     conn.execute("UPDATE anime SET in_watched=? WHERE id=?", (watched, anime_id))
     conn.commit()
     conn.close()
+    if watched:
+        # 2.20.5: manuel tasima -> bu anime icin bekleyen ask'ler kapanir.
+        try:
+            aconn = get_db()
+            try:
+                arow = aconn.execute("SELECT anilist_id FROM anime WHERE id=?", (anime_id,)).fetchone()
+            finally:
+                aconn.close()
+            if arow and arow["anilist_id"]:
+                from routes.stremio import close_pending_ask
+                close_pending_ask(uid, "anime", anilist_id=arow["anilist_id"], source="other")
+        except Exception:
+            pass
     bump()
     return jsonify({"ok": True, "watched": watched})
 

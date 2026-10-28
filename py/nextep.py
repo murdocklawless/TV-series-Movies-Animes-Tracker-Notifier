@@ -21,6 +21,7 @@ from routes.remote import remote_bp
 from routes.auth import auth_bp
 from routes.webhook import webhook_bp
 from routes.emby import emby_bp
+from routes.cards import cards_bp
 from notification import notification_bp
 
 app.register_blueprint(search_bp)
@@ -37,6 +38,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(notification_bp)
 app.register_blueprint(webhook_bp)
 app.register_blueprint(emby_bp)
+app.register_blueprint(cards_bp)
 
 from auth import init_auth
 

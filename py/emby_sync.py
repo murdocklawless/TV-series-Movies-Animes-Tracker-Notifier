@@ -49,6 +49,7 @@ Ayarlar (settings):
   emby_ws_last_watch     -> son WS kaynakli izleme JSON
 """
 import base64
+import datetime
 import json
 import os
 import socket
@@ -675,29 +676,138 @@ def _item_by_id(user_id, item_id):
     return data, ""
 
 
-def _apply_item(it, uid, trigger="ws"):
+def _ud_prev(user_id, item_id):
+    """emby_userdata'daki onceki Emby durumu -> dict|None (2.20.4)."""
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT played, play_count FROM emby_userdata WHERE user_id=? AND item_id=?",
+                (str(user_id), str(item_id)),
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+    except Exception:
+        return None
+
+
+def _ud_save(user_id, item_id, tmdb, kind, season, episode, ud):
+    """Emby UserData onbellegini guncelle (karardan SONRA cagrilir). Fail-soft."""
+    if not item_id:
+        return
+    try:
+        conn = get_db()
+        try:
+            conn.execute(
+                "INSERT INTO emby_userdata (user_id, item_id, tmdb_id, kind, season, episode, "
+                "play_count, played, last_played, position_ticks, ts) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(user_id, item_id) DO UPDATE SET "
+                "tmdb_id=excluded.tmdb_id, kind=excluded.kind, season=excluded.season, "
+                "episode=excluded.episode, play_count=excluded.play_count, "
+                "played=excluded.played, last_played=excluded.last_played, "
+                "position_ticks=excluded.position_ticks, ts=excluded.ts",
+                (str(user_id), str(item_id), tmdb, kind, season, episode,
+                 int((ud or {}).get("PlayCount") or 0),
+                 1 if (ud or {}).get("Played") else 0,
+                 str((ud or {}).get("LastPlayedDate") or "")[:40],
+                 int((ud or {}).get("PlaybackPositionTicks") or 0), int(time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# 2.20.4 — gercek oynatma kaniti
+# ---------------------------------------------------------------------------
+# Emby "posterden izlendi" isaretlemesinde de PlayCount=1 yaziyor; PlayCount /
+# LastPlayedDate ayrimi guvenilir degil. Siniflandirma artik GERCEK oynatma
+# kanitina dayanir:
+#   1. WS `PlaybackStart` / `PlaybackStop` ItemId'leri (bellek, TTL'li)
+#   2. Emby Activity Log `playback.start|stop` kayitlari (restart/kapali WS yedegi)
+_EVIDENCE = {"lock": threading.Lock(), "ids": {}}
+_EVIDENCE_TTL = 3600          # bellek kanitinin omru (sn)
+_EVIDENCE_BACK = 60           # pencere geriye payi (sn)
+
+
+def _evidence_add(ids, ts=None):
+    """WS PlaybackStart/PlaybackStop ItemId'lerini kanit olarak sakla."""
+    now = int(ts or time.time())
+    try:
+        with _EVIDENCE["lock"]:
+            for iid in ids or []:
+                if iid:
+                    _EVIDENCE["ids"][str(iid)] = now
+    except Exception:
+        pass
+
+
+def _playback_evidence(user_id, since_ts):
+    """Pencere icindeki gercek oynatma kanitlari -> set[item_id]."""
+    out = set()
+    try:
+        with _EVIDENCE["lock"]:
+            now = int(time.time())
+            for iid, ts in list(_EVIDENCE["ids"].items()):
+                if int(ts) >= int(since_ts):
+                    out.add(iid)
+                elif int(ts) < now - _EVIDENCE_TTL:
+                    _EVIDENCE["ids"].pop(iid, None)
+    except Exception:
+        pass
+    try:
+        since_iso = datetime.datetime.fromtimestamp(
+            int(since_ts), datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        ok, data, _err = _api("/System/ActivityLog/Entries",
+                              {"StartIndex": 0, "Limit": 200, "MinDate": since_iso})
+        if ok and isinstance(data, dict):
+            for it in (data.get("Items") or []):
+                if str(it.get("Type") or "").lower() not in ("playback.stop", "playback.start"):
+                    continue
+                iid = it.get("ItemId")
+                if iid:
+                    out.add(str(iid))
+    except Exception:
+        pass
+    return out
+
+
+def _apply_item(it, uid, emby_id="", trigger="ws", evidence_ids=None):
     """Tek Emby ogesini NextEp'e isle (2.19.6 oge bazli hizli yol).
 
-    `Played` alanina gore izleme yazar **veya** yalniz kaynagi emby olan kaydi
-    geri alir. -> "written"|"asked"|"skipped"|"unresolved"|"rolled"|"none"
+    2.20.4 siniflandirma: `PlayCount` / `LastPlayedDate` KULLANILMAZ (poster
+    isaretlemesi de PlayCount=1 yaziyor). Kanit varsa -> ask; kanit yoksa ->
+    dogrudan yaz.
+
+    "Izlenmedi" sinyali (`Played=false`) yalnizca Emby'nin kendi durumu
+    degistiyse uygulanir: yerel kaynak `emby` veya onceki `emby_userdata.played=1`.
+    Aksi halde Emby sadece "hic izlenmemis" diyordur -> dokunulmaz.
+
+    -> "written"|"asked"|"skipped"|"unresolved"|"rolled"|"none"
     """
     from routes.stremio import process_signal, unwatch_from_source
 
+    item_id = str(it.get("Id") or "")
     item = _to_item(it)
     if not item:
         return "none"
     tmdb = _resolve(item)
     s, e = item.get("season"), item.get("episode")
     kind = item.get("kind")
-    if not tmdb:
-        return "unresolved"
-    if kind == "tv" and (s is None or e is None):
+    ud = it.get("UserData") or {}
+
+    if not tmdb or (kind == "tv" and (s is None or e is None)):
+        _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
         return "unresolved"
 
-    ud = it.get("UserData") or {}
     played = bool(ud.get("Played"))
-    pc = int(ud.get("PlayCount") or 0)
-    lpd = ud.get("LastPlayedDate") or ""
+    prev = _ud_prev(emby_id, item_id)
+    prev_played = bool(prev and int(prev.get("played") or 0) == 1)
 
     conn = get_db()
     try:
@@ -724,23 +834,35 @@ def _apply_item(it, uid, trigger="ws"):
         conn.close()
 
     if not played:
-        # Emby'de artik izlenmemis: yalniz kaynagi emby olan kayit geri alinir.
-        if not already or str(src).lower() != SOURCE:
+        # Emby'de "izlenmemis": gercek degisiklik yoksa sinyal sayilmaz.
+        if not already:
+            _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
+            return "skipped"
+        if str(src).strip().lower() != SOURCE and not prev_played:
+            print(f"[emby] izlenmedi sinyali yok sayildi (Emby durumu degismedi): "
+                  f"tmdb={tmdb} S{s}E{e} yerel-kaynak={src or '-'}", flush=True)
+            _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
             return "skipped"
         res = unwatch_from_source(kind, tmdb, season=s, episode=e,
                                   owner_id=uid, source=SOURCE)
+        _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
         return "rolled" if res == "ok" else "skipped"
 
     if already:
+        _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
         return "skipped"
-    # manuel isaretleme mi, gercek oynatma mi?
-    manual = (pc == 0 and not lpd)
+
+    ev = evidence_ids
+    if ev is None:
+        ev = _playback_evidence(emby_id, int(time.time()) - _EVIDENCE_TTL)
+    manual = item_id not in ev
     process_signal(
         {"route_norm": kind, "provider": "tmdb", "ident": tmdb,
          "season": s, "episode": e},
         owner_id=uid, source=SOURCE, direct=manual,
     )
     _stamp_api_watch(uid, item, s, e, trigger=trigger)
+    _ud_save(emby_id, item_id, tmdb, kind, s, e, ud)
     return "written" if manual else "asked"
 
 
@@ -763,12 +885,14 @@ def sync_items(ids, trigger="ws"):
         if not user_id:
             return True, "no-user"
         uid = _nextep_owner(_user_name(user_id))
+        evidence = _playback_evidence(user_id, int(time.time()) - _EVIDENCE_BACK)
         counts = {}
         for item_id in ids:
             data, _err = _item_by_id(user_id, item_id)
             if not data:
                 continue
-            st = _apply_item(data, uid, trigger=trigger)
+            st = _apply_item(data, uid, emby_id=user_id, trigger=trigger,
+                             evidence_ids=evidence)
             counts[st] = counts.get(st, 0) + 1
         if counts:
             try:
@@ -835,6 +959,17 @@ def _sync_inner(verbose=False, trigger="poll"):
         print(f"[emby] izlenmisler alinamadi: {err}", flush=True)
         return {"ok": False, "error": err}
 
+    # 2.20.4: gercek oynatma kaniti penceresi (WS belleği + Activity Log).
+    # Ilk calistirmada emby_evidence_ts yok -> son 1 saat; eski oynatmalar icin
+    # toplu ask uretilmez.
+    now_ev = int(time.time())
+    try:
+        last_ev = int(float(get_setting("emby_evidence_ts") or 0))
+    except Exception:
+        last_ev = 0
+    since_ev = (last_ev - _EVIDENCE_BACK) if last_ev else (now_ev - _EVIDENCE_TTL)
+    evidence = _playback_evidence(user_id, since_ev)
+
     written = asked = skipped = unresolved = 0
     played_ids = set()
     played_named = set()
@@ -856,6 +991,7 @@ def _sync_inner(verbose=False, trigger="poll"):
                     played_named.add((_norm_title(item.get("title")), s, e))
             if not tmdb:
                 unresolved += 1
+                _ud_save(user_id, str(it.get("Id") or ""), None, item.get("kind"), s, e, ud)
                 continue
             conn = get_db()
             try:
@@ -864,21 +1000,25 @@ def _sync_inner(verbose=False, trigger="poll"):
                 conn.close()
             if already:
                 skipped += 1
+                _ud_save(user_id, str(it.get("Id") or ""), tmdb, item.get("kind"), s, e, ud)
                 continue
-            # manuel isaretleme mi, gercek oynatma mi? (kalibrasyon log'u ile dogrulanir)
-            manual = (pc == 0 and not lpd)
+            # 2.20.4: gercek oynatma kaniti varsa ask, yoksa dogrudan yaz.
+            manual = str(it.get("Id") or "") not in evidence
             if verbose:
                 print(f"[emby] kalibrasyon: type={itype} tmdb={tmdb} S{s}E{e} "
-                      f"PlayCount={pc} LastPlayed={lpd or '-'} -> {'direct' if manual else 'ask'}",
+                      f"PlayCount={pc} LastPlayed={lpd or '-'} "
+                      f"kanit={'var' if not manual else 'yok'} -> {'ask' if not manual else 'direct'}",
                       flush=True)
             if item.get("kind") == "tv" and (s is None or e is None):
                 unresolved += 1
+                _ud_save(user_id, str(it.get("Id") or ""), tmdb, item.get("kind"), s, e, ud)
                 continue
             process_signal(
                 {"route_norm": item.get("kind"), "provider": "tmdb", "ident": tmdb,
                  "season": s, "episode": e},
                 owner_id=uid, source=SOURCE, direct=manual,
             )
+            _ud_save(user_id, str(it.get("Id") or ""), tmdb, item.get("kind"), s, e, ud)
             # 1.87: kartta "Son sinyal" + "xyz izlendi" (API ile senkronize edilen son izleme).
             _stamp_api_watch(uid, item, s, e, trigger=trigger)
             if manual:
@@ -909,6 +1049,8 @@ def _sync_inner(verbose=False, trigger="poll"):
     if unresolved:
         summary += f" · {unresolved} cozulemedi"
     try:
+        # 2.20.4: sonraki senkronun kanit penceresi buradan itibaren acilir.
+        set_setting("emby_evidence_ts", str(now_ev))
         set_setting("emby_last_sync", str(int(time.time())))
         set_setting("emby_last_result", summary)
         set_setting("emby_last_detail", (f"ws={'on' if _WS['connected'] else 'off'} · {len(items)} izlenmis"))
@@ -1158,6 +1300,9 @@ def _ws_listen_loop():
                         except Exception:
                             txt = ""
                         _WS["last_msg"] = int(time.time())
+                        # 2.20.4: gercek oynatma kaniti (poster isaretlemesinden ayrim).
+                        if '"PlaybackStart"' in txt or '"PlaybackStop"' in txt:
+                            _evidence_add(_ws_item_ids(txt))
                         if "UserDataChanged" in txt or '"PlaybackStop"' in txt:
                             ids = _ws_item_ids(txt)
                             if ids:

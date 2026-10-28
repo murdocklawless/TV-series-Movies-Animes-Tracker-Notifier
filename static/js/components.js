@@ -9,7 +9,7 @@ function isTvUIActive() {
 }
 function cardTvAttrs(div, title){ try{ if(!isTvUIActive()) return; div.tabIndex=0; div.setAttribute('role','button'); if(title) div.setAttribute('aria-label', title); div.addEventListener('keydown',(e)=>{ if(e.key==='Enter'||e.key===' '||e.keyCode===23){ e.preventDefault(); div.click(); }});}catch{} }
 
-import { t, errText, animeGenreLabel } from "./i18n.js?v=663";
+import { t, errText, animeGenreLabel } from "./i18n.js?v=682";
 import {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, TRASH_SVG, EYE_SVG, EYE_OFF_SVG, CALENDAR_SVG, INFO_SVG, CLOCK_SVG,
   SOURCE_SVG,
@@ -17,9 +17,9 @@ import {
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   canSelectAll, dayStateStr, dayStrInTz, isNewEpisode, tzLocale, todayInTzStr, isDocItem, isMobile,
   srcKey, srcName,
-} from "./utils.js?v=663";
-import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=663";
-import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=663";
+} from "./utils.js?v=682";
+import { loadFollowed, loadAnime, switchView, refreshListsAfterWatch, animeStatusLabel, tvStatusLabel } from "./views.js?v=682";
+import { renderChips, updateComboActorLabel, doComboSearch } from "./search.js?v=682";
 
 let currentDetails = null;
 
@@ -1283,6 +1283,140 @@ document.getElementById("unwatched-modal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) document.getElementById("unwatched-modal").style.display = "none";
 });
 
+// ---------------------------------------------------------------------------
+// 2.20.4: ask onayi — ask penceresindeki bolumler (tick = evet, tekrar tik = geri al)
+// Modal her an kapanabilir; gri (isaretsiz) satirlarin ask'i beklemede kalir.
+// ---------------------------------------------------------------------------
+let _askPrev = null;
+
+function _askPrevRows(list) {
+  return (list || [])
+    .map((r) => ({
+      ask_id: Number(r.ask_id),
+      season: (r.season === null || r.season === undefined) ? null : r.season,
+      episode: Number(r.episode),
+      watched: !!r.watched,
+      was: !!r.watched, // acilista izlenmis satir kilitli (yanlislikla silinmesin)
+    }))
+    .filter((r) => Number.isFinite(r.ask_id) && Number.isFinite(r.episode))
+    .sort((a, b) => ((a.season ?? 0) - (b.season ?? 0)) || (a.episode - b.episode));
+}
+
+function _askPrevFirstOpen() {
+  if (!_askPrev) return -1;
+  return _askPrev.rows.findIndex((r) => !r.watched);
+}
+
+function _askPrevRowLocked(i) {
+  const st = _askPrev;
+  if (!st || !st.rows[i]) return true;
+  if (st.rows[i].was) return true;
+  const firstOpen = _askPrevFirstOpen();
+  return firstOpen !== -1 && i > firstOpen;
+}
+
+function _askPrevApplyRows(st, rows) {
+  const wasMap = new Map(st.rows.map((r) => [r.ask_id, r.was]));
+  st.rows = _askPrevRows(rows).map((r) => ({
+    ...r,
+    was: wasMap.has(r.ask_id) ? wasMap.get(r.ask_id) : r.watched,
+  }));
+}
+
+function _askPrevFocus(askId) {
+  const body = document.getElementById("ask-prev-body");
+  const st = _askPrev;
+  if (!body || !st) return;
+  let i = askId ? st.rows.findIndex((r) => r.ask_id === askId) : -1;
+  if (i === -1 || _askPrevRowLocked(i)) i = _askPrevFirstOpen();
+  if (i === -1) return;
+  const btn = body.querySelector(`.ask-ep-btn[data-i="${i}"]`);
+  if (!btn || btn.disabled) return;
+  setTimeout(() => { try { btn.focus(); btn.scrollIntoView({ block: "nearest" }); } catch (_) {} }, 50);
+}
+
+function renderAskPrev() {
+  const body = document.getElementById("ask-prev-body");
+  if (!body || !_askPrev) return;
+  const st = _askPrev;
+  const firstOpen = _askPrevFirstOpen();
+  const showSeason = st.rows.some((r) => r.season != null);
+  const cols = showSeason ? 7 : 5;
+  const lockTip = firstOpen !== -1
+    ? escAttr(t("ask_prev_locked", { ep: st.rows[firstOpen].episode }))
+    : "";
+  const cells = [];
+  st.rows.forEach((r, i) => {
+    const locked = _askPrevRowLocked(i);
+    const tip = (locked && !r.was) ? ` data-tip="${lockTip}"` : "";
+    cells.push(`<span class="ask-ep-title">${escAttr(st.plan.title || "")}</span>`);
+    cells.push(`<span class="ask-prev-sep">|</span>`);
+    if (showSeason) {
+      const seasonTxt = r.season == null ? "" : escAttr(t("ask_prev_season", { n: r.season }));
+      cells.push(`<span class="ask-ep-season">${seasonTxt}</span>`);
+      cells.push(`<span class="ask-prev-sep">|</span>`);
+    }
+    cells.push(`<span class="ask-ep-ep">${escAttr(t("ask_prev_episode", { n: r.episode }))}</span>`);
+    cells.push(`<span class="ask-prev-sep">|</span>`);
+    cells.push(`<button class="watch-btn uw-watch ask-ep-btn${r.watched ? " on" : ""}${locked ? " locked" : ""}" data-i="${i}"${tip}${locked ? " disabled" : ""}>${r.watched ? CHECK_SVG : ""}</button>`);
+  });
+  body.innerHTML = `<div class="ask-prev-list" style="--cols:${cols};--cols-narrow:${cols - 2}">${cells.join("")}</div>`;
+  body.querySelectorAll(".ask-ep-btn").forEach((btn) => {
+    btn.addEventListener("click", () => onAskPrevToggle(Number(btn.dataset.i)));
+  });
+}
+
+async function onAskPrevToggle(i) {
+  const st = _askPrev;
+  if (!st || st.busy) return;
+  const row = st.rows[i];
+  if (!row || _askPrevRowLocked(i)) return;
+  const want = !row.watched;
+  st.busy = true;
+  let res = null;
+  const askIds = st.rows.map((r) => r.ask_id);
+  try { res = await st.handlers.onToggle(row.ask_id, want, askIds); } catch (_) { res = null; }
+  st.busy = false;
+  if (!_askPrev || _askPrev !== st) return;
+  if (!res || !res.ok) return;
+  if (Array.isArray(res.rows) && res.rows.length) {
+    _askPrevApplyRows(st, res.rows);
+  } else {
+    row.watched = want;
+  }
+  renderAskPrev();
+  _askPrevFocus(row.ask_id);
+  try { refreshListsAfterWatch(); } catch (_) {}
+}
+
+function openAskPrevConfirm(plan, handlers) {
+  const modal = document.getElementById("ask-prev-modal");
+  if (!modal || !plan) return;
+  _askPrev = { plan, handlers: handlers || {}, rows: _askPrevRows(plan.rows), busy: false };
+  if (!_askPrev.rows.length) { _askPrev = null; return; }
+  const title = document.getElementById("ask-prev-title");
+  if (title) title.textContent = plan.title || "";
+  modal.style.display = "flex";
+  renderAskPrev();
+  _askPrevFocus(null);
+}
+
+function closeAskPrevConfirm() {
+  const m = document.getElementById("ask-prev-modal");
+  if (m) m.style.display = "none";
+  _askPrev = null;
+  return true;
+}
+
+try {
+  const _apClose = document.getElementById("ask-prev-close");
+  if (_apClose) _apClose.onclick = () => closeAskPrevConfirm();
+  const _apModal = document.getElementById("ask-prev-modal");
+  if (_apModal) _apModal.addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeAskPrevConfirm();
+  });
+} catch (_) {}
+
 async function openAnimeDetails(dbId, anilistId, title, restrictCalendar) {
   currentDetails = { kind: "anime", dbId, anilistId, title };
   const modal = document.getElementById("details-modal");
@@ -1624,4 +1758,5 @@ export { openReleases, closeReleases, closeDetails, closeModals,
          openStremioInstallModal, closeStremioInstallModal,
          openStremioTunnelRemoveConfirm, openRemoteResetConfirm,
           openDetails, toggleFavActor, toggleFavDirector, toggleFavAnimeChar, openAnimeChar, openPerson, openDirector,
-         openUnwatchedModal, openAnimeDetails, openAnimeSchedule };
+         openUnwatchedModal, openAnimeDetails, openAnimeSchedule,
+         openAskPrevConfirm, closeAskPrevConfirm };

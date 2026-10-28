@@ -18,6 +18,23 @@ from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names
 
 settings_bp = Blueprint("settings", __name__)
 
+# 2.20.7: Ayarlar > Guncelleme Saatleri > Isler — gun cinsinden kontrol araliklari.
+# Deger yalnizca buradaki listeden secilebilir (key -> (varsayilan, izinli degerler)).
+JOB_DAYS = {
+    "job_season_fresh_days": (30, (7, 14, 30, 45, 60)),
+    "job_season_slow_days": (45, (30, 45, 60, 90, 120)),
+    "job_detail_slow_days": (90, (45, 60, 90, 120, 180)),
+    "job_batch_end_days": (60, (30, 60, 90, 120)),
+    "job_anime_airing_days": (7, (3, 7, 14, 30)),
+    "job_anime_done_days": (90, (60, 90, 120, 180)),
+    "job_unwatched_bulk_days": (7, (3, 7, 14, 30)),
+    "job_feed_ttl_days": (8, (3, 7, 8, 14, 30)),
+    "job_fav_days": (30, (7, 14, 30, 60)),
+    "job_stremio_ttl_days": (30, (7, 14, 30, 60)),
+    "job_anime_probe_days": (90, (45, 90, 180)),
+}
+JOB_DAY_KEYS = tuple(JOB_DAYS)
+
 # Yedek/Restore sinirlari — per-mode 30 (db 30 + full 30 = hedef basina 60)
 # Uzak budama limitleri backup_core'dan tek kaynak (backup_run + backup_job ortak)
 from backup_core import MAX_BACKUPS_DB, MAX_BACKUPS_FULL
@@ -308,7 +325,7 @@ def get_settings():
             "cache_ttl", "telegram_bot_token", "brevo_api_key", "email_from",
             "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
             "early_watched_days",
-        }
+        } | set(JOB_DAY_KEYS)
     return jsonify(
         {
             "tmdb_api_key": get_setting("tmdb_api_key") or "",
@@ -336,6 +353,11 @@ def get_settings():
             "app_auto_update": get_setting("app_auto_update") or "0",
             "app_update_hour": get_setting("app_update_hour") or "04:00",
             "maint_hour": get_setting("maint_hour") or "05:45",
+            # 2.20.7: Isler (gun cinsinden kontrol araliklari)
+            **{
+                _k: (get_setting(_k) or str(_d))
+                for _k, (_d, _allowed) in JOB_DAYS.items()
+            },
             "app_remote_version": get_setting("app_remote_version") or "",
             "timezone": _pget("timezone") or "Europe/Istanbul",
             "language": _pget("language") or "tr-TR",
@@ -497,6 +519,7 @@ def save_settings():
                       "email_provider", "smtp_preset", "smtp_host", "smtp_port", "smtp_user",
                       "smtp_pass", "backup_rsync_pass", "backup_samba_pass", "backup_rsync_key",
                       "early_watched_days", "tp_base_url", "lan_base_url")
+            or k in JOB_DAYS
         ]
         if blocked:
             return jsonify({"error": "auth_admin", "blocked": blocked}), 403
@@ -538,6 +561,17 @@ def save_settings():
     if "early_watched_days" in body:
         if str(body.get("early_watched_days")) not in ("14", "21", "30", "60", "90"):
             return jsonify({"error": "gecersiz esik"}), 400
+    # 2.20.7: Isler — yalniz izinli gun degerleri
+    for _jk, (_jd, _jallowed) in JOB_DAYS.items():
+        if _jk not in body:
+            continue
+        try:
+            _jv = int(str(body.get(_jk) or "").strip())
+        except (TypeError, ValueError):
+            return jsonify({"error": "gecersiz job araligi"}), 400
+        if _jv not in _jallowed:
+            return jsonify({"error": "gecersiz job araligi"}), 400
+        set_setting(_jk, str(_jv))
     for key in (
         "tmdb_api_key",
         "telegram_bot_token",

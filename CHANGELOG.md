@@ -1,6 +1,30 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.21.0 - 28/10/2026-18:41
+### TR
+- **Kartları dışa / içe aktarma (yeni):** Yedekleme modalı iki akordeona bölündü — **YEDEKLE** (Database / Herşeyi + **Rsync** + **Samba** + Yedekle / Geri Yükle; Rsync/Samba artık iç içe akordeon) ve **KARTLARI DIŞA & İÇE AKTAR** (tek satır: biçim pulldown'u + **Dışa Aktar** + **İçe Aktar**). Alt akordeona tıklamak üstteki YEDEKLE'yi kapatmaz.
+- **Uçlar:** `GET /api/cards/export?format=json|csv`, `POST /api/cards/import/preview`, `POST /api/cards/import/apply`. Kartlar **kullanıcı bazlı**; içe aktarma **birleştirir** (aynı `tmdb_id`/`anilist_id` varsa atlanır), önizleme + **adanmış onay modalı** (`#cards-import-confirm-modal`), limit **5 MB / 20.000 kart**, sonrasında `ramcache.bump()`.
+- **CSV tam yedek:** 34 kolon (tür, kimlik, başlık, tarih, durum, puan, oy sayısı, süre, sezon/bölüm sayıları, türler, ağlar, stüdyo, özet, açıklama, slogan, poster/cover yolları, sezon listesi, durum bayrakları) + **tüm bölümler** (`S1E1~tarih~saat~izlendi~izlenme~süre~ad`). `;` ayırıcı + UTF-8 BOM + CRLF (Excel TR); **alan içi satır sonları tek satıra** indirilir → her kart tam 1 satır; eski 19 kolonlu CSV'ler hâlâ okunur.
+- **JSON:** bölüm satırlarına **`air_time`** eklendi → JSON da tam kayıpsız (metinlerde satır sonları korunur).
+- **Arayüz:** biçim pulldown'u **Dil ve Zaman** modalındaki desenle birebir (`provider-combobox` + `provider-list`, `initPulldownCombobox`), seçenekler yalnız **JSON** / **CSV**; üç öğe **120px eşit genişlikte ve ortalı** (36px, mobil 32px, ≤400px 96px). Sarmalayıcı `overflow:visible` — pencere kırpılmıyor.
+- **Kaldırılanlar:** “TMDB'den bilgileri tamamla” anahtarı (UI + i18n + backend `_tmdb_lookup`) → kimliksiz satırlar **hiç istek atmadan** raporlanıp atlanır; kart aktarma akordeonundaki açıklama paragrafı.
+- **Bu sürümde biriken diğer değişiklikler:** “Sıradaki İzlenmemiş Bölüm” → **“Sıradaki Yayınlanmış İzlenmemiş Bölümler”** (Dizi/Anime/Belgesel); bölüm özetinde tür sayısı ile bölüm sayısı arasındaki `|` kaldırıldı (boşluk); TV `hookModals`'a `settings-backup-modal` + `cards-import-confirm-modal` eklendi.
+- **Cache-buster:** `style.css?v=651`, `mobil.css?v=564`, `py/jsver.py bump` → **build 682**; `py/` değiştiği için servis **restart** edildi.
+- **Doğrulama:** `py_compile` + `node --check` + modül bağ testi OK; birim testleri (JSON/CSV, eski biçim, bozuk dosya, ID'siz satır); pi DB **kopyasında** tam tur — CSV 34 kolon / 83 kart / 84 fiziksel satır, kartlar silinip geri yüklendiğinde `followed=76, anime=7, bölüm=1639, izlenmiş=859, in_watched=34, arşiv=2, ertelenmiş=5` **birebir**; `jsver check` OK; `eol.py check` OK; md5 yerel = pi.
+- **Sürüm:** 2.21.0 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.21.0_20261028_184051/` (`nextep.db.pre`).
+### EN
+- **Card export / import (new):** the backup modal is split into two accordions — **BACKUP** (Database / Everything + **Rsync** + **Samba** + Backup / Restore; Rsync/Samba are now nested) and **EXPORT & IMPORT CARDS** (single row: format pulldown + **Export** + **Import**). Clicking a nested accordion does not close the parent.
+- **Endpoints:** `GET /api/cards/export?format=json|csv`, `POST /api/cards/import/preview`, `POST /api/cards/import/apply`. Cards are **per user**; import **merges** (existing `tmdb_id`/`anilist_id` are skipped), with a preview + a **dedicated confirmation modal** (`#cards-import-confirm-modal`), limits **5 MB / 20,000 cards**, then `ramcache.bump()`.
+- **Full CSV backup:** 34 columns (type, ids, title, date, status, rating, vote count, runtime, season/episode counts, genres, networks, studios, overview, description, tagline, poster/cover paths, season list, state flags) plus **all episodes** (`S1E1~date~airtime~watched~watched_at~runtime~name`). `;` delimiter + UTF-8 BOM + CRLF; in-cell line breaks are flattened so **each card is exactly one line**; legacy 19-column CSVs still import.
+- **JSON:** `air_time` added to episode rows → JSON is fully lossless (line breaks preserved).
+- **UI:** the format pulldown mirrors the **Language & Time** modal pattern (`provider-combobox` + `provider-list`, `initPulldownCombobox`), options only **JSON** / **CSV**; the three items are **120px wide and centred** (36px, 32px on mobile, 96px ≤400px). The wrapper uses `overflow:visible` so the popup is never clipped.
+- **Removed:** the “Fill details from TMDB” switch (UI + i18n + backend `_tmdb_lookup`) → rows without an ID are reported and skipped **without any request**; the explanatory paragraph in the cards accordion.
+- **Accumulated in this release:** “Next Unwatched Episode” → **“Next Aired Unwatched Episodes”** (TV/Anime/Docs); the `|` between the type count and the episode count in the section summary became a space; TV `hookModals` now includes `settings-backup-modal` + `cards-import-confirm-modal`.
+- **Cache-buster:** `style.css?v=651`, `mobil.css?v=564`, `py/jsver.py bump` → **build 682**; service **restarted** (py change).
+- **Verified:** `py_compile`, `node --check`, module link test OK; unit tests (JSON/CSV, legacy format, broken file, ID-less rows); full round-trip on a **copy** of the pi DB — CSV 34 columns / 83 cards / 84 physical lines, restore returned `followed=76, anime=7, episodes=1639, watched=859, in_watched=34, archived=2, deferred=5` **exactly**; `jsver check` OK; `eol.py check` OK; md5 local = pi.
+- **Version:** 2.21.0 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backup: `bak/release_2.21.0_20261028_184051/`.
+
 ## 2.20.3 - 23/10/2026-22:45
 ### TR
 - **"NextEp'i Güncelle" butonuna dönen yuvarlak animasyon:** Ayarlar → NextEp Güncelleme modalındaki güncelleme butonu tıklandığında etiket gizlenir ve **butonun tam ortasında** beyaz dönen yuvarlak görünür; istek bittiğinde (başarı **veya** hata) animasyon kaldırılır. Pseudo-element (`::after`) + mevcut `@keyframes spin` kullanıldığı için DOM'a eklenen bir düğüm yok → dil değişimi/`textContent` güncellemeleriyle çakışmaz.

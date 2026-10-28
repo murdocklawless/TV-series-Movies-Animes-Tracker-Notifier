@@ -366,10 +366,61 @@ def _build_card(title, media_type=None, tmdb_id=None, anilist_id=None, poster_pa
 # Taze sezon (son bolum <= 30 gun): gunluk. Eski sezon: kartin eklenme tarihine
 # capali 45 gun. Detay/credits: ayni capa ile 90 gun. Statu her gun okunur;
 # statu degisirse kartin TUM sezonlari aninda taranir.
+# 2.20.7: bu kademeler artik Ayarlar > Guncelleme Saatleri > Isler'den
+# yonetilir. Asagidaki sabitler yalnizca VARSAYILAN'dir; gercek deger her run
+# basinda DB'den okunur (restart gerekmez).
 SEASON_FRESH_DAYS = 30
 SEASON_SLOW_DAYS = 45
 DETAIL_SLOW_DAYS = 90
 DAY_SEC = 86400
+# 2.20.6: toplu yayin sezonu (tum bolumler ayni tarih) kac gun sonra "Bitti" sayilir.
+BATCH_END_DAYS = 60
+# 2.20.1 (madde 4): anime kademeleri (yayinda / bitmis).
+ANIME_AIRING_DAYS = 7
+ANIME_DONE_DAYS = 90
+# Birikmis bolum bildirimi kayan penceresi.
+UNWATCHED_BULK_DAYS = 7
+
+
+def job_days(key, default):
+    """Ayarlar > Guncelleme Saatleri > Isler: gun cinsinden kontrol araligi.
+
+    Deger yoksa/gecersizse varsayilan (mevcut sabit) kullanilir. Ayar degisimi
+    restart gerektirmez; her run basinda okunur.
+    """
+    try:
+        v = int(str(get_setting(key) or "").strip())
+    except (TypeError, ValueError):
+        return int(default)
+    return v if v > 0 else int(default)
+
+
+def season_fresh_days():
+    return job_days("job_season_fresh_days", SEASON_FRESH_DAYS)
+
+
+def season_slow_days():
+    return job_days("job_season_slow_days", SEASON_SLOW_DAYS)
+
+
+def detail_slow_days():
+    return job_days("job_detail_slow_days", DETAIL_SLOW_DAYS)
+
+
+def batch_end_days():
+    return job_days("job_batch_end_days", BATCH_END_DAYS)
+
+
+def anime_airing_days():
+    return job_days("job_anime_airing_days", ANIME_AIRING_DAYS)
+
+
+def anime_done_days():
+    return job_days("job_anime_done_days", ANIME_DONE_DAYS)
+
+
+def unwatched_bulk_days():
+    return job_days("job_unwatched_bulk_days", UNWATCHED_BULK_DAYS)
 
 
 def _now_epoch():
@@ -406,13 +457,19 @@ def _fetch_show_bundle(tmdb_id, extra_titles=(), conn=None, rows=None):
     if not data:
         return None
     now = _now_epoch()
-    fresh_cut = (datetime.date.today() - datetime.timedelta(days=SEASON_FRESH_DAYS)).isoformat()
+    fresh_cut = (datetime.date.today() - datetime.timedelta(days=season_fresh_days())).isoformat()
     status_new = (data.get("status") or "").strip()
     status_old = ""
     slow_due = False
     if rows:
         try:
-            status_old = (rows[0]["status"] or "").strip()
+            r0 = rows[0]
+            status_old = (r0["status"] or "").strip()
+            # 2.20.6: otomatik "Bitti" karari TMDB'de "Returning Series" gorunur;
+            # sahte "statu degisti" algisini (gereksiz tam tarama) engelle.
+            if "auto_ended" in r0.keys() and int(r0["auto_ended"] or 0) == 1 \
+                    and status_old == "Ended":
+                status_old = "Returning Series"
         except Exception:
             status_old = ""
         for r in rows:
@@ -444,11 +501,19 @@ def _fetch_show_bundle(tmdb_id, extra_titles=(), conn=None, rows=None):
             seasons[season_number] = season_data
     tvmaze_times = None
     if seasons:
+        # 2.20.7: TVmaze eşleşmesi prömiyer yılıyla doğrulanır (yanlış "Mayday").
+        premiere_year = None
+        try:
+            _fad = str(data.get("first_air_date") or "").strip()
+            if len(_fad) >= 4 and _fad[:4].isdigit():
+                premiere_year = int(_fad[:4])
+        except Exception:
+            premiere_year = None
         titles = [data.get("original_name"), data.get("name")]
         titles.extend(extra_titles or ())
         for t in titles:
             if t:
-                tvmaze_times = _tvmaze_episode_times(t)
+                tvmaze_times = _tvmaze_episode_times(t, premiere_year=premiere_year)
                 if tvmaze_times is not None:
                     break
     return {
@@ -500,12 +565,26 @@ def _write_episodes(conn, follow, bundle):
             if tvmaze_times is not None:
                 air_time = tvmaze_times.get((season_number, ep_num))
             if air_time:
+                # 2.20.7: TVmaze yalnızca saat dilimi düzeltmesi için (TMDB tarihiyle
+                # en fazla ±1 gün). Daha büyük fark = yanlış şov eşleşmesi -> yok say.
                 try:
-                    air_date = datetime.datetime.fromtimestamp(
+                    tv_date = datetime.datetime.fromtimestamp(
                         air_time, datetime.timezone.utc
-                    ).date().isoformat()
+                    ).date()
+                    tmdb_date = None
+                    if air_date:
+                        try:
+                            tmdb_date = datetime.date.fromisoformat(str(air_date))
+                        except ValueError:
+                            tmdb_date = None
+                    if tmdb_date is None or abs((tv_date - tmdb_date).days) <= 1:
+                        air_date = tv_date.isoformat()
+                    else:
+                        print(f"[sync] tvmaze tarihi yok sayildi: s{season_number}e{ep_num} "
+                              f"tvmaze={tv_date} tmdb={tmdb_date}", flush=True)
+                        air_time = None
                 except (ValueError, OSError, OverflowError):
-                    air_date = ep.get("air_date")
+                    air_time = None
             conn.execute(
                 "INSERT INTO episodes (follow_id, season, episode, air_date, air_time, name, runtime) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?) "
@@ -551,6 +630,106 @@ def pop_watch_snapshot(conn, uid, kind, ident):
         return None
 
 
+def tv_batch_wait_state(conn, follow_id, today=None, persist=True):
+    """Toplu yayin (tum bolumler ayni tarih) sezonu icin bekleme durumu (2.20.6).
+
+    Kural YALNIZ toplu yayin sezonlarina uygulanir (ornek: 8 bolumun hepsi ayni
+    gun cikti). Haftalik yayinlanan sezonlarda mevcut tarih tahmini gecerlidir.
+
+      ""            -> kural disi (mevcut mantik)
+      "season_wait" -> sezon topluca cikti, 60 gun dolmadi  -> "Yeni sezon bekleniyor"
+      "ended"       -> 60 gun gecti -> status='Ended' + auto_ended=1 -> "Bitti"
+
+    persist=False yalniz okuma yapar (durum degistirmez).
+    """
+    today = today or today_str()
+    try:
+        row = conn.execute(
+            "SELECT id, status, season_list, COALESCE(auto_ended,0) AS auto_ended "
+            "FROM followed WHERE id=?",
+            (follow_id,),
+        ).fetchone()
+        if not row:
+            return ""
+        # Zaten final statudeyse (TMDB'nin kendi karari) verilecek karar yok.
+        # auto_ended=1 ise bu bizim yazdigimiz "Bitti"dir; yeni bolum/sezon
+        # gelirse geri alinabilmesi icin degerlendirmeye devam edilir.
+        if str(row["status"] or "").strip() in ("Ended", "Canceled", "Cancelled") \
+                and not int(row["auto_ended"] or 0):
+            return ""
+        latest = conn.execute(
+            "SELECT MAX(season) AS s FROM episodes WHERE follow_id=? AND season>0",
+            (follow_id,),
+        ).fetchone()
+        season_no = latest["s"] if latest else None
+
+        def _clear():
+            """Toplu bekleme bitti -> otomatik 'Bitti' kararini geri al."""
+            if not persist or not int(row["auto_ended"] or 0):
+                return
+            try:
+                conn.execute(
+                    "UPDATE followed SET auto_ended=0, "
+                    "status=CASE WHEN status='Ended' THEN 'Returning Series' ELSE status END "
+                    "WHERE id=?",
+                    (follow_id,),
+                )
+                conn.commit()
+            except Exception:
+                pass
+
+        if not season_no:
+            _clear()
+            return ""
+        dates = [
+            r["air_date"] for r in conn.execute(
+                "SELECT air_date FROM episodes WHERE follow_id=? AND season=?",
+                (follow_id, season_no),
+            ).fetchall()
+        ]
+        # Toplu yayin sarti: en az 2 bolum, hepsinin tarihi dolu ve AYNI.
+        if len(dates) < 2 or any(not d for d in dates) or len(set(dates)) != 1:
+            _clear()
+            return ""
+        air = dates[0]
+        if air > today:
+            _clear()
+            return ""
+        try:
+            days = (datetime.date.fromisoformat(today)
+                    - datetime.date.fromisoformat(air)).days
+        except (ValueError, TypeError):
+            return ""
+        # Yeni sezon DUYURULMUS (season_list'te daha yuksek sezon var) -> asla
+        # otomatik "Bitti" yazilmaz; "Yeni sezon bekleniyor" kalir.
+        try:
+            sl = json.loads(row["season_list"] or "[]")
+        except (ValueError, TypeError):
+            sl = []
+        if any(int(s.get("season_number") or 0) > int(season_no) for s in sl
+               if s.get("season_number")):
+            _clear()
+            return "season_wait"
+        if days >= batch_end_days():
+            if persist and (str(row["status"] or "") != "Ended"
+                            or not int(row["auto_ended"] or 0)):
+                try:
+                    conn.execute(
+                        "UPDATE followed SET status='Ended', auto_ended=1 WHERE id=?",
+                        (follow_id,),
+                    )
+                    conn.commit()
+                    print(f"[scheduler] toplu yayin 60 gun -> Bitti: follow_id={follow_id} "
+                          f"(S{season_no} @ {air}, {days} gun)", flush=True)
+                except Exception:
+                    pass
+            return "ended"
+        _clear()
+        return "season_wait"
+    except Exception:
+        return ""
+
+
 def _apply_bundle_meta(conn, tmdb_id, bundle):
     """2.20.1: statu her gun yazilir (bekci yarin dogru karsilastirsin) ve
     yalniz YAVAS (45 gun capali / statu degisimi) tarama yapildiysa sezon
@@ -559,12 +738,20 @@ def _apply_bundle_meta(conn, tmdb_id, bundle):
         return
     status_new = bundle.get("status") or ""
     try:
+        # 2.20.6: auto_ended=1 iken TMDB'nin "Returning Series" yazimi "Bitti"
+        # kararini EZMEZ. TMDB baska bir statu (Ended/Canceled/In Production/
+        # Planned...) derse bayrak temizlenir ve TMDB degeri yazilir.
         conn.execute(
-            "UPDATE followed SET status=?, vote_average=?, vote_count=?, number_of_seasons=?, "
+            "UPDATE followed SET "
+            "status=CASE WHEN COALESCE(auto_ended,0)=1 AND ?='Returning Series' "
+            "THEN status ELSE ? END, "
+            "auto_ended=CASE WHEN TRIM(?) NOT IN ('', 'Returning Series') THEN 0 "
+            "ELSE COALESCE(auto_ended,0) END, "
+            "vote_average=?, vote_count=?, number_of_seasons=?, "
             "number_of_episodes=?, first_air_date=COALESCE(?, first_air_date), season_list=? "
             "WHERE tmdb_id=? AND media_type='tv'",
             (
-                status_new,
+                status_new, status_new, status_new,
                 bundle.get("vote_average") or 0,
                 bundle.get("vote_count"),
                 bundle.get("number_of_seasons"),
@@ -578,7 +765,7 @@ def _apply_bundle_meta(conn, tmdb_id, bundle):
         pass
     if bundle.get("slow_scan"):
         try:
-            nxt = _now_epoch() + SEASON_SLOW_DAYS * DAY_SEC
+            nxt = _now_epoch() + season_slow_days() * DAY_SEC
             conn.execute(
                 "UPDATE followed SET season_check_at=? WHERE tmdb_id=? AND media_type='tv'",
                 (nxt, tmdb_id),
@@ -823,8 +1010,21 @@ def check_notifications(user_id=None):
                     _notif_create(r["title"], msg, _doc_type(is_doc, "season_start"), media_type="tv", tmdb_id=r["tmdb_id"], season=s["season_number"], poster_path=r["poster_path"], kind="tv", ident=r["tmdb_id"], notified_date=today, user_id=uid)
         except Exception:
             pass
+        # 2.20.6: toplu yayin sezonu 60 gun degismeden durursa status='Ended' yaz
+        # (kullanici uygulamayi acmasa da karar verilir; "Bitti" bildirimi asagida).
+        try:
+            tv_batch_wait_state(conn, r["id"], today=today, persist=True)
+        except Exception:
+            pass
         # 3-8 status — snapshot bazlı: yalnızca durum DEĞİŞİNCE bir kez bildirilir
         status = (r["status"] or "").strip()
+        if status != "Ended":
+            try:
+                _st = conn.execute("SELECT status FROM followed WHERE id=?", (r["id"],)).fetchone()
+                if _st and _st["status"]:
+                    status = str(_st["status"]).strip()
+            except Exception:
+                pass
         if status:
             try:
                 snap = json.loads(_sget(uid, "notif_tv_status") or "{}")
@@ -877,7 +1077,7 @@ def check_notifications(user_id=None):
                 raise StopIteration
             # 7-gün kayan pencere: son bulk bildiriminden 7 gün dolmadıysa ateşleme yok
             last = conn.execute("SELECT created_at FROM notifications WHERE type=? AND tmdb_id=? AND user_id=? ORDER BY created_at DESC LIMIT 1", (_doc_type(is_doc, "unwatched_bulk"), r["tmdb_id"], uid)).fetchone()
-            if last and (now_ts - int(last["created_at"] or 0)) < 7 * 86400:
+            if last and (now_ts - int(last["created_at"] or 0)) < unwatched_bulk_days() * 86400:
                 raise StopIteration
             bulk_status = (r["status"] or "").strip()
             finished = bulk_status in ("Ended", "Canceled", "Cancelled")
@@ -1027,7 +1227,7 @@ def check_anime_notifications(user_id=None):
             if started < 1:
                 raise StopIteration
             last = conn.execute("SELECT created_at FROM notifications WHERE type='anime_unwatched_bulk' AND anilist_id=? AND user_id=? ORDER BY created_at DESC LIMIT 1", (a["anilist_id"], uid)).fetchone()
-            if last and (now_ts - int(last["created_at"] or 0)) < 7 * 86400:
+            if last and (now_ts - int(last["created_at"] or 0)) < unwatched_bulk_days() * 86400:
                 raise StopIteration
             a_status = (a["status"] or "").strip()
             finished = a_status in ("FINISHED", "CANCELLED", "HIATUS")
@@ -1074,7 +1274,7 @@ def _backfill_votes_impl():
     haftada bir. Sezon taramasi sync_releases'in isidir; burada tekrarlanmaz."""
     conn = get_db()
     now = _now_epoch()
-    fresh_cut = (datetime.date.today() - datetime.timedelta(days=SEASON_FRESH_DAYS)).isoformat()
+    fresh_cut = (datetime.date.today() - datetime.timedelta(days=season_fresh_days())).isoformat()
     groups = {}
     for row in conn.execute("SELECT * FROM followed").fetchall():
         try:
@@ -1109,7 +1309,7 @@ def _backfill_votes_impl():
                         info.get("vote_average") or 0,
                         json.dumps(info.get("networks") or []),
                         info.get("release_date") or row["release_date"],
-                        now + DETAIL_SLOW_DAYS * DAY_SEC,
+                        now + detail_slow_days() * DAY_SEC,
                         row["id"],
                     ),
                 )
@@ -1135,7 +1335,7 @@ def _backfill_votes_impl():
                     studios[0] if studios else None,
                     detail.get("episodes") or row["episodes"],
                     detail.get("status"),
-                    now + (7 * DAY_SEC if airing else DETAIL_SLOW_DAYS * DAY_SEC),
+                    now + (anime_airing_days() * DAY_SEC if airing else anime_done_days() * DAY_SEC),
                     row["id"],
                 ),
             )
