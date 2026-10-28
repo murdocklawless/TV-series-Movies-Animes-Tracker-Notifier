@@ -173,21 +173,31 @@ def cards_import_apply():
         return _err("cards_err_" + e.code)
     conn = get_db()
     snapshot = ""
+    info = None
     try:
-        snapshot = _snapshot_db(conn)          # yazmadan önce tutarlı kopya
-        info = cards_transfer.apply_import(conn, uid, cards, verify=_verify_flag())
-        try:
-            conn.execute(
-                "INSERT INTO import_log (user_id, ts, format, filename, total, added,"
-                " skipped, unverified, snapshot, extra) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (uid, int(datetime.datetime.now().timestamp()), fmt, filename[:200],
-                 len(cards), info.get("added", 0), info.get("skipped", 0),
-                 info.get("unverified", 0), snapshot,
-                 json.dumps(csv_info or {}, ensure_ascii=False)),
-            )
-            conn.commit()
-        except Exception as e:
-            print(f"[cards.import] log fail: {e}", flush=True)
+        # Boş aktarım: eklenecek yeni kart yoksa HİÇBİR ŞEY yazma
+        # (ne snapshot ne import_log); arayüz "İçe aktarılacak kart yok" der.
+        if cards_transfer.count_new(conn, uid, cards) == 0:
+            info = {"added": 0, "skipped": len(cards), "episodes": 0,
+                    "unverified": 0, "added_ids": [], "empty": True}
+        else:
+            snapshot = _snapshot_db(conn)          # yazmadan önce tutarlı kopya
+            info = cards_transfer.apply_import(conn, uid, cards, verify=_verify_flag())
+            if info.get("added"):
+                try:
+                    conn.execute(
+                        "INSERT INTO import_log (user_id, ts, format, filename, total, added,"
+                        " skipped, unverified, snapshot, added_ids, extra)"
+                        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (uid, int(datetime.datetime.now().timestamp()), fmt, filename[:200],
+                         len(cards), info.get("added", 0), info.get("skipped", 0),
+                         info.get("unverified", 0), snapshot,
+                         json.dumps(info.get("added_ids") or [], ensure_ascii=False),
+                         json.dumps(csv_info or {}, ensure_ascii=False)),
+                    )
+                    conn.commit()
+                except Exception as e:
+                    print(f"[cards.import] log fail: {e}", flush=True)
     finally:
         conn.close()
     try:
@@ -214,7 +224,9 @@ def cards_import_history():
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT id, ts, format, filename, total, added, skipped, unverified, snapshot"
+            "SELECT id, ts, format, filename, total, added, skipped, unverified, snapshot,"
+            " rolled_back,"
+            " CASE WHEN undo_payload IS NULL OR undo_payload='' THEN 0 ELSE 1 END AS has_payload"
             " FROM import_log WHERE user_id=? ORDER BY ts DESC, id DESC LIMIT ?",
             (uid, limit),
         ).fetchall()
@@ -223,3 +235,89 @@ def cards_import_history():
     finally:
         conn.close()
     return jsonify({"ok": True, "items": [dict(r) for r in rows]})
+
+
+# --------------------------------------------------- geri alma / geri yükleme
+def _pick_log(conn, uid, log_id=None):
+    try:
+        if log_id is not None:
+            return conn.execute(
+                "SELECT * FROM import_log WHERE id=? AND user_id=?", (int(log_id), uid)
+            ).fetchone()
+        return conn.execute(
+            "SELECT * FROM import_log WHERE user_id=? ORDER BY ts DESC, id DESC LIMIT 1", (uid,)
+        ).fetchone()
+    except Exception:
+        return None
+
+
+@cards_bp.route("/api/cards/import/rollback", methods=["POST"])
+def cards_import_rollback():
+    """Bu aktarımda EKLENEN kartları siler; silinen satırlar undo_payload'a yazılır."""
+    uid = _uid()
+    if not uid:
+        return _err("cards_err_auth", 401)
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    row = None
+    removed = 0
+    try:
+        row = _pick_log(conn, uid, body.get("id"))
+        if not row:
+            return _err("cards_err_undo_none")
+        if int(row["rolled_back"] or 0) == 1:
+            return _err("cards_err_undo_done")
+        try:
+            added_ids = json.loads(row["added_ids"] or "[]")
+        except Exception:
+            added_ids = []
+        if not added_ids:
+            return _err("cards_err_undo_data")
+        payload = cards_transfer.dump_import_rows(conn, uid, added_ids)
+        removed = cards_transfer.delete_import_rows(conn, payload)
+        conn.execute(
+            "UPDATE import_log SET rolled_back=1, undo_payload=?, poster_cleaned=0 WHERE id=?",
+            (json.dumps(payload, ensure_ascii=False), row["id"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    try:
+        bump()
+    except Exception:
+        pass
+    return jsonify({"ok": True, "removed": removed, "id": row["id"] if row else 0})
+
+
+@cards_bp.route("/api/cards/import/restore", methods=["POST"])
+def cards_import_restore():
+    """Geri alınmış aktarımı AYNI id'lerle geri yükler."""
+    uid = _uid()
+    if not uid:
+        return _err("cards_err_auth", 401)
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    row = None
+    restored = 0
+    try:
+        row = _pick_log(conn, uid, body.get("id"))
+        if not row:
+            return _err("cards_err_undo_none")
+        if int(row["rolled_back"] or 0) != 1:
+            return _err("cards_err_undo_done")
+        try:
+            payload = json.loads(row["undo_payload"] or "{}")
+        except Exception:
+            payload = {}
+        if not payload:
+            return _err("cards_err_undo_expired")
+        restored = cards_transfer.restore_import_rows(conn, payload)
+        conn.execute("UPDATE import_log SET rolled_back=0, undo_payload=NULL WHERE id=?", (row["id"],))
+        conn.commit()
+    finally:
+        conn.close()
+    try:
+        bump()
+    except Exception:
+        pass
+    return jsonify({"ok": True, "restored": restored, "id": row["id"] if row else 0})

@@ -5861,9 +5861,13 @@ select#s-email-provider.email-lit {
 .import-hist-head {
   color: #fff;
 }
-.import-hist-delta {
-  color: #f97316;
-  font-weight: 600;
+.import-hist-btn {
+  align-self: center;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+}
+.import-hist-empty {
+  color: #8a90a0;
 }
 .import-hist-snap {
   flex: 1 0 100%;

@@ -571,6 +571,12 @@ def init_db():
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_import_log_user ON import_log(user_id, ts DESC)"
     )
+    # 2.23.0: geri alma / geri yükleme + zamanli temizlik kolonlari (eski kurulumlar icin)
+    _ilog = [r["name"] for r in conn.execute("PRAGMA table_info(import_log)").fetchall()]
+    for _c, _t in (("added_ids", "TEXT"), ("undo_payload", "TEXT"),
+                   ("rolled_back", "INTEGER DEFAULT 0"), ("poster_cleaned", "INTEGER DEFAULT 0")):
+        if _c not in _ilog:
+            conn.execute("ALTER TABLE import_log ADD COLUMN %s %s" % (_c, _t))
     # Izlendi-sor karar deposu (1.87): Evet/Hayir karari bildirim satirlarindan
     # bagimsiz tutulur; "tum ask'leri temizle" yalniz bekleyenleri siler.
     conn.execute(

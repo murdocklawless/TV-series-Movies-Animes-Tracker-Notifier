@@ -392,6 +392,7 @@ def apply_import(conn, uid, cards, now=None, verify=False):
     """
     now = int(now or datetime.datetime.now().timestamp())
     added = skipped = eps_added = unverified = 0
+    added_ids = []
     for card in cards:
         if verify and not _verify_one(card["type"], card.get("tmdb_id") or card.get("anilist_id")):
             unverified += 1
@@ -427,6 +428,7 @@ def apply_import(conn, uid, cards, now=None, verify=False):
                     if _as_int(e.get("watched")) == 1:
                         _mark_watched(conn, "anime_episodes", "anime_id=? AND episode=?",
                                       [aid, ep_no], e.get("watched_at"), now)
+                added_ids.append(["anime", aid])
             else:
                 row = {"user_id": uid, "tmdb_id": card["tmdb_id"], "media_type": card["type"]}
                 row.update({k: v for k, v in card.items() if k in FOLLOW_META})
@@ -446,12 +448,86 @@ def apply_import(conn, uid, cards, now=None, verify=False):
                     if _as_int(e.get("watched")) == 1:
                         _mark_watched(conn, "episodes", "follow_id=? AND season=? AND episode=?",
                                       [fid, season, ep_no], e.get("watched_at"), now)
+                added_ids.append([card["type"], fid])
         except sqlite3.IntegrityError:
             skipped += 1
             continue
         added += 1
     conn.commit()
-    return {"added": added, "skipped": skipped, "episodes": eps_added, "unverified": unverified}
+    return {"added": added, "skipped": skipped, "episodes": eps_added,
+            "unverified": unverified, "added_ids": added_ids}
+
+
+def count_new(conn, uid, cards):
+    """Dosyadaki, hedefte HENÜZ OLMAYAN kart sayısı (yalnız okuma)."""
+    return sum(1 for c in cards if not _existing(conn, uid, c))
+
+
+def dump_import_rows(conn, uid, added_ids):
+    """Geri alma öncesi silinecek satırların tam kopyası (JSON'a hazır sözlük)."""
+    data = {"followed": [], "anime": [], "episodes": [], "anime_episodes": []}
+    fids, aids = [], []
+    for pair in added_ids or []:
+        try:
+            kind, rid = pair[0], int(pair[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if kind == "anime":
+            aids.append(rid)
+        else:
+            fids.append(rid)
+    if fids:
+        q = ",".join("?" for _ in fids)
+        data["followed"] = [dict(r) for r in conn.execute(
+            "SELECT * FROM followed WHERE user_id=? AND id IN (%s)" % q, [uid] + fids).fetchall()]
+        data["episodes"] = [dict(r) for r in conn.execute(
+            "SELECT * FROM episodes WHERE follow_id IN (%s)" % q, fids).fetchall()]
+    if aids:
+        q = ",".join("?" for _ in aids)
+        data["anime"] = [dict(r) for r in conn.execute(
+            "SELECT * FROM anime WHERE user_id=? AND id IN (%s)" % q, [uid] + aids).fetchall()]
+        data["anime_episodes"] = [dict(r) for r in conn.execute(
+            "SELECT * FROM anime_episodes WHERE anime_id IN (%s)" % q, aids).fetchall()]
+    return data
+
+
+def delete_import_rows(conn, payload):
+    """dump alınmış satırları siler (poster dosyalarına DOKUNMAZ)."""
+    removed = 0
+    for r in (payload.get("episodes") or []):
+        conn.execute("DELETE FROM episodes WHERE id=?", (r.get("id"),))
+    for r in (payload.get("followed") or []):
+        cur = conn.execute("DELETE FROM followed WHERE id=?", (r.get("id"),))
+        removed += cur.rowcount or 0
+    for r in (payload.get("anime_episodes") or []):
+        conn.execute("DELETE FROM anime_episodes WHERE id=?", (r.get("id"),))
+    for r in (payload.get("anime") or []):
+        cur = conn.execute("DELETE FROM anime WHERE id=?", (r.get("id"),))
+        removed += cur.rowcount or 0
+    return removed
+
+
+def restore_import_rows(conn, payload):
+    """dump edilmiş satırları AYNI id'lerle geri yazar (AUTOINCREMENT → çakışmaz)."""
+    added = 0
+    for table, key in (("followed", "followed"), ("episodes", "episodes"),
+                       ("anime", "anime"), ("anime_episodes", "anime_episodes")):
+        for r in (payload.get(key) or []):
+            cols = _table_cols(conn, table)
+            use = [c for c in r if c in cols]
+            if not use:
+                continue
+            try:
+                conn.execute(
+                    "INSERT OR IGNORE INTO %s (%s) VALUES (%s)"
+                    % (table, ", ".join(use), ", ".join("?" for _ in use)),
+                    [r[c] for c in use],
+                )
+            except sqlite3.IntegrityError:
+                continue
+            if table in ("followed", "anime"):
+                added += 1
+    return added
 
 
 # ------------------------------------------------------------ CSV (tam yedek)

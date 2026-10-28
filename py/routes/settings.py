@@ -32,6 +32,9 @@ JOB_DAYS = {
     "job_fav_days": (30, (7, 14, 30, 60)),
     "job_stremio_ttl_days": (30, (7, 14, 30, 60)),
     "job_anime_probe_days": (90, (45, 90, 180)),
+    # 2.23.0: geri alınmış içe aktarmaların temizliği (poster dosyaları / undo verisi)
+    "job_import_poster_days": (30, (7, 14, 30, 45, 60)),
+    "job_import_payload_days": (30, (7, 14, 30, 45, 60)),
 }
 JOB_DAY_KEYS = tuple(JOB_DAYS)
 

@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=685";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=685";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=685";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=685";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=686";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=686";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=686";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=686";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -647,6 +647,8 @@ const JOB_DEFS = [
   { key: "job_fav_days", label: "job_fav", tip: "tip_job_fav", def: "30", opts: ["7", "14", "30", "60"] },
   { key: "job_stremio_ttl_days", label: "job_stremio_ttl", tip: "tip_job_stremio_ttl", def: "30", opts: ["7", "14", "30", "60"] },
   { key: "job_anime_probe_days", label: "job_anime_probe", tip: "tip_job_anime_probe", def: "90", opts: ["45", "90", "180"] },
+  { key: "job_import_poster_days", label: "job_import_poster", tip: "tip_job_import_poster", def: "30", opts: ["7", "14", "30", "45", "60"] },
+  { key: "job_import_payload_days", label: "job_import_payload", tip: "tip_job_import_payload", def: "30", opts: ["7", "14", "30", "45", "60"] },
 ];
 function jobSelectId(key) {
   return "s-" + key.replace(/_/g, "-");
@@ -1146,7 +1148,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=685");
+      const { errText: _err } = await import("./i18n.js?v=686");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1155,9 +1157,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=685");
-    const { openDetails } = await import("./components.js?v=685");
-    const { loadFollowed } = await import("./views.js?v=685");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=686");
+    const { openDetails } = await import("./components.js?v=686");
+    const { loadFollowed } = await import("./views.js?v=686");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1193,7 +1195,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=685");
+        const { t: _t } = await import("./i18n.js?v=686");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1542,6 +1544,14 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   const histBtn = document.getElementById("cards-import-history-btn");
   const histModal = document.getElementById("cards-import-history-modal");
   const histList = document.getElementById("cards-import-history-list");
+  const undoModal = document.getElementById("cards-import-undo-modal");
+  const undoText = document.getElementById("cards-undo-text");
+  const undoApply = document.getElementById("cards-undo-apply");
+  const undoCancel = document.getElementById("cards-undo-cancel");
+  const restoreModal = document.getElementById("cards-import-restore-modal");
+  const restoreText = document.getElementById("cards-restore-text");
+  const restoreApply = document.getElementById("cards-restore-apply");
+  const restoreCancel = document.getElementById("cards-restore-cancel");
   let pendingFile = null;
 
   function errKey(code) {
@@ -1727,8 +1737,11 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
         return;
       }
       closeImportConfirm();
+      if (j.empty) {
+        toast(t("cards_import_empty"));   // hiçbir şey yazılmadı (log/snapshot yok)
+        return;
+      }
       toast(t("cards_import_done", { added: j.added || 0, skipped: j.skipped || 0 }));
-      if (j.snapshot) toast(t("cards_import_rollback", { path: j.snapshot }));
       try { refreshListsAfterWatch(); } catch (_) {}
     } catch (_) {
       toast(t("cards_import_fail"), true);
@@ -1763,11 +1776,20 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
       histList.innerHTML = items.map((it) => {
         const head = histDate(it.ts) + " · " + String(it.format || "").toUpperCase()
           + " · " + t("stats_cards", { n: it.total || 0 });
-        const delta = "+" + (it.added || 0) + " / -" + (it.skipped || 0)
-          + (it.unverified ? " / ?" + it.unverified : "");
+        const n = it.added || 0;
+        let action;
+        if (it.rolled_back) {
+          action = it.has_payload
+            ? `<button class="tab import-hist-btn" data-restore="${it.id}" data-n="${n}">${escAttr(t("cards_restore_btn"))}</button>`
+            : `<button class="tab import-hist-btn" disabled title="${escAttr(t("cards_undo_expired"))}">${escAttr(t("cards_restore_btn"))}</button>`;
+        } else if (n > 0) {
+          action = `<button class="tab import-hist-btn" data-undo="${it.id}" data-n="${n}">${escAttr(t("cards_undo_btn"))}</button>`;
+        } else {
+          action = `<span class="import-hist-empty">—</span>`;
+        }
         const snap = it.snapshot ? `<div class="import-hist-snap">${escAttr(it.snapshot)}</div>` : "";
         return `<div class="import-hist-row"><div class="import-hist-head">${escAttr(head)}</div>`
-          + `<div class="import-hist-delta">${escAttr(delta)}</div>${snap}</div>`;
+          + action + snap + `</div>`;
       }).join("");
     } catch (_) {}
   }
@@ -1775,6 +1797,100 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   if (histBtn) histBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     openImportHistory();
+  });
+
+  // ---- Geri Al / Geri Yükle (adanmış modallar) ----
+  let pendingLogId = 0;
+
+  function closeUndo() {
+    if (undoModal) undoModal.style.display = "none";
+    pendingLogId = 0;
+  }
+  function closeRestore() {
+    if (restoreModal) restoreModal.style.display = "none";
+    pendingLogId = 0;
+  }
+  function openUndo(id, n) {
+    pendingLogId = id || 0;
+    if (undoText) undoText.textContent = t("cards_undo_text", { n: n || 0 });
+    if (undoModal) undoModal.style.display = "flex";
+  }
+  function openRestore(id, n) {
+    pendingLogId = id || 0;
+    if (restoreText) restoreText.textContent = t("cards_restore_text", { n: n || 0 });
+    if (restoreModal) restoreModal.style.display = "flex";
+  }
+
+  if (histList) histList.addEventListener("click", (e) => {
+    const u = e.target.closest("[data-undo]");
+    const r = e.target.closest("[data-restore]");
+    if (u) {
+      e.stopPropagation();
+      openUndo(Number(u.getAttribute("data-undo")), Number(u.getAttribute("data-n") || 0));
+    } else if (r) {
+      e.stopPropagation();
+      openRestore(Number(r.getAttribute("data-restore")), Number(r.getAttribute("data-n") || 0));
+    }
+  });
+
+  async function importAction(url, payload, okKey, btn) {
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("loading");
+    }
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "same-origin",
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast(t(errKey(j.error)), true);
+        return false;
+      }
+      toast(t(okKey, { n: j.removed || j.restored || 0 }));
+      return true;
+    } catch (_) {
+      toast(t("cards_import_fail"), true);
+      return false;
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("loading");
+      }
+    }
+  }
+
+  if (undoApply) undoApply.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!pendingLogId) return;
+    const ok = await importAction("/api/cards/import/rollback", { id: pendingLogId }, "cards_undo_done", undoApply);
+    if (ok) {
+      closeUndo();
+      try { refreshListsAfterWatch(); } catch (_) {}
+      openImportHistory();
+    }
+  });
+  if (undoCancel) undoCancel.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeUndo();
+  });
+
+  if (restoreApply) restoreApply.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!pendingLogId) return;
+    const ok = await importAction("/api/cards/import/restore", { id: pendingLogId }, "cards_restore_done", restoreApply);
+    if (ok) {
+      closeRestore();
+      try { refreshListsAfterWatch(); } catch (_) {}
+      openImportHistory();
+    }
+  });
+  if (restoreCancel) restoreCancel.addEventListener("click", (e) => {
+    e.stopPropagation();
+    closeRestore();
   });
 })();
 
@@ -2464,7 +2580,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=685").then((m) => {
+  import("./notification.js?v=686").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

@@ -1703,6 +1703,53 @@ def _maint_alert(err):
         pass
 
 
+def _import_cleanup():
+    """Geri alınmış aktarımların posterlerini / undo verisini yaşlandırarak siler.
+
+    `job_import_poster_days`: poster dosyaları (payload KORUNUR, geri yükleme sürer)
+    `job_import_payload_days`: undo payload'ı silinir → geri yükleme kapanır
+    """
+    import json as _json
+    from poster_store import delete_poster_by_web
+    pdays = job_days("job_import_poster_days", 30)
+    udays = job_days("job_import_payload_days", 30)
+    conn = get_db()
+    try:
+        now = int(datetime.datetime.now().timestamp())
+        rows = conn.execute(
+            "SELECT id, ts, undo_payload, poster_cleaned FROM import_log"
+            " WHERE rolled_back=1 AND undo_payload IS NOT NULL"
+        ).fetchall()
+        for r in rows:
+            age = (now - int(r["ts"] or 0)) / 86400.0
+            if age >= udays:
+                conn.execute("UPDATE import_log SET undo_payload=NULL WHERE id=?", (r["id"],))
+                print("import cleanup: log %s payload silindi (%.0f g)" % (r["id"], age), flush=True)
+                continue
+            if age >= pdays and not int(r["poster_cleaned"] or 0):
+                try:
+                    payload = _json.loads(r["undo_payload"] or "{}")
+                except Exception:
+                    payload = {}
+                n = 0
+                for key in ("followed", "anime"):
+                    for row in (payload.get(key) or []):
+                        for col in ("poster_local", "poster_local_w185"):
+                            web = row.get(col)
+                            if not web:
+                                continue
+                            try:
+                                delete_poster_by_web(web)
+                                n += 1
+                            except Exception:
+                                pass
+                conn.execute("UPDATE import_log SET poster_cleaned=1 WHERE id=?", (r["id"],))
+                print("import cleanup: log %s poster=%d (%.0f g)" % (r["id"], n, age), flush=True)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def db_maint_job():
     """Haftalik bakim (fail-soft): once yerel yedek (+30 rotasyon), sonra
     yetim taramasi (journal-only). Yedek patlarsa tarama KOSMAZ."""
@@ -1722,6 +1769,10 @@ def db_maint_job():
             print("db maint backup failed:", e, flush=True)
             _maint_alert(e)
             return
+        try:
+            _import_cleanup()          # 2.23.0: geri alınmış aktarım poster/payload temizliği
+        except Exception as e:
+            print("db maint import cleanup failed:", e, flush=True)
         try:
             findings = _maint_orphan_scan()
         except Exception as e:

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NextEp</title>
   <link rel="icon" type="image/png" href="/static/images/nextep_web_ui_logo.png" />
-  <link rel="stylesheet" href="/static/css/style.css?v=658" />
+  <link rel="stylesheet" href="/static/css/style.css?v=659" />
   <link rel="stylesheet" href="/static/css/tablet.css?v=518" />
   <link rel="stylesheet" href="/static/css/mobil.css?v=564" />
   <link rel="stylesheet" href="/static/css/tv.css?v=562" />
@@ -748,6 +748,43 @@
       </div>
       <div class="modal-body">
         <div id="cards-import-history-list" class="import-hist"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cards-import-undo-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="cards_undo_title">Aktarımı Geri Al</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="channel-frame">
+          <div id="cards-undo-text" class="cache-info"></div>
+          <div class="cards-imp-note" data-i18n="cards_undo_note">Yalnız bu aktarımda eklenen kartlar silinir; mevcut kartlarınız etkilenmez.</div>
+        </div>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+          <button id="cards-undo-cancel" class="tab" data-i18n="cancel">İptal</button>
+          <button id="cards-undo-apply" class="tab" data-i18n="cards_undo_btn">Geri Al</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cards-import-restore-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="cards_restore_title">Aktarımı Geri Yükle</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="channel-frame">
+          <div id="cards-restore-text" class="cache-info"></div>
+        </div>
+        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
+          <button id="cards-restore-cancel" class="tab" data-i18n="cancel">İptal</button>
+          <button id="cards-restore-apply" class="tab" data-i18n="cards_restore_btn">Geri Yükle</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1716,6 +1753,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=685"></script>
+  <script type="module" src="/static/js/nextep.js?v=686"></script>
 </body>
 </html>

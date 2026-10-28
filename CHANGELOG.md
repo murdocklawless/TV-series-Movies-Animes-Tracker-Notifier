@@ -1,6 +1,44 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.0 - 29/10/2026-00:27
+### TR
+- **Boş aktarım artık hiçbir iz bırakmıyor:** `apply` başında “eklenecek yeni kart” sayısı hesaplanıyor (yalnız okuma). **0 ise** kart yazılmıyor, **snapshot alınmıyor**, **`import_log` kaydı atılmıyor** ve arayüz **“İçe aktarılacak kart yok.”** toast’ı gösteriyor.
+- **Geri Al ↔ Geri Yükle (geçmiş modalında):** her satırdaki `+N / -M` yazısının yerine tek buton geldi.
+  - Yeni aktarım → **Geri Al** (bu aktarımda eklenen kartlar + bölümleri silinir; silinen satırlar saklanır)
+  - Geri alınmış → **Geri Yükle** (kartlar **aynı id’lerle** geri yazılır; izleme işaretleri korunur)
+  - Undo verisi süresi dolmuşsa buton **pasif** (“geri yükleme süresi doldu”)
+  - Boş aktarım satırında buton yok. İstediğin kadar ileri/geri (döngü) çalışır.
+- **Yeni uçlar:** `POST /api/cards/import/rollback` · `POST /api/cards/import/restore` (ikisi de kullanıcı bazlı, `import_log.id` ile; id verilmezse son aktarım).
+- **Yeni DB kolonları (`import_log`):** `added_ids` (eklenen kartların `[tür, id]` listesi), `undo_payload` (silinen satırların tam kopyası), `rolled_back`, `poster_cleaned`.
+- **Zamanlı temizlik — Ayarlar → Güncelleme Saatleri → İşler:**
+  - `job_import_poster_days` (varsayılan **30 gün**, 7/14/30/45/60): geri alınmış aktarımların **poster dosyalarını** siler (undo verisi korunur)
+  - `job_import_payload_days` (varsayılan **30 gün**): **undo verisini** siler → “Geri Yükle” kapanır
+  - İkisi de haftalık **Database Bakım** işi içinde (`_import_cleanup()`) çalışır; kullanıcı hiçbir şey yapmasa da temizlenir.
+- **i18n:** 19 yeni anahtar × 14 dil (`cards_import_empty`, `cards_undo_*`, `cards_restore_*`, `cards_err_undo_*`, `job_import_*`); kullanılmayan `cards_import_rollback` kaldırıldı.
+- **Arayüz:** iki adanmış onay modalı (`#cards-import-undo-modal`, `#cards-import-restore-modal`); geçmiş satırlarında `.import-hist-btn`.
+- **Cache-buster:** `style.css?v=658 → 659`; `py/jsver.py bump` → **build 686**. `py/` değiştiği için servis **restart** edildi.
+- **Doğrulama (gerçek uçlarla):** boş aktarım → `added=0, empty=true`, log 0, snapshot artmadı · 2 kartlık dosya → `added=2` + snapshot · **Geri Al** `removed=2`, kartlar gitti, payload 1711 bayt · **Geri Yükle** `restored=2`, kartlar aynı id’lerle döndü (bölüm korundu) · tekrar Geri Al `removed=2` (döngü) · iş testi: `poster_cleaned=1` (payload korunur), 40 gün sonra payload NULL · test kalıntıları temizlendi (`followed=76, anime=7, import_log=0, bak/import_*=0`, ayarlar 30/30). `py_compile` (5 dosya) + `node --check` + HTML (55 tekil ID) + CSS + `jsver check` + `eol` OK; md5 yerel = pi.
+- **Sürüm:** 2.23.0 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.23.0_20261029_002708/` (pre + post), `bak/undo_restore_20261029_002156/` (9 dosya + DB pre).
+### EN
+- **Empty imports leave no trace:** `apply` first counts new cards (read-only). If **0**, nothing is written, **no snapshot** is taken, **no `import_log` row** is added, and the UI shows the **“No cards to import.”** toast.
+- **Undo ↔ Restore in the history modal:** the `+N / -M` text per row is replaced by a single button.
+  - New import → **Undo** (cards added by that import and their episodes are deleted; the deleted rows are kept)
+  - Undone → **Restore** (cards come back **with the same ids**; watch flags preserved)
+  - If the undo data has expired the button is **disabled** (“restore window expired”)
+  - Empty imports show no button. Works as many times as you want (toggle loop).
+- **New endpoints:** `POST /api/cards/import/rollback` · `POST /api/cards/import/restore` (per user, by `import_log.id`; defaults to the latest import).
+- **New DB columns (`import_log`):** `added_ids`, `undo_payload`, `rolled_back`, `poster_cleaned`.
+- **Scheduled cleanup — Settings → Update Times → Jobs:**
+  - `job_import_poster_days` (default **30 days**, 7/14/30/45/60): deletes poster files of undone imports (undo data kept)
+  - `job_import_payload_days` (default **30 days**): deletes the undo data → Restore closes
+  - Both run inside the weekly **Database Maintenance** job (`_import_cleanup()`).
+- **i18n:** 19 new keys × 14 languages; unused `cards_import_rollback` removed.
+- **UI:** two dedicated confirm modals (`#cards-import-undo-modal`, `#cards-import-restore-modal`); `.import-hist-btn` in history rows.
+- **Cache-buster:** `style.css?v=658 → 659`; `py/jsver.py bump` → **build 686**; service **restarted** (py change).
+- **Verified against live endpoints:** empty import → `added=0, empty=true`, no log, no snapshot · 2-card file → `added=2` + snapshot · **Undo** `removed=2`, payload 1711 bytes · **Restore** `restored=2` with the same ids (episode kept) · second Undo works · job test: `poster_cleaned=1` (payload kept), payload NULL after 40 days · test artefacts cleaned (`followed=76, anime=7, import_log=0, bak/import_*=0`, settings 30/30). `py_compile` (5 files), `node --check`, HTML (55 unique ids), CSS, `jsver check`, `eol` all OK; md5 local = pi.
+- **Version:** 2.23.0 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.23.0_20261029_002708/`, `bak/undo_restore_20261029_002156/`.
+
 ## 2.22.0 - 28/10/2026-23:48
 ### TR
 - **İçe aktarma öncesi otomatik DB snapshot:** `POST /api/cards/import/apply` artık yazmadan önce **tutarlı** bir kopya alır — `bak/import_<YYYYmmdd_HHMMSS>/nextep.db.pre` (SQLite `backup()` API, düz `cp` değil). Yalnız dosya geçerliyse oluşur; **en yeni 10** klasör kalacak şekilde budanır. Yanıtta `snapshot` yolu döner.
