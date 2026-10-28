@@ -1507,3 +1507,12 @@
 - **Cache-buster:** `style.css?v=660 → 661`; statik → restart yok, Ctrl+F5.
 - **Doğrulama:** md5 yerel = pi (`style.css` `8ac97ab4…`, `index.html` `350da252…`); `padding: 0` grep ile doğrulandı; CSS mojibake/FFFD 0; `eol.py check` OK; `css661=200`; servis `active`.
 - **Sürüm:** **2.23.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.2_20261029_004550/` (pre + post), `bak/hist_pipe_20261029_004418/` (2 dosya).
+
+## FAZ NOTLARI — Geçmiş satırı flex'e çevrildi (alt alta düşme kökten engellendi) (29/10/2026, sürüm 2.23.3)
+
+- **Bildirilen:** önceki düzeltmeye rağmen geçmiş modalında metin ile `|` arasında hâlâ boşluk var ve öğeler alt alta (her biri ayrı satırda) görünüyor.
+- **Teşhis:** sunucudaki CSS doğrulandı (`curl /static/css/style.css?v=661` → kurallar yerinde). Eski sürümde `.import-hist-meta` **grid** idi; bazı cihazlarda (eski CSS/önbellek veya grid şablonunun uygulanmaması) satır tek kolona düşüyordu.
+- **Çözüm:** `.import-hist-meta` → **`display: flex; flex-direction: row; flex-wrap: nowrap; align-items: baseline; gap: 0; min-width: 0`**. `.import-hist-cell` / `.import-hist-pipe` → `flex: 0 0 auto; white-space: nowrap`; boruya `margin: 0; padding: 0` eklendi. Böylece satır yapısı üst kapsayıcının `flex-direction: column` etkisinden veya grid şablon hatalarından bağımsız.
+- **Cache-buster:** `style.css?v=661 → 662`; statik → restart yok, Ctrl+F5.
+- **Doğrulama:** sunucudan gelen CSS’te flex satır + sıfır boşluk doğrulandı; md5 yerel = pi (`style.css` `b6e9ed57…`, `index.html` `9be7e7fa…`); `css662=200`; servis `active`; CSS mojibake/FFFD 0; `eol.py check` OK.
+- **Sürüm:** **2.23.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.3_20261029_005521/` (pre + post), `bak/hist_flex_20261029_005242/` (2 dosya).

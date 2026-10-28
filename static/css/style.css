@@ -5861,21 +5861,29 @@ select#s-email-provider.email-lit {
 }
 .import-hist-meta {
   grid-column: 1;
-  display: grid;
-  grid-template-columns: repeat(5, auto);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: baseline;
+  gap: 0;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
 }
 .import-hist-cell {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 600;
 }
 .import-hist-pipe {
+  flex: 0 0 auto;
+  white-space: nowrap;
   color: #F97316;
   font-weight: 600;
   font-size: 0.72rem;
+  margin: 0;
   padding: 0;
 }
 .import-hist-btn {

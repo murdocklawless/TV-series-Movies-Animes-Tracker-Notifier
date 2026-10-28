@@ -1,6 +1,20 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.3 - 29/10/2026-00:55
+### TR
+- **Geçmiş satırı artık flex satır:** `.import-hist-meta` `display: grid` → **`display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0`**. Böylece üst kapsayıcıdan gelebilecek `flex-direction: column` etkisi veya grid şablonu sorunları satırı **asla alt alta düşüremiyor**. `.import-hist-cell` / `.import-hist-pipe` → `flex: 0 0 auto; white-space: nowrap`; boruya ayrıca `margin: 0; padding: 0` (metin ile `|` **bitişik**).
+- **Neden:** önceki sürümde yalnız `padding` sıfırlanmıştı; bazı cihazlarda eski CSS/grid davranışı nedeniyle `|` hâlâ ayrı satırda ve boşluklu görünüyordu.
+- **Cache-buster:** `style.css?v=661 → 662`. Statik → restart **gerekmedi**, **Ctrl+F5**.
+- **Doğrulama (sunucudan gelen CSS):** `.import-hist-meta` → `display:flex; flex-direction:row; flex-wrap:nowrap; gap:0` · `.import-hist-pipe` → `margin:0; padding:0` · md5 yerel = pi (`style.css` `b6e9ed57…`, `index.html` `9be7e7fa…`) · `css662=200` · servis `active` · CSS mojibake/FFFD **0** · `eol` **OK**.
+- **Sürüm:** 2.23.3 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.23.3_20261029_005521/` (pre + post), `bak/hist_flex_20261029_005242/` (2 dosya).
+### EN
+- **History row is now a flex line:** `.import-hist-meta` switched from `display: grid` to **`display: flex; flex-direction: row; flex-wrap: nowrap; gap: 0`**, so no inherited `flex-direction: column` or grid-template issue can stack it. `.import-hist-cell` / `.import-hist-pipe` use `flex: 0 0 auto; white-space: nowrap`; the pipe also gets `margin: 0; padding: 0` (text and `|` are **flush**).
+- **Why:** the previous release only zeroed the padding; on some devices an old CSS/grid behaviour still showed `|` on its own line with a gap.
+- **Cache-buster:** `style.css?v=661 → 662`. Static-only → no restart, just **Ctrl+F5**.
+- **Verified from the served CSS:** flex row + zero padding present; md5 local = pi; `css662=200`; service `active`; CSS mojibake/FFFD **0**; `eol` OK.
+- **Version:** 2.23.3 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.23.3_20261029_005521/`, `bak/hist_flex_20261029_005242/`.
+
 ## 2.23.2 - 29/10/2026-00:45
 ### TR
 - **Geçmiş modalında `|` boşluğu kaldırıldı:** `.import-hist-pipe` kuralı `padding: 0 3px → 0` oldu. Satır artık `28.10.2026 23:57|JSON|2 Kart Eklendi` biçiminde; `|` turuncu ve 5 kolonlu grid sayesinde satırlar arasında **alt alta hizalı** kalıyor.
