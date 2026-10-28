@@ -1,6 +1,18 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.2 - 29/10/2026-00:45
+### TR
+- **Geçmiş modalında `|` boşluğu kaldırıldı:** `.import-hist-pipe` kuralı `padding: 0 3px → 0` oldu. Satır artık `28.10.2026 23:57|JSON|2 Kart Eklendi` biçiminde; `|` turuncu ve 5 kolonlu grid sayesinde satırlar arasında **alt alta hizalı** kalıyor.
+- **Cache-buster:** `style.css?v=660 → 661`. Statik değişiklik → servis restart **gerekmedi**, tarayıcıda **Ctrl+F5**.
+- **Doğrulama:** md5 yerel = pi (`style.css`, `index.html`); `.import-hist-pipe` içinde `padding: 0`; CSS mojibake/FFFD **0**; `eol.py check` **OK**; canlı `style.css?v=661` → 200; servis `active`.
+- **Sürüm:** 2.23.2 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/release_2.23.2_20261029_004550/` (pre + post), `bak/hist_pipe_20261029_004418/` (2 dosya).
+### EN
+- **Removed the gap before `|` in the history modal:** `.import-hist-pipe` changed from `padding: 0 3px → 0`. Rows now read `28.10.2026 23:57|JSON|2 Cards Added`; the `|` stays orange and **aligned across rows** via the 5-column grid.
+- **Cache-buster:** `style.css?v=660 → 661`. Static-only change → no service restart, just **Ctrl+F5**.
+- **Verified:** md5 local = pi (`style.css`, `index.html`); `padding: 0` present; CSS mojibake/FFFD **0**; `eol.py check` **OK**; live `style.css?v=661` → 200; service `active`.
+- **Version:** 2.23.2 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/release_2.23.2_20261029_004550/`, `bak/hist_pipe_20261029_004418/`.
+
 ## 2.23.1 - 29/10/2026-00:41
 ### TR
 - **Geçmiş satırı yeni biçim:** `28.10.2026 23:57 | JSON | 2 Kart Eklendi`

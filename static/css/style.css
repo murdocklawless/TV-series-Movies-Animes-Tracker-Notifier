@@ -5876,7 +5876,7 @@ select#s-email-provider.email-lit {
   color: #F97316;
   font-weight: 600;
   font-size: 0.72rem;
-  padding: 0 3px;
+  padding: 0;
 }
 .import-hist-btn {
   grid-column: 2;

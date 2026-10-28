@@ -1499,3 +1499,11 @@
 - **Cache-buster:** `style.css?v=659 → 660`; `jsver bump` → **build 687**; py → restart.
 - **Doğrulama:** sahte `zero.json` (added=0) + `two.csv` (added=2, added_ids dolu) → history yalnız `two.csv`, `can_undo=1`; `_import_cleanup()` “1 boş aktarım kaydı silindi”; API’de `bak/import_TEST_ADI`, arayüzde kırpılmış; md5 yerel = pi (6 dosya); `style.css?v=660`, build 687, servis `active`; test kalıntıları silindi (`import_log=0`, `followed=76`, `anime=7`).
 - **Sürüm:** **2.23.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.1_20261029_004127/` (DB pre + post), `bak/hist_ui_20261029_003841/` (6 dosya + DB pre).
+
+## FAZ NOTLARI — Geçmiş modalında | boşluğu kaldırıldı (29/10/2026, sürüm 2.23.2)
+
+- **Bildirilen:** geçmiş modalında metin ile `|` arasında boşluk olmasın.
+- **Değişiklik:** `static/css/style.css` → `.import-hist-pipe { padding: 0 3px → 0 }`. Satır: `28.10.2026 23:57|JSON|2 Kart Eklendi`. Boru turuncu (`#F97316`) ve 5 kolonlu grid (`import-hist-meta`) sayesinde satırlar arasında alt alta hizalı kalıyor.
+- **Cache-buster:** `style.css?v=660 → 661`; statik → restart yok, Ctrl+F5.
+- **Doğrulama:** md5 yerel = pi (`style.css` `8ac97ab4…`, `index.html` `350da252…`); `padding: 0` grep ile doğrulandı; CSS mojibake/FFFD 0; `eol.py check` OK; `css661=200`; servis `active`.
+- **Sürüm:** **2.23.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedekler: `bak/release_2.23.2_20261029_004550/` (pre + post), `bak/hist_pipe_20261029_004418/` (2 dosya).
