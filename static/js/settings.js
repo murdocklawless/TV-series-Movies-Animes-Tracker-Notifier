@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=693";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=693";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=693";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=693";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=695";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=695";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=695";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=695";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1152,7 +1152,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=693");
+      const { errText: _err } = await import("./i18n.js?v=695");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1161,9 +1161,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=693");
-    const { openDetails } = await import("./components.js?v=693");
-    const { loadFollowed } = await import("./views.js?v=693");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=695");
+    const { openDetails } = await import("./components.js?v=695");
+    const { loadFollowed } = await import("./views.js?v=695");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1199,7 +1199,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=693");
+        const { t: _t } = await import("./i18n.js?v=695");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1614,16 +1614,15 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   }
 
   function impRow(cells) {
-    const items = [];
-    cells.forEach((c, i) => {
-      // 2.24.0: `|`'den ÖNCE gelen hücreler sağa yaslanır (is-piped) → hizalama
-      // korunurken metin ile `|` arası HER SATIRDA tam 1 karakter olur.
-      const piped = i < cells.length - 1 ? " is-piped" : "";
-      items.push(`<span class="cards-imp-cell${piped}">${escAttr(c)}</span>`);
-      if (piped) items.push(`<span class="cards-imp-pipe">&nbsp;|&nbsp;</span>`);
-    });
-    while (items.length % IMP_COLS !== 0) items.push(`<span class="cards-imp-fill"></span>`);
-    return items.join("");
+    // 2.24.6: dizi satır görünümündeki .wc-spacer numarası — satır sonuna
+    // "fazla genişliği yutan" boş hücre eklenir; aksi halde tablo kapsayıcıya
+    // geriliyor ve kolonlar şişip boru önlerinde ekstra boşluk oluşuyor.
+    const arr = cells.slice();
+    while (arr.length < 4) arr.push("");
+    const row = arr
+      .map((c) => `<span class="cards-imp-cell${c ? "" : " is-empty"}">${c ? escAttr(c) : ""}</span>`)
+      .join("") + `<span class="cards-imp-spacer"></span>`;
+    return `<div class="cards-imp-row">${row}</div>`;
   }
 
   function typeRow(key, b) {
@@ -2691,7 +2690,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=693").then((m) => {
+  import("./notification.js?v=695").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

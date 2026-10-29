@@ -5808,11 +5808,12 @@ select#s-email-provider.email-lit {
    (0,1,1) sınıf seçicisini eziyordu; id+class (1,1,0) onu yener. */
 #cards-import-stats.cards-imp,
 #cards-undo-text.cards-imp {
-  display: grid;
-  grid-template-columns: repeat(7, auto);
-  align-items: baseline;
-  justify-content: start;
-  row-gap: 5px;
+  /* 2.24.5: dizi satır görünümünün BİREBİR aynısı — font küçültüldü, boşluklar ORANSAL
+     (satır görünümü 0.8rem: padding 6px / margin 8px → em karşılıkları kullanılıyor). */
+  display: table;
+  table-layout: auto;
+  width: 100%;
+  border-collapse: collapse;
   margin: 8px 0 2px;
   font-size: 0.68rem;
   font-weight: 500;
@@ -5822,17 +5823,33 @@ select#s-email-provider.email-lit {
   overflow: hidden;   /* yatay scrollbar YOK */
   max-width: 100%;
 }
+.cards-imp-row {
+  display: table-row;
+}
 .cards-imp-cell {
+  display: table-cell;
+  vertical-align: bottom;
   white-space: nowrap;
   color: #fff;
   font-weight: 500;
+  padding: 0.47em 0;      /* 6px @0.8rem → oransal (≈5px @0.68rem) */
 }
-.cards-imp-pipe {
-  white-space: nowrap;
+/* .wcell + .wcell::before kuralının birebir karşılığı: 8px @0.8rem → 0.625em. */
+.cards-imp-cell + .cards-imp-cell::before {
+  content: "|";
   color: #F97316;
-  font-weight: 600;
-  /* 2.23.9: padding/margin YOK — boşluk, karakterin kendisiyle verilir
-     (settings.js → impRow(): "&nbsp;|&nbsp;"). */
+  margin: 0 0.625em;      /* ≈6.8px @0.68rem */
+  font-weight: 400;
+}
+/* 2.24.6: dizi satır görünümündeki .wc-spacer'ın karşılığı — fazla genişliği yutar,
+   kolonlar en uzun metne göre kalır (boru önlerinde ekstra boşluk oluşmaz). */
+.cards-imp-spacer {
+  display: table-cell;
+  width: 100%;
+  padding: 0;
+}
+.cards-imp-cell.is-empty::before {
+  content: none;
 }
 .cards-imp-note {
   margin-top: 6px;
@@ -5941,19 +5958,17 @@ html.tv-mode #cards-undo-text {
   font-size: calc(0.75rem * var(--tv-scale));
 }
 @media (max-width: 600px) {
-  /* Mobil: grid KORUNUR (borular alt alta hizalı) + satır yana kaydırılır.
+  /* Mobil: TABLO korunur (borular alt alta hizalı) + satır yana kaydırılır.
      Kaydırma çubuğu gizli — dokunmatikle sağa/sola sürüklenir. */
   #cards-import-stats.cards-imp,
   #cards-undo-text.cards-imp {
-    display: grid;
-    grid-template-columns: repeat(7, auto);
+    display: table;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
     font-size: 0.62rem;
-    row-gap: 4px;
   }
   #cards-import-stats.cards-imp::-webkit-scrollbar,
   #cards-undo-text.cards-imp::-webkit-scrollbar {

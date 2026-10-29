@@ -1598,3 +1598,14 @@
 - **Cache-buster:** yalnız `style.css?v=669 → 670`; JS 693.
 - **Doğrulama:** `css670=200`; deployed CSS'te `is-piped` **0**; md5 yerel = pi; `eol` OK.
 - **Sürüm:** **2.24.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.1_20261029_162114/` (pre + post).
+
+## FAZ NOTLARI — Hizalama kök nedeni: flex gerilmesi + `.wc-spacer` (29/10/2026, sürüm 2.24.2)
+
+- **Bildirilen:** "olması gereken `83 Kart | 0 Yeni     | 83 Mevcut` … `44 Dizi | 1499 Bölüm | …`" — yani kolon genişliği en uzun metin, borular hizalı, gereksiz boşluk yok.
+- **Gerçek kök neden (10 tur sonra bulundu):** `#cards-import-stats` bir `.channel-frame` (flex, `align-items: stretch`) öğesidir → `display: table` kapsayıcı genişliğine **gerilir**; `table-layout: auto` artan genişliği kolonlara dağıtır → boru önlerinde 4-8 karakterlik boşluk. Dizi satır görünümünde bu olmuyor çünkü orada **`.wc-spacer { width:100% }`** fazlalığı yutar.
+- **Çözüm:** `impRow()` satırları **4 hücreye** tamamlar (boşlar `is-empty`) + sonuna `<span class="cards-imp-spacer">`; CSS: `.cards-imp-spacer{display:table-cell;width:100%;padding:0}`, `.cards-imp-cell.is-empty::before{content:none}`, tabloya `width:100%`. Boşluk oransal: `margin: 0.625em`, `padding: 0.47em` (font 0.8→0.68rem).
+- **Ders (kalıcı):** Bir tablo/grid bloğu **flex öğesi** ise gerilir; kolon genişlikleri içerikte kalsın istiyorsan sonuna `width:100%` "spacer" hücre ekle (satır görünümündeki numara).
+- **Doküman:** `md/hizalama.md` (8.2 KB) — kapsam, referans CSS, kök nedenler, çalışan kurulum, boşluk matematiği, 7 yanlış yol, dağıtım adımları, Console teşhis snippet'i, sürüm geçmişi. `md/AGENTS.md` başına pointer.
+- **Cache-buster:** JS **694 → 695**, `style.css?v=676 → 677`.
+- **Doğrulama:** `css677=200`; deployed CSS'te `display:table · width:100% · .cards-imp-spacer`; md5 5/5 (JS, CSS, index, hizalama.md, AGENTS.md); `jsver check` OK (695); `eol` OK (118 dosya).
+- **Sürüm:** **2.24.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.2_20261029_165518/` (pre + post).

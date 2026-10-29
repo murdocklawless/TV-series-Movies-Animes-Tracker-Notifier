@@ -1,6 +1,24 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.2 - 29/10/2026-16:55
+### TR
+- **İçe aktarma/geri al özet bloğu artık dizi satır görünümüyle aynı düzende: kolonlar en uzun metne göre, `|`'ler hizalı.** Kök neden: blok bir `.channel-frame` (flex, `align-items: stretch`) öğesi olduğu için `display: table` kapsayıcıya **geriliyordu**; `table-layout: auto` artan genişliği kolonlara dağıtınca boru önlerinde 4-8 karakterlik boşluk oluşuyordu.
+- **Çözüm — satır görünümündeki `.wc-spacer` numarası:** `settings.js` → `impRow()` her satırı **4 hücreye** tamamlıyor (boşlar `is-empty`) ve sonuna `<span class="cards-imp-spacer">` ekliyor. `style.css` → `.cards-imp-spacer { display: table-cell; width: 100%; padding: 0 }` artan genişliği yutar; `.cards-imp-cell.is-empty::before { content: none }` boş hücreye boru basmaz; tabloya `width: 100%` eklendi.
+- **Boşluk oransal:** satır görünümündeki `margin: 0 8px` → `0.625em`, `padding: 6px 0` → `0.47em`; font `0.8rem → 0.68rem` küçültüldüğü için boşluklar da orantılı küçüldü (`::before` margin, padding/margin karışımı yok).
+- **Doküman:** `md/hizalama.md` eklendi — kapsam, referans CSS, kök nedenler, doğru kurulum (kopyala-yapıştır CSS/JS), boşluk matematiği, yapılmaması gerekenler (7 yanlış yol), zorunlu dağıtım adımları, Console teşhis snippet'i, sürüm geçmişi tablosu. `md/AGENTS.md` başına pointer satırı eklendi.
+- **Cache-buster:** JS zinciri **694 → 695**, `style.css?v=676 → 677`. Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** `css677=200`; deployed CSS'te `display:table · width:100% · .cards-imp-spacer{width:100%}`; `settings.js` + CSS'te `cards-imp-spacer` (1/1); md5 yerel = pi (settings.js, style.css, index.html, md/hizalama.md, md/AGENTS.md); `jsver check` OK (build 695); `eol.py check` **OK (118 dosya LF)**.
+- **Sürüm:** 2.24.2 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.2_20261029_165518/` (pre + post).
+### EN
+- **The import/undo summary block now matches the series row view: columns sized by the longest text, pipes aligned.** Root cause: the block is a `.channel-frame` (flex, `align-items: stretch`) child, so the `display: table` container was **stretched**; with `table-layout: auto` the extra width went into the columns, producing 4-8 character gaps before every pipe.
+- **Fix — the row view's `.wc-spacer` trick:** `settings.js` → `impRow()` pads each row to **4 cells** (empty ones get `is-empty`) and appends `<span class="cards-imp-spacer">`. `style.css` → `.cards-imp-spacer { display: table-cell; width: 100%; padding: 0 }` absorbs the surplus width; `.cards-imp-cell.is-empty::before { content: none }` keeps empty cells pipe-free; the table gets `width: 100%`.
+- **Proportional spacing:** row view's `margin: 0 8px` → `0.625em`, `padding: 6px 0` → `0.47em`; the font shrank from `0.8rem` to `0.68rem`, so the gaps scale down with it (spacing comes from the `::before` margin only).
+- **Docs:** added `md/hizalama.md` — scope, reference CSS, root causes, the working setup (copy-paste CSS/JS), spacing math, the seven wrong approaches, mandatory deploy steps, a Console diagnostic snippet and a version history table. `md/AGENTS.md` got a pointer line.
+- **Cache-buster:** JS chain **694 → 695**, `style.css?v=676 → 677`. Static-only → no restart, **Ctrl+F5**.
+- **Verified:** `css677=200`; deployed CSS has `display:table · width:100% · .cards-imp-spacer`; `cards-imp-spacer` present in both JS and CSS; md5 local = pi (5 files); `jsver check` OK (build 695); `eol.py check` **OK (118 files LF)**.
+- **Version:** 2.24.2 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.24.2_20261029_165518/` (pre + post).
+
 ## 2.24.1 - 29/10/2026-16:21
 ### TR
 - **`|` görünümü hedeflenen biçime alındı: hücreler SOLA yaslı, borular alt alta hizalı.** 2.24.0'da eklenen `.cards-imp-cell.is-piped { text-align: right }` kuralı **kaldırıldı**. Böylece kolon genişliği en uzun metne göre belirlenir; **en uzun metinde** `metin |` arası 1 boşluk, daha kısa metinlerde kolon genişliği kadar boşluk kalır ve `|`'ler kolonlara göre hizalanır.
