@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.1 - 29/10/2026-16:21
+### TR
+- **`|` görünümü hedeflenen biçime alındı: hücreler SOLA yaslı, borular alt alta hizalı.** 2.24.0'da eklenen `.cards-imp-cell.is-piped { text-align: right }` kuralı **kaldırıldı**. Böylece kolon genişliği en uzun metne göre belirlenir; **en uzun metinde** `metin |` arası 1 boşluk, daha kısa metinlerde kolon genişliği kadar boşluk kalır ve `|`'ler kolonlara göre hizalanır.
+- **Hedef görünüm:** `83 Kart | 0 Yeni     | 83 Mevcut` · `44 Dizi | 1499 Bölüm | İzlenmiş 859 Bölüm (858:08) | İzlenmemiş 640 Bölüm (515:26)` · `32 Film | 32 Bölüm   | İzlenmiş 19 Bölüm (40:21)   | İzlenmemiş 13 Bölüm (24:57)`.
+- **Değişmeyenler:** grid `repeat(7, auto)`, boru içeriği `&nbsp;|&nbsp;` (her yan 1 karakter), `padding`/`margin` yok, modal genişlikleri 560px.
+- **Cache-buster:** yalnız `style.css?v=669 → 670`. JS 693 (değişmedi). Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** sunulan `style.css?v=670 → 200`; deployed CSS'te `is-piped` kuralı **0 eşleşme**; md5 yerel = pi (`style.css`, `index.html`); `py/eol.py check` **OK (117 dosya LF)**.
+- **Sürüm:** 2.24.1 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.1_20261029_162114/` (pre + post).
+### EN
+- **`|` rendering moved to the intended form: cells are LEFT aligned and the pipes line up per column.** The `.cards-imp-cell.is-piped { text-align: right }` rule added in 2.24.0 was **removed**, so each column is sized by its longest text: the longest entry keeps a single space before the pipe, shorter entries keep the remaining column width, and the pipes stay aligned.
+- **Target look:** `83 Kart | 0 Yeni     | 83 Mevcut` · `44 Dizi | 1499 Bölüm | İzlenmiş 859 Bölüm (858:08) | İzlenmemiş 640 Bölüm (515:26)`.
+- **Unchanged:** `repeat(7, auto)` grid, `&nbsp;|&nbsp;` pipe content (one character each side), no padding/margin, modal widths stay 560px.
+- **Cache-buster:** `style.css?v=669 → 670` only. JS stays 693. Static-only → no restart, **Ctrl+F5**.
+- **Verified:** served `style.css?v=670 → 200`; the `is-piped` rule is gone from the deployed CSS (0 matches); md5 local = pi; `py/eol.py check` **OK (117 files LF)**.
+- **Version:** 2.24.1 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.24.1_20261029_162114/` (pre + post).
+
 ## 2.24.0 - 29/10/2026-16:09
 ### TR
 - **İçe aktarma/geri al modallarında `|` hizalaması KORUNARAK metin–boru boşluğu her satırda 1 karaktere indirildi.** `settings.js` → `impRow()` artık boruyu hücreden **sonra** ekliyor ve `|`'den önce gelen her hücreye `is-piped` sınıfı veriyor; `style.css` → `.cards-imp-cell.is-piped { text-align: right }`. Böylece kısa metinler kolon içinde **boruya yaslanır**; grid (`repeat(7, auto)`) sayesinde `|`'ler alt alta hizalı kalır.

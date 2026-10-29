@@ -1589,3 +1589,12 @@
 - **Cache-buster:** JS **692 → 693**, `style.css?v=668 → 669`.
 - **Doğrulama:** `css669=200`; `.cards-imp-cell.is-piped` deployed; `settings.js`'te `is-piped` (2); md5 3/3; `jsver check` OK (693); `eol` OK.
 - **Sürüm:** **2.24.0** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.0_20261029_160927/` (pre + post).
+
+## FAZ NOTLARI — `|` düzeni hedefe alındı: sola yaslı hücreler + hizalı borular (29/10/2026, sürüm 2.24.1)
+
+- **Bildirilen (hedef metin):** `83 Kart | 0 Yeni     | 83 Mevcut` · `44 Dizi | 1499 Bölüm | İzlenmiş 859 Bölüm (858:08) | İzlenmemiş 640 Bölüm (515:26)` · `32 Film | 32 Bölüm   | İzlenmiş 19 Bölüm (40:21)   | İzlenmemiş 13 Bölüm (24:57)`.
+- **Çözümleme:** Hedefte borular alt alta hizalı **ve** en uzun metinden sonra 1 boşluk; kısa metinlerde kolon genişliği kadar boşluk. Bu tam olarak **sola yaslı hücreler + `repeat(7,auto)` grid** demek. 2.24.0'da eklenen sağa yaslama bunu bozuyordu (boşluk borunun sağına kayıyordu).
+- **Düzeltme:** `.cards-imp-cell.is-piped { text-align: right }` **silindi** (JS'te `is-piped` sınıfı duruyor ama stilsiz → etkisiz). Başka değişiklik yok: `&nbsp;|&nbsp;`, padding/margin yok, grid aynı, modal 560px.
+- **Cache-buster:** yalnız `style.css?v=669 → 670`; JS 693.
+- **Doğrulama:** `css670=200`; deployed CSS'te `is-piped` **0**; md5 yerel = pi; `eol` OK.
+- **Sürüm:** **2.24.1** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.1_20261029_162114/` (pre + post).
