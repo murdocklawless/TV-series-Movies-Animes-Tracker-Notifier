@@ -1558,3 +1558,14 @@
 - **Cache-buster:** `style.css?v=665 → 666`; JS değişmedi (691).
 - **Doğrulama:** sunulan CSS `style.css?v=666 → 200`; `.cards-imp-pipe` → `margin: 0 8px`; `.import-hist` → `gap:0` + `border-top`; md5 yerel = pi (`style.css`, `index.html`); `eol.py check` OK; servis `active` (statik → restart yok).
 - **Sürüm:** **2.23.7** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.7_20261029_150840/` (pre + post).
+
+## FAZ NOTLARI — Pipe boşluğu geçmiş modalıyla birebir (0.25em) (29/10/2026, sürüm 2.23.8)
+
+- **Bildirilen:** "yine olmamış… İçe Aktarma Geçmişi'ndeki `29.10.2026 04:10|JSON|19 Kart Eklendi` yazısını incele; yazılar ile `|` arasındaki boşluğun AYNISINI geri al ve içe aktarma modallarına uygula."
+- **Teşhis:** önceki sürümde `.cards-imp-pipe`'a `margin: 0 8px` verilmişti (satır görünümü referans alınmıştı). Geçmiş modalının gerçek değeri `.import-hist-pipe { padding: 0 0.25em; margin: 0 }` → 0.72rem'de **2.88px**; 8px bunun ~2.8 katı. CSS uygulanıyordu, **değer yanlıştı**.
+- **Ders:** "şurayla aynı olsun" denildiğinde **hedef kuralın birebir bildirimi** kopyalanır (padding/margin/font-size); gözle ölçülen px değeri tahmin edilmez. Farklı font-size'larda `em` tabanlı değer görsel olarak eşitlenir.
+- **Düzeltme:** `.cards-imp-pipe { padding: 0 0.25em; margin: 0 }`; mobil media query'deki `.cards-imp-pipe { padding: 0 }` → `padding: 0 0.25em` (mobilde boşluk kaybı giderildi).
+- **Etki:** `impRowsHTML()` kullanan iki yüzey (Kartları İçe Aktar önizlemesi + Aktarımı Geri Al şeması). Modal genişlikleri **560px'de sabit** (kullanıcı talimatı).
+- **Cache-buster:** `style.css?v=666 → 667`; JS 691 (değişmedi).
+- **Doğrulama:** sunulan CSS `css667=200`; deployed `.cards-imp-pipe` → `padding: 0 0.25em; margin: 0`; mobil kural aynı; md5 yerel = pi (`style.css` `0c18381f…`, `index.html` `4e85d03c…`); `eol.py check` OK; servis `active`.
+- **Sürüm:** **2.23.8** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.8_20261029_152338/` (pre + post).

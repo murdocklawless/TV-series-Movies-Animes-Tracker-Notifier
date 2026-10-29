@@ -5831,9 +5831,10 @@ select#s-email-provider.email-lit {
   white-space: nowrap;
   color: #F97316;
   font-weight: 600;
-  padding: 0;
-  /* 2.23.7: satır görünümüyle AYNI boşluk — metin ile `|` arası 8px (her iki yan). */
-  margin: 0 8px;
+  /* 2.23.8: İçe Aktarma Geçmişi (.import-hist-pipe) ile BİREBİR aynı boşluk:
+     her yanda 0.25em (= 1 boşluk karakteri), ekstra margin yok. */
+  padding: 0 0.25em;
+  margin: 0;
 }
 .cards-imp-note {
   margin-top: 6px;
@@ -5961,7 +5962,8 @@ html.tv-mode #cards-undo-text {
     display: none;
   }
   .cards-imp-pipe {
-    padding: 0;
+    /* 2.23.8: mobilde de geçmiş modalıyla aynı boşluk korunur. */
+    padding: 0 0.25em;
   }
 }
 

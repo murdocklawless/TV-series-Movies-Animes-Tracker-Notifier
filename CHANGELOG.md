@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.8 - 29/10/2026-15:24
+### TR
+- **İçe aktarma/geri al modallarındaki `|` boşluğu artık İçe Aktarma Geçmişi ile BİREBİR aynı.** Önceki denemede `.cards-imp-pipe`'a `margin: 0 8px` verilmişti; geçmiş modalındaki referans ise `0.25em` (0.72rem'de **2.88px**) — 8px bunun ~2.8 katıydı, bu yüzden görüntü eşleşmiyordu. Yeni kural: `padding: 0 0.25em; margin: 0` (`.import-hist-pipe` ile aynı bildirim).
+- **Mobil boşluk kaybı giderildi:** media query içindeki `.cards-imp-pipe { padding: 0 }` → `padding: 0 0.25em`; mobilde de geçmiş modalıyla aynı aralık korunuyor.
+- **Etki alanı:** `impRowsHTML()` kullanan iki yüzey — **Kartları İçe Aktar** önizlemesi ve **Aktarımı Geri Al** şeması. **Modal genişliklerine dokunulmadı** (560px).
+- **Cache-buster:** `style.css?v=666 → 667`. JS değişmedi (zincir 691). Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** sunulan CSS `style.css?v=667 → 200`; `.cards-imp-pipe` → `padding: 0 0.25em; margin: 0`; mobil kural `padding: 0 0.25em`; md5 yerel = pi (`style.css`, `index.html`); `py/eol.py check` **OK (117 dosya LF)**; servis `active`.
+- **Sürüm:** 2.23.8 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.8_20261029_152338/` (pre + post).
+### EN
+- **The `|` gap in the import/undo modals now matches the Import History exactly.** The previous attempt set `margin: 0 8px`, while the reference (`0.25em` ≈ **2.88px** at 0.72rem) is ~2.8× smaller, so the rendering did not match. New rule: `padding: 0 0.25em; margin: 0` (identical to `.import-hist-pipe`).
+- **Mobile gap restored:** the media-query rule `.cards-imp-pipe { padding: 0 }` is now `padding: 0 0.25em`, keeping the same spacing on phones.
+- **Scope:** the two surfaces using `impRowsHTML()` — the **Import Cards** preview and the **Undo Import** summary. **Modal widths were not touched** (560px).
+- **Cache-buster:** `style.css?v=666 → 667`. JS unchanged (chain 691). Static-only → no restart, **Ctrl+F5**.
+- **Verified:** served CSS `style.css?v=667 → 200`; `.cards-imp-pipe` → `padding: 0 0.25em; margin: 0`; mobile rule `padding: 0 0.25em`; md5 local = pi; `py/eol.py check` **OK (117 files LF)**; service `active`.
+- **Version:** 2.23.8 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.23.8_20261029_152338/` (pre + post).
+
 ## 2.23.7 - 29/10/2026-15:09
 ### TR
 - **İçe Aktarma Geçmişi: satırlar artık gerçekten iki çizgi ARASINDA tam ortalı.** Kök neden: `.import-hist { gap: 8px }` yüzünden satırın üstündeki çizgi (bir önceki satırın `border-bottom`'u) 8px yukarıda kalıyordu → butonun üst mesafesi **18px**, altı **10px**. Düzeltme: `gap: 8px → 0` + `.import-hist { border-top: 1px solid #262a36 }` (ilk satır da çerçevelensin). Artık `üst çizgi → içerik = 10px`, `içerik → alt çizgi = 10px`; metin bloğu (`meta` + snapshot yolu) ve buton eşit mesafede.
