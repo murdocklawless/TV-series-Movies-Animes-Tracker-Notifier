@@ -1579,3 +1579,13 @@
 - **Cache-buster:** JS zinciri **691 → 692**, `style.css?v=667 → 668`.
 - **Doğrulama (canlı):** servis edilen `settings.js` → `cards-imp-pipe">&nbsp;|&nbsp;` (2 eşleşme); deployed `.cards-imp-pipe` bloğunda padding/margin yok; `css668=200`; md5 3/3 (settings.js, style.css, index.html); `jsver check` OK (build 692); `eol.py check` OK. **Ders:** bir boşluk "CSS ile" değil "karakterle" isteniyorsa, kapsayıcı tipi (grid/table/flex) yüzünden HTML boşluğu kaybolabilir → `&nbsp;` kullan.
 - **Sürüm:** **2.23.9** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.9_20261029_153920/` (pre + post).
+
+## FAZ NOTLARI — Hizalama korunurken boşluk 1 karakter (29/10/2026, sürüm 2.24.0)
+
+- **Bildirilen:** "`|` hizalaması var, kafayı taktın hizalamaya — yerinde" + "text ve `|` arasında en az iki karakter boşluk var".
+- **Çelişki:** Kolon hizalaması (`grid repeat(7,auto)`) korunurken kısa metinlerle `|` arasında doğal olarak boşluk oluşuyordu. İkisini birlikte sağlamanın tek yolu metni **boruya yaslamak**.
+- **Çözüm:** `settings.js` → `impRow()` boruyu hücreden SONRA ekler ve `|`'den önce gelen hücrelere `is-piped` verir; `style.css` → `.cards-imp-cell.is-piped { text-align: right }`. Boşluk `&nbsp;|&nbsp;` (1 karakter her yan). Grid aynen → `|`'ler hizalı.
+- **Sonuç:** her satırda metin→`|` = 1 karakter, `|`→metin = 1 karakter; satırın son hücresi (borusuz) sola yaslı.
+- **Cache-buster:** JS **692 → 693**, `style.css?v=668 → 669`.
+- **Doğrulama:** `css669=200`; `.cards-imp-cell.is-piped` deployed; `settings.js`'te `is-piped` (2); md5 3/3; `jsver check` OK (693); `eol` OK.
+- **Sürüm:** **2.24.0** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.0_20261029_160927/` (pre + post).

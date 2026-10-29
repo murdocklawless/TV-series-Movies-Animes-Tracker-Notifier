@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.0 - 29/10/2026-16:09
+### TR
+- **İçe aktarma/geri al modallarında `|` hizalaması KORUNARAK metin–boru boşluğu her satırda 1 karaktere indirildi.** `settings.js` → `impRow()` artık boruyu hücreden **sonra** ekliyor ve `|`'den önce gelen her hücreye `is-piped` sınıfı veriyor; `style.css` → `.cards-imp-cell.is-piped { text-align: right }`. Böylece kısa metinler kolon içinde **boruya yaslanır**; grid (`repeat(7, auto)`) sayesinde `|`'ler alt alta hizalı kalır.
+- **Sonuç:** `83 Kart | 0 Yeni      | 83 Mevcut` · `44 Dizi | 1499 Bölüm  | İzlenmiş 859 Bölüm (858:08) | İzlenmemiş 640 Bölüm (515:26)` — metin→`|` **1 karakter**, `|`→metin **1 karakter** (`&nbsp;|&nbsp;`), hizalama bozulmadı.
+- **Kapsam:** `impRowsHTML()` kullanan iki yüzey (Kartları İçe Aktar önizlemesi + Aktarımı Geri Al şeması). **Modal genişlikleri değişmedi** (560px). Satırın son hücresi (borudan sonra gelmeyen) sola yaslı kalır.
+- **Cache-buster:** JS zinciri **692 → 693**, `style.css?v=668 → 669`. Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** sunulan `style.css?v=669 → 200`; `.cards-imp-cell.is-piped { text-align: right }` servis ediliyor; `settings.js` içinde `is-piped` (2 eşleşme); md5 yerel = pi (`settings.js`, `style.css`, `index.html` → 3/3); `jsver check` **OK (build=693)**; `py/eol.py check` **OK (117 dosya LF)**.
+- **Sürüm:** 2.24.0 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.0_20261029_160927/` (pre + post).
+### EN
+- **Pipe alignment in the import/undo modals is KEPT while the text→pipe gap is now exactly one character on every row.** `settings.js` → `impRow()` appends the pipe **after** each cell and marks every cell that precedes a pipe with `is-piped`; `style.css` → `.cards-imp-cell.is-piped { text-align: right }`. Shorter texts therefore hug the pipe, and the `repeat(7, auto)` grid keeps every `|` aligned per column.
+- **Result:** `83 Kart | 0 Yeni      | 83 Mevcut` — text→`|` = 1 character, `|`→text = 1 character (`&nbsp;|&nbsp;`), alignment intact.
+- **Scope:** the two surfaces using `impRowsHTML()` (Import Cards preview + Undo Import summary). **Modal widths unchanged** (560px). The last cell of a row (not followed by a pipe) stays left-aligned.
+- **Cache-buster:** JS chain **692 → 693**, `style.css?v=668 → 669`. Static-only → no restart, **Ctrl+F5**.
+- **Verified:** served `style.css?v=669 → 200`; `is-piped` rule present; `settings.js` contains `is-piped` (2 matches); md5 local = pi (3/3); `jsver check` **OK (build=693)**; `py/eol.py check` **OK (117 files LF)**.
+- **Version:** 2.24.0 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.24.0_20261029_160927/` (pre + post).
+
 ## 2.23.9 - 29/10/2026-15:39
 ### TR
 - **İçe aktarma/geri al modallarında `|` boşluğu artık CSS ile değil, KARAKTERLE veriliyor.** `settings.js` → `impRow()` çıktısı artık `<span class="cards-imp-pipe">&nbsp;|&nbsp;</span>` → görünüm `metin␣|␣metin`. `.cards-imp-pipe` üzerindeki **`padding` ve `margin` tamamen kaldırıldı**; mobil media query'deki `padding: 0 0.25em` bloğu silindi.

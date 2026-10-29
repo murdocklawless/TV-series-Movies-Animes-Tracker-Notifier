@@ -5827,6 +5827,10 @@ select#s-email-provider.email-lit {
   color: #fff;
   font-weight: 500;
 }
+/* 2.24.0: `|`'den önceki hücreler sağa yaslanır → hizalama korunur, boşluk 1 karakter. */
+.cards-imp-cell.is-piped {
+  text-align: right;
+}
 .cards-imp-pipe {
   white-space: nowrap;
   color: #F97316;
