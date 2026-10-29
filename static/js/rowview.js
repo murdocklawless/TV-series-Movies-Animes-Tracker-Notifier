@@ -2,7 +2,7 @@
 // views.js'e dokunmaz; mevcut .card verisini okuyup satır modunda hücre (tablo) düzenine çevirir.
 // Kolon genişlikleri dinamiktir (display:table auto-layout). Boş kolonlar (tüm satırlarda boş) düşürülür.
 import { state } from "./state.js";
-import { t } from "./i18n.js?v=691";
+import { t } from "./i18n.js?v=692";
 
 const LIST_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="5" height="5" rx="1"></rect><line x1="11" y1="6.5" x2="21" y2="6.5"></line><rect x="3" y="15" width="5" height="5" rx="1"></rect><line x1="11" y1="17.5" x2="21" y2="17.5"></line></svg>`;
 const GRID_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>`;

@@ -5831,10 +5831,8 @@ select#s-email-provider.email-lit {
   white-space: nowrap;
   color: #F97316;
   font-weight: 600;
-  /* 2.23.8: İçe Aktarma Geçmişi (.import-hist-pipe) ile BİREBİR aynı boşluk:
-     her yanda 0.25em (= 1 boşluk karakteri), ekstra margin yok. */
-  padding: 0 0.25em;
-  margin: 0;
+  /* 2.23.9: padding/margin YOK — boşluk, karakterin kendisiyle verilir
+     (settings.js → impRow(): "&nbsp;|&nbsp;"). */
 }
 .cards-imp-note {
   margin-top: 6px;
@@ -5960,10 +5958,6 @@ html.tv-mode #cards-undo-text {
   #cards-import-stats.cards-imp::-webkit-scrollbar,
   #cards-undo-text.cards-imp::-webkit-scrollbar {
     display: none;
-  }
-  .cards-imp-pipe {
-    /* 2.23.8: mobilde de geçmiş modalıyla aynı boşluk korunur. */
-    padding: 0 0.25em;
   }
 }
 

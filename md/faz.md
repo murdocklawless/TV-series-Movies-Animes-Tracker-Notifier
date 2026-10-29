@@ -1569,3 +1569,13 @@
 - **Cache-buster:** `style.css?v=666 → 667`; JS 691 (değişmedi).
 - **Doğrulama:** sunulan CSS `css667=200`; deployed `.cards-imp-pipe` → `padding: 0 0.25em; margin: 0`; mobil kural aynı; md5 yerel = pi (`style.css` `0c18381f…`, `index.html` `4e85d03c…`); `eol.py check` OK; servis `active`.
 - **Sürüm:** **2.23.8** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.8_20261029_152338/` (pre + post).
+
+## FAZ NOTLARI — Pipe boşluğu karakterle (&nbsp;|&nbsp;) (29/10/2026, sürüm 2.23.9)
+
+- **Bildirilen:** "padding kullanma, margin kullanma, bir space boşluk ver sadece."
+- **Teşhis:** CSS `padding: 0 0.25em` / `margin: 0 8px` denemeleri görsel olarak istenen sonucu vermiyordu; üstelik `grid`/`table`/`flex` kapsayıcılarda **yalnız-boşluk metin düğümleri render edilmez**, yani `<span>|</span>` iki yanına yazılan normal boşluk kaybolur.
+- **Çözüm:** boşluk **karakterin kendisine** taşındı: `settings.js` → `impRow(): '<span class="cards-imp-pipe">&nbsp;|&nbsp;</span>'`. `.cards-imp-pipe` üzerindeki `padding`/`margin` **tamamen kaldırıldı**; mobil media query'deki `padding: 0 0.25em` bloğu silindi.
+- **Hizalama:** `grid-template-columns: repeat(7, auto)` korundu → `|` her satırda o kolonun en uzun metnine göre hizalı; boşluk artık hücre içeriğinin parçası (kolon genişliğine dahil).
+- **Cache-buster:** JS zinciri **691 → 692**, `style.css?v=667 → 668`.
+- **Doğrulama (canlı):** servis edilen `settings.js` → `cards-imp-pipe">&nbsp;|&nbsp;` (2 eşleşme); deployed `.cards-imp-pipe` bloğunda padding/margin yok; `css668=200`; md5 3/3 (settings.js, style.css, index.html); `jsver check` OK (build 692); `eol.py check` OK. **Ders:** bir boşluk "CSS ile" değil "karakterle" isteniyorsa, kapsayıcı tipi (grid/table/flex) yüzünden HTML boşluğu kaybolabilir → `&nbsp;` kullan.
+- **Sürüm:** **2.23.9** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.9_20261029_153920/` (pre + post).

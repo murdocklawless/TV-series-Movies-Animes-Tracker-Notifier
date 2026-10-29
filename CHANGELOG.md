@@ -1,6 +1,22 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.9 - 29/10/2026-15:39
+### TR
+- **İçe aktarma/geri al modallarında `|` boşluğu artık CSS ile değil, KARAKTERLE veriliyor.** `settings.js` → `impRow()` çıktısı artık `<span class="cards-imp-pipe">&nbsp;|&nbsp;</span>` → görünüm `metin␣|␣metin`. `.cards-imp-pipe` üzerindeki **`padding` ve `margin` tamamen kaldırıldı**; mobil media query'deki `padding: 0 0.25em` bloğu silindi.
+- **Neden:** `grid`/`table`/`flex` kapsayıcılarda yalnız-boşluktan oluşan metin düğümleri yok sayılır; `<span>|</span>` arasına yazılan normal boşluk görünmez. Bu yüzden boşluk span'ın içine (NBSP) konuldu.
+- **Hizalama korunuyor:** `grid-template-columns: repeat(7, auto)` sayesinde `|` her satırda o kolonun **en uzun metnine göre** aynı hizada (`7 Anime | 1499 Bölüm | İzlenmiş … | İzlenmemiş …`).
+- **Cache-buster:** JS zinciri **691 → 692**, `style.css?v=667 → 668`. Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** servis edilen `settings.js` içinde `cards-imp-pipe">&nbsp;|&nbsp;` (2 eşleşme); deployed `.cards-imp-pipe` bloğunda padding/margin **yok**; `css668=200`; md5 yerel = pi (`settings.js`, `style.css`, `index.html` → 3/3); `jsver check` **OK (build=692)**; `py/eol.py check` **OK (117 dosya LF)**.
+- **Sürüm:** 2.23.9 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.9_20261029_153920/` (pre + post).
+### EN
+- **The `|` gap in the import/undo modals is now delivered by the CHARACTER, not CSS.** `settings.js` → `impRow()` now emits `<span class="cards-imp-pipe">&nbsp;|&nbsp;</span>` → renders `text␣|␣text`. **`padding` and `margin` were removed entirely** from `.cards-imp-pipe`, and the mobile media-query `padding: 0 0.25em` block was deleted.
+- **Why:** in `grid`/`table`/`flex` containers, whitespace-only text nodes are ignored; a plain space between `<span>|</span>` and its siblings is not rendered. The space therefore lives inside the span (NBSP).
+- **Alignment kept:** `grid-template-columns: repeat(7, auto)` keeps every `|` aligned to the **longest text of its column** (`7 Anime | 1499 Bölüm | Watched … | Unwatched …`).
+- **Cache-buster:** JS chain **691 → 692**, `style.css?v=667 → 668`. Static-only → no restart, **Ctrl+F5**.
+- **Verified:** served `settings.js` contains `cards-imp-pipe">&nbsp;|&nbsp;` (2 matches); deployed `.cards-imp-pipe` has no padding/margin; `css668=200`; md5 local = pi (3/3); `jsver check` **OK (build=692)**; `py/eol.py check` **OK (117 files LF)**.
+- **Version:** 2.23.9 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.23.9_20261029_153920/` (pre + post).
+
 ## 2.23.8 - 29/10/2026-15:24
 ### TR
 - **İçe aktarma/geri al modallarındaki `|` boşluğu artık İçe Aktarma Geçmişi ile BİREBİR aynı.** Önceki denemede `.cards-imp-pipe`'a `margin: 0 8px` verilmişti; geçmiş modalındaki referans ise `0.25em` (0.72rem'de **2.88px**) — 8px bunun ~2.8 katıydı, bu yüzden görüntü eşleşmiyordu. Yeni kural: `padding: 0 0.25em; margin: 0` (`.import-hist-pipe` ile aynı bildirim).
