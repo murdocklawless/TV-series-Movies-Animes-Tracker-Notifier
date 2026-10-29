@@ -5832,6 +5832,8 @@ select#s-email-provider.email-lit {
   color: #F97316;
   font-weight: 600;
   padding: 0;
+  /* 2.23.7: satır görünümüyle AYNI boşluk — metin ile `|` arası 8px (her iki yan). */
+  margin: 0 8px;
 }
 .cards-imp-note {
   margin-top: 6px;
@@ -5847,7 +5849,11 @@ select#s-email-provider.email-lit {
 .import-hist {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  /* 2.23.7: `gap: 8px` idi → satırın "üst çizgisi" 8px yukarıda kalıyor ve butonun
+     üst/alt mesafesi eşit olmuyordu (18px vs 10px). gap=0 → çizgiler paylaşılır,
+     her satır tam olarak iki çizgi ARASINDA kalır. */
+  gap: 0;
+  border-top: 1px solid #262a36;
 }
 /* Satır: solda metin bloğu (meta + snapshot yolu), sağda buton.
    2.23.6: grid yerine FLEX — buton satır yüksekliğini belirlese de metin bloğu

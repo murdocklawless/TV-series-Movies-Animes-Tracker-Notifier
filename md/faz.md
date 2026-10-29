@@ -1548,3 +1548,13 @@
 - **Cache-buster:** JS zinciri **690 → 691**, `style.css?v=664 → 665`.
 - **Doğrulama:** servis edilen CSS'te `cards-undo-text.cards-imp` **3 kez** (ana + mobil + scrollbar); `settings.js` ve CSS'te `import-hist-main` var; `jsver check` OK (build 691); journal `js surum zinciri temiz (build=691, 13 modul)`; servis `active`; md5 yerel = pi **3/3**; `eol.py check` OK; `style.css?v=665` sunuluyor.
 - **Sürüm:** **2.23.6** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.6_20261029_145353/` (pre + post).
+
+## FAZ NOTLARI — Geçmiş satırı gerçek ortalama + 8px pipe boşluğu (29/10/2026, sürüm 2.23.7)
+
+- **Bildirilen ①:** "İçe Aktarma Geçmişi modalında iki çizgi arasında kalan text'ler ve buton tam ortalanmıyor; butonun üst/alt mesafesi eşit olmalı." **Kök neden:** `.import-hist { gap: 8px }` — satırın üstündeki çizgi bir önceki satırın `border-bottom`'u olduğu için 8px yukarıda kalıyordu → buton üstü **18px**, altı **10px**. **Ders:** satırları çizgiyle ayırırken `gap` kullanma; çizgiyi satırın kendisinden ver (`border-bottom`) ve satırlar arasında **paylaştır** (`gap:0`), ilk satır için kapsayıcıya `border-top` ekle.
+- **Düzeltme ①:** `.import-hist { gap: 0; border-top: 1px solid #262a36 }`; `.import-hist-row` değişmedi (`display:flex; align-items:center; padding:10px 2px; border-bottom`). Sonuç: üst çizgi→içerik 10px, içerik→alt çizgi 10px.
+- **Bildirilen ②:** "Aynı 8px boşluğu Kartları İçe Aktar ve Aktarımı Geri Al modallarındaki text'lere de uygula" (+ "modal genişliği değiştirmek yasak").
+- **Düzeltme ②:** `.cards-imp-pipe { margin: 0 8px }` (padding 0 korunur). İki modal da `impRowsHTML()` kullandığı için tek kural ikisini kapsıyor. **Modal genişlikleri 560px'de bırakıldı**; en uzun satırda kırpma olursa genişlik değiştirmeden boşluk 6px'e düşürülecek (yedek plan).
+- **Cache-buster:** `style.css?v=665 → 666`; JS değişmedi (691).
+- **Doğrulama:** sunulan CSS `style.css?v=666 → 200`; `.cards-imp-pipe` → `margin: 0 8px`; `.import-hist` → `gap:0` + `border-top`; md5 yerel = pi (`style.css`, `index.html`); `eol.py check` OK; servis `active` (statik → restart yok).
+- **Sürüm:** **2.23.7** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.7_20261029_150840/` (pre + post).

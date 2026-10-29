@@ -1,6 +1,20 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.23.7 - 29/10/2026-15:09
+### TR
+- **İçe Aktarma Geçmişi: satırlar artık gerçekten iki çizgi ARASINDA tam ortalı.** Kök neden: `.import-hist { gap: 8px }` yüzünden satırın üstündeki çizgi (bir önceki satırın `border-bottom`'u) 8px yukarıda kalıyordu → butonun üst mesafesi **18px**, altı **10px**. Düzeltme: `gap: 8px → 0` + `.import-hist { border-top: 1px solid #262a36 }` (ilk satır da çerçevelensin). Artık `üst çizgi → içerik = 10px`, `içerik → alt çizgi = 10px`; metin bloğu (`meta` + snapshot yolu) ve buton eşit mesafede.
+- **`|` boşluğu içe aktarma/geri al modallarında 8px:** `.cards-imp-pipe` → `margin: 0 8px` (`padding: 0` korunuyor). Böylece **Kartları İçe Aktar** önizlemesi ve **Aktarımı Geri Al** şemasında `metin ↔ |` açıklığı satır görünümüyle (`.wcell + .wcell::before { margin: 0 8px }`) **birebir aynı**. **Modal genişlikleri değiştirilmedi** (560px).
+- **Cache-buster:** `style.css?v=665 → 666`. JS değişmedi (zincir 691'de kalır). Statik → restart gerekmez, **Ctrl+F5**.
+- **Doğrulama:** sunulan CSS `style.css?v=666 → 200`; `.cards-imp-pipe` içinde `margin: 0 8px` (mobilde `padding: 0` korunuyor); `.import-hist` içinde `gap: 0` + `border-top`; md5 yerel = pi (`style.css`, `index.html`); `py/eol.py check` **OK (117 dosya LF)**; servis `active`.
+- **Sürüm:** 2.23.7 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.23.7_20261029_150840/` (pre + post).
+### EN
+- **Import History rows are now truly centred between their divider lines.** Root cause: `.import-hist { gap: 8px }` pushed the top line (the previous row's `border-bottom`) 8px away, so the button had **18px above** and **10px below**. Fix: `gap: 8px → 0` plus `.import-hist { border-top: 1px solid #262a36 }` so the first row is framed too. Now `top line → content = 10px` and `content → bottom line = 10px`; the text block (meta + snapshot path) and the button are equidistant.
+- **8px `|` gap in the import/undo modals:** `.cards-imp-pipe` → `margin: 0 8px` (`padding: 0` kept), so the **Import Cards** preview and the **Undo Import** summary use exactly the same `text ↔ |` spacing as the row view (`.wcell + .wcell::before { margin: 0 8px }`). **Modal widths were not touched** (560px).
+- **Cache-buster:** `style.css?v=665 → 666`. JS unchanged (chain stays at 691). Static-only → no restart, **Ctrl+F5**.
+- **Verified:** served CSS `style.css?v=666 → 200`; `margin: 0 8px` present in `.cards-imp-pipe` (mobile keeps `padding: 0`); `gap: 0` + `border-top` in `.import-hist`; md5 local = pi; `py/eol.py check` **OK (117 files LF)**; service `active`.
+- **Version:** 2.23.7 (pi DB `version` + `VERSION` in lockstep, `integrity_check=ok`). Backups: `bak/surum_2.23.7_20261029_150840/` (pre + post).
+
 ## 2.23.6 - 29/10/2026-14:54
 ### TR
 - **Aktarımı Geri Al modalında `|` alt alta düşüyordu (dikey yığılma) — düzeltildi:** pipe grid kuralı yalnız `#cards-import-stats.cards-imp` için yazılıydı; geri al kapsayıcısı `#cards-undo-text` sadece `class="cards-imp"` aldığı için `.channel-frame > div { display:flex; flex-direction:column }` (özgüllük 0,1,1 > 0,1,0) onu sütun flex yapıp hücreleri alt alta diziyordu. Kural artık **`#cards-import-stats.cards-imp, #cards-undo-text.cards-imp`**; mobil media query ve `::-webkit-scrollbar` kuralına da aynı seçici eklendi. Ayrıca `#cards-import-undo-modal .modal { max-width:560px }` (uzun tür satırları kırpılmasın) ve TV modunda punto eşitliği (`html.is-tv #cards-undo-text`).
