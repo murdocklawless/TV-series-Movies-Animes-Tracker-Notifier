@@ -182,6 +182,13 @@ def cards_import_apply():
                     "unverified": 0, "added_ids": [], "empty": True}
         else:
             snapshot = _snapshot_db(conn)          # yazmadan önce tutarlı kopya
+            # 2.23.5: geri al modalı, içe aktarma modalıyla AYNI pipe şemasını
+            # göstersin diye önizleme özeti (tür/dakika kırılımı) loga yazılır.
+            # preview_import YAZMADAN sayar → apply'dan ÖNCE çağrılmalı.
+            try:
+                _stats = cards_transfer.preview_import(conn, uid, cards, verify=False)
+            except Exception:
+                _stats = None
             info = cards_transfer.apply_import(conn, uid, cards, verify=_verify_flag())
             if info.get("added"):
                 try:
@@ -193,7 +200,7 @@ def cards_import_apply():
                          len(cards), info.get("added", 0), info.get("skipped", 0),
                          info.get("unverified", 0), snapshot,
                          json.dumps(info.get("added_ids") or [], ensure_ascii=False),
-                         json.dumps(csv_info or {}, ensure_ascii=False)),
+                         json.dumps({"stats": _stats, "csv": csv_info or {}}, ensure_ascii=False)),
                     )
                     conn.commit()
                 except Exception as e:
@@ -225,7 +232,7 @@ def cards_import_history():
     try:
         rows = conn.execute(
             "SELECT id, ts, format, filename, total, added, skipped, unverified, snapshot,"
-            " rolled_back,"
+            " rolled_back, extra,"
             " CASE WHEN undo_payload IS NULL OR undo_payload='' THEN 0 ELSE 1 END AS has_payload,"
             " CASE WHEN COALESCE(added,0) > 0 AND added_ids IS NOT NULL"
             " AND added_ids NOT IN ('', '[]') THEN 1 ELSE 0 END AS can_undo"
@@ -237,7 +244,18 @@ def cards_import_history():
         rows = []
     finally:
         conn.close()
-    return jsonify({"ok": True, "items": [dict(r) for r in rows]})
+    items = []
+    for r in rows:
+        d = dict(r)
+        raw = d.pop("extra", None)
+        try:
+            ex = json.loads(raw or "{}")
+        except Exception:
+            ex = {}
+        # 2.23.5: geri al modalı için tür/dakika kırılımı (eski kayıtlarda yok → None).
+        d["stats"] = ex.get("stats") if isinstance(ex, dict) else None
+        items.append(d)
+    return jsonify({"ok": True, "items": items})
 
 
 # --------------------------------------------------- geri alma / geri yükleme

@@ -75,6 +75,17 @@ def _pget(key):
     return get_setting(key)
 
 
+def _notif_hour_floor():
+    """KRITIK KURAL: bildirim saati = en son kontrol + 5 dk (bkz. scheduler).
+
+    Alt sinir altindaki deger KAYDEDILMEZ; istemci eski gecerli saate doner."""
+    try:
+        from scheduler import notification_hour_floor
+        return notification_hour_floor()
+    except Exception:
+        return ""
+
+
 # Uzak budama yardımcıları backup_core.py'da yaşar (tek kaynak) — buradan taşındı.
 
 
@@ -335,6 +346,7 @@ def get_settings():
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
             "telegram_chat_id": _pget("telegram_chat_id") or "",
             "notification_hour": _pget("notification_hour") or "09:05",
+            "notification_hour_floor": _notif_hour_floor(),
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
@@ -531,6 +543,21 @@ def save_settings():
         tz_val = str(body.get("timezone") or "").strip()
         if tz_val and tz_val not in zoneinfo.available_timezones():
             return jsonify({"error": "gecersiz timezone"}), 400
+    # KRITIK KURAL: bildirim saati kontrol (senkron) saatlerinden once olamaz.
+    # Kucuk/esit deger KAYDEDILMEZ (400) — istemci eski gecerli saate doner.
+    if "notification_hour" in body:
+        try:
+            from scheduler import clamp_notification_hour
+            _h, _m, _eff, _adj = clamp_notification_hour(body.get("notification_hour"))
+        except Exception:
+            _eff, _adj = None, False
+        if _adj:
+            return jsonify({
+                "error": "notification_hour_early",
+                "floor": _eff or _notif_hour_floor(),
+            }), 400
+        if _eff:
+            body["notification_hour"] = _eff
     # bildirim merkezi tarih modu yalnizca iki deger alabilir
     if "notif_center_time" in body and str(body.get("notif_center_time")) not in ("relative", "absolute"):
         return jsonify({"error": "gecersiz tarih formati"}), 400

@@ -211,6 +211,54 @@ def _user_job_id(uid):
     return f"user_notif_{int(uid)}"
 
 
+# KRITIK KURAL: Bildirim saati, kontrol (senkron) saatlerinden ONCE olamaz.
+# Sira: sync_hour -> genre_hour -> data_hour -> rec_hour -> bildirim.
+# Aksi halde bildirim tazelenmemis (dunku) DB ile uretilir ve yanlis
+# "Bugun Yayinlanacak" gonderir (2026-10-29 Halef: 05:00 bildirimi "bugun"
+# dedi, 05:10 release_sync bolumu 05.11'e tasidi).
+CHECK_HOUR_KEYS = ("sync_hour", "genre_hour", "data_hour", "rec_hour")
+
+
+def _last_check_hm():
+    """Veri tazeleyen islerin en gec saatini (h, m) dondurur. Fail-soft: (0, 0)."""
+    best = (0, 0)
+    for key in CHECK_HOUR_KEYS:
+        try:
+            raw = get_setting(key)
+            if not raw:
+                continue
+            hm = parse_notify_hour(raw)
+        except Exception:
+            continue
+        if hm > best:
+            best = hm
+    return best
+
+
+def notification_hour_floor():
+    """Bildirim saatinin alt siniri = en son kontrol saati + 5 dk → 'HH:MM'."""
+    h, m = _last_check_hm()
+    total = (h * 60 + m + 5) % 1440
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def clamp_notification_hour(value):
+    """Bildirim saatini kurala uydurur.
+
+    Donus: (h, m, 'HH:MM', adjusted). Kontrol saatlerinden kucuk/esit deger
+    en son kontrol + 5 dk'ya cekilir; aksi halde deger korunur."""
+    try:
+        h, m = parse_notify_hour(value)
+    except Exception:
+        return 9, 5, "09:05", True
+    last_h, last_m = _last_check_hm()
+    if (h, m) <= (last_h, last_m):
+        floor = notification_hour_floor()
+        fh, fm = parse_notify_hour(floor)
+        return fh, fm, floor, True
+    return h, m, f"{h:02d}:{m:02d}", False
+
+
 def build_user_jobs(uid):
     """Kullanicinin bildirim job'unu kurar (yoksa acar, varsa dakikaya yazar).
     Pasif/silinmis kullaniciya job kurulmaz (varsa kaldirilir). Tam-dakika cron."""
@@ -234,7 +282,9 @@ def build_user_jobs(uid):
     if not active:
         return False
     try:
-        h, m = parse_notify_hour(_user_hour(uid))
+        h, m, _eff, _adj = clamp_notification_hour(_user_hour(uid))
+        if _adj:
+            print(f"[sched] bildirim saati kontrol saatlerinden once -> {_eff} (uid={uid})", flush=True)
         tz = _user_tz(uid)
         SCHEDULER.add_job(
             _run_user_notifications,

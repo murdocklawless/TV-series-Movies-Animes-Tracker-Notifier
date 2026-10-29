@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=687";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=687";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=687";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=687";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=690";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=690";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=690";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=690";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -125,6 +125,9 @@ function renderTzList(query) {
 let tzHlIndex = -1;
 // Aktif saat penceresi (tek seferde yalniz bir saat picker acik kalir)
 let activeTimeList = null;
+// Bildirim saatinin son GECERLI degeri: erken/bozuk secimde kutu buna doner.
+let notifHourValid = "09:00";
+let notifHourBusy = false;
 
 function initTimePicker(base) {
   const input = document.getElementById(base);
@@ -706,6 +709,7 @@ async function loadSettings() {
   document.getElementById("s-token").value = s.telegram_bot_token || "";
   document.getElementById("s-chat").value = s.telegram_chat_id || "";
   document.getElementById("s-notification-hour").value = s.notification_hour || "09:05";
+  notifHourValid = s.notification_hour || "09:05";
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
@@ -1148,7 +1152,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=687");
+      const { errText: _err } = await import("./i18n.js?v=690");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1157,9 +1161,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=687");
-    const { openDetails } = await import("./components.js?v=687");
-    const { loadFollowed } = await import("./views.js?v=687");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=690");
+    const { openDetails } = await import("./components.js?v=690");
+    const { loadFollowed } = await import("./views.js?v=690");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1195,7 +1199,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=687");
+        const { t: _t } = await import("./i18n.js?v=690");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1553,6 +1557,8 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   const restoreApply = document.getElementById("cards-restore-apply");
   const restoreCancel = document.getElementById("cards-restore-cancel");
   let pendingFile = null;
+  // Geçmiş kayıtları (id -> kayıt): geri al modalı aynı pipe şemasını kursun diye.
+  let histItems = {};
 
   function errKey(code) {
     const c = String(code || "");
@@ -1742,6 +1748,7 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
         return;
       }
       toast(t("cards_import_done", { added: j.added || 0, skipped: j.skipped || 0 }));
+      try { refreshHistoryBtn(); } catch (_) {}
       try { refreshListsAfterWatch(); } catch (_) {}
     } catch (_) {
       toast(t("cards_import_fail"), true);
@@ -1763,6 +1770,26 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     }
   }
 
+  // 2.23.5: Geçmiş butonu — hiç kayıt yoksa DISABLE (ipucu "Henüz içe aktarma yok.").
+  // count verilirse yeniden istek atmaz (açık listenin sonucu kullanılır).
+  function refreshHistoryBtn(count) {
+    if (!histBtn) return;
+    const apply = (has) => {
+      histBtn.disabled = !has;
+      const tip = has ? t("tip_cards_import_history") : t("cards_import_history_empty");
+      histBtn.dataset.tip = tip;
+      histBtn.title = tip;
+    };
+    if (typeof count === "number") {
+      apply(count > 0);
+      return;
+    }
+    fetch("/api/cards/import/history?limit=1", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j) => apply(!!((j && j.items) || []).length))
+      .catch(() => {});
+  }
+
   async function openImportHistory() {
     if (!histModal || !histList) return;
     histList.textContent = t("cards_import_history_empty");
@@ -1771,6 +1798,9 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
       const r = await fetch("/api/cards/import/history?limit=20", { credentials: "same-origin" });
       const j = await r.json().catch(() => ({}));
       const items = (j && j.items) || [];
+      histItems = {};
+      items.forEach((it) => { if (it && it.id != null) histItems[it.id] = it; });
+      refreshHistoryBtn(items.length);
       if (!items.length) {
         histList.textContent = t("cards_import_history_empty");
         return;
@@ -1807,6 +1837,11 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     openImportHistory();
   });
 
+  // 2.23.5: geçmiş yoksa buton DISABLE kalsın — modal açılışında ve ilk yüklemede tazele.
+  const backupMenuEl = document.querySelector('.settings-menu-item[data-target="settings-backup-modal"]');
+  if (backupMenuEl) backupMenuEl.addEventListener("click", () => setTimeout(() => refreshHistoryBtn(), 0));
+  setTimeout(() => refreshHistoryBtn(), 0);
+
   // ---- Geri Al / Geri Yükle (adanmış modallar) ----
   let pendingLogId = 0;
 
@@ -1820,7 +1855,25 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   }
   function openUndo(id, n) {
     pendingLogId = id || 0;
-    if (undoText) undoText.textContent = t("cards_undo_text", { n: n || 0 });
+    if (undoText) {
+      // 2.23.5: içe aktarma modalıyla AYNI pipe şeması (kayıt özeti varsa).
+      const it = histItems[id] || {};
+      const stats = it.stats || null;
+      if (stats) {
+        undoText.className = "cards-imp";
+        undoText.innerHTML = impRowsHTML(stats);
+      } else if (it.total || it.added || n) {
+        undoText.className = "cards-imp";
+        undoText.innerHTML = impRowsHTML({
+          total: it.total || n || 0,
+          new: it.added || n || 0,
+          existing: it.skipped || 0,
+        });
+      } else {
+        undoText.className = "cache-info";
+        undoText.textContent = t("cards_undo_text", { n: n || 0 });
+      }
+    }
     if (undoModal) undoModal.style.display = "flex";
   }
   function openRestore(id, n) {
@@ -2387,10 +2440,56 @@ document.getElementById("s-tz").addEventListener("change", () => {
   });
 });
 
-document.getElementById("s-notification-hour").addEventListener("change", () => {
+// KRITIK KURAL: bildirim saati kontrol (senkron) saatlerinden once olamaz.
+// Sunucu erken degeri 400 ile reddeder; fokus cikisinda kutu ESKI GECERLI
+// saate (yoksa 09:00'a) doner — yuvarlanmis bir saate ziplamaz.
+async function saveNotificationHour() {
   const el = document.getElementById("s-notification-hour");
+  if (!el || notifHourBusy) return;
   const hint = el.closest("label").querySelector(".saved-hint");
-  saveSettingsPartial({ notification_hour: el.value }, hint);
+  const val = String(el.value || "").trim();
+  const m = /^(\d{1,2}):(\d{2})$/.exec(val);
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) {
+    el.value = notifHourValid || "09:00";
+    return;
+  }
+  const norm = `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+  el.value = norm;
+  if (norm === notifHourValid) return;
+  notifHourBusy = true;
+  try {
+    const r = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notification_hour: norm }),
+    });
+    if (r.ok) {
+      notifHourValid = norm;
+      showSavedHint(hint);
+      return;
+    }
+    let j = {};
+    try { j = await r.json(); } catch (_) {}
+    el.value = notifHourValid || "09:00";
+    if (j && j.error === "notification_hour_early") {
+      toast(t("notif_hour_early", { floor: j.floor || "" }), true);
+    } else {
+      toast(t("save_failed"), true);
+    }
+  } catch (_) {
+    el.value = notifHourValid || "09:00";
+    toast(t("save_failed"), true);
+  } finally {
+    notifHourBusy = false;
+  }
+}
+
+document.getElementById("s-notification-hour").addEventListener("change", () => {
+  saveNotificationHour();
+});
+
+document.getElementById("s-notification-hour").addEventListener("blur", () => {
+  saveNotificationHour();
 });
 
 document.getElementById("s-sync-hour").addEventListener("change", () => {
@@ -2588,7 +2687,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=687").then((m) => {
+  import("./notification.js?v=690").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
