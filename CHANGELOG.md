@@ -1,66 +1,57 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
-## 2.24.5 - 01/11/2026-00:52
+## 2.24.6 - 01/11/2026-01:05
 ### TR
-- **"Aktarımı Geri Yükle" onayı çerçeveli düzene geçti:** bilgi tablosu + yeşil not artık `.channel-frame` (`#cards-restore-frame`, 1px `#262a36`, radius 12, padding 14) içinde; "N kart geri yüklensin mi?" metni çerçevenin **bir satır (18px)** altında.
-- **Tür adları kart üzerindeki hap renkleriyle:** `impRowsHTML()` satırlarına tür sınıfı eklendi (`cards-imp-row row-tv|row-movie|row-doc|row-anime`) → dizi `#60a5fa`, film `#22c55e`, belgesel `#faef15`, anime `#f472b6` (renkler tür satırının ilk hücresine; borular turuncu kalır). Renkler **içe aktar** ve **geri yükle** tablolarında geçerli, "Geri Al" tablosu beyaz kalır.
-- **Notlar yeşil:** `#cards-restore-note` ve `#cards-import-note` → `#22c55e` ("Geri Al" notu gri kalır).
-- **İçe aktarma notu metni:** `cards_import_skip_note` 14 dilde **"Var olan kartların üzerine yazılmaz"** (en: "Existing cards are not overwritten").
-- **Buton ağırlığı:** restore onayındaki "Geri Yükle" butonu `font-weight: 400` (bold değil).
-- **Boş kayıt:** `stats` yoksa `#cards-restore-frame` gizlenir (boş çerçeve görünmez), yalnız onay metni kalır.
-- **Cache-buster:** JS zinciri **697 → 698**, `style.css?v=678 → 679`.
-- **Doğrulama:** headless Chrome ölçümü — çerçeve 1px `rgb(38,42,54)`/radius 12/padding 14; tablo `display:table`, `margin:0`; renkler `rgb(96,165,250)`/`rgb(34,197,94)`/`rgb(250,239,21)`/`rgb(244,114,182)`; özet satırı beyaz; restore+import notu `rgb(34,197,94)`; Geri Al tablosu beyaz + notu `rgb(138,144,160)`; buton `font-weight:400`; çerçeve altı → onay metni **18px**; tablo 488px ↔ çerçeve iç 490px. `node --check` OK; ESM bağ testi **LINK_TEMIZ**; `eol.py check` OK (118 LF); moji/FFFD **0**; yerel ↔ pi md5 **18/18**; servis `active`, `/` 200; servis edilen HTML/CSS/JS'te yeni blok/renk kuralları/i18n metni mevcut, eski metin **0**. Statik → restart yok, **Ctrl+F5**.
-- **Sürüm:** 2.24.5 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_frame_20261101_0047/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_frame_20261101_0047/`.
+- İçe aktarma geçmişindeki "Geri Yükle" ve "Geri Al" butonlarının yazısı artık ince (bold değil).
+- "Aktarımı Geri Yükle" ve "Kartları İçe Aktar" pencerelerinde tür satırlarının tamamı renkli: dizi mavi, film yeşil, belgesel sarı, anime pembe.
+- Ayraçlar (|) turuncu, en üstteki özet satırı beyaz kaldı.
 
 ### EN
-- **The "Restore Import" confirmation is now framed:** the info table + green note sit inside a `.channel-frame` (`#cards-restore-frame`, 1px `#262a36`, radius 12, padding 14); the "Restore {n} cards?" text is one line (**18px**) below the frame.
-- **Type names use the card pill colours:** `impRowsHTML()` rows now carry a type class (`cards-imp-row row-tv|row-movie|row-doc|row-anime`) → shows `#60a5fa`, movies `#22c55e`, docs `#faef15`, anime `#f472b6` (applied to the first cell of each type row; pipes stay orange). Colours apply in the **import** and **restore** tables; the "Undo" table stays white.
-- **Notes are green:** `#cards-restore-note` and `#cards-import-note` → `#22c55e` (the "Undo" note stays grey).
-- **Import note text:** `cards_import_skip_note` is now **"Existing cards are not overwritten"** in all 14 languages.
-- **Button weight:** the "Restore" button is `font-weight: 400` (not bold).
-- **Empty record:** when `stats` is missing, `#cards-restore-frame` is hidden (no empty frame) and only the confirm text remains.
-- **Cache-buster:** JS chain **697 → 698**, `style.css?v=678 → 679`.
-- **Verified:** headless Chrome measurements (frame border/radius/padding, `display:table`, all four type colours, white summary row, green restore+import notes, white undo table + grey undo note, `font-weight:400`, 18px gap, table 488px vs 490px inner width); `node --check` OK; ESM link test **LINK_TEMIZ**; `eol.py check` OK (118 LF); mojibake/FFFD **0**; local ↔ pi md5 **18/18**; service `active`, `/` 200; served HTML/CSS/JS contain the new block/rules/i18n text, old text **0**. Static-only → no restart, **Ctrl+F5**.
-- **Version:** 2.24.5 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_frame_20261101_0047/` (4 files + `nextep.db.pre`/`.post`), local `backup/restore_frame_20261101_0047/`.
+- The "Restore" and "Undo" buttons in the import history are no longer bold.
+- In the "Restore Import" and "Import Cards" dialogs the whole type row is colored: shows blue, movies green, documentaries yellow, anime pink.
+- The | separators stay orange and the summary row stays white.
+
+## 2.24.5 - 01/11/2026-00:52
+### TR
+- "Aktarımı Geri Yükle" penceresinde bilgi tablosu ve not artık bir çerçevenin içinde.
+- "N kart geri yüklensin mi?" yazısı çerçevenin bir satır altına alındı.
+- Dizi, film, belgesel ve anime yazıları kartlardaki renklerle yazılıyor (o sürümde yalnız tür adı renkliydi).
+- Geri yükleme ve içe aktarma notları yeşil; "Geri Al" notu gri kaldı.
+- İçe aktarma notu "Var olan kartlar atlanır (birleştirme)" yerine "Var olan kartların üzerine yazılmaz" oldu.
+- "Geri Yükle" butonunun yazısı bold değil.
+
+### EN
+- The "Restore Import" dialog now shows its info table and note inside a frame.
+- The "Restore N cards?" text moved one line below the frame.
+- Show/movie/documentary/anime labels use the card colors (only the type name was colored in that release).
+- Restore and import notes are green; the "Undo" note stayed grey.
+- The import note is now "Existing cards are not overwritten" instead of "Existing cards are skipped (merge)".
+- The "Restore" button text is no longer bold.
 
 ## 2.24.4 - 01/11/2026-00:37
 ### TR
-- **"Aktarımı Geri Yükle" modalı artık içe aktarma onayıyla birebir aynı bilgi şemasını gösteriyor.** Onay gövdesine `#cards-restore-stats` (`.cards-imp`) + `#cards-restore-note` (`.cards-imp-note`) eklendi: `N Kart | X Yeni | Y Mevcut` satırı ve varsa tür kırılımı (dizi/film/belgesel/anime — bölüm + izlenmiş/izlenmemiş dakikaları) aynı `impRowsHTML()` fonksiyonundan üretiliyor; borular alt alta hizalı.
-- **Veri kaynağı:** `/api/cards/import/history` yanıtındaki `stats`; eski kayıtlarda yoksa "Geri Al" ile aynı fallback (`{total, new: added, existing: skipped}`); o da yoksa tablo gizlenir, yalnız onay metni kalır.
-- **CSS:** `.cards-imp` kuralları id ile yazıldığı için `#cards-restore-stats.cards-imp` dört seçici grubuna eklendi (temel tablo, TV font ölçeği, mobil tablo, mobil scrollbar). `#cards-import-restore-modal .modal` → `max-width: 560px` (4 kolon + 3 boru tek satırda sığsın).
-- **i18n:** yeni anahtar `cards_restore_note` (14 dil) — "Yalnız bu aktarımda eklenen kartlar geri getirilir, mevcut kartlarınız etkilenmez."
-- **Cache-buster:** JS zinciri **696 → 697**, `style.css?v=677 → 678`.
-- **Doğrulama:** `node --check` (settings/i18n) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji/FFFD **0**; yerel ↔ pi md5 **18/18 aynı**; servis `active`, `/` 200, `style.css?v=678` 200 (`cards-restore-stats` ×5), `i18n.js?v=697` içinde `cards_restore_note`, `settings.js?v=697` içinde `cards-restore-stats`. Statik → restart yok, **Ctrl+F5**.
-- **Sürüm:** 2.24.4 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_stats_20261101_0031/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_stats_20261101_0031/`.
+- "Aktarımı Geri Yükle" penceresi artık içe aktarma onayıyla aynı bilgileri gösteriyor: kaç kart, kaç yeni, kaç mevcut ve dizi/film/belgesel/anime kırılımı.
+- Bilgiler geçmiş kaydından geliyor; eski kayıtlarda özet yoksa tablo gizleniyor, yalnız onay yazısı kalıyor.
+- Pencere genişliği 560px'e çıkarıldı ki tablo tek satıra sığsın.
+- Yeni metin (14 dil): "Yalnız bu aktarımda eklenen kartlar geri getirilir, mevcut kartlarınız etkilenmez."
 
 ### EN
-- **The "Restore Import" modal now shows exactly the same info schema as the import confirmation.** `#cards-restore-stats` (`.cards-imp`) + `#cards-restore-note` (`.cards-imp-note`) were added to the confirm body: the `N Cards | X New | Y Existing` row plus the per-type breakdown (shows/movies/docs/anime — episodes and watched/unwatched minutes) come from the same `impRowsHTML()`, with pipes aligned column-wise.
-- **Data source:** the `stats` field of `/api/cards/import/history`; for older records the same fallback as "Undo" is used (`{total, new: added, existing: skipped}`); if neither exists the table is hidden and only the confirm text remains.
-- **CSS:** `.cards-imp` rules are id-scoped, so `#cards-restore-stats.cards-imp` was added to four selector groups (base table, TV font scale, mobile table, mobile scrollbar). `#cards-import-restore-modal .modal` → `max-width: 560px` so 4 columns + 3 pipes fit on one line.
-- **i18n:** new key `cards_restore_note` (14 languages) — "Only cards added by this import are restored; existing cards stay untouched."
-- **Cache-buster:** JS chain **696 → 697**, `style.css?v=677 → 678`.
-- **Verified:** `node --check` OK; ESM link test **LINK_TEMIZ** (16 modules/56 edges); `eol.py check` OK (118 LF files); mojibake/FFFD **0**; local ↔ pi md5 **18/18 equal**; service `active`, `/` 200, `style.css?v=678` 200 (`cards-restore-stats` ×5), `i18n.js?v=697` contains `cards_restore_note`, `settings.js?v=697` contains `cards-restore-stats`. Static-only → no restart, **Ctrl+F5**.
-- **Version:** 2.24.4 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_stats_20261101_0031/` (4 files + `nextep.db.pre`/`.post`), local `backup/restore_stats_20261101_0031/`.
+- The "Restore Import" dialog now shows the same details as the import confirmation: total cards, new, existing and the show/movie/documentary/anime breakdown.
+- The data comes from the history record; for old records without a summary the table is hidden and only the confirm text remains.
+- The dialog width was raised to 560px so the table fits on one line.
+- New text (14 languages): "Only cards added by this import are restored; existing cards stay untouched."
 
 ## 2.24.3 - 01/11/2026-00:26
 ### TR
-- **"Aktarımı Geri Yükle" onayı artık "Tüm Bildirimlerini Sil" ile aynı adanmış onay modalı deseninde.** Eski blok bir `settings-modal` (geniş, `channel-frame` + `cache-info` metin + `tab` butonları) idi; yeni blok `modal-overlay` → `modal confirm-modal`, başlık + `modal-close`, `<p class="confirm-text">` ve `.confirm-actions` içinde tek `btn confirm-danger` (**"Geri Yükle"**). İptal butonu kalktı (kapatma: × / karartıya tık / Geri tuşu).
-- **JS:** `components.js` → `closeCardsRestore()` + `openCardsRestoreConfirm()` (`wireDedicatedConfirm("cards-import-restore-modal", …)`), `closeModals()` ve export listesine eklendi. `settings.js` → `openRestore()` modalı açar, isteği callback'te atar (`/api/cards/import/restore` → toast → `refreshListsAfterWatch()` → `openImportHistory()`); `restoreText/restoreApply/restoreCancel/restoreModal/closeRestore` ve elle bağlanan dinleyiciler silindi. Akış notif-clear ile aynı: modal anında kapanır, sonuç toast ile bildirilir.
-- **TV:** `tv.js` → `hookModals` listesine `cards-import-restore-modal` eklendi; Android TV'de Geri tuşu onayı kapatıyor.
-- **i18n:** yeni anahtar yok — mevcut `cards_restore_title` / `cards_restore_text` / `cards_restore_btn` (14 dil) kullanılıyor.
-- **Cache-buster:** JS zinciri **695 → 696** (13 modül + `nextep.js` + `index.html`), `jsver check` OK.
-- **Doğrulama:** `node --check` (components/settings/tv) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji/FFFD **0**; yerel ↔ pi md5 **17/17 aynı**; servis `active`, `/` 200, `components.js?v=696` 200 ve içinde `openCardsRestoreConfirm`; servis edilen sayfada yeni blok var. Statik → restart gerekmez, **Ctrl+F5**.
-- **Sürüm:** 2.24.3 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_modal_20261101_0019/` (4 dosya + `nextep.db.pre` / `nextep.db.post`), yerel `backup/restore_modal_20261101_0019/`.
+- "Aktarımı Geri Yükle" onayı, "Tüm Bildirimlerini Sil" ile aynı sade onay penceresine çevrildi: başlık, kapatma (×), onay yazısı ve tek "Geri Yükle" butonu.
+- "İptal" butonu kaldırıldı; pencere ×, karartıya tıklama veya TV'de Geri tuşuyla kapanıyor.
+- Onaylanınca pencere hemen kapanıyor, sonuç bildirim (toast) olarak gösteriliyor.
 
 ### EN
-- **"Restore Import" confirmation now uses the same dedicated confirm-modal pattern as "Clear All Notifications".** The old block was a wide `settings-modal` (`channel-frame` + `cache-info` text + two `tab` buttons); the new one is `modal-overlay` → `modal confirm-modal` with a header + `modal-close`, a `<p class="confirm-text">` and a single `btn confirm-danger` (**"Restore"**) inside `.confirm-actions`. The Cancel button is gone (close via ×, backdrop click or the TV Back key).
-- **JS:** `components.js` → `closeCardsRestore()` + `openCardsRestoreConfirm()` (via `wireDedicatedConfirm`), added to `closeModals()` and the export list. `settings.js` → `openRestore()` opens the modal and posts in the callback (`/api/cards/import/restore` → toast → `refreshListsAfterWatch()` → `openImportHistory()`); `restoreText/restoreApply/restoreCancel/restoreModal/closeRestore` and the manual listeners were removed. Same flow as notif-clear: the modal closes instantly and the result is reported by toast.
-- **TV:** `tv.js` → `cards-import-restore-modal` added to the `hookModals` list so the Android TV Back key closes it.
-- **i18n:** no new keys — existing `cards_restore_title` / `cards_restore_text` / `cards_restore_btn` (14 languages) are reused.
-- **Cache-buster:** JS chain **695 → 696** (13 modules + `nextep.js` + `index.html`), `jsver check` OK.
-- **Verified:** `node --check` OK; ESM link test **LINK_TEMIZ** (16 modules/56 edges); `eol.py check` OK (118 LF files); mojibake/FFFD **0**; local ↔ pi md5 **17/17 equal**; service `active`, `/` 200, `components.js?v=696` 200 containing `openCardsRestoreConfirm`; served page has the new block. Static-only → no restart, **Ctrl+F5**.
-- **Version:** 2.24.3 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_modal_20261101_0019/` (4 files + `nextep.db.pre` / `nextep.db.post`), local `backup/restore_modal_20261101_0019/`.
+- The "Restore Import" confirmation now uses the same plain confirm dialog as "Clear All Notifications": title, close (×), confirm text and a single "Restore" button.
+- The "Cancel" button is gone; the dialog closes via ×, backdrop click or the TV Back key.
+- On confirm the dialog closes right away and the result is shown as a toast.
 
 ## 2.24.2 - 29/10/2026-16:55
 ### TR

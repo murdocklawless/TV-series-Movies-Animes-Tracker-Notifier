@@ -5925,7 +5925,7 @@ select#s-email-provider.email-lit {
   min-height: 36px;
   padding: 8px 18px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 400;
 }
 .import-hist-empty {
   align-self: center;
@@ -5972,21 +5972,22 @@ select#s-email-provider.email-lit {
   font-weight: 400;
 }
 /* Tur renkleri = kart uzerindeki hap renkleri (.badge / .db-type / .notif-type-pill).
+   SATIRIN TAMAMI renklenir (4 hucre); `|` ayiraclari turuncu kalir, ozet satiri beyaz.
    Iceri aktarma + geri yukleme tablolarinda; "Geri Al" tablosu beyaz kalir. */
-#cards-import-stats .cards-imp-row.row-tv .cards-imp-cell:first-child,
-#cards-restore-stats .cards-imp-row.row-tv .cards-imp-cell:first-child {
+#cards-import-stats .cards-imp-row.row-tv .cards-imp-cell,
+#cards-restore-stats .cards-imp-row.row-tv .cards-imp-cell {
   color: #60a5fa;
 }
-#cards-import-stats .cards-imp-row.row-movie .cards-imp-cell:first-child,
-#cards-restore-stats .cards-imp-row.row-movie .cards-imp-cell:first-child {
+#cards-import-stats .cards-imp-row.row-movie .cards-imp-cell,
+#cards-restore-stats .cards-imp-row.row-movie .cards-imp-cell {
   color: #22c55e;
 }
-#cards-import-stats .cards-imp-row.row-doc .cards-imp-cell:first-child,
-#cards-restore-stats .cards-imp-row.row-doc .cards-imp-cell:first-child {
+#cards-import-stats .cards-imp-row.row-doc .cards-imp-cell,
+#cards-restore-stats .cards-imp-row.row-doc .cards-imp-cell {
   color: #faef15;
 }
-#cards-import-stats .cards-imp-row.row-anime .cards-imp-cell:first-child,
-#cards-restore-stats .cards-imp-row.row-anime .cards-imp-cell:first-child {
+#cards-import-stats .cards-imp-row.row-anime .cards-imp-cell,
+#cards-restore-stats .cards-imp-row.row-anime .cards-imp-cell {
   color: #f472b6;
 }
 html.is-tv #cards-import-stats,
