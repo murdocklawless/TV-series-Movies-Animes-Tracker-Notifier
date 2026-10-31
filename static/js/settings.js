@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=697";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=697";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=697";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm, openCardsRestoreConfirm } from "./components.js?v=697";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=698";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=698";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=698";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm, openCardsRestoreConfirm } from "./components.js?v=698";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1152,7 +1152,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=697");
+      const { errText: _err } = await import("./i18n.js?v=698");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1161,9 +1161,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=697");
-    const { openDetails } = await import("./components.js?v=697");
-    const { loadFollowed } = await import("./views.js?v=697");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=698");
+    const { openDetails } = await import("./components.js?v=698");
+    const { loadFollowed } = await import("./views.js?v=698");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1199,7 +1199,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=697");
+        const { t: _t } = await import("./i18n.js?v=698");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1609,19 +1609,21 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
   }
 
-  function impRow(cells) {
+  function impRow(cells, kind) {
     // 2.24.6: dizi satır görünümündeki .wc-spacer numarası — satır sonuna
     // "fazla genişliği yutan" boş hücre eklenir; aksi halde tablo kapsayıcıya
     // geriliyor ve kolonlar şişip boru önlerinde ekstra boşluk oluşuyor.
+    // 2.24.5: satır türü sınıfı (row-tv/movie/doc/anime) → tür adı kart
+    // üzerindeki hap rengiyle yazılır (CSS: #cards-import-stats/#cards-restore-stats).
     const arr = cells.slice();
     while (arr.length < 4) arr.push("");
     const row = arr
       .map((c) => `<span class="cards-imp-cell${c ? "" : " is-empty"}">${c ? escAttr(c) : ""}</span>`)
       .join("") + `<span class="cards-imp-spacer"></span>`;
-    return `<div class="cards-imp-row">${row}</div>`;
+    return `<div class="cards-imp-row${kind ? " row-" + kind : ""}">${row}</div>`;
   }
 
-  function typeRow(key, b) {
+  function typeRow(kind, key, b) {
     const w = b.watched || 0;
     const u = b.unwatched || 0;
     return [
@@ -1634,26 +1636,32 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
 
   function impRowsHTML(info) {
     info = info || {};
-    const rows = [[
-      t("stats_cards", { n: info.total || 0 }),
-      t("cards_imp_new", { n: info.new || 0 }),
-      t("cards_imp_existing", { n: info.existing || 0 }),
-    ]];
+    const rows = [{
+      kind: "",
+      cells: [
+        t("stats_cards", { n: info.total || 0 }),
+        t("cards_imp_new", { n: info.new || 0 }),
+        t("cards_imp_existing", { n: info.existing || 0 }),
+      ],
+    }];
     const types = info.types || {};
     [["tv", "summary_shows"], ["movie", "summary_films"], ["doc", "summary_docs"], ["anime", "summary_anime"]]
       .forEach(([k, key]) => {
         const b = types[k];
-        if (b && b.total > 0) rows.push(typeRow(key, b));
+        if (b && b.total > 0) rows.push({ kind: k, cells: typeRow(k, key, b) });
       });
     if (info.csv) {
-      rows.push([
-        t("csv_rows", { n: info.csv.rows || 0 }),
-        t("stats_cards", { n: info.csv.ok || 0 }),
-        t("csv_no_id", { n: info.csv.no_id || 0 }),
-        t("csv_bad", { n: info.csv.bad || 0 }),
-      ]);
+      rows.push({
+        kind: "",
+        cells: [
+          t("csv_rows", { n: info.csv.rows || 0 }),
+          t("stats_cards", { n: info.csv.ok || 0 }),
+          t("csv_no_id", { n: info.csv.no_id || 0 }),
+          t("csv_bad", { n: info.csv.bad || 0 }),
+        ],
+      });
     }
-    return rows.map(impRow).join("");
+    return rows.map((r) => impRow(r.cells, r.kind)).join("");
   }
 
   function openImportConfirm(name, info) {
@@ -1890,6 +1898,8 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
         statsEl2.textContent = "";
       }
     }
+    const frameEl2 = document.getElementById("cards-restore-frame");
+    if (frameEl2) frameEl2.style.display = stats ? "" : "none";
     const noteEl2 = document.getElementById("cards-restore-note");
     if (noteEl2) noteEl2.textContent = stats ? t("cards_restore_note") : "";
     openCardsRestoreConfirm(t("cards_restore_text", { n: n || 0 }), async () => {
@@ -2692,7 +2702,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=697").then((m) => {
+  import("./notification.js?v=698").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

@@ -1,6 +1,29 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.5 - 01/11/2026-00:52
+### TR
+- **"Aktarımı Geri Yükle" onayı çerçeveli düzene geçti:** bilgi tablosu + yeşil not artık `.channel-frame` (`#cards-restore-frame`, 1px `#262a36`, radius 12, padding 14) içinde; "N kart geri yüklensin mi?" metni çerçevenin **bir satır (18px)** altında.
+- **Tür adları kart üzerindeki hap renkleriyle:** `impRowsHTML()` satırlarına tür sınıfı eklendi (`cards-imp-row row-tv|row-movie|row-doc|row-anime`) → dizi `#60a5fa`, film `#22c55e`, belgesel `#faef15`, anime `#f472b6` (renkler tür satırının ilk hücresine; borular turuncu kalır). Renkler **içe aktar** ve **geri yükle** tablolarında geçerli, "Geri Al" tablosu beyaz kalır.
+- **Notlar yeşil:** `#cards-restore-note` ve `#cards-import-note` → `#22c55e` ("Geri Al" notu gri kalır).
+- **İçe aktarma notu metni:** `cards_import_skip_note` 14 dilde **"Var olan kartların üzerine yazılmaz"** (en: "Existing cards are not overwritten").
+- **Buton ağırlığı:** restore onayındaki "Geri Yükle" butonu `font-weight: 400` (bold değil).
+- **Boş kayıt:** `stats` yoksa `#cards-restore-frame` gizlenir (boş çerçeve görünmez), yalnız onay metni kalır.
+- **Cache-buster:** JS zinciri **697 → 698**, `style.css?v=678 → 679`.
+- **Doğrulama:** headless Chrome ölçümü — çerçeve 1px `rgb(38,42,54)`/radius 12/padding 14; tablo `display:table`, `margin:0`; renkler `rgb(96,165,250)`/`rgb(34,197,94)`/`rgb(250,239,21)`/`rgb(244,114,182)`; özet satırı beyaz; restore+import notu `rgb(34,197,94)`; Geri Al tablosu beyaz + notu `rgb(138,144,160)`; buton `font-weight:400`; çerçeve altı → onay metni **18px**; tablo 488px ↔ çerçeve iç 490px. `node --check` OK; ESM bağ testi **LINK_TEMIZ**; `eol.py check` OK (118 LF); moji/FFFD **0**; yerel ↔ pi md5 **18/18**; servis `active`, `/` 200; servis edilen HTML/CSS/JS'te yeni blok/renk kuralları/i18n metni mevcut, eski metin **0**. Statik → restart yok, **Ctrl+F5**.
+- **Sürüm:** 2.24.5 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_frame_20261101_0047/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_frame_20261101_0047/`.
+
+### EN
+- **The "Restore Import" confirmation is now framed:** the info table + green note sit inside a `.channel-frame` (`#cards-restore-frame`, 1px `#262a36`, radius 12, padding 14); the "Restore {n} cards?" text is one line (**18px**) below the frame.
+- **Type names use the card pill colours:** `impRowsHTML()` rows now carry a type class (`cards-imp-row row-tv|row-movie|row-doc|row-anime`) → shows `#60a5fa`, movies `#22c55e`, docs `#faef15`, anime `#f472b6` (applied to the first cell of each type row; pipes stay orange). Colours apply in the **import** and **restore** tables; the "Undo" table stays white.
+- **Notes are green:** `#cards-restore-note` and `#cards-import-note` → `#22c55e` (the "Undo" note stays grey).
+- **Import note text:** `cards_import_skip_note` is now **"Existing cards are not overwritten"** in all 14 languages.
+- **Button weight:** the "Restore" button is `font-weight: 400` (not bold).
+- **Empty record:** when `stats` is missing, `#cards-restore-frame` is hidden (no empty frame) and only the confirm text remains.
+- **Cache-buster:** JS chain **697 → 698**, `style.css?v=678 → 679`.
+- **Verified:** headless Chrome measurements (frame border/radius/padding, `display:table`, all four type colours, white summary row, green restore+import notes, white undo table + grey undo note, `font-weight:400`, 18px gap, table 488px vs 490px inner width); `node --check` OK; ESM link test **LINK_TEMIZ**; `eol.py check` OK (118 LF); mojibake/FFFD **0**; local ↔ pi md5 **18/18**; service `active`, `/` 200; served HTML/CSS/JS contain the new block/rules/i18n text, old text **0**. Static-only → no restart, **Ctrl+F5**.
+- **Version:** 2.24.5 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_frame_20261101_0047/` (4 files + `nextep.db.pre`/`.post`), local `backup/restore_frame_20261101_0047/`.
+
 ## 2.24.4 - 01/11/2026-00:37
 ### TR
 - **"Aktarımı Geri Yükle" modalı artık içe aktarma onayıyla birebir aynı bilgi şemasını gösteriyor.** Onay gövdesine `#cards-restore-stats` (`.cards-imp`) + `#cards-restore-note` (`.cards-imp-note`) eklendi: `N Kart | X Yeni | Y Mevcut` satırı ve varsa tür kırılımı (dizi/film/belgesel/anime — bölüm + izlenmiş/izlenmemiş dakikaları) aynı `impRowsHTML()` fonksiyonundan üretiliyor; borular alt alta hizalı.

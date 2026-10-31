@@ -5953,6 +5953,42 @@ select#s-email-provider.email-lit {
 #cards-import-restore-modal .modal {
   max-width: 560px;
 }
+/* Geri Yukle onayi: tablo+not bir cerceve icinde (ayar modallarindaki .channel-frame),
+   onay metni cercevenin BIR SATIR altinda, buton yazisi normal agirlikta. */
+#cards-restore-stats.cards-imp {
+  margin: 0;
+}
+#cards-restore-note.cards-imp-note {
+  margin-top: 0;
+  color: #22c55e;
+}
+#cards-import-note.cards-imp-note {
+  color: #22c55e;
+}
+#cards-import-restore-modal .confirm-text {
+  margin-top: 18px;
+}
+#cards-import-restore-modal .confirm-actions .btn {
+  font-weight: 400;
+}
+/* Tur renkleri = kart uzerindeki hap renkleri (.badge / .db-type / .notif-type-pill).
+   Iceri aktarma + geri yukleme tablolarinda; "Geri Al" tablosu beyaz kalir. */
+#cards-import-stats .cards-imp-row.row-tv .cards-imp-cell:first-child,
+#cards-restore-stats .cards-imp-row.row-tv .cards-imp-cell:first-child {
+  color: #60a5fa;
+}
+#cards-import-stats .cards-imp-row.row-movie .cards-imp-cell:first-child,
+#cards-restore-stats .cards-imp-row.row-movie .cards-imp-cell:first-child {
+  color: #22c55e;
+}
+#cards-import-stats .cards-imp-row.row-doc .cards-imp-cell:first-child,
+#cards-restore-stats .cards-imp-row.row-doc .cards-imp-cell:first-child {
+  color: #faef15;
+}
+#cards-import-stats .cards-imp-row.row-anime .cards-imp-cell:first-child,
+#cards-restore-stats .cards-imp-row.row-anime .cards-imp-cell:first-child {
+  color: #f472b6;
+}
 html.is-tv #cards-import-stats,
 html.tv-mode #cards-import-stats,
 html.is-tv #cards-undo-text,
