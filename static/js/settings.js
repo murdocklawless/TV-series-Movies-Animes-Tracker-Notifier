@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=696";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=696";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=696";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm, openCardsRestoreConfirm } from "./components.js?v=696";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=697";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=697";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=697";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm, openCardsRestoreConfirm } from "./components.js?v=697";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1152,7 +1152,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=696");
+      const { errText: _err } = await import("./i18n.js?v=697");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1161,9 +1161,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=696");
-    const { openDetails } = await import("./components.js?v=696");
-    const { loadFollowed } = await import("./views.js?v=696");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=697");
+    const { openDetails } = await import("./components.js?v=697");
+    const { loadFollowed } = await import("./views.js?v=697");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1199,7 +1199,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=696");
+        const { t: _t } = await import("./i18n.js?v=697");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1873,8 +1873,25 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   }
   // "Aktarimi Geri Yukle" ADANMIS onay modalinda (notif-clear deseni):
   // metin/buton/kapanis modal blogunda; burada yalniz istek atilir.
+  // Tablo "ice aktarma onayi" ve "geri al" ile BIREBIR ayni sema (impRowsHTML).
   function openRestore(id, n) {
     const logId = Number(id) || 0;
+    const it = histItems[id] || {};
+    const stats = it.stats || ((it.total || it.added || n)
+      ? { total: it.total || n || 0, new: it.added || n || 0, existing: it.skipped || 0 }
+      : null);
+    const statsEl2 = document.getElementById("cards-restore-stats");
+    if (statsEl2) {
+      if (stats) {
+        statsEl2.className = "cards-imp";
+        statsEl2.innerHTML = impRowsHTML(stats);
+      } else {
+        statsEl2.className = "";
+        statsEl2.textContent = "";
+      }
+    }
+    const noteEl2 = document.getElementById("cards-restore-note");
+    if (noteEl2) noteEl2.textContent = stats ? t("cards_restore_note") : "";
     openCardsRestoreConfirm(t("cards_restore_text", { n: n || 0 }), async () => {
       if (!logId) return;
       const ok = await importAction("/api/cards/import/restore", { id: logId }, "cards_restore_done", null);
@@ -2675,7 +2692,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=696").then((m) => {
+  import("./notification.js?v=697").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});

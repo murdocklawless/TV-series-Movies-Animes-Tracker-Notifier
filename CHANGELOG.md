@@ -1,6 +1,25 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.4 - 01/11/2026-00:37
+### TR
+- **"Aktarımı Geri Yükle" modalı artık içe aktarma onayıyla birebir aynı bilgi şemasını gösteriyor.** Onay gövdesine `#cards-restore-stats` (`.cards-imp`) + `#cards-restore-note` (`.cards-imp-note`) eklendi: `N Kart | X Yeni | Y Mevcut` satırı ve varsa tür kırılımı (dizi/film/belgesel/anime — bölüm + izlenmiş/izlenmemiş dakikaları) aynı `impRowsHTML()` fonksiyonundan üretiliyor; borular alt alta hizalı.
+- **Veri kaynağı:** `/api/cards/import/history` yanıtındaki `stats`; eski kayıtlarda yoksa "Geri Al" ile aynı fallback (`{total, new: added, existing: skipped}`); o da yoksa tablo gizlenir, yalnız onay metni kalır.
+- **CSS:** `.cards-imp` kuralları id ile yazıldığı için `#cards-restore-stats.cards-imp` dört seçici grubuna eklendi (temel tablo, TV font ölçeği, mobil tablo, mobil scrollbar). `#cards-import-restore-modal .modal` → `max-width: 560px` (4 kolon + 3 boru tek satırda sığsın).
+- **i18n:** yeni anahtar `cards_restore_note` (14 dil) — "Yalnız bu aktarımda eklenen kartlar geri getirilir, mevcut kartlarınız etkilenmez."
+- **Cache-buster:** JS zinciri **696 → 697**, `style.css?v=677 → 678`.
+- **Doğrulama:** `node --check` (settings/i18n) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji/FFFD **0**; yerel ↔ pi md5 **18/18 aynı**; servis `active`, `/` 200, `style.css?v=678` 200 (`cards-restore-stats` ×5), `i18n.js?v=697` içinde `cards_restore_note`, `settings.js?v=697` içinde `cards-restore-stats`. Statik → restart yok, **Ctrl+F5**.
+- **Sürüm:** 2.24.4 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_stats_20261101_0031/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_stats_20261101_0031/`.
+
+### EN
+- **The "Restore Import" modal now shows exactly the same info schema as the import confirmation.** `#cards-restore-stats` (`.cards-imp`) + `#cards-restore-note` (`.cards-imp-note`) were added to the confirm body: the `N Cards | X New | Y Existing` row plus the per-type breakdown (shows/movies/docs/anime — episodes and watched/unwatched minutes) come from the same `impRowsHTML()`, with pipes aligned column-wise.
+- **Data source:** the `stats` field of `/api/cards/import/history`; for older records the same fallback as "Undo" is used (`{total, new: added, existing: skipped}`); if neither exists the table is hidden and only the confirm text remains.
+- **CSS:** `.cards-imp` rules are id-scoped, so `#cards-restore-stats.cards-imp` was added to four selector groups (base table, TV font scale, mobile table, mobile scrollbar). `#cards-import-restore-modal .modal` → `max-width: 560px` so 4 columns + 3 pipes fit on one line.
+- **i18n:** new key `cards_restore_note` (14 languages) — "Only cards added by this import are restored; existing cards stay untouched."
+- **Cache-buster:** JS chain **696 → 697**, `style.css?v=677 → 678`.
+- **Verified:** `node --check` OK; ESM link test **LINK_TEMIZ** (16 modules/56 edges); `eol.py check` OK (118 LF files); mojibake/FFFD **0**; local ↔ pi md5 **18/18 equal**; service `active`, `/` 200, `style.css?v=678` 200 (`cards-restore-stats` ×5), `i18n.js?v=697` contains `cards_restore_note`, `settings.js?v=697` contains `cards-restore-stats`. Static-only → no restart, **Ctrl+F5**.
+- **Version:** 2.24.4 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_stats_20261101_0031/` (4 files + `nextep.db.pre`/`.post`), local `backup/restore_stats_20261101_0031/`.
+
 ## 2.24.3 - 01/11/2026-00:26
 ### TR
 - **"Aktarımı Geri Yükle" onayı artık "Tüm Bildirimlerini Sil" ile aynı adanmış onay modalı deseninde.** Eski blok bir `settings-modal` (geniş, `channel-frame` + `cache-info` metin + `tab` butonları) idi; yeni blok `modal-overlay` → `modal confirm-modal`, başlık + `modal-close`, `<p class="confirm-text">` ve `.confirm-actions` içinde tek `btn confirm-danger` (**"Geri Yükle"**). İptal butonu kalktı (kapatma: × / karartıya tık / Geri tuşu).

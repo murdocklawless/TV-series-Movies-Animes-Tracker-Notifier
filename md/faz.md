@@ -1622,3 +1622,15 @@
 - **Cache-buster:** JS zinciri **695 → 696** (13 modül + `nextep.js` + `index.html` damgası), `jsver check` OK.
 - **Doğrulama:** `node --check` (3 dosya) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji=0 / U+FFFD=0; yerel ↔ pi md5 **17/17 aynı**; servis `active`, `/` 200, `components.js?v=696` 200 + içinde `openCardsRestoreConfirm` (2); servis edilen sayfada `confirm-danger` 18 (17→18). Statik → restart yok, Ctrl+F5.
 - **Sürüm:** **2.24.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_modal_20261101_0019/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_modal_20261101_0019/`.
+
+## FAZ NOTLARI — "Aktarımı Geri Yükle" modalına içe aktarma özet şeması (01/11/2026, sürüm 2.24.4)
+
+- **Talep:** "Aktarımı Geri Yükle modalı içine içe aktar butonu ile gelen modalın içindeki bilgiler gibi bilgiler koyalım, bire bir aynı şemayı kullanacağız."
+- **HTML (`static/index.html`):** onay gövdesi `#cards-restore-stats.cards-imp` + `#cards-restore-note.cards-imp-note` + `.confirm-text` + `.confirm-actions` sırasına geçti; notif-clear kalıbı (başlık + × + tek `btn confirm-danger`) korundu. `style.css?v=677 → 678`.
+- **Şema:** yeni bir çizim YOK — içe aktarma onayı ve "Geri Al" ile aynı `impRowsHTML()` (4 hücre + `|` borular + `.cards-imp-spacer`). Satır 1: `N Kart | X Yeni | Y Mevcut`; sonrası tür kırılımı (dizi/film/belgesel/anime; bölüm sayısı + izlenmiş/izlenmemiş dakika).
+- **Veri (`settings.js` → `openRestore`):** `histItems[id].stats` (history API `extra.stats`) → yoksa `{total, new: added, existing: skipped}` → o da yoksa tablo gizlenir + yalnız onay metni. `openCardsRestoreConfirm` (wireDedicatedConfirm) aynen kullanılıyor.
+- **CSS (`style.css`):** `.cards-imp` id ile yazıldığı için `#cards-restore-stats.cards-imp` dört gruba eklendi — temel tablo (5809), TV font (5954), mobil tablo (5963), mobil scrollbar (5973). `#cards-import-restore-modal .modal { max-width: 560px }` (4 kolon + 3 boru sığsın).
+- **i18n:** `cards_restore_note` — 14 dilde ("Yalnız bu aktarımda eklenen kartlar geri getirilir, mevcut kartlarınız etkilenmez.").
+- **Cache-buster:** JS **696 → 697** (i18n + settings değişti, zincir tüm modüllere yayıldı), `style.css?v=` **677 → 678** (CSS damgası elle; `jsver` yalnız JS yönetir).
+- **Doğrulama:** `node --check` (settings/i18n) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji/FFFD **0**; yerel ↔ pi md5 **18/18 aynı**; pi servis `active`, `/` 200, `style.css?v=678` 200 (`cards-restore-stats` ×5), `i18n.js?v=697`'de `cards_restore_note`, `settings.js?v=697`'de `cards-restore-stats`. Statik → restart yok, Ctrl+F5.
+- **Sürüm:** **2.24.4** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_stats_20261101_0031/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_stats_20261101_0031/`.

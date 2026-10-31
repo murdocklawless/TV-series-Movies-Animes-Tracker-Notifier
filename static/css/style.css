@@ -5807,7 +5807,8 @@ select#s-email-provider.email-lit {
    NOT: id ile yazılır — `.channel-frame > div { display:flex; column }` kuralı
    (0,1,1) sınıf seçicisini eziyordu; id+class (1,1,0) onu yener. */
 #cards-import-stats.cards-imp,
-#cards-undo-text.cards-imp {
+#cards-undo-text.cards-imp,
+#cards-restore-stats.cards-imp {
   /* 2.24.5: dizi satır görünümünün BİREBİR aynısı — font küçültüldü, boşluklar ORANSAL
      (satır görünümü 0.8rem: padding 6px / margin 8px → em karşılıkları kullanılıyor). */
   display: table;
@@ -5948,20 +5949,24 @@ select#s-email-provider.email-lit {
 }
 /* 4 kolon sığsın (film/dizi/anime satırları) */
 #cards-import-confirm-modal .modal,
-#cards-import-undo-modal .modal {
+#cards-import-undo-modal .modal,
+#cards-import-restore-modal .modal {
   max-width: 560px;
 }
 html.is-tv #cards-import-stats,
 html.tv-mode #cards-import-stats,
 html.is-tv #cards-undo-text,
-html.tv-mode #cards-undo-text {
+html.tv-mode #cards-undo-text,
+html.is-tv #cards-restore-stats,
+html.tv-mode #cards-restore-stats {
   font-size: calc(0.75rem * var(--tv-scale));
 }
 @media (max-width: 600px) {
   /* Mobil: TABLO korunur (borular alt alta hizalı) + satır yana kaydırılır.
      Kaydırma çubuğu gizli — dokunmatikle sağa/sola sürüklenir. */
   #cards-import-stats.cards-imp,
-  #cards-undo-text.cards-imp {
+  #cards-undo-text.cards-imp,
+  #cards-restore-stats.cards-imp {
     display: table;
     overflow-x: auto;
     overflow-y: hidden;
@@ -5971,7 +5976,8 @@ html.tv-mode #cards-undo-text {
     font-size: 0.62rem;
   }
   #cards-import-stats.cards-imp::-webkit-scrollbar,
-  #cards-undo-text.cards-imp::-webkit-scrollbar {
+  #cards-undo-text.cards-imp::-webkit-scrollbar,
+  #cards-restore-stats.cards-imp::-webkit-scrollbar {
     display: none;
   }
 }
