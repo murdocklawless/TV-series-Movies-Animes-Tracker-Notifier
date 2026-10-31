@@ -5960,10 +5960,10 @@ select#s-email-provider.email-lit {
 }
 #cards-restore-note.cards-imp-note {
   margin-top: 0;
-  color: #22c55e;
+  color: #fff;
 }
 #cards-import-note.cards-imp-note {
-  color: #22c55e;
+  color: #fff;
 }
 #cards-import-restore-modal .confirm-text {
   margin-top: 18px;

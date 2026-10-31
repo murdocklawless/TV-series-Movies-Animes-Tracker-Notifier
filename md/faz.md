@@ -1655,3 +1655,12 @@
 - **Doğrulama (headless Chrome):** her tür satırında `cells=4` ve tek renk; borular turuncu; özet beyaz; içe aktarma tv renkli; Geri Al beyaz; `.import-hist-btn` `font-weight:400`; notlar restore/import yeşil, Geri Al gri. `eol.py check` OK (118 LF); moji/FFFD 0; md5 yerel ↔ pi aynı (style.css, index.html); servis `active`, `/` 200, `style.css?v=680` 200; servis edilen CSS'te `cards-imp-cell:first-child` 0. Statik → restart yok, Ctrl+F5.
 - **CHANGELOG sadeleştirildi:** 2.24.3 / 2.24.4 / 2.24.5 girişleri teknik ayrıntı yerine kısa, anlaşılır cümlelerle yeniden yazıldı; 2.24.6 girişi 3 madde. Bundan sonraki girişler de bu sade üslupla yazılacak (kod/CSS ayrıntısı yerine "kullanıcı ne görür").
 - **Sürüm:** **2.24.6** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/rowcolor_20261101_0059/` (index.html, style.css + `nextep.db.pre`/`.post`), yerel `backup/rowcolor_20261101_0059/`.
+
+## FAZ NOTLARI — Açıklama notları beyaz + CHANGELOG sadelik kuralı (01/11/2026, sürüm 2.24.7)
+
+- **İstek:** "Kartları İçe Aktar" penceresindeki "Var olan kartların üzerine yazılmaz" ve "Aktarımı Geri Yükle" penceresindeki "Yalnız bu aktarımda eklenen kartlar geri getirilir…" yazıları beyaz olsun — film satırının yeşiliyle karışıyordu. Ayrıca "CHANGELOG basit ve anlaşılır olmalı" kuralı kalıcı olarak kaydedilsin.
+- **CSS (`style.css`):** `#cards-restore-note.cards-imp-note` ve `#cards-import-note.cards-imp-note` → `color: #fff` (önce `#22c55e`). `.cards-imp-note` temel rengi `#8a90a0` olduğu için "Geri Al" notu gri kaldı.
+- **HTML:** `style.css?v=680 → 681`. JS değişmedi → build **698**.
+- **Doğrulama (headless Chrome):** `NOTE restore=rgb(255,255,255) import=rgb(255,255,255) undo=rgb(138,144,160)`; `eol.py check` OK (118 LF); moji/FFFD 0; md5 yerel ↔ pi aynı (style.css, index.html); servis `active`, `/` 200, `style.css?v=681` 200. Statik → restart yok, Ctrl+F5.
+- **Kural kaydı (`md/AGENTS.md`):** yeni bölüm **"KRİTİK KURAL: CHANGELOG sade ve anlaşılır olmalı (teknik döküm yasak)"** — seçici/sınıf/id/hex/dosya/fonksiyon/`?v=`/md5/test adı CHANGELOG'a yazılmaz (faz notuna gider), madde başına tek cümle, 3-5 madde, TR/EN aynı sayıda. "git commit + push" kuralının 5. adımı bu kurala atıf yapacak şekilde güncellendi.
+- **Sürüm:** **2.24.7** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/notewhite_20261101_0111/` (index.html, style.css + `nextep.db.pre`/`.post`), yerel `backup/notewhite_20261101_0111/`.

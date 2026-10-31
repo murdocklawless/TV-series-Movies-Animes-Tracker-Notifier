@@ -1,6 +1,15 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.7 - 01/11/2026-01:14
+### TR
+- "Kartları İçe Aktar" ve "Aktarımı Geri Yükle" pencerelerindeki açıklama yazıları artık beyaz (yeşil, film satırının yeşiliyle karışıyordu).
+- "Geri Al" penceresindeki açıklama yazısı değişmedi (gri).
+
+### EN
+- The explanatory notes in the "Import Cards" and "Restore Import" dialogs are now white (the green was confusing next to the green movie row).
+- The note in the "Undo" dialog is unchanged (grey).
+
 ## 2.24.6 - 01/11/2026-01:05
 ### TR
 - İçe aktarma geçmişindeki "Geri Yükle" ve "Geri Al" butonlarının yazısı artık ince (bold değil).
