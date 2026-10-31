@@ -1609,3 +1609,16 @@
 - **Cache-buster:** JS **694 → 695**, `style.css?v=676 → 677`.
 - **Doğrulama:** `css677=200`; deployed CSS'te `display:table · width:100% · .cards-imp-spacer`; md5 5/5 (JS, CSS, index, hizalama.md, AGENTS.md); `jsver check` OK (695); `eol` OK (118 dosya).
 - **Sürüm:** **2.24.2** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/surum_2.24.2_20261029_165518/` (pre + post).
+
+## FAZ NOTLARI — "Aktarımı Geri Yükle" onayı notif-clear desenine geçti (01/11/2026, sürüm 2.24.3)
+
+- **Talep:** "Aktarımı Geri Yükle modalını aynı Tüm Bildirimlerini Sil modalı gibi yapalım" — yani geniş ayar modalı yerine kompakt adanmış onay modalı.
+- **HTML (`static/index.html`):** `#cards-import-restore-modal` → `modal-overlay` + `modal confirm-modal`; başlık (`cards_restore_title`) + `modal-close`, `<p class="confirm-text">`, `.confirm-actions` içinde tek `btn confirm-danger` (`cards_restore_btn` = "Geri Yükle"). Kaldırılanlar: `settings-modal`, `channel-frame`, `#cards-restore-text`, `#cards-restore-cancel`. Onay metni `cards_restore_text` ({n} kart geri yüklensin mi?) artık `.confirm-text`e yazılıyor.
+- **JS (`components.js`):** `closeCardsRestore()` + `openCardsRestoreConfirm()` → `wireDedicatedConfirm("cards-import-restore-modal", …)`; `closeModals()` + export listesine kayıt.
+- **JS (`settings.js`):** `openRestore(id, n)` modalı açar; istek callback içinde (`/api/cards/import/restore` → toast `cards_restore_done` → `refreshListsAfterWatch()` → `openImportHistory()`). `restoreText/restoreApply/restoreCancel/restoreModal/closeRestore` ve elle bağlanan iki dinleyici silindi; `pendingLogId` yalnız "Geri Al" akışında kaldı.
+- **TV (`tv.js`):** `hookModals` listesine `cards-import-restore-modal` eklendi (Geri tuşu onayı kapatır). `openSettingsModal` artık bu modalı zorla kapatmaz (sınıf değişti) — akışta karşılığı yok.
+- **Davranış:** notif-clear ile aynı — modal anında kapanır, sonuç toast ile bildirilir (eski buton-içi loading görünmez oldu). "Aktarımı Geri Al" modalı (pipe tablo özeti gösterdiği için) bilinçli olarak geniş düzeninde bırakıldı.
+- **i18n:** yeni anahtar YOK — mevcut 14 dilli `cards_restore_title/text/btn` kullanıldı.
+- **Cache-buster:** JS zinciri **695 → 696** (13 modül + `nextep.js` + `index.html` damgası), `jsver check` OK.
+- **Doğrulama:** `node --check` (3 dosya) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji=0 / U+FFFD=0; yerel ↔ pi md5 **17/17 aynı**; servis `active`, `/` 200, `components.js?v=696` 200 + içinde `openCardsRestoreConfirm` (2); servis edilen sayfada `confirm-danger` 18 (17→18). Statik → restart yok, Ctrl+F5.
+- **Sürüm:** **2.24.3** (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_modal_20261101_0019/` (4 dosya + `nextep.db.pre`/`.post`), yerel `backup/restore_modal_20261101_0019/`.

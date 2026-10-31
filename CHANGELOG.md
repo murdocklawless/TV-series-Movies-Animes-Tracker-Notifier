@@ -1,6 +1,25 @@
 # NextEp Değişiklik Geçmişi
 <!-- Yeni sürümde en üste `## X.Y - GG/AA/YYYY-SS:DD` bölümü + `### TR` / `### EN` listesi ekle -->
 
+## 2.24.3 - 01/11/2026-00:26
+### TR
+- **"Aktarımı Geri Yükle" onayı artık "Tüm Bildirimlerini Sil" ile aynı adanmış onay modalı deseninde.** Eski blok bir `settings-modal` (geniş, `channel-frame` + `cache-info` metin + `tab` butonları) idi; yeni blok `modal-overlay` → `modal confirm-modal`, başlık + `modal-close`, `<p class="confirm-text">` ve `.confirm-actions` içinde tek `btn confirm-danger` (**"Geri Yükle"**). İptal butonu kalktı (kapatma: × / karartıya tık / Geri tuşu).
+- **JS:** `components.js` → `closeCardsRestore()` + `openCardsRestoreConfirm()` (`wireDedicatedConfirm("cards-import-restore-modal", …)`), `closeModals()` ve export listesine eklendi. `settings.js` → `openRestore()` modalı açar, isteği callback'te atar (`/api/cards/import/restore` → toast → `refreshListsAfterWatch()` → `openImportHistory()`); `restoreText/restoreApply/restoreCancel/restoreModal/closeRestore` ve elle bağlanan dinleyiciler silindi. Akış notif-clear ile aynı: modal anında kapanır, sonuç toast ile bildirilir.
+- **TV:** `tv.js` → `hookModals` listesine `cards-import-restore-modal` eklendi; Android TV'de Geri tuşu onayı kapatıyor.
+- **i18n:** yeni anahtar yok — mevcut `cards_restore_title` / `cards_restore_text` / `cards_restore_btn` (14 dil) kullanılıyor.
+- **Cache-buster:** JS zinciri **695 → 696** (13 modül + `nextep.js` + `index.html`), `jsver check` OK.
+- **Doğrulama:** `node --check` (components/settings/tv) OK; ESM bağ testi **LINK_TEMIZ** (16 modül/56 kenar); `eol.py check` OK (118 dosya LF); moji/FFFD **0**; yerel ↔ pi md5 **17/17 aynı**; servis `active`, `/` 200, `components.js?v=696` 200 ve içinde `openCardsRestoreConfirm`; servis edilen sayfada yeni blok var. Statik → restart gerekmez, **Ctrl+F5**.
+- **Sürüm:** 2.24.3 (pi DB `version` + `VERSION` eşit, `integrity_check=ok`). Yedek: `bak/restore_modal_20261101_0019/` (4 dosya + `nextep.db.pre` / `nextep.db.post`), yerel `backup/restore_modal_20261101_0019/`.
+
+### EN
+- **"Restore Import" confirmation now uses the same dedicated confirm-modal pattern as "Clear All Notifications".** The old block was a wide `settings-modal` (`channel-frame` + `cache-info` text + two `tab` buttons); the new one is `modal-overlay` → `modal confirm-modal` with a header + `modal-close`, a `<p class="confirm-text">` and a single `btn confirm-danger` (**"Restore"**) inside `.confirm-actions`. The Cancel button is gone (close via ×, backdrop click or the TV Back key).
+- **JS:** `components.js` → `closeCardsRestore()` + `openCardsRestoreConfirm()` (via `wireDedicatedConfirm`), added to `closeModals()` and the export list. `settings.js` → `openRestore()` opens the modal and posts in the callback (`/api/cards/import/restore` → toast → `refreshListsAfterWatch()` → `openImportHistory()`); `restoreText/restoreApply/restoreCancel/restoreModal/closeRestore` and the manual listeners were removed. Same flow as notif-clear: the modal closes instantly and the result is reported by toast.
+- **TV:** `tv.js` → `cards-import-restore-modal` added to the `hookModals` list so the Android TV Back key closes it.
+- **i18n:** no new keys — existing `cards_restore_title` / `cards_restore_text` / `cards_restore_btn` (14 languages) are reused.
+- **Cache-buster:** JS chain **695 → 696** (13 modules + `nextep.js` + `index.html`), `jsver check` OK.
+- **Verified:** `node --check` OK; ESM link test **LINK_TEMIZ** (16 modules/56 edges); `eol.py check` OK (118 LF files); mojibake/FFFD **0**; local ↔ pi md5 **17/17 equal**; service `active`, `/` 200, `components.js?v=696` 200 containing `openCardsRestoreConfirm`; served page has the new block. Static-only → no restart, **Ctrl+F5**.
+- **Version:** 2.24.3 (pi DB `version` + `VERSION` equal, `integrity_check=ok`). Backups: `bak/restore_modal_20261101_0019/` (4 files + `nextep.db.pre` / `nextep.db.post`), local `backup/restore_modal_20261101_0019/`.
+
 ## 2.24.2 - 29/10/2026-16:55
 ### TR
 - **İçe aktarma/geri al özet bloğu artık dizi satır görünümüyle aynı düzende: kolonlar en uzun metne göre, `|`'ler hizalı.** Kök neden: blok bir `.channel-frame` (flex, `align-items: stretch`) öğesi olduğu için `display: table` kapsayıcıya **geriliyordu**; `table-layout: auto` artan genişliği kolonlara dağıtınca boru önlerinde 4-8 karakterlik boşluk oluşuyordu.

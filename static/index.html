@@ -771,19 +771,17 @@
     </div>
   </div>
 
-  <div id="cards-import-restore-modal" class="modal-overlay settings-modal-overlay" style="display:none">
-    <div class="modal settings-modal">
+  <!-- Adanmis onay modali (notif-clear deseni) — paylasimli modal yasak -->
+  <div id="cards-import-restore-modal" class="modal-overlay" style="display:none">
+    <div class="modal confirm-modal">
       <div class="modal-header">
         <h3 data-i18n="cards_restore_title">Aktarımı Geri Yükle</h3>
-        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+        <button class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="channel-frame">
-          <div id="cards-restore-text" class="cache-info"></div>
-        </div>
-        <div class="test-row" style="margin-top:12px; justify-content:center; display:flex; gap:12px;">
-          <button id="cards-restore-cancel" class="tab" data-i18n="cancel">İptal</button>
-          <button id="cards-restore-apply" class="tab" data-i18n="cards_restore_btn">Geri Yükle</button>
+        <p class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button class="btn confirm-danger" data-i18n="cards_restore_btn">Geri Yükle</button>
         </div>
       </div>
     </div>
@@ -1753,6 +1751,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/nextep.js?v=695"></script>
+  <script type="module" src="/static/js/nextep.js?v=696"></script>
 </body>
 </html>

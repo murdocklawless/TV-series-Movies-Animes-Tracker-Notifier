@@ -1,9 +1,9 @@
 // Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=695";
-import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=695";
-import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=695";
-import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm } from "./components.js?v=695";
+import { t, checkTmdbKey, applyLang, errText } from "./i18n.js?v=696";
+import { toast, escAttr, CHECK_SVG, HEART_SVG, ROLE_X_SVG, ROLE_PAUSE_SVG, ROLE_PLAY_SVG } from "./utils.js?v=696";
+import { activateUtilityTab, refreshListsAfterWatch } from "./views.js?v=696";
+import { openStremioDisconnectConfirm, openRemoteDisconnectConfirm, openRemotePeerDeleteConfirm, openStremioInstallModal, closeStremioInstallModal, openStremioTunnelRemoveConfirm, openRemoteResetConfirm, openCalendarDisconnectConfirm, openPlexDisconnectConfirm, openJellyfinDisconnectConfirm, openEmbyDisconnectConfirm, openCardsRestoreConfirm } from "./components.js?v=696";
 
 // 2.18: cift modul yuklemesine karsi tek-seferlik baglama korumasi.
 // Ayni modul iki farkli ?v= URL'si ile yuklenirse (cache-buster zinciri kirilirsa)
@@ -1152,7 +1152,7 @@ async function openFavListing(kind, ident, title) {
     const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) {
-      const { errText: _err } = await import("./i18n.js?v=695");
+      const { errText: _err } = await import("./i18n.js?v=696");
       body.innerHTML = `<div class="releases-error">${_err(data.error) || t("data_failed")}</div>`;
       return;
     }
@@ -1161,9 +1161,9 @@ async function openFavListing(kind, ident, title) {
       body.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
       return;
     }
-    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=695");
-    const { openDetails } = await import("./components.js?v=695");
-    const { loadFollowed } = await import("./views.js?v=695");
+    const { posterHTML, scoreTag, typeLabel, applyTitleHint, resultCardRows, cardDateLine } = await import("./utils.js?v=696");
+    const { openDetails } = await import("./components.js?v=696");
+    const { loadFollowed } = await import("./views.js?v=696");
     const grid = document.createElement("div");
     grid.className = "poster-grid person-grid";
     for (const item of items) {
@@ -1199,7 +1199,7 @@ async function openFavListing(kind, ident, title) {
           }),
         });
         const j = await r.json();
-        const { t: _t } = await import("./i18n.js?v=695");
+        const { t: _t } = await import("./i18n.js?v=696");
         toast(r.ok ? _t("added", { name: item.title }) : j.error || _t("error"));
         if (r.ok) {
           loadFollowed(mediaType === "tv" ? "dizi" : "film");
@@ -1552,10 +1552,6 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
   const undoText = document.getElementById("cards-undo-text");
   const undoApply = document.getElementById("cards-undo-apply");
   const undoCancel = document.getElementById("cards-undo-cancel");
-  const restoreModal = document.getElementById("cards-import-restore-modal");
-  const restoreText = document.getElementById("cards-restore-text");
-  const restoreApply = document.getElementById("cards-restore-apply");
-  const restoreCancel = document.getElementById("cards-restore-cancel");
   let pendingFile = null;
   // Geçmiş kayıtları (id -> kayıt): geri al modalı aynı pipe şemasını kursun diye.
   let histItems = {};
@@ -1852,10 +1848,6 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     if (undoModal) undoModal.style.display = "none";
     pendingLogId = 0;
   }
-  function closeRestore() {
-    if (restoreModal) restoreModal.style.display = "none";
-    pendingLogId = 0;
-  }
   function openUndo(id, n) {
     pendingLogId = id || 0;
     if (undoText) {
@@ -1879,10 +1871,17 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     }
     if (undoModal) undoModal.style.display = "flex";
   }
+  // "Aktarimi Geri Yukle" ADANMIS onay modalinda (notif-clear deseni):
+  // metin/buton/kapanis modal blogunda; burada yalniz istek atilir.
   function openRestore(id, n) {
-    pendingLogId = id || 0;
-    if (restoreText) restoreText.textContent = t("cards_restore_text", { n: n || 0 });
-    if (restoreModal) restoreModal.style.display = "flex";
+    const logId = Number(id) || 0;
+    openCardsRestoreConfirm(t("cards_restore_text", { n: n || 0 }), async () => {
+      if (!logId) return;
+      const ok = await importAction("/api/cards/import/restore", { id: logId }, "cards_restore_done", null);
+      if (!ok) return;
+      try { refreshListsAfterWatch(); } catch (_) {}
+      openImportHistory();
+    });
   }
 
   if (histList) histList.addEventListener("click", (e) => {
@@ -1942,20 +1941,6 @@ if (nxOnce("cards_transfer")) (function initCardsTransfer() {
     closeUndo();
   });
 
-  if (restoreApply) restoreApply.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    if (!pendingLogId) return;
-    const ok = await importAction("/api/cards/import/restore", { id: pendingLogId }, "cards_restore_done", restoreApply);
-    if (ok) {
-      closeRestore();
-      try { refreshListsAfterWatch(); } catch (_) {}
-      openImportHistory();
-    }
-  });
-  if (restoreCancel) restoreCancel.addEventListener("click", (e) => {
-    e.stopPropagation();
-    closeRestore();
-  });
 })();
 
 // NextEp Güncelleme: versiyon satırı + ayrıntı modalı + kontrol/güncelle butonları
@@ -2690,7 +2675,7 @@ if (nxOnce("channels_accordion")) (function initChannelsAccordion() {
 
 // Bildirim Merkezi ayarlari: degisimde state + kayit + menu aciksa liste tazele
 function refreshNotifMenuIfOpen() {
-  import("./notification.js?v=695").then((m) => {
+  import("./notification.js?v=696").then((m) => {
     const menu = document.getElementById("notif-menu");
     if (menu && menu.classList.contains("open")) m.fetchList();
   }).catch(() => {});
